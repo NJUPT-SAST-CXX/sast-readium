@@ -1,6 +1,7 @@
 #include "WidgetFactory.h"
 #include "../command/Commands.h"
 #include "../controller/PageController.h"
+#include "qmessagebox.h"
 
 WidgetFactory::WidgetFactory(PageController* controller, QObject* parent)
     : QObject(parent), _controller(controller) {

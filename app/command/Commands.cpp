@@ -1,5 +1,6 @@
 #include "Commands.h"
 #include "../controller/PageController.h"
+#include "qmessagebox.h"
 Command::Command(QObject* parent) : QObject(parent) {}
 
 PrevPageCommand::PrevPageCommand(PageController* controller, QObject* parent)

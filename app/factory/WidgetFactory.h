@@ -5,6 +5,7 @@
 #include <QPushButton>
 #include <QMap>
 #include "../controller/PageController.h"
+#include <QMessageBox>
 
 class Controller;
 class Command;

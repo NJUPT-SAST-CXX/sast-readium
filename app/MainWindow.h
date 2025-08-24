@@ -12,6 +12,7 @@
 #include "ui/ToolBar.h"
 #include "ui/ViewWidget.h"
 #include "factory/WidgetFactory.h"
+#include "model/RenderModel.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -43,4 +44,5 @@ private:
 
     DocumentModel* documentModel;
     PageModel* pageModel;
+    RenderModel* renderModel;
 };

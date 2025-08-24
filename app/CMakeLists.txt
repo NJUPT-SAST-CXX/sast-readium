@@ -52,6 +52,7 @@ target_sources(
 
     model/DocumentModel.cpp
     model/PageModel.cpp
+    model/RenderModel.cpp
 
     delegate/PageNavigationDelegate.cpp
     
