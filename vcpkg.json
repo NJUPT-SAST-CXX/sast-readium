@@ -8,7 +8,14 @@
         "qtbase",
         "qtspeech",
         "qtsvg",
-        "spdlog",
+        {
+            "name": "fmt",
+            "version>=": "11.2.0"
+        },
+        {
+            "name": "spdlog",
+            "version>=": "1.15.3"
+        },
         {
             "name": "qttools",
             "features": [

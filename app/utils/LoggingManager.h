@@ -171,7 +171,7 @@ public:
 public slots:
     void onLogMessage(const QString& message, int level);
     void onPeriodicFlush();
-    void onConfigurationChanged();
+    void onConfigurationChanged(){};
 
 signals:
     void loggingInitialized();

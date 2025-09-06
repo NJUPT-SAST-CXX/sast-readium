@@ -176,22 +176,22 @@ public:
     void applyEnvironmentOverrides();
 
 public slots:
-    void onConfigurationFileChanged(const QString& path);
-    void onGlobalLevelChanged(int level);
-    void onSinkLevelChanged(const QString& sinkName, int level);
-    void onCategoryLevelChanged(const QString& categoryName, int level);
+    void onConfigurationFileChanged(const QString& path){};
+    void onGlobalLevelChanged(int level){};
+    void onSinkLevelChanged(const QString& sinkName, int level){};
+    void onCategoryLevelChanged(const QString& categoryName, int level){};
 
 signals:
     void configurationChanged();
     void configurationLoaded(ConfigSource source);
-    void configurationSaved(ConfigSource source);
-    void configurationError(const QString& error);
+    void configurationSaved(ConfigSource source) const;
+    void configurationError(const QString& error) const;
     void sinkConfigurationChanged(const QString& sinkName);
     void categoryConfigurationChanged(const QString& categoryName);
     void globalConfigurationChanged();
 
 private slots:
-    void handleFileSystemChange(const QString& path);
+    void handleFileSystemChange(const QString& path){};
 
 private:
     void initializeDefaults();
@@ -272,8 +272,8 @@ public:
     LoggingConfigBuilder& useDebugPreset();
     
     // Build the configuration
-    LoggingConfig build() const;
-    std::unique_ptr<LoggingConfig> buildUnique() const;
+    LoggingConfig& build() const;
+    // std::unique_ptr<LoggingConfig> buildUnique() const;
 
 private:
     std::unique_ptr<LoggingConfig> m_config;

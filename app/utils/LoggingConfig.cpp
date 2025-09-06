@@ -54,7 +54,7 @@ bool LoggingConfig::loadFromSettings(QSettings& settings)
         
         // Load global configuration
         settings.beginGroup("Global");
-        m_globalConfig = globalConfigFromSettings(settings);
+        // m_globalConfig = globalConfigFromSettings(settings);
         settings.endGroup();
         
         // Load sink configurations
@@ -63,9 +63,9 @@ bool LoggingConfig::loadFromSettings(QSettings& settings)
         QStringList sinkNames = settings.childGroups();
         for (const QString& sinkName : sinkNames) {
             settings.beginGroup(sinkName);
-            SinkConfiguration config = sinkConfigFromSettings(settings);
-            config.name = sinkName;
-            m_sinkConfigs.append(config);
+            // SinkConfiguration config = sinkConfigFromSettings(settings);
+            // config.name = sinkName;
+            // m_sinkConfigs.append(config);
             settings.endGroup();
         }
         settings.endGroup();
@@ -76,9 +76,9 @@ bool LoggingConfig::loadFromSettings(QSettings& settings)
         QStringList categoryNames = settings.childGroups();
         for (const QString& categoryName : categoryNames) {
             settings.beginGroup(categoryName);
-            CategoryConfiguration config = categoryConfigFromSettings(settings);
-            config.name = categoryName;
-            m_categoryConfigs.append(config);
+            // CategoryConfiguration config = categoryConfigFromSettings(settings);
+            // config.name = categoryName;
+            // m_categoryConfigs.append(config);
             settings.endGroup();
         }
         settings.endGroup();
@@ -105,14 +105,14 @@ bool LoggingConfig::saveToSettings(QSettings& settings) const
         
         // Save global configuration
         settings.beginGroup("Global");
-        globalConfigToSettings(settings, m_globalConfig);
+        // globalConfigToSettings(settings, m_globalConfig);
         settings.endGroup();
         
         // Save sink configurations
         settings.beginGroup("Sinks");
         for (const auto& sink : m_sinkConfigs) {
             settings.beginGroup(sink.name);
-            sinkConfigToSettings(settings, sink);
+            // sinkConfigToSettings(settings, sink);
             settings.endGroup();
         }
         settings.endGroup();
@@ -121,7 +121,7 @@ bool LoggingConfig::saveToSettings(QSettings& settings) const
         settings.beginGroup("Categories");
         for (const auto& category : m_categoryConfigs) {
             settings.beginGroup(category.name);
-            categoryConfigToSettings(settings, category);
+            // categoryConfigToSettings(settings, category);
             settings.endGroup();
         }
         settings.endGroup();
@@ -182,7 +182,7 @@ bool LoggingConfig::loadFromJsonObject(const QJsonObject& json)
     try {
         // Load global configuration
         if (json.contains("global")) {
-            m_globalConfig = globalConfigFromJson(json["global"].toObject());
+            // m_globalConfig = globalConfigFromJson(json["global"].toObject());
         }
         
         // Load sink configurations
@@ -190,8 +190,8 @@ bool LoggingConfig::loadFromJsonObject(const QJsonObject& json)
             m_sinkConfigs.clear();
             QJsonArray sinksArray = json["sinks"].toArray();
             for (const auto& value : sinksArray) {
-                SinkConfiguration config = sinkConfigFromJson(value.toObject());
-                m_sinkConfigs.append(config);
+                // SinkConfiguration config = sinkConfigFromJson(value.toObject());
+                // m_sinkConfigs.append(config);
             }
         }
         
@@ -200,8 +200,8 @@ bool LoggingConfig::loadFromJsonObject(const QJsonObject& json)
             m_categoryConfigs.clear();
             QJsonArray categoriesArray = json["categories"].toArray();
             for (const auto& value : categoriesArray) {
-                CategoryConfiguration config = categoryConfigFromJson(value.toObject());
-                m_categoryConfigs.append(config);
+                // CategoryConfiguration config = categoryConfigFromJson(value.toObject());
+                // m_categoryConfigs.append(config);
             }
         }
         
@@ -221,19 +221,19 @@ QJsonObject LoggingConfig::saveToJsonObject() const
     QJsonObject json;
     
     // Save global configuration
-    json["global"] = globalConfigToJson(m_globalConfig);
+    // json["global"] = globalConfigToJson(m_globalConfig);
     
     // Save sink configurations
     QJsonArray sinksArray;
     for (const auto& sink : m_sinkConfigs) {
-        sinksArray.append(sinkConfigToJson(sink));
+        // sinksArray.append(sinkConfigToJson(sink));
     }
     json["sinks"] = sinksArray;
     
     // Save category configurations
     QJsonArray categoriesArray;
     for (const auto& category : m_categoryConfigs) {
-        categoriesArray.append(categoryConfigToJson(category));
+        // categoriesArray.append(categoryConfigToJson(category));
     }
     json["categories"] = categoriesArray;
     
@@ -314,7 +314,7 @@ void LoggingConfig::enableFileLogging(const QString& filename, Logger::LogLevel 
 
 void LoggingConfig::loadDevelopmentPreset()
 {
-    resetToDefaults();
+    // resetToDefaults();
     
     // Enable console with debug level and colors
     enableConsoleLogging(Logger::LogLevel::Debug, true);
@@ -335,7 +335,7 @@ void LoggingConfig::loadDevelopmentPreset()
 
 void LoggingConfig::loadProductionPreset()
 {
-    resetToDefaults();
+    // resetToDefaults();
     
     // Disable console logging in production
     // Enable file logging with warning level
@@ -415,12 +415,12 @@ LoggingConfigBuilder& LoggingConfigBuilder::useDevelopmentPreset()
     return *this;
 }
 
-LoggingConfig LoggingConfigBuilder::build() const
+LoggingConfig& LoggingConfigBuilder::build() const
 {
     return *m_config;
 }
 
-std::unique_ptr<LoggingConfig> LoggingConfigBuilder::buildUnique() const
-{
-    return std::make_unique<LoggingConfig>(*m_config);
-}
+// std::unique_ptr<LoggingConfig> LoggingConfigBuilder::buildUnique() const
+// {
+//     return std::make_unique<LoggingConfig>(*m_config);
+// }
