@@ -104,7 +104,8 @@ protected:
 
 private:
 
-    Poppler::Page* currentPage;
+    // Poppler::Page* currentPage;
+    std::unique_ptr<Poppler::Page> currentPage;
     double currentScaleFactor;
     int currentRotation;
     QPixmap renderedPixmap;

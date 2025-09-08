@@ -74,7 +74,8 @@ PDFPageWidget::PDFPageWidget(QWidget* parent)
 }
 
 void PDFPageWidget::setPage(Poppler::Page* page, double scaleFactor, int rotation) {
-    currentPage = page;
+    // currentPage = page;
+    currentPage.reset(page);
     currentScaleFactor = scaleFactor;
     currentRotation = rotation;
     renderPage();
@@ -1150,7 +1151,8 @@ void PDFViewer::updatePageDisplay() {
 
         std::unique_ptr<Poppler::Page> page(document->page(currentPageNumber));
         if (page) {
-            singlePageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+            // singlePageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+            singlePageWidget->setPage(page.release(), currentZoomFactor, currentRotation);
         }
     }
     // 连续模式下不需要更新单个页面，因为所有页面都已经渲染
