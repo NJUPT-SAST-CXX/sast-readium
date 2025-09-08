@@ -1343,7 +1343,8 @@ void PDFViewer::createContinuousPages() {
         if (page) {
             // 阻止信号发出，避免在初始化时触发缩放循环
             pageWidget->blockSignals(true);
-            pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+            // pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+            pageWidget->setPage(page.release(), currentZoomFactor, currentRotation);
             pageWidget->blockSignals(false);
         }
 
@@ -1755,7 +1756,8 @@ void PDFViewer::setRotation(int degrees) {
                 if (currentPageNumber >= 0 && currentPageNumber < document->numPages()) {
                     std::unique_ptr<Poppler::Page> page(document->page(currentPageNumber));
                     if (page) {
-                        singlePageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+                        // singlePageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+                        singlePageWidget->setPage(page.release(), currentZoomFactor, currentRotation);
                     } else {
                         throw std::runtime_error("Failed to get page for rotation");
                     }
@@ -1795,7 +1797,8 @@ void PDFViewer::updateContinuousViewRotation() {
                     if (page) {
                         // 阻止信号发出，避免循环
                         pageWidget->blockSignals(true);
-                        pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+                        // pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+                        pageWidget->setPage(page.release(), currentZoomFactor, currentRotation);
                         pageWidget->blockSignals(false);
                         successCount++;
                     } else {
