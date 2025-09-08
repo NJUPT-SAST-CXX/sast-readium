@@ -146,9 +146,9 @@ void Logger::addQtWidgetSink(QTextEdit* widget)
     m_qtWidget = widget;
     
     try {
-        // auto qt_sink = std::make_shared<spdlog::sinks::qt_sink_mt>(widget);
-        // qt_sink->set_level(toSpdlogLevel(m_config.level));
-        // m_sinks.push_back(qt_sink);
+        auto qt_sink = std::make_shared<spdlog::sinks::qt_sink_mt>(widget, "append");
+        qt_sink->set_level(toSpdlogLevel(m_config.level));
+        m_sinks.push_back(qt_sink);
         
         // Connect Qt signal for additional processing if needed
         connect(this, &Logger::logMessage, this, [this](const QString& message, int level) {
