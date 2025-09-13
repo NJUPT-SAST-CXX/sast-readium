@@ -25,12 +25,16 @@ PDFPrerenderer::PDFPrerenderer(QObject* parent)
     , m_cacheHits(0)
     , m_cacheMisses(0)
     , m_prerenderRange(3)
+    , m_currentScrollDirection(0)
 {
     // Setup adaptive analysis timer
     m_adaptiveTimer = new QTimer(this);
     m_adaptiveTimer->setInterval(30000); // 30 seconds
     connect(m_adaptiveTimer, &QTimer::timeout, this, &PDFPrerenderer::onAdaptiveAnalysis);
-    
+
+    // Initialize scroll direction tracking
+    m_lastScrollTime = QTime::currentTime();
+
     setupWorkerThreads();
 }
 
@@ -42,22 +46,26 @@ PDFPrerenderer::~PDFPrerenderer()
 
 void PDFPrerenderer::setDocument(Poppler::Document* document)
 {
+    // DEADLOCK FIX: Update workers outside of queue mutex to prevent deadlocks
+    // since worker->setDocument() also acquires mutexes
+
+    // First, update workers with new document
+    for (PDFRenderWorker* worker : m_workers) {
+        worker->setDocument(document);
+    }
+
+    // Then update our document and clear cache under mutex
     QMutexLocker locker(&m_queueMutex);
-    
+
     m_document = document;
-    
+
     // Configure document for optimal rendering
     if (m_document) {
         m_document->setRenderHint(Poppler::Document::Antialiasing, true);
         m_document->setRenderHint(Poppler::Document::TextAntialiasing, true);
         m_document->setRenderHint(Poppler::Document::TextHinting, true);
     }
-    
-    // Update workers
-    for (PDFRenderWorker* worker : m_workers) {
-        worker->setDocument(document);
-    }
-    
+
     // Clear cache when document changes
     m_cache.clear();
     m_currentMemoryUsage = 0;
@@ -147,23 +155,31 @@ void PDFPrerenderer::startPrerendering()
 void PDFPrerenderer::stopPrerendering()
 {
     if (!m_isRunning) return;
-    
+
     m_isRunning = false;
     m_adaptiveTimer->stop();
-    
-    // Stop all workers
+
+    // DEADLOCK FIX: Stop all workers first, then wait for threads
+    // This prevents potential deadlocks during shutdown
     for (PDFRenderWorker* worker : m_workers) {
         worker->stop();
     }
-    
-    // Wait for threads to finish
+
+    // Wake up any waiting workers to ensure they can exit
+    m_queueCondition.wakeAll();
+
+    // Wait for threads to finish with timeout
     for (QThread* thread : m_workerThreads) {
         if (thread->isRunning()) {
             thread->quit();
-            thread->wait(3000);
+            if (!thread->wait(3000)) {
+                qWarning() << "PDFPrerenderer: Worker thread cleanup timeout, terminating";
+                thread->terminate();
+                thread->wait(1000);
+            }
         }
     }
-    
+
     emit prerenderingStopped();
 }
 
@@ -187,8 +203,26 @@ void PDFPrerenderer::recordNavigationPattern(int fromPage, int toPage)
     if (!m_navigationPatterns.contains(fromPage)) {
         m_navigationPatterns[fromPage] = QHash<int, int>();
     }
-    
+
     m_navigationPatterns[fromPage][toPage]++;
+}
+
+void PDFPrerenderer::updateScrollDirection(int direction)
+{
+    m_currentScrollDirection = direction;
+    m_lastScrollTime = QTime::currentTime();
+
+    // Trigger adaptive prerendering based on new scroll direction
+    // This helps predict which pages are likely to be viewed next
+    if (direction != 0) {
+        // Schedule adaptive prerendering with scroll direction consideration
+        QTimer::singleShot(100, this, [this]() {
+            if (m_document && !m_accessHistory.isEmpty()) {
+                int currentPage = m_accessHistory.last();
+                scheduleAdaptivePrerendering(currentPage);
+            }
+        });
+    }
 }
 
 void PDFPrerenderer::scheduleAdaptivePrerendering(int currentPage)
@@ -209,20 +243,62 @@ void PDFPrerenderer::scheduleAdaptivePrerendering(int currentPage)
 QList<int> PDFPrerenderer::predictNextPages(int currentPage)
 {
     QList<int> predictions;
-    
+
     switch (m_strategy) {
         case PrerenderStrategy::Conservative:
-            // Only adjacent pages
-            if (currentPage > 0) predictions.append(currentPage - 1);
-            if (currentPage < m_document->numPages() - 1) predictions.append(currentPage + 1);
+            // Only adjacent pages, prioritize based on scroll direction
+            if (m_currentScrollDirection <= 0 && currentPage > 0) {
+                predictions.append(currentPage - 1); // Scrolling up, prioritize previous page
+            }
+            if (m_currentScrollDirection >= 0 && currentPage < m_document->numPages() - 1) {
+                predictions.append(currentPage + 1); // Scrolling down, prioritize next page
+            }
+            // Add the other direction with lower priority
+            if (m_currentScrollDirection > 0 && currentPage > 0) {
+                predictions.append(currentPage - 1);
+            }
+            if (m_currentScrollDirection < 0 && currentPage < m_document->numPages() - 1) {
+                predictions.append(currentPage + 1);
+            }
             break;
             
         case PrerenderStrategy::Balanced:
-            // Adjacent pages + navigation patterns
-            for (int offset = -2; offset <= 2; ++offset) {
-                int pageNum = currentPage + offset;
-                if (pageNum >= 0 && pageNum < m_document->numPages() && pageNum != currentPage) {
-                    predictions.append(pageNum);
+            // Adjacent pages + navigation patterns, optimized for scroll direction
+            if (m_currentScrollDirection > 0) {
+                // Scrolling down - prioritize pages ahead
+                for (int offset = 1; offset <= 2; ++offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum < m_document->numPages()) {
+                        predictions.append(pageNum);
+                    }
+                }
+                for (int offset = -1; offset >= -2; --offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum >= 0) {
+                        predictions.append(pageNum);
+                    }
+                }
+            } else if (m_currentScrollDirection < 0) {
+                // Scrolling up - prioritize pages behind
+                for (int offset = -1; offset >= -2; --offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum >= 0) {
+                        predictions.append(pageNum);
+                    }
+                }
+                for (int offset = 1; offset <= 2; ++offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum < m_document->numPages()) {
+                        predictions.append(pageNum);
+                    }
+                }
+            } else {
+                // No clear direction - use balanced approach
+                for (int offset = -2; offset <= 2; ++offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum >= 0 && pageNum < m_document->numPages() && pageNum != currentPage) {
+                        predictions.append(pageNum);
+                    }
                 }
             }
             
@@ -250,11 +326,42 @@ QList<int> PDFPrerenderer::predictNextPages(int currentPage)
             break;
             
         case PrerenderStrategy::Aggressive:
-            // Wider range + patterns + sequential prediction
-            for (int offset = -5; offset <= 5; ++offset) {
-                int pageNum = currentPage + offset;
-                if (pageNum >= 0 && pageNum < m_document->numPages() && pageNum != currentPage) {
-                    predictions.append(pageNum);
+            // Wider range + patterns + sequential prediction, heavily optimized for scroll direction
+            if (m_currentScrollDirection > 0) {
+                // Scrolling down - heavily prioritize pages ahead
+                for (int offset = 1; offset <= 5; ++offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum < m_document->numPages()) {
+                        predictions.append(pageNum);
+                    }
+                }
+                for (int offset = -1; offset >= -3; --offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum >= 0) {
+                        predictions.append(pageNum);
+                    }
+                }
+            } else if (m_currentScrollDirection < 0) {
+                // Scrolling up - heavily prioritize pages behind
+                for (int offset = -1; offset >= -5; --offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum >= 0) {
+                        predictions.append(pageNum);
+                    }
+                }
+                for (int offset = 1; offset <= 3; ++offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum < m_document->numPages()) {
+                        predictions.append(pageNum);
+                    }
+                }
+            } else {
+                // No clear direction - use full range
+                for (int offset = -5; offset <= 5; ++offset) {
+                    int pageNum = currentPage + offset;
+                    if (pageNum >= 0 && pageNum < m_document->numPages() && pageNum != currentPage) {
+                        predictions.append(pageNum);
+                    }
                 }
             }
             break;
@@ -266,10 +373,22 @@ QList<int> PDFPrerenderer::predictNextPages(int currentPage)
 int PDFPrerenderer::calculatePriority(int pageNumber, int currentPage)
 {
     int distance = qAbs(pageNumber - currentPage);
-    
+
     // Base priority on distance (closer = higher priority = lower number)
     int priority = distance;
-    
+
+    // Adjust priority based on scroll direction
+    if (m_currentScrollDirection != 0) {
+        int direction = (pageNumber > currentPage) ? 1 : -1;
+        if (direction == m_currentScrollDirection) {
+            // Page is in the scroll direction - higher priority
+            priority = qMax(1, priority - 2);
+        } else {
+            // Page is against scroll direction - lower priority
+            priority += 1;
+        }
+    }
+
     // Adjust based on navigation patterns
     if (m_navigationPatterns.contains(currentPage)) {
         const QHash<int, int>& patterns = m_navigationPatterns[currentPage];
@@ -278,7 +397,7 @@ int PDFPrerenderer::calculatePriority(int pageNumber, int currentPage)
             priority -= frequency; // More frequent = higher priority
         }
     }
-    
+
     // Ensure priority is positive
     return qMax(1, priority);
 }
@@ -365,6 +484,16 @@ void PDFPrerenderer::resumePrerendering()
 void PDFPrerenderer::setMaxWorkerThreads(int maxThreads)
 {
     m_maxWorkerThreads = qBound(1, maxThreads, QThread::idealThreadCount());
+}
+
+void PDFPrerenderer::setMaxCacheSize(int maxItems)
+{
+    m_maxCacheSize = qMax(1, maxItems);
+
+    // Evict items if current cache size exceeds new limit
+    while (m_cache.size() > m_maxCacheSize) {
+        evictLRUItems();
+    }
 }
 
 void PDFPrerenderer::analyzeReadingPatterns()

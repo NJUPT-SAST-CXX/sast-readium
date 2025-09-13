@@ -67,8 +67,29 @@ public:
     // 颜色主题
     void setLightTheme();
     void setDarkTheme();
-    void setCustomColors(const QColor& background, const QColor& border, 
+    void setCustomColors(const QColor& background, const QColor& border,
                         const QColor& text, const QColor& accent);
+
+    // 性能优化控制
+    void setRenderCacheEnabled(bool enabled);
+    bool isRenderCacheEnabled() const { return m_renderCacheEnabled; }
+
+    void setHighQualityRenderingEnabled(bool enabled);
+    bool isHighQualityRenderingEnabled() const { return m_highQualityRendering; }
+
+    void setAntiAliasingEnabled(bool enabled);
+    bool isAntiAliasingEnabled() const { return m_antiAliasingEnabled; }
+
+    // 缓存管理
+    void clearRenderCache();
+    void setMaxCacheSize(int size);
+    int maxCacheSize() const { return m_maxCacheSize; }
+
+    // 性能监控
+    double averagePaintTime() const;
+    double cacheHitRate() const;
+    int totalPaintCalls() const;
+    void resetPerformanceStats();
 
 protected:
     bool eventFilter(QObject* object, QEvent* event) override;
@@ -84,11 +105,51 @@ private:
         int loadingAngle = 0;
         QPropertyAnimation* hoverAnimation = nullptr;
         QPropertyAnimation* selectionAnimation = nullptr;
-        
+        qint64 lastUpdate = 0;
+        bool needsUpdate = true;
+
         AnimationState() = default;
         ~AnimationState() {
             delete hoverAnimation;
             delete selectionAnimation;
+        }
+    };
+
+    // 渲染缓存条目
+    struct RenderCache {
+        QPixmap cachedBackground;
+        QPixmap cachedBorder;
+        QPixmap cachedShadow;
+        QSize cacheSize;
+        int cacheState; // 使用int代替State枚举
+        qint64 timestamp;
+        bool isValid;
+
+        RenderCache() : cacheState(0), timestamp(0), isValid(false) {}
+    };
+
+    // 性能统计
+    struct PerformanceStats {
+        std::atomic<int> paintCalls{0};
+        std::atomic<qint64> totalPaintTime{0};
+        std::atomic<int> cacheHits{0};
+        std::atomic<int> cacheMisses{0};
+        QElapsedTimer sessionTimer;
+
+        PerformanceStats() {
+            sessionTimer.start();
+        }
+
+        double averagePaintTime() const {
+            int calls = paintCalls.load();
+            return calls > 0 ? static_cast<double>(totalPaintTime.load()) / calls : 0.0;
+        }
+
+        double cacheHitRate() const {
+            int hits = cacheHits.load();
+            int misses = cacheMisses.load();
+            int total = hits + misses;
+            return total > 0 ? static_cast<double>(hits) / total : 0.0;
         }
     };
 
@@ -120,6 +181,21 @@ private:
     // 性能优化方法
     Qt::TransformationMode getOptimalTransformationMode(const QSize& sourceSize, const QSize& targetSize) const;
 
+    // 缓存管理方法
+    QString generateCacheKey(const QModelIndex& index, const QStyleOptionViewItem& option) const;
+    RenderCache* getRenderCache(const QString& key) const;
+    void insertRenderCache(const QString& key, RenderCache* cache);
+    void cleanupExpiredCache();
+
+    // 优化渲染方法
+    void paintOptimized(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const;
+    QPixmap renderToCache(const QStyleOptionViewItem& option, const QModelIndex& index) const;
+    void paintFromCache(QPainter* painter, const QRect& rect, const QPixmap& cached) const;
+
+    // 性能监控方法
+    void recordPaintTime(qint64 time) const;
+    void updatePerformanceStats() const;
+
 private:
     // 尺寸设置
     QSize m_thumbnailSize;
@@ -149,7 +225,21 @@ private:
     // 动画管理
     mutable QHash<QPersistentModelIndex, AnimationState*> m_animationStates;
     QTimer* m_loadingTimer;
-    
+
+    // 渲染缓存
+    mutable QHash<QString, RenderCache*> m_renderCache;
+    mutable QMutex m_cacheMutex;
+    bool m_renderCacheEnabled;
+    int m_maxCacheSize;
+
+    // 渲染选项
+    bool m_highQualityRendering;
+    bool m_antiAliasingEnabled;
+    bool m_smoothPixmapTransform;
+
+    // 性能统计
+    mutable PerformanceStats m_performanceStats;
+
     // 字体
     QFont m_pageNumberFont;
     QFont m_errorFont;
@@ -167,6 +257,12 @@ private:
     static constexpr int LOADING_ANIMATION_INTERVAL = 50; // ms
     static constexpr int HOVER_ANIMATION_DURATION = 200; // ms
     static constexpr int SELECTION_ANIMATION_DURATION = 300; // ms
+
+    // 缓存相关常量
+    static constexpr int DEFAULT_MAX_CACHE_SIZE = 50;
+    static constexpr qint64 CACHE_EXPIRY_TIME = 300000; // 5分钟
+    static constexpr int CACHE_CLEANUP_INTERVAL = 60000; // 1分钟
+    static constexpr double PERFORMANCE_SAMPLE_RATE = 0.1; // 10%采样率
     
     // Chrome风格颜色常量
     static const QColor GOOGLE_BLUE;

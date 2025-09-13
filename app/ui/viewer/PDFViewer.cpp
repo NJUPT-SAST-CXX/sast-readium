@@ -39,7 +39,9 @@
 PDFPageWidget::PDFPageWidget(QWidget* parent)
     : QLabel(parent), currentPage(nullptr), currentScaleFactor(1.0), currentRotation(0), isDragging(false),
       m_currentSearchResultIndex(-1), m_normalHighlightColor(QColor(255, 255, 0, 100)),
-      m_currentHighlightColor(QColor(255, 165, 0, 150)) {
+      m_currentHighlightColor(QColor(255, 165, 0, 150)), asyncRenderingEnabled(false),
+      prerenderer(nullptr), pageNumber(-1), renderState(NotRendered), hasPendingRender(false),
+      dpiCalculator(nullptr), asyncRenderRetryCount(0) {
     setAlignment(Qt::AlignCenter);
     setMinimumSize(200, 200);
     setObjectName("pdfPage");
@@ -76,19 +78,47 @@ PDFPageWidget::PDFPageWidget(QWidget* parent)
     shadowEffect->setColor(QColor(0, 0, 0, 50));
     shadowEffect->setOffset(0, 4);
     setGraphicsEffect(shadowEffect);
+
+    // 初始化渲染防抖定时器
+    renderDebounceTimer = new QTimer(this);
+    renderDebounceTimer->setSingleShot(true);
+    renderDebounceTimer->setInterval(150); // 150ms防抖延迟
+    connect(renderDebounceTimer, &QTimer::timeout, this, &PDFPageWidget::onRenderDebounceTimeout);
+
+    // 初始化搜索高亮颜色和优化设置
+    m_normalHighlightColor = QColor(255, 255, 0, 100); // 半透明黄色
+    m_currentHighlightColor = QColor(255, 165, 0, 150); // 半透明橙色
+    m_currentSearchResultIndex = -1;
+    m_searchHighlightsDirty = false;
+    m_searchHighlightsEnabled = true;
+
+
 }
 
 void PDFPageWidget::setPage(Poppler::Page* page, double scaleFactor, int rotation) {
     currentPage = page;
     currentScaleFactor = scaleFactor;
     currentRotation = rotation;
+    asyncRenderRetryCount = 0; // Reset retry count for new page
     renderPage();
 }
 
 void PDFPageWidget::setScaleFactor(double factor) {
     if (factor != currentScaleFactor) {
         currentScaleFactor = factor;
-        renderPage();
+
+        // Invalidate search highlights since scale changed
+        invalidateSearchHighlights();
+
+        if (asyncRenderingEnabled) {
+            // Use debounced rendering for async mode
+            hasPendingRender = true;
+            renderDebounceTimer->start();
+        } else {
+            // Immediate rendering for sync mode
+            renderPage();
+        }
+
         emit scaleChanged(factor);
     }
 }
@@ -98,24 +128,105 @@ void PDFPageWidget::setRotation(int degrees) {
     degrees = ((degrees % 360) + 360) % 360;
     if (degrees != currentRotation) {
         currentRotation = degrees;
-        renderPage();
+
+        // Invalidate search highlights since rotation changed
+        invalidateSearchHighlights();
+
+        if (asyncRenderingEnabled) {
+            // Use debounced rendering for async mode
+            hasPendingRender = true;
+            renderDebounceTimer->start();
+        } else {
+            // Immediate rendering for sync mode
+            renderPage();
+        }
     }
 }
 
 void PDFPageWidget::renderPage() {
     if (!currentPage) {
         setText("No page to render");
+        renderState = NotRendered;
         return;
     }
 
-    try {
-        // Enhanced rendering with optimized DPI calculation
-        double devicePixelRatio = devicePixelRatioF();
-        double baseDpi = 72.0 * currentScaleFactor;
-        double optimizedDpi = baseDpi * devicePixelRatio;
+    // Try asynchronous rendering first
+    if (asyncRenderingEnabled && pageNumber >= 0) {
+        // Ensure prerenderer is available
+        if (!prerenderer) {
+            // Try to get prerenderer from parent viewer
+            if (auto* viewer = qobject_cast<PDFViewer*>(parent())) {
+                prerenderer = viewer->getPrerenderer();
+            }
+        }
 
-        // Limit DPI to prevent excessive memory usage
-        optimizedDpi = qMin(optimizedDpi, 300.0);
+        if (prerenderer) {
+            // Use asynchronous rendering
+            renderState = Rendering;
+            setText("Rendering...");
+
+            // Cancel any pending render
+            if (hasPendingRender) {
+                renderDebounceTimer->stop();
+                hasPendingRender = false;
+            }
+
+            // Check if already cached first
+            QPixmap cachedPixmap = prerenderer->getCachedPage(pageNumber, currentScaleFactor, currentRotation);
+            if (!cachedPixmap.isNull()) {
+                setPixmap(cachedPixmap);
+                renderState = Rendered;
+                resize(cachedPixmap.size() / devicePixelRatioF());
+                return;
+            }
+
+            // Request async rendering with error handling and retry mechanism
+            try {
+                prerenderer->requestPrerender(pageNumber, currentScaleFactor, currentRotation, 1);
+                asyncRenderRetryCount = 0; // Reset retry count on success
+                return; // Successfully requested async rendering
+            } catch (const std::exception& e) {
+                asyncRenderRetryCount++;
+                qWarning() << "Async rendering request failed (attempt" << asyncRenderRetryCount << "):" << e.what();
+
+                if (asyncRenderRetryCount < MAX_ASYNC_RETRY_COUNT) {
+                    // Retry after a short delay
+                    QTimer::singleShot(100 * asyncRenderRetryCount, this, &PDFPageWidget::renderPage);
+                    return;
+                }
+                // Fall through to synchronous rendering after max retries
+            } catch (...) {
+                asyncRenderRetryCount++;
+                qWarning() << "Async rendering request failed with unknown error (attempt" << asyncRenderRetryCount << ")";
+
+                if (asyncRenderRetryCount < MAX_ASYNC_RETRY_COUNT) {
+                    // Retry after a short delay
+                    QTimer::singleShot(100 * asyncRenderRetryCount, this, &PDFPageWidget::renderPage);
+                    return;
+                }
+                // Fall through to synchronous rendering after max retries
+            }
+        } else {
+            qWarning() << "Prerenderer not available, falling back to synchronous rendering";
+        }
+    }
+
+    // Fallback to synchronous rendering with improved error handling
+    qDebug() << "Using synchronous rendering fallback for page" << pageNumber;
+
+    try {
+        renderState = Rendering;
+        setText("Rendering (sync)...");
+
+        // Use cached DPI calculation if available, otherwise fallback to simple calculation
+        double optimizedDpi;
+        if (dpiCalculator) {
+            optimizedDpi = dpiCalculator->calculateOptimalDPI(currentScaleFactor);
+        } else {
+            // Fallback calculation
+            optimizedDpi = 72.0 * currentScaleFactor * devicePixelRatioF();
+            optimizedDpi = qMin(optimizedDpi, 300.0);
+        }
 
         QSizeF pageSize = currentPage->pageSizeF();
 
@@ -127,22 +238,26 @@ void PDFPageWidget::renderPage() {
                                                   static_cast<Poppler::Page::Rotation>(currentRotation / 90));
         if (image.isNull()) {
             setText("Failed to render page");
+            renderState = RenderError;
             return;
         }
 
         // Apply device pixel ratio for high-DPI displays
         renderedPixmap = QPixmap::fromImage(image);
-        renderedPixmap.setDevicePixelRatio(devicePixelRatio);
+        renderedPixmap.setDevicePixelRatio(devicePixelRatioF());
 
         setPixmap(renderedPixmap);
-        resize(renderedPixmap.size() / devicePixelRatio);
+        resize(renderedPixmap.size() / devicePixelRatioF());
+        renderState = Rendered;
 
     } catch (const std::exception& e) {
         setText(QString("渲染错误: %1").arg(e.what()));
         qDebug() << "Page render error:" << e.what();
+        renderState = RenderError;
     } catch (...) {
         setText("未知渲染错误");
         qDebug() << "Unknown page render error";
+        renderState = RenderError;
     }
 }
 
@@ -157,9 +272,20 @@ void PDFPageWidget::paintEvent(QPaintEvent* event) {
     // Call parent implementation with enhanced rendering
     QLabel::paintEvent(event);
 
-    // Draw search highlights
+    // Draw search highlights using optimized method
     if (!m_searchResults.isEmpty()) {
-        drawSearchHighlights(painter);
+        if (m_searchHighlightsEnabled) {
+            // Use pre-rendered highlight layer for better performance
+            if (m_searchHighlightsDirty) {
+                updateSearchHighlightLayer();
+            }
+            if (!m_searchHighlightLayer.isNull()) {
+                painter.drawPixmap(0, 0, m_searchHighlightLayer);
+            }
+        } else {
+            // Fallback to direct rendering
+            drawSearchHighlights(painter);
+        }
     }
 
     // Add subtle shadow effect for better visual appearance
@@ -384,6 +510,9 @@ void PDFPageWidget::setSearchResults(const QList<SearchResult>& results) {
     // Transform coordinates for all results
     updateSearchResultCoordinates();
 
+    // Mark highlights as dirty since results changed
+    invalidateSearchHighlights();
+
     // Trigger repaint to show highlights
     update();
 }
@@ -391,6 +520,7 @@ void PDFPageWidget::setSearchResults(const QList<SearchResult>& results) {
 void PDFPageWidget::clearSearchHighlights() {
     m_searchResults.clear();
     m_currentSearchResultIndex = -1;
+    invalidateSearchHighlights();
     update();
 }
 
@@ -405,6 +535,7 @@ void PDFPageWidget::setCurrentSearchResult(int index) {
         m_currentSearchResultIndex = index;
         m_searchResults[index].isCurrentResult = true;
 
+        invalidateSearchHighlights();
         update();
     }
 }
@@ -425,6 +556,54 @@ void PDFPageWidget::updateSearchResultCoordinates() {
 
     for (SearchResult& result : m_searchResults) {
         result.transformToWidgetCoordinates(currentScaleFactor, currentRotation, pageSize, widgetSize);
+    }
+
+    // Mark highlights as dirty since coordinates changed
+    invalidateSearchHighlights();
+}
+
+// Optimized search highlighting methods
+void PDFPageWidget::renderSearchHighlightsToLayer() {
+    if (m_searchResults.isEmpty() || size().isEmpty()) {
+        m_searchHighlightLayer = QPixmap();
+        return;
+    }
+
+    // Create a pixmap for the highlight layer
+    m_searchHighlightLayer = QPixmap(size());
+    m_searchHighlightLayer.fill(Qt::transparent);
+
+    QPainter painter(&m_searchHighlightLayer);
+    painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
+
+    // Draw all search highlights to the layer
+    for (const SearchResult& result : m_searchResults) {
+        if (!result.isValidForHighlight() || result.widgetRect.isEmpty()) {
+            continue;
+        }
+
+        // Choose color based on whether this is the current result
+        QColor highlightColor = result.isCurrentResult ? m_currentHighlightColor : m_normalHighlightColor;
+
+        // Draw highlight rectangle
+        painter.fillRect(result.widgetRect, highlightColor);
+
+        // Draw border for current result
+        if (result.isCurrentResult) {
+            painter.setPen(QPen(highlightColor.darker(150), 2));
+            painter.drawRect(result.widgetRect);
+        }
+    }
+}
+
+void PDFPageWidget::invalidateSearchHighlights() {
+    m_searchHighlightsDirty = true;
+}
+
+void PDFPageWidget::updateSearchHighlightLayer() {
+    if (m_searchHighlightsDirty) {
+        renderSearchHighlightsToLayer();
+        m_searchHighlightsDirty = false;
     }
 }
 
@@ -472,6 +651,10 @@ PDFViewer::PDFViewer(QWidget* parent, bool enableStyling)
     prerenderer->setStrategy(PDFPrerenderer::PrerenderStrategy::Balanced);
     prerenderer->setMaxWorkerThreads(2); // Use 2 background threads
 
+    // Initialize scroll direction tracking
+    currentScrollDirection = 0;
+    lastScrollTime = QTime::currentTime();
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // 初始化QGraphics PDF查看器
     qgraphicsViewer = nullptr;
@@ -495,8 +678,36 @@ PDFViewer::PDFViewer(QWidget* parent, bool enableStyling)
     scrollTimer->setSingleShot(true);
     scrollTimer->setInterval(100); // 100ms滚动防抖
 
+    // 初始化真实虚拟滚动
+    isVirtualScrollingEnabled = true;
+    totalDocumentHeight = 0;
+    pagePositionsCacheValid = false;
+    lastScrollValue = 0;
+    scrollDirection = 0;
+
+    // 初始化懒加载
+    maxConcurrentLoads = 3; // 最多同时加载3页
+    lazyLoadTimer = new QTimer(this);
+    lazyLoadTimer->setSingleShot(true);
+    lazyLoadTimer->setInterval(50); // 50ms延迟处理懒加载
+    connect(lazyLoadTimer, &QTimer::timeout, this, &PDFViewer::processLazyLoads);
+
+    // 初始化渲染优化
+    isRenderOptimizationEnabled = true;
+    renderOptimizationTimer = new QTimer(this);
+    renderOptimizationTimer->setSingleShot(true);
+    renderOptimizationTimer->setInterval(1000); // 1秒后优化渲染设置
+    connect(renderOptimizationTimer, &QTimer::timeout, this, &PDFViewer::optimizeRenderingSettings);
+
     // 初始化页面缓存
-    maxCacheSize = 20; // 最多缓存20页
+    maxCacheSize = 50; // 最多缓存50个项目（不同缩放级别的页面）
+    maxCacheMemory = 256 * 1024 * 1024; // 256MB最大缓存内存
+    currentCacheMemory = 0;
+
+    // Initialize LRU cache
+    cacheHead = nullptr;
+    cacheTail = nullptr;
+    nextZoomFactorId = 1;
 
     // 初始化动画效果
     opacityEffect = new QGraphicsOpacityEffect(this);
@@ -690,6 +901,7 @@ void PDFViewer::setupViewModes() {
     // 创建单页视图
     singlePageScrollArea = new QScrollArea(this);
     singlePageWidget = new PDFPageWidget(singlePageScrollArea);
+    singlePageWidget->setDPICalculator(this); // Enable DPI caching
     singlePageScrollArea->setWidget(singlePageWidget);
     singlePageScrollArea->setWidgetResizable(true);
     singlePageScrollArea->setAlignment(Qt::AlignCenter);
@@ -762,6 +974,9 @@ void PDFViewer::setupConnections() {
         connect(searchWidget, &SearchWidget::navigateToResult, this, &PDFViewer::onNavigateToSearchResult);
         connect(searchWidget, &SearchWidget::searchClosed, this, &PDFViewer::hideSearch);
         connect(searchWidget, &SearchWidget::searchCleared, this, &PDFViewer::clearSearchHighlights);
+
+        // Connect enhanced search features
+        connect(searchWidget, &SearchWidget::highlightColorsChanged, this, &PDFViewer::onHighlightColorsChanged);
 
         // Connect search model signals for real-time highlighting
         if (searchWidget->getSearchModel()) {
@@ -979,6 +1194,11 @@ void PDFViewer::setDocument(Poppler::Document* doc) {
 
             setMessage(QString("文档加载成功，共 %1 页").arg(numPages));
 
+            // Start rendering optimization
+            if (isRenderOptimizationEnabled) {
+                renderOptimizationTimer->start();
+            }
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
             // 如果启用了QGraphics渲染，也为其设置文档
             if (useQGraphicsViewer && qgraphicsViewer) {
@@ -1191,16 +1411,34 @@ void PDFViewer::updateContinuousView() {
         return;
     }
 
-    // 优化：只更新缩放因子，避免重新渲染所有页面
-    for (int i = 0; i < continuousLayout->count() - 1; ++i) { // -1 因为最后一个是stretch
-        QLayoutItem* item = continuousLayout->itemAt(i);
-        if (item && item->widget()) {
-            PDFPageWidget* pageWidget = qobject_cast<PDFPageWidget*>(item->widget());
+    if (isVirtualScrollingEnabled) {
+        // Update placeholder sizes for new zoom level
+        updatePlaceholderSizes();
+
+        // Update active page widgets
+        for (auto it = activePageWidgets.begin(); it != activePageWidgets.end(); ++it) {
+            PDFPageWidget* pageWidget = it.value();
             if (pageWidget) {
-                // 阻止信号发出，避免循环
                 pageWidget->blockSignals(true);
                 pageWidget->setScaleFactor(currentZoomFactor);
                 pageWidget->blockSignals(false);
+            }
+        }
+
+        // Update virtual scrolling to handle new sizes
+        updateVirtualScrolling();
+    } else {
+        // 原有逻辑：只更新缩放因子，避免重新渲染所有页面
+        for (int i = 0; i < continuousLayout->count() - 1; ++i) { // -1 因为最后一个是stretch
+            QLayoutItem* item = continuousLayout->itemAt(i);
+            if (item && item->widget()) {
+                PDFPageWidget* pageWidget = qobject_cast<PDFPageWidget*>(item->widget());
+                if (pageWidget) {
+                    // 阻止信号发出，避免循环
+                    pageWidget->blockSignals(true);
+                    pageWidget->setScaleFactor(currentZoomFactor);
+                    pageWidget->blockSignals(false);
+                }
             }
         }
     }
@@ -1363,22 +1601,35 @@ void PDFViewer::createContinuousPages() {
         delete item;
     }
 
-    // 创建所有页面
-    for (int i = 0; i < document->numPages(); ++i) {
-        PDFPageWidget* pageWidget = new PDFPageWidget(continuousWidget);
+    // 清空虚拟滚动相关数据
+    activePageWidgets.clear();
+    placeholderWidgets.clear();
+    pageHeights.clear();
+    pageLoadStates.clear();
+    pendingLoads.clear();
 
-        std::unique_ptr<Poppler::Page> page(document->page(i));
-        if (page) {
-            // 阻止信号发出，避免在初始化时触发缩放循环
-            pageWidget->blockSignals(true);
-            pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
-            pageWidget->blockSignals(false);
+    if (isVirtualScrollingEnabled) {
+        setupVirtualScrolling();
+        setupLazyLoading();
+    } else {
+        // 原有的创建所有页面的逻辑（作为后备）
+        for (int i = 0; i < document->numPages(); ++i) {
+            PDFPageWidget* pageWidget = new PDFPageWidget(continuousWidget);
+            pageWidget->setDPICalculator(this); // Enable DPI caching
+
+            std::unique_ptr<Poppler::Page> page(document->page(i));
+            if (page) {
+                // 阻止信号发出，避免在初始化时触发缩放循环
+                pageWidget->blockSignals(true);
+                pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+                pageWidget->blockSignals(false);
+            }
+
+            continuousLayout->addWidget(pageWidget);
+
+            // 连接信号
+            connect(pageWidget, &PDFPageWidget::scaleChanged, this, &PDFViewer::onScaleChanged);
         }
-
-        continuousLayout->addWidget(pageWidget);
-
-        // 连接信号
-        connect(pageWidget, &PDFPageWidget::scaleChanged, this, &PDFViewer::onScaleChanged);
     }
 
     continuousLayout->addStretch();
@@ -1452,70 +1703,86 @@ void PDFViewer::renderVisiblePages() {
 
 void PDFViewer::onScrollChanged() {
     if (currentViewMode == PDFViewMode::ContinuousScroll) {
-        updateVisiblePages();
+        if (isVirtualScrollingEnabled) {
+            updateVirtualScrolling();
+        } else {
+            updateVisiblePages();
+        }
     }
 }
 
 QPixmap PDFViewer::getCachedPage(int pageNumber, double zoomFactor, int rotation) {
-    auto it = pageCache.find(pageNumber);
+    quint64 key = getCacheKey(pageNumber, zoomFactor, rotation);
+    auto it = pageCache.find(key);
     if (it != pageCache.end()) {
-        const PageCacheItem& item = it.value();
-        // 检查缓存是否匹配当前参数
-        if (qAbs(item.zoomFactor - zoomFactor) < 0.001 && item.rotation == rotation) {
-            // 更新访问时间
-            const_cast<PageCacheItem&>(item).lastAccessed = QDateTime::currentMSecsSinceEpoch();
-            return item.pixmap;
-        }
+        PageCacheItem* item = it.value();
+        // 更新访问时间和计数
+        item->lastAccessed = QDateTime::currentMSecsSinceEpoch();
+        item->accessCount++;
+
+        // Move to head of LRU list for O(1) operation
+        moveToHead(item);
+
+        return item->pixmap;
     }
     return QPixmap(); // 返回空的QPixmap表示缓存未命中
 }
 
 void PDFViewer::setCachedPage(int pageNumber, const QPixmap& pixmap, double zoomFactor, int rotation) {
-    // 如果缓存已满，清理最旧的条目
-    if (pageCache.size() >= maxCacheSize) {
-        cleanupCache();
+    quint64 key = getCacheKey(pageNumber, zoomFactor, rotation);
+    qint64 pixmapSize = calculatePixmapMemorySize(pixmap);
+
+    // Check if item already exists
+    auto it = pageCache.find(key);
+    if (it != pageCache.end()) {
+        // Update existing item
+        PageCacheItem* item = it.value();
+        currentCacheMemory -= item->memorySize;
+        item->pixmap = pixmap;
+        item->memorySize = pixmapSize;
+        item->lastAccessed = QDateTime::currentMSecsSinceEpoch();
+        item->accessCount++;
+        currentCacheMemory += pixmapSize;
+        moveToHead(item);
+        return;
     }
 
-    PageCacheItem item;
-    item.pixmap = pixmap;
-    item.zoomFactor = zoomFactor;
-    item.rotation = rotation;
-    item.lastAccessed = QDateTime::currentMSecsSinceEpoch();
+    // 检查是否需要清理缓存
+    while ((pageCache.size() >= maxCacheSize || currentCacheMemory + pixmapSize > maxCacheMemory)
+           && !pageCache.isEmpty()) {
+        evictLeastImportantItems();
+    }
 
-    pageCache[pageNumber] = item;
+    // Create new cache item
+    PageCacheItem* item = new PageCacheItem();
+    item->pixmap = pixmap;
+    item->zoomFactor = zoomFactor;
+    item->rotation = rotation;
+    item->lastAccessed = QDateTime::currentMSecsSinceEpoch();
+    item->memorySize = pixmapSize;
+    item->accessCount = 1;
+    item->importance = calculateCacheItemImportance(*item, currentPageNumber);
+
+    pageCache[key] = item;
+    addToHead(item);
+    currentCacheMemory += pixmapSize;
 }
 
 void PDFViewer::clearPageCache() {
+    // Delete all cache items
+    for (auto it = pageCache.begin(); it != pageCache.end(); ++it) {
+        delete it.value();
+    }
     pageCache.clear();
+    currentCacheMemory = 0;
+    cacheHead = nullptr;
+    cacheTail = nullptr;
+    zoomFactorToInt.clear();
+    nextZoomFactorId = 1;
 }
 
 void PDFViewer::cleanupCache() {
-    if (pageCache.size() <= maxCacheSize / 2) {
-        return; // 不需要清理
-    }
-
-    // 找到最旧的条目并删除
-    QList<int> keysToRemove;
-    qint64 oldestTime = QDateTime::currentMSecsSinceEpoch();
-
-    for (auto it = pageCache.begin(); it != pageCache.end(); ++it) {
-        if (it.value().lastAccessed < oldestTime) {
-            oldestTime = it.value().lastAccessed;
-        }
-    }
-
-    // 删除超过一半的最旧条目
-    int removeCount = pageCache.size() - maxCacheSize / 2;
-    for (auto it = pageCache.begin(); it != pageCache.end() && removeCount > 0; ++it) {
-        if (it.value().lastAccessed <= oldestTime + 1000) { // 1秒容差
-            keysToRemove.append(it.key());
-            removeCount--;
-        }
-    }
-
-    for (int key : keysToRemove) {
-        pageCache.remove(key);
-    }
+    evictLeastImportantItems();
 }
 
 void PDFViewer::toggleTheme() {
@@ -1827,35 +2094,74 @@ void PDFViewer::updateContinuousViewRotation() {
         return;
     }
 
-    int successCount = 0;
-    int totalPages = continuousLayout->count() - 1; // -1 因为最后一个是stretch
+    if (isVirtualScrollingEnabled) {
+        // Clear cached page heights since rotation changes dimensions
+        pageHeights.clear();
 
-    // 更新连续视图中所有页面的旋转
-    for (int i = 0; i < totalPages; ++i) {
-        try {
-            QLayoutItem* item = continuousLayout->itemAt(i);
-            if (item && item->widget()) {
-                PDFPageWidget* pageWidget = qobject_cast<PDFPageWidget*>(item->widget());
-                if (pageWidget && i < document->numPages()) {
-                    std::unique_ptr<Poppler::Page> page(document->page(i));
+        // Invalidate page positions cache since dimensions changed
+        invalidatePagePositionsCache();
+
+        // Update placeholder sizes for new rotation
+        updatePlaceholderSizes();
+
+        // Update active page widgets
+        int successCount = 0;
+        for (auto it = activePageWidgets.begin(); it != activePageWidgets.end(); ++it) {
+            int pageNumber = it.key();
+            PDFPageWidget* pageWidget = it.value();
+            if (pageWidget) {
+                try {
+                    std::unique_ptr<Poppler::Page> page(document->page(pageNumber));
                     if (page) {
-                        // 阻止信号发出，避免循环
                         pageWidget->blockSignals(true);
                         pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
                         pageWidget->blockSignals(false);
                         successCount++;
                     } else {
-                        qDebug() << "Failed to get page" << i << "for rotation";
+                        qDebug() << "Failed to get page" << pageNumber << "for rotation";
                     }
+                } catch (const std::exception& e) {
+                    qDebug() << "Error rotating page" << pageNumber << ":" << e.what();
                 }
             }
-        } catch (const std::exception& e) {
-            qDebug() << "Error rotating page" << i << ":" << e.what();
         }
-    }
 
-    if (successCount < totalPages) {
-        setMessage(QString("部分页面旋转失败 (%1/%2)").arg(successCount).arg(totalPages));
+        qDebug() << "Rotated" << successCount << "active pages in virtual scrolling mode";
+
+        // Update virtual scrolling to handle new sizes
+        updateVirtualScrolling();
+    } else {
+        // 原有逻辑
+        int successCount = 0;
+        int totalPages = continuousLayout->count() - 1; // -1 因为最后一个是stretch
+
+        // 更新连续视图中所有页面的旋转
+        for (int i = 0; i < totalPages; ++i) {
+            try {
+                QLayoutItem* item = continuousLayout->itemAt(i);
+                if (item && item->widget()) {
+                    PDFPageWidget* pageWidget = qobject_cast<PDFPageWidget*>(item->widget());
+                    if (pageWidget && i < document->numPages()) {
+                        std::unique_ptr<Poppler::Page> page(document->page(i));
+                        if (page) {
+                            // 阻止信号发出，避免循环
+                            pageWidget->blockSignals(true);
+                            pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+                            pageWidget->blockSignals(false);
+                            successCount++;
+                        } else {
+                            qDebug() << "Failed to get page" << i << "for rotation";
+                        }
+                    }
+                }
+            } catch (const std::exception& e) {
+                qDebug() << "Error rotating page" << i << ":" << e.what();
+            }
+        }
+
+        if (successCount < totalPages) {
+            setMessage(QString("部分页面旋转失败 (%1/%2)").arg(successCount).arg(totalPages));
+        }
     }
 }
 
@@ -1932,6 +2238,26 @@ void PDFViewer::onNavigateToSearchResult(int pageNumber, const QRectF& rect) {
 
         setMessage(QString("已导航到第 %1 页的搜索结果").arg(pageNumber + 1));
     }
+}
+
+void PDFViewer::onHighlightColorsChanged(const QColor& normalColor, const QColor& currentColor) {
+    // Update highlight colors for all active page widgets
+    for (auto it = activePageWidgets.begin(); it != activePageWidgets.end(); ++it) {
+        PDFPageWidget* pageWidget = it.value();
+        if (pageWidget) {
+            pageWidget->updateHighlightColors(normalColor, currentColor);
+        }
+    }
+
+    // Also update single page widget if in single page mode
+    if (currentViewMode == PDFViewMode::SinglePage && singlePageWidget) {
+        singlePageWidget->updateHighlightColors(normalColor, currentColor);
+    }
+
+    // Update search highlighting to reflect new colors
+    updateSearchHighlightsForCurrentPage();
+
+    setMessage("搜索高亮颜色已更新");
 }
 
 // Search highlighting implementation
@@ -2163,6 +2489,691 @@ void PDFViewer::setQGraphicsViewMode(int mode) {
     }
 }
 #endif
+
+// Virtual Scrolling Implementation
+void PDFViewer::setupVirtualScrolling() {
+    if (!document) return;
+
+    calculateTotalDocumentHeight();
+
+    // Create placeholder widgets for all pages initially
+    for (int i = 0; i < document->numPages(); ++i) {
+        QWidget* placeholder = createPlaceholderWidget(i);
+        placeholderWidgets[i] = placeholder;
+        continuousLayout->addWidget(placeholder);
+    }
+
+    // Create initial visible page widgets
+    updateVirtualScrolling();
+}
+
+void PDFViewer::updateVirtualScrolling() {
+    if (!document || currentViewMode != PDFViewMode::ContinuousScroll) {
+        return;
+    }
+
+    QScrollBar* scrollBar = continuousScrollArea->verticalScrollBar();
+    if (!scrollBar) return;
+
+    int viewportHeight = continuousScrollArea->viewport()->height();
+    int scrollValue = scrollBar->value();
+
+    // Update scroll direction for predictive loading
+    if (scrollValue != lastScrollValue) {
+        scrollDirection = (scrollValue > lastScrollValue) ? 1 : -1;
+        lastScrollValue = scrollValue;
+
+        // Update global scroll direction tracking for prerenderer optimization
+        updateScrollDirection(scrollDirection);
+    }
+
+    // Ensure page positions cache is valid
+    if (!pagePositionsCacheValid) {
+        updatePagePositionsCache();
+    }
+
+    // Use optimized visible page range calculation
+    QPair<int, int> visibleRange = calculateVisiblePageRange(scrollValue, viewportHeight);
+    int newVisibleStart = qMax(0, visibleRange.first - renderBuffer);
+    int newVisibleEnd = qMin(document->numPages() - 1, visibleRange.second + renderBuffer);
+
+    // Update visible range only if changed
+    if (newVisibleStart != visiblePageStart || newVisibleEnd != visiblePageEnd) {
+        // Destroy page widgets that are no longer visible
+        for (int i = visiblePageStart; i <= visiblePageEnd; ++i) {
+            if (i < newVisibleStart || i > newVisibleEnd) {
+                destroyPageWidget(i);
+            }
+        }
+
+        // Schedule lazy loading for newly visible pages
+        for (int i = newVisibleStart; i <= newVisibleEnd; ++i) {
+            if (i < visiblePageStart || i > visiblePageEnd) {
+                scheduleLazyLoad(i);
+            }
+        }
+
+        visiblePageStart = newVisibleStart;
+        visiblePageEnd = newVisibleEnd;
+
+        // Update loading priorities with scroll direction awareness
+        prioritizeVisiblePages();
+    }
+}
+
+void PDFViewer::createPageWidget(int pageNumber) {
+    if (!document || pageNumber < 0 || pageNumber >= document->numPages()) {
+        return;
+    }
+
+    // Don't create if already exists
+    if (activePageWidgets.contains(pageNumber)) {
+        return;
+    }
+
+    PDFPageWidget* pageWidget = new PDFPageWidget(continuousWidget);
+    pageWidget->setDPICalculator(this); // Enable DPI caching
+
+    // Configure async rendering
+    pageWidget->setAsyncRenderingEnabled(true);
+    pageWidget->setPrerenderer(prerenderer);
+    pageWidget->setPageNumber(pageNumber);
+
+    // Connect signals
+    connect(pageWidget, &PDFPageWidget::scaleChanged, this, &PDFViewer::onScaleChanged);
+
+    // Store the widget
+    activePageWidgets[pageNumber] = pageWidget;
+
+    // Replace placeholder with actual widget
+    if (placeholderWidgets.contains(pageNumber)) {
+        QWidget* placeholder = placeholderWidgets[pageNumber];
+        int index = continuousLayout->indexOf(placeholder);
+        if (index >= 0) {
+            continuousLayout->removeWidget(placeholder);
+            continuousLayout->insertWidget(index, pageWidget);
+            placeholder->deleteLater();
+        }
+    }
+
+    // Load page content
+    std::unique_ptr<Poppler::Page> page(document->page(pageNumber));
+    if (page) {
+        pageWidget->blockSignals(true);
+        pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+        pageWidget->blockSignals(false);
+    }
+}
+
+void PDFViewer::destroyPageWidget(int pageNumber) {
+    if (!activePageWidgets.contains(pageNumber)) {
+        return;
+    }
+
+    PDFPageWidget* pageWidget = activePageWidgets[pageNumber];
+    activePageWidgets.remove(pageNumber);
+
+    // Replace with placeholder
+    int index = continuousLayout->indexOf(pageWidget);
+    if (index >= 0) {
+        QWidget* placeholder = createPlaceholderWidget(pageNumber);
+        placeholderWidgets[pageNumber] = placeholder;
+
+        continuousLayout->removeWidget(pageWidget);
+        continuousLayout->insertWidget(index, placeholder);
+        pageWidget->deleteLater();
+    }
+}
+
+QWidget* PDFViewer::createPlaceholderWidget(int pageNumber) {
+    QLabel* placeholder = new QLabel(continuousWidget);
+    placeholder->setAlignment(Qt::AlignCenter);
+    placeholder->setText(QString("Page %1").arg(pageNumber + 1));
+    placeholder->setStyleSheet("QLabel { background-color: #f0f0f0; border: 1px solid #ccc; }");
+
+    // Set estimated size
+    int height = estimatePageHeight(pageNumber);
+    placeholder->setMinimumHeight(height);
+    placeholder->setMaximumHeight(height);
+
+    return placeholder;
+}
+
+int PDFViewer::estimatePageHeight(int pageNumber) {
+    if (!document || pageNumber < 0 || pageNumber >= document->numPages()) {
+        return 600; // Default height
+    }
+
+    // Check cache first
+    if (pageHeights.contains(pageNumber)) {
+        return pageHeights[pageNumber];
+    }
+
+    // Calculate height based on page size and current zoom
+    std::unique_ptr<Poppler::Page> page(document->page(pageNumber));
+    if (page) {
+        QSizeF pageSize = page->pageSizeF();
+        double devicePixelRatio = devicePixelRatioF();
+        double baseDpi = 72.0 * currentZoomFactor;
+        double optimizedDpi = baseDpi * devicePixelRatio;
+        optimizedDpi = qMin(optimizedDpi, 300.0);
+
+        int height = static_cast<int>((pageSize.height() / 72.0) * optimizedDpi / devicePixelRatio);
+        pageHeights[pageNumber] = height;
+        return height;
+    }
+
+    return 600; // Default height
+}
+
+void PDFViewer::calculateTotalDocumentHeight() {
+    if (!document) {
+        totalDocumentHeight = 0;
+        return;
+    }
+
+    totalDocumentHeight = 0;
+    for (int i = 0; i < document->numPages(); ++i) {
+        totalDocumentHeight += estimatePageHeight(i);
+    }
+
+    // Invalidate page positions cache when document height changes
+    invalidatePagePositionsCache();
+}
+
+// Virtual scrolling optimization methods
+void PDFViewer::invalidatePagePositionsCache() {
+    pagePositionsCacheValid = false;
+    pagePositions.clear();
+}
+
+void PDFViewer::updatePagePositionsCache() {
+    if (!document) return;
+
+    pagePositions.clear();
+    pagePositions.reserve(document->numPages() + 1);
+
+    int currentY = 0;
+    pagePositions.append(currentY);
+
+    for (int i = 0; i < document->numPages(); ++i) {
+        currentY += estimatePageHeight(i);
+        pagePositions.append(currentY);
+    }
+
+    pagePositionsCacheValid = true;
+}
+
+void PDFViewer::updatePlaceholderSizes() {
+    // Update placeholder sizes when zoom changes
+    for (auto it = placeholderWidgets.begin(); it != placeholderWidgets.end(); ++it) {
+        int pageNumber = it.key();
+        QWidget* placeholder = it.value();
+
+        // Clear cached height to force recalculation
+        pageHeights.remove(pageNumber);
+
+        int newHeight = estimatePageHeight(pageNumber);
+        placeholder->setMinimumHeight(newHeight);
+        placeholder->setMaximumHeight(newHeight);
+    }
+
+    calculateTotalDocumentHeight();
+}
+
+int PDFViewer::findPageAtPosition(int yPosition) {
+    if (!pagePositionsCacheValid) {
+        updatePagePositionsCache();
+    }
+
+    // Binary search for the page at the given Y position
+    int left = 0;
+    int right = pagePositions.size() - 2; // -2 because last element is total height
+
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+
+        if (pagePositions[mid] <= yPosition && yPosition < pagePositions[mid + 1]) {
+            return mid;
+        } else if (pagePositions[mid] > yPosition) {
+            right = mid - 1;
+        } else {
+            left = mid + 1;
+        }
+    }
+
+    return qMax(0, qMin(document->numPages() - 1, left));
+}
+
+QPair<int, int> PDFViewer::calculateVisiblePageRange(int scrollValue, int viewportHeight) {
+    if (!document || !pagePositionsCacheValid) {
+        updatePagePositionsCache();
+    }
+
+    int startPage = findPageAtPosition(scrollValue);
+    int endPage = findPageAtPosition(scrollValue + viewportHeight);
+
+    // Ensure we don't go out of bounds
+    startPage = qMax(0, startPage);
+    endPage = qMin(document->numPages() - 1, endPage);
+
+    return qMakePair(startPage, endPage);
+}
+
+// PDFPageWidget async rendering methods
+void PDFPageWidget::setAsyncRenderingEnabled(bool enabled) {
+    asyncRenderingEnabled = enabled;
+}
+
+void PDFPageWidget::setPrerenderer(PDFPrerenderer* prerend) {
+    prerenderer = prerend;
+
+    // Connect to prerenderer signals if available
+    if (prerenderer) {
+        connect(prerenderer, &PDFPrerenderer::pagePrerendered,
+                this, &PDFPageWidget::onAsyncRenderCompleted);
+    }
+}
+
+void PDFPageWidget::setPageNumber(int pageNum) {
+    pageNumber = pageNum;
+}
+
+void PDFPageWidget::setDPICalculator(PDFViewer* viewer) {
+    dpiCalculator = viewer;
+}
+
+void PDFPageWidget::cancelPendingRender() {
+    if (renderDebounceTimer->isActive()) {
+        renderDebounceTimer->stop();
+        hasPendingRender = false;
+    }
+}
+
+void PDFPageWidget::onAsyncRenderCompleted(int pageNum, double scaleFactor, int rotation) {
+    // Check if this render is for our page and current settings
+    if (pageNum == pageNumber &&
+        qAbs(scaleFactor - currentScaleFactor) < 0.001 &&
+        rotation == currentRotation) {
+
+        // Get the rendered pixmap from the prerenderer cache
+        if (prerenderer) {
+            QPixmap pixmap = prerenderer->getCachedPage(pageNumber, currentScaleFactor, currentRotation);
+            if (!pixmap.isNull()) {
+                setPixmap(pixmap);
+                renderState = Rendered;
+                resize(pixmap.size() / devicePixelRatioF());
+            } else {
+                setText("Render failed");
+                renderState = RenderError;
+            }
+        }
+    }
+}
+
+void PDFPageWidget::onRenderDebounceTimeout() {
+    if (hasPendingRender) {
+        hasPendingRender = false;
+        renderPage();
+    }
+}
+
+// Lazy Loading Implementation
+void PDFViewer::setupLazyLoading() {
+    if (!document) return;
+
+    // Initialize all pages as not loaded
+    for (int i = 0; i < document->numPages(); ++i) {
+        pageLoadStates[i] = NotLoaded;
+    }
+
+    // Schedule loading of visible pages
+    prioritizeVisiblePages();
+}
+
+void PDFViewer::scheduleLazyLoad(int pageNumber) {
+    if (!document || pageNumber < 0 || pageNumber >= document->numPages()) {
+        return;
+    }
+
+    // Don't schedule if already loaded or loading
+    if (pageLoadStates.value(pageNumber, NotLoaded) != NotLoaded) {
+        return;
+    }
+
+    // Add to pending loads
+    pendingLoads.insert(pageNumber);
+    pageLoadStates[pageNumber] = Loading;
+
+    // Start lazy load timer
+    if (!lazyLoadTimer->isActive()) {
+        lazyLoadTimer->start();
+    }
+}
+
+void PDFViewer::processLazyLoads() {
+    if (pendingLoads.isEmpty()) {
+        return;
+    }
+
+    // Limit concurrent loads
+    int currentLoads = 0;
+    for (auto state : pageLoadStates) {
+        if (state == Loading) {
+            currentLoads++;
+        }
+    }
+
+    if (currentLoads >= maxConcurrentLoads) {
+        // Reschedule if too many concurrent loads
+        lazyLoadTimer->start();
+        return;
+    }
+
+    // Process next pending load
+    auto it = pendingLoads.begin();
+    if (it != pendingLoads.end()) {
+        int pageNumber = *it;
+        pendingLoads.erase(it);
+
+        // Create the page widget if it doesn't exist
+        if (!activePageWidgets.contains(pageNumber)) {
+            createPageWidget(pageNumber);
+        }
+
+        updatePageLoadState(pageNumber, Loaded);
+    }
+
+    // Continue processing if more loads pending
+    if (!pendingLoads.isEmpty()) {
+        lazyLoadTimer->start();
+    }
+}
+
+void PDFViewer::updatePageLoadState(int pageNumber, PageLoadState state) {
+    pageLoadStates[pageNumber] = state;
+
+    // Update placeholder if needed
+    if (placeholderWidgets.contains(pageNumber)) {
+        QWidget* placeholder = placeholderWidgets[pageNumber];
+        QLabel* label = qobject_cast<QLabel*>(placeholder);
+        if (label) {
+            switch (state) {
+                case NotLoaded:
+                    label->setText(QString("Page %1").arg(pageNumber + 1));
+                    break;
+                case Loading:
+                    label->setText(QString("Loading page %1...").arg(pageNumber + 1));
+                    break;
+                case Loaded:
+                    // Placeholder will be replaced by actual widget
+                    break;
+                case LoadError:
+                    label->setText(QString("Error loading page %1").arg(pageNumber + 1));
+                    break;
+            }
+        }
+    }
+}
+
+bool PDFViewer::isPageInViewport(int pageNumber) {
+    if (!continuousScrollArea || !document) {
+        return false;
+    }
+
+    QScrollBar* scrollBar = continuousScrollArea->verticalScrollBar();
+    if (!scrollBar) return false;
+
+    int viewportHeight = continuousScrollArea->viewport()->height();
+    int scrollValue = scrollBar->value();
+
+    // Calculate page position
+    int pageY = 0;
+    for (int i = 0; i < pageNumber; ++i) {
+        pageY += estimatePageHeight(i);
+    }
+
+    int pageHeight = estimatePageHeight(pageNumber);
+
+    // Check if page intersects with viewport
+    return (pageY < scrollValue + viewportHeight) && (pageY + pageHeight > scrollValue);
+}
+
+void PDFViewer::prioritizeVisiblePages() {
+    if (!document) return;
+
+    // Schedule visible pages first
+    for (int i = 0; i < document->numPages(); ++i) {
+        if (isPageInViewport(i)) {
+            scheduleLazyLoad(i);
+        }
+    }
+
+    // Then schedule adjacent pages
+    for (int i = visiblePageStart - renderBuffer; i <= visiblePageEnd + renderBuffer; ++i) {
+        if (i >= 0 && i < document->numPages() && !isPageInViewport(i)) {
+            scheduleLazyLoad(i);
+        }
+    }
+}
+
+// Enhanced Cache Management Implementation
+quint64 PDFViewer::getCacheKey(int pageNumber, double zoomFactor, int rotation) {
+    // Use optimized integer-based key generation
+    quint32 zoomId = getZoomFactorId(zoomFactor);
+    return (static_cast<quint64>(pageNumber) << 32) |
+           (static_cast<quint64>(zoomId) << 8) |
+           static_cast<quint64>(rotation);
+}
+
+quint32 PDFViewer::getZoomFactorId(double zoomFactor) {
+    // Round to 3 decimal places for consistent mapping
+    double rounded = qRound(zoomFactor * 1000.0) / 1000.0;
+
+    auto it = zoomFactorToInt.find(rounded);
+    if (it != zoomFactorToInt.end()) {
+        return it.value();
+    }
+
+    quint32 id = nextZoomFactorId++;
+    zoomFactorToInt[rounded] = id;
+    return id;
+}
+
+void PDFViewer::evictLeastImportantItems() {
+    if (pageCache.isEmpty()) return;
+
+    // Use LRU eviction - remove from tail (least recently used)
+    int itemsToRemove = qMax(1, pageCache.size() / 4); // Remove at least 25%
+
+    for (int i = 0; i < itemsToRemove && cacheTail; ++i) {
+        PageCacheItem* itemToRemove = removeTail();
+        if (itemToRemove) {
+            // Find and remove from hash
+            for (auto it = pageCache.begin(); it != pageCache.end(); ++it) {
+                if (it.value() == itemToRemove) {
+                    currentCacheMemory -= itemToRemove->memorySize;
+                    pageCache.erase(it);
+                    delete itemToRemove;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+qint64 PDFViewer::calculatePixmapMemorySize(const QPixmap& pixmap) {
+    if (pixmap.isNull()) return 0;
+    return pixmap.width() * pixmap.height() * pixmap.depth() / 8;
+}
+
+// LRU cache operations for O(1) performance
+void PDFViewer::moveToHead(PageCacheItem* item) {
+    if (!item || item == cacheHead) return;
+
+    removeFromList(item);
+    addToHead(item);
+}
+
+void PDFViewer::removeFromList(PageCacheItem* item) {
+    if (!item) return;
+
+    if (item->prev) {
+        item->prev->next = item->next;
+    } else {
+        cacheHead = item->next;
+    }
+
+    if (item->next) {
+        item->next->prev = item->prev;
+    } else {
+        cacheTail = item->prev;
+    }
+
+    item->prev = nullptr;
+    item->next = nullptr;
+}
+
+void PDFViewer::addToHead(PageCacheItem* item) {
+    if (!item) return;
+
+    item->prev = nullptr;
+    item->next = cacheHead;
+
+    if (cacheHead) {
+        cacheHead->prev = item;
+    }
+    cacheHead = item;
+
+    if (!cacheTail) {
+        cacheTail = item;
+    }
+}
+
+PDFViewer::PageCacheItem* PDFViewer::removeTail() {
+    if (!cacheTail) return nullptr;
+
+    PDFViewer::PageCacheItem* tail = cacheTail;
+    removeFromList(tail);
+    return tail;
+}
+
+double PDFViewer::calculateCacheItemImportance(const PageCacheItem& item, int currentPage) {
+    double importance = 0.0;
+
+    // Base importance from access count
+    importance += item.accessCount * 10.0;
+
+    // Recency bonus (more recent = higher importance)
+    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+    qint64 timeSinceAccess = currentTime - item.lastAccessed;
+    double recencyScore = qMax(0.0, 100.0 - (timeSinceAccess / 1000.0)); // Decay over time
+    importance += recencyScore;
+
+    // Current zoom level bonus
+    if (qAbs(item.zoomFactor - currentZoomFactor) < 0.001) {
+        importance += 50.0;
+    }
+
+    // Current rotation bonus
+    if (item.rotation == currentRotation) {
+        importance += 25.0;
+    }
+
+    // Memory efficiency penalty (larger items are less important)
+    double memoryPenalty = item.memorySize / (1024.0 * 1024.0); // MB
+    importance -= memoryPenalty * 5.0;
+
+    return importance;
+}
+
+// DPI and Rendering Optimization Implementation
+double PDFViewer::calculateOptimalDPI(double scaleFactor) {
+    // Check cache first
+    if (dpiCache.contains(scaleFactor)) {
+        return dpiCache[scaleFactor];
+    }
+
+    // Calculate optimal DPI
+    double devicePixelRatio = devicePixelRatioF();
+    double baseDpi = 72.0 * scaleFactor;
+    double optimizedDpi = baseDpi * devicePixelRatio;
+
+    // Apply intelligent limits based on scale factor
+    if (scaleFactor <= 0.5) {
+        // For small scales, limit to prevent over-rendering
+        optimizedDpi = qMin(optimizedDpi, 150.0);
+    } else if (scaleFactor <= 1.0) {
+        // For normal scales, use standard limit
+        optimizedDpi = qMin(optimizedDpi, 200.0);
+    } else if (scaleFactor <= 2.0) {
+        // For larger scales, allow higher DPI
+        optimizedDpi = qMin(optimizedDpi, 300.0);
+    } else {
+        // For very large scales, cap at maximum
+        optimizedDpi = qMin(optimizedDpi, 400.0);
+    }
+
+    // Cache the result
+    dpiCache[scaleFactor] = optimizedDpi;
+
+    return optimizedDpi;
+}
+
+void PDFViewer::clearDPICache() {
+    dpiCache.clear();
+}
+
+PDFPrerenderer* PDFViewer::getPrerenderer() const {
+    return prerenderer;
+}
+
+void PDFViewer::updateScrollDirection(int direction) {
+    currentScrollDirection = direction;
+    lastScrollTime = QTime::currentTime();
+
+    // Update prerenderer with scroll direction for better prediction
+    if (prerenderer) {
+        prerenderer->updateScrollDirection(direction);
+    }
+}
+
+void PDFViewer::optimizeRenderingSettings() {
+    if (!isRenderOptimizationEnabled || !document) {
+        return;
+    }
+
+    // Clear DPI cache periodically to adapt to changing conditions
+    if (dpiCache.size() > 20) {
+        clearDPICache();
+    }
+
+    // Optimize prerenderer settings based on current usage
+    if (prerenderer) {
+        // Adjust prerender strategy based on document size
+        int pageCount = document->numPages();
+        if (pageCount < 10) {
+            prerenderer->setStrategy(PDFPrerenderer::PrerenderStrategy::Aggressive);
+        } else if (pageCount < 50) {
+            prerenderer->setStrategy(PDFPrerenderer::PrerenderStrategy::Balanced);
+        } else {
+            prerenderer->setStrategy(PDFPrerenderer::PrerenderStrategy::Conservative);
+        }
+
+        // Adjust cache size based on available memory
+        qint64 availableMemory = maxCacheMemory - currentCacheMemory;
+        if (availableMemory > 100 * 1024 * 1024) { // 100MB available
+            prerenderer->setMaxCacheSize(30);
+        } else if (availableMemory > 50 * 1024 * 1024) { // 50MB available
+            prerenderer->setMaxCacheSize(20);
+        } else {
+            prerenderer->setMaxCacheSize(10);
+        }
+    }
+
+    // Schedule next optimization
+    renderOptimizationTimer->start();
+}
 
 bool PDFViewer::hasBookmarkForCurrentPage() const {
     // 这里需要与BookmarkWidget集成来检查书签状态

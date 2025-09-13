@@ -203,19 +203,34 @@ QHash<int, QByteArray> BookmarkModel::roleNames() const {
 }
 
 bool BookmarkModel::addBookmark(const Bookmark& bookmark) {
-    // Check for duplicates
-    if (hasBookmarkForPage(bookmark.documentPath, bookmark.pageNumber)) {
-        qDebug() << "Bookmark already exists for this page";
+    // Validate bookmark data
+    if (!validateBookmark(bookmark)) {
+        emit errorOccurred("Invalid bookmark data");
         return false;
     }
-    
-    beginInsertRows(QModelIndex(), m_bookmarks.size(), m_bookmarks.size());
-    m_bookmarks.append(bookmark);
+
+    // Check for duplicates
+    if (hasBookmarkForPage(bookmark.documentPath, bookmark.pageNumber)) {
+        emit errorOccurred("Bookmark already exists for this page");
+        return false;
+    }
+
+    // Find the correct insertion position to maintain sort order
+    int insertPos = 0;
+    for (int i = 0; i < m_bookmarks.size(); ++i) {
+        if (m_bookmarks[i].lastAccessed <= bookmark.lastAccessed) {
+            insertPos = i;
+            break;
+        }
+        insertPos = i + 1;
+    }
+
+    beginInsertRows(QModelIndex(), insertPos, insertPos);
+    m_bookmarks.insert(insertPos, bookmark);
     endInsertRows();
-    
-    sortBookmarks();
+
     emit bookmarkAdded(bookmark);
-    
+
     return true;
 }
 
@@ -238,18 +253,53 @@ bool BookmarkModel::updateBookmark(const QString& bookmarkId, const Bookmark& up
     if (index < 0) {
         return false;
     }
-    
-    m_bookmarks[index] = updatedBookmark;
-    QModelIndex modelIndex = this->index(index, 0);
-    emit dataChanged(modelIndex, this->index(index, columnCount() - 1));
-    emit bookmarkUpdated(updatedBookmark);
-    
+
+    // Validate the updated bookmark
+    if (!validateBookmark(updatedBookmark)) {
+        qWarning() << "Invalid updated bookmark data";
+        return false;
+    }
+
+    // Create a copy and update lastAccessed time
+    Bookmark bookmark = updatedBookmark;
+    bookmark.lastAccessed = QDateTime::currentDateTime();
+
+    m_bookmarks[index] = bookmark;
+
+    // Check if we need to resort due to lastAccessed change
+    bool needsResort = false;
+    if (index > 0 && m_bookmarks[index-1].lastAccessed < bookmark.lastAccessed) {
+        needsResort = true;
+    }
+    if (index < m_bookmarks.size()-1 && m_bookmarks[index+1].lastAccessed > bookmark.lastAccessed) {
+        needsResort = true;
+    }
+
+    if (needsResort) {
+        beginResetModel();
+        sortBookmarks();
+        endResetModel();
+    } else {
+        QModelIndex modelIndex = this->index(index, 0);
+        emit dataChanged(modelIndex, this->index(index, columnCount() - 1));
+    }
+
+    emit bookmarkUpdated(bookmark);
+
     return true;
 }
 
 Bookmark BookmarkModel::getBookmark(const QString& bookmarkId) const {
     int index = findBookmarkIndex(bookmarkId);
     if (index >= 0) {
+        // Update lastAccessed time (const_cast is needed for this operation)
+        BookmarkModel* nonConstThis = const_cast<BookmarkModel*>(this);
+        nonConstThis->m_bookmarks[index].lastAccessed = QDateTime::currentDateTime();
+
+        // Emit signal to notify about the access
+        QModelIndex modelIndex = nonConstThis->index(index, 0);
+        emit nonConstThis->dataChanged(modelIndex, modelIndex, {LastAccessedRole});
+
         return m_bookmarks.at(index);
     }
     return Bookmark();
@@ -279,9 +329,18 @@ bool BookmarkModel::hasBookmarkForPage(const QString& documentPath, int pageNumb
 }
 
 Bookmark BookmarkModel::getBookmarkForPage(const QString& documentPath, int pageNumber) const {
-    for (const Bookmark& bookmark : m_bookmarks) {
+    for (int i = 0; i < m_bookmarks.size(); ++i) {
+        const Bookmark& bookmark = m_bookmarks[i];
         if (bookmark.documentPath == documentPath && bookmark.pageNumber == pageNumber) {
-            return bookmark;
+            // Update lastAccessed time (const_cast is needed for this operation)
+            BookmarkModel* nonConstThis = const_cast<BookmarkModel*>(this);
+            nonConstThis->m_bookmarks[i].lastAccessed = QDateTime::currentDateTime();
+
+            // Emit signal to notify about the access
+            QModelIndex modelIndex = nonConstThis->index(i, 0);
+            emit nonConstThis->dataChanged(modelIndex, modelIndex, {LastAccessedRole});
+
+            return nonConstThis->m_bookmarks[i];
         }
     }
     return Bookmark();
@@ -464,6 +523,173 @@ bool BookmarkModel::loadFromFile() {
 
     emit bookmarksLoaded(m_bookmarks.size());
     qDebug() << "Loaded" << m_bookmarks.size() << "bookmarks from" << m_storageFile;
+
+    return true;
+}
+
+// Statistics and utility methods implementation
+int BookmarkModel::getBookmarkCount() const {
+    return m_bookmarks.size();
+}
+
+int BookmarkModel::getBookmarkCountForDocument(const QString& documentPath) const {
+    int count = 0;
+    for (const Bookmark& bookmark : m_bookmarks) {
+        if (bookmark.documentPath == documentPath) {
+            count++;
+        }
+    }
+    return count;
+}
+
+QStringList BookmarkModel::getDocumentPaths() const {
+    QStringList paths;
+    for (const Bookmark& bookmark : m_bookmarks) {
+        if (!paths.contains(bookmark.documentPath)) {
+            paths.append(bookmark.documentPath);
+        }
+    }
+    paths.sort();
+    return paths;
+}
+
+void BookmarkModel::clearAllBookmarks() {
+    if (m_bookmarks.isEmpty()) {
+        return;
+    }
+
+    beginResetModel();
+    m_bookmarks.clear();
+    endResetModel();
+
+    if (m_autoSave) {
+        saveToFile();
+    }
+
+    emit bookmarksCleared();
+    qDebug() << "All bookmarks cleared";
+}
+
+bool BookmarkModel::exportBookmarks(const QString& filePath) const {
+    QJsonArray bookmarksArray;
+    for (const Bookmark& bookmark : m_bookmarks) {
+        bookmarksArray.append(bookmark.toJson());
+    }
+
+    QJsonObject rootObject;
+    rootObject["version"] = "1.0";
+    rootObject["bookmarks"] = bookmarksArray;
+    rootObject["exportedAt"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    rootObject["exportedFrom"] = "SAST Readium";
+
+    QJsonDocument doc(rootObject);
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "Failed to open export file for writing:" << filePath;
+        return false;
+    }
+
+    qint64 bytesWritten = file.write(doc.toJson());
+    file.close();
+
+    if (bytesWritten > 0) {
+        // Use const_cast to emit signal from const method
+        const_cast<BookmarkModel*>(this)->bookmarksExported(m_bookmarks.size(), filePath);
+        qDebug() << "Exported" << m_bookmarks.size() << "bookmarks to" << filePath;
+        return true;
+    }
+
+    const_cast<BookmarkModel*>(this)->errorOccurred(QString("Failed to write to export file: %1").arg(filePath));
+    return false;
+}
+
+bool BookmarkModel::importBookmarks(const QString& filePath) {
+    QFile file(filePath);
+    if (!file.exists()) {
+        qWarning() << "Import file does not exist:" << filePath;
+        return false;
+    }
+
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open import file for reading:" << filePath;
+        return false;
+    }
+
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning() << "Failed to parse import JSON:" << parseError.errorString();
+        return false;
+    }
+
+    QJsonObject rootObject = doc.object();
+    QJsonArray bookmarksArray = rootObject["bookmarks"].toArray();
+
+    int importedCount = 0;
+    int skippedCount = 0;
+
+    for (const QJsonValue& value : bookmarksArray) {
+        if (value.isObject()) {
+            Bookmark bookmark = Bookmark::fromJson(value.toObject());
+            if (!bookmark.id.isEmpty()) {
+                // Check if bookmark already exists
+                if (findBookmarkIndex(bookmark.id) >= 0) {
+                    skippedCount++;
+                    continue;
+                }
+
+                // Check for duplicate by document path and page
+                if (hasBookmarkForPage(bookmark.documentPath, bookmark.pageNumber)) {
+                    skippedCount++;
+                    continue;
+                }
+
+                // Add the bookmark
+                if (addBookmark(bookmark)) {
+                    importedCount++;
+                }
+            }
+        }
+    }
+
+    emit bookmarksImported(importedCount, skippedCount);
+    qDebug() << "Import completed:" << importedCount << "imported," << skippedCount << "skipped";
+    return importedCount > 0;
+}
+
+bool BookmarkModel::validateBookmark(const Bookmark& bookmark) const {
+    // Check required fields
+    if (bookmark.id.isEmpty()) {
+        qWarning() << "Bookmark validation failed: empty ID";
+        return false;
+    }
+
+    if (bookmark.documentPath.isEmpty()) {
+        qWarning() << "Bookmark validation failed: empty document path";
+        return false;
+    }
+
+    if (bookmark.pageNumber < 0) {
+        qWarning() << "Bookmark validation failed: invalid page number" << bookmark.pageNumber;
+        return false;
+    }
+
+    if (bookmark.title.isEmpty()) {
+        qWarning() << "Bookmark validation failed: empty title";
+        return false;
+    }
+
+    // Check if document file exists (optional validation)
+    QFileInfo fileInfo(bookmark.documentPath);
+    if (!fileInfo.exists()) {
+        qWarning() << "Bookmark validation warning: document file does not exist:" << bookmark.documentPath;
+        // Don't return false here as the file might be temporarily unavailable
+    }
 
     return true;
 }

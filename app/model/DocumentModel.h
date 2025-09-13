@@ -9,6 +9,8 @@
 #include "AsyncDocumentLoader.h"
 #include "qtmetamacros.h"
 #include "RenderModel.h"
+#include "../utils/ErrorHandling.h"
+#include "../utils/ErrorRecovery.h"
 
 // Forward declarations
 class RecentFilesManager;
@@ -28,6 +30,8 @@ class DocumentModel : public QObject {
     Q_OBJECT
 
 private:
+    void initializeErrorRecovery();
+
     std::vector<std::unique_ptr<DocumentInfo>> documents;
     int currentDocumentIndex;
 

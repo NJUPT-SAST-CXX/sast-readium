@@ -9,6 +9,10 @@
 #include <QFutureWatcher>
 #include <QTimer>
 #include <poppler-qt6.h>
+#include "../utils/ErrorHandling.h"
+
+// Forward declaration for optimized search engine
+class OptimizedSearchEngine;
 
 /**
  * Represents a single search result with enhanced coordinate transformation support
@@ -46,7 +50,21 @@ struct SearchOptions {
     bool searchBackward = false;
     int maxResults = 1000;
     QString highlightColor = "#FFFF00";
-    
+
+    // Advanced search features
+    bool fuzzySearch = false;
+    int fuzzyThreshold = 2; // Maximum edit distance for fuzzy search
+    int startPage = -1; // -1 means search all pages
+    int endPage = -1;   // -1 means search all pages
+    bool searchInSelection = false;
+    QRectF selectionRect; // For search within selection
+
+    // Performance options
+    bool useIndexedSearch = true;
+    bool enableSearchCache = true;
+    bool enableIncrementalSearch = true;
+    int searchTimeout = 30000; // 30 seconds timeout
+
     SearchOptions() = default;
 };
 
@@ -80,6 +98,21 @@ public:
     void clearResults();
     void cancelSearch();
 
+    // Advanced search operations
+    void startFuzzySearch(Poppler::Document* document, const QString& query, const SearchOptions& options = SearchOptions());
+    void startPageRangeSearch(Poppler::Document* document, const QString& query, int startPage, int endPage, const SearchOptions& options = SearchOptions());
+
+    // Search history management
+    void addToSearchHistory(const QString& query);
+    QStringList getSearchHistory() const { return m_searchHistory; }
+    void clearSearchHistory();
+    void setMaxHistorySize(int size) { m_maxHistorySize = size; }
+
+    // Optimized search operations
+    void setOptimizedSearchEnabled(bool enabled);
+    bool isOptimizedSearchEnabled() const { return m_optimizedSearchEnabled; }
+    OptimizedSearchEngine* getOptimizedSearchEngine() const { return m_optimizedSearchEngine; }
+
     // Result access
     const QList<SearchResult>& getResults() const { return m_results; }
     SearchResult getResult(int index) const;
@@ -97,6 +130,10 @@ public:
     const QString& getCurrentQuery() const { return m_currentQuery; }
     const SearchOptions& getCurrentOptions() const { return m_currentOptions; }
 
+    // Public methods for testing
+    int calculateLevenshteinDistance(const QString& str1, const QString& str2);
+    bool isFuzzyMatch(const QString& text, const QString& query, int threshold);
+
 signals:
     void searchStarted();
     void searchFinished(int resultCount);
@@ -104,6 +141,7 @@ signals:
     void searchError(const QString& error);
     void currentResultChanged(int index);
     void resultsCleared();
+    void searchProgress(int currentPage, int totalPages);
 
     // Real-time search signals
     void realTimeSearchStarted();
@@ -112,6 +150,7 @@ signals:
 
 private slots:
     void onSearchFinished();
+    void onOptimizedSearchFinished(const QList<SearchResult>& results);
 
 private:
     void performSearch();
@@ -120,6 +159,10 @@ private:
                                    const QString& query, const SearchOptions& options);
     QString extractContext(const QString& pageText, int position, int length, int contextLength = 50);
     QRegularExpression createSearchRegex(const QString& query, const SearchOptions& options);
+
+    // Advanced search algorithms
+    QList<SearchResult> performFuzzySearch(const QString& query, const SearchOptions& options);
+    QList<SearchResult> performPageRangeSearch(const QString& query, int startPage, int endPage, const SearchOptions& options);
 
     QList<SearchResult> m_results;
     int m_currentResultIndex;
@@ -136,4 +179,12 @@ private:
     QTimer* m_realTimeSearchTimer;
     bool m_isRealTimeSearchEnabled;
     int m_realTimeSearchDelay;
+
+    // Optimized search members
+    OptimizedSearchEngine* m_optimizedSearchEngine;
+    bool m_optimizedSearchEnabled;
+
+    // Search history and navigation
+    QStringList m_searchHistory;
+    int m_maxHistorySize;
 };

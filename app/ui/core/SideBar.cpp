@@ -18,7 +18,7 @@
 #include <QEasingCurve>
 #include <QSettings>
 
-// 定义静态常量
+// Define static constants
 const int SideBar::minimumWidth;
 const int SideBar::maximumWidth;
 const int SideBar::defaultWidth;
@@ -28,7 +28,7 @@ SideBar::SideBar(QWidget* parent)
     : QWidget(parent), animation(nullptr), settings(nullptr), outlineWidget(nullptr),
       thumbnailView(nullptr), isCurrentlyVisible(true), preferredWidth(defaultWidth), lastWidth(defaultWidth) {
 
-    // 初始化缩略图组件
+    // Initialize thumbnail components
     thumbnailModel = std::make_unique<ThumbnailModel>(this);
     thumbnailDelegate = std::make_unique<ThumbnailDelegate>(this);
 
@@ -51,8 +51,8 @@ void SideBar::initContent() {
     QWidget* thumbnailsTab = createThumbnailsTab();
     QWidget* bookmarksTab = createBookmarksTab();
 
-    tabWidget->addTab(thumbnailsTab, "缩略图");
-    tabWidget->addTab(bookmarksTab, "书签");
+    tabWidget->addTab(thumbnailsTab, tr("Thumbnails"));
+    tabWidget->addTab(bookmarksTab, tr("Bookmarks"));
 
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(tabWidget);
@@ -64,18 +64,18 @@ QWidget* SideBar::createThumbnailsTab() {
     thumbLayout->setContentsMargins(0, 0, 0, 0);
     thumbLayout->setSpacing(0);
 
-    // 创建新的缩略图视图
+    // Create new thumbnail view
     thumbnailView = new ThumbnailListView(thumbnailsTab);
     thumbnailView->setThumbnailModel(thumbnailModel.get());
     thumbnailView->setThumbnailDelegate(thumbnailDelegate.get());
 
-    // 设置默认缩略图尺寸
+    // Set default thumbnail size
     QSize defaultSize(120, 160);
     thumbnailView->setThumbnailSize(defaultSize);
     thumbnailModel->setThumbnailSize(defaultSize);
     thumbnailDelegate->setThumbnailSize(defaultSize);
 
-    // 连接信号
+    // Connect signals
     connect(thumbnailView, &ThumbnailListView::pageClicked,
             this, &SideBar::pageClicked);
     connect(thumbnailView, &ThumbnailListView::pageDoubleClicked,
@@ -90,7 +90,7 @@ QWidget* SideBar::createBookmarksTab() {
     QWidget* bookmarksTab = new QWidget();
     QVBoxLayout* bookmarkLayout = new QVBoxLayout(bookmarksTab);
 
-    // 创建PDF目录组件
+    // Create PDF outline widget
     outlineWidget = new PDFOutlineWidget();
     bookmarkLayout->addWidget(outlineWidget);
 
@@ -160,7 +160,7 @@ void SideBar::show(bool animated) {
 void SideBar::hide(bool animated) {
     if (!isCurrentlyVisible) return;
 
-    lastWidth = width(); // 记住当前宽度
+    lastWidth = width(); // Remember current width
     isCurrentlyVisible = false;
 
     if (animated && animation) {
@@ -200,7 +200,7 @@ void SideBar::restoreState() {
         preferredWidth = settings->value("SideBar/width", defaultWidth).toInt();
         preferredWidth = qBound(minimumWidth, preferredWidth, maximumWidth);
 
-        setVisible(isCurrentlyVisible, false); // 恢复时不使用动画
+        setVisible(isCurrentlyVisible, false); // Don't use animation when restoring
     }
 }
 

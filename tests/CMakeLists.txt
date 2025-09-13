@@ -70,6 +70,13 @@ function(create_test_executable TEST_NAME TEST_SOURCE)
         ../app/model/PDFOutlineModel.cpp
         ../app/model/AsyncDocumentLoader.cpp
 
+        # Search engine sources
+        ../app/search/OptimizedSearchEngine.cpp
+
+        # Cache sources
+        ../app/cache/SearchResultCache.cpp
+        ../app/cache/PDFCacheManager.cpp
+
         # Manager sources
         ../app/managers/StyleManager.cpp
 
@@ -82,6 +89,9 @@ function(create_test_executable TEST_NAME TEST_SOURCE)
         ../app/utils/LoggingManager.cpp
         ../app/utils/LoggingMacros.cpp
         ../app/utils/LoggingConfig.cpp
+        ../app/utils/ErrorHandling.cpp
+        ../app/utils/ErrorRecovery.cpp
+        ../app/utils/PDFUtilities.cpp
 
         # QGraphics sources (conditionally compiled)
         ../app/ui/viewer/QGraphicsPDFViewer.cpp
@@ -104,9 +114,51 @@ endfunction()
 
 # Unit Tests
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_qgraphics_components.cpp)
-    create_test_executable(test_qgraphics_components 
-        unit/test_qgraphics_components.cpp 
+    create_test_executable(test_qgraphics_components
+        unit/test_qgraphics_components.cpp
         unit)
+endif()
+
+# PDF Optimizations Tests
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_pdf_optimizations.cpp)
+    create_test_executable(test_pdf_optimizations
+        unit/test_pdf_optimizations.cpp
+        unit)
+endif()
+
+# Error Handling Tests
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_error_handling.cpp)
+    create_test_executable(test_error_handling
+        unit/test_error_handling.cpp
+        unit)
+endif()
+
+# Error Recovery Tests
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_error_recovery.cpp)
+    create_test_executable(test_error_recovery
+        unit/test_error_recovery.cpp
+        unit)
+endif()
+
+# Thread Safety Tests
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_thread_safety.cpp)
+    # Find Google Test for thread safety tests
+    find_package(GTest QUIET)
+    if(GTest_FOUND)
+        create_test_executable(test_thread_safety
+            unit/test_thread_safety.cpp
+            unit)
+        target_link_libraries(test_thread_safety PRIVATE GTest::gtest GTest::gtest_main)
+
+        # Add thumbnail generator sources
+        target_sources(test_thread_safety PRIVATE
+            ../app/ui/thumbnail/ThumbnailGenerator.cpp
+        )
+
+        message(STATUS "Thread safety tests enabled with Google Test")
+    else()
+        message(WARNING "Google Test not found, thread safety tests disabled")
+    endif()
 endif()
 
 # Integration Tests
@@ -118,9 +170,47 @@ endif()
 
 # Performance Tests
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/performance/test_rendering_performance.cpp)
-    create_test_executable(test_rendering_performance 
-        performance/test_rendering_performance.cpp 
+    create_test_executable(test_rendering_performance
+        performance/test_rendering_performance.cpp
         performance)
+endif()
+
+# Search Optimization Tests
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/performance/test_search_optimizations.cpp)
+    create_test_executable(test_search_optimizations
+        performance/test_search_optimizations.cpp
+        performance)
+endif()
+
+# Enhanced Search Engine Tests
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_search_engine_core.cpp)
+    create_test_executable(test_search_engine_core
+        unit/test_search_engine_core.cpp
+        unit)
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_search_advanced_features.cpp)
+    create_test_executable(test_search_advanced_features
+        unit/test_search_advanced_features.cpp
+        unit)
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_search_performance_caching.cpp)
+    create_test_executable(test_search_performance_caching
+        unit/test_search_performance_caching.cpp
+        unit)
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_search_edge_cases.cpp)
+    create_test_executable(test_search_edge_cases
+        unit/test_search_edge_cases.cpp
+        unit)
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_search_integration.cpp)
+    create_test_executable(test_search_integration
+        integration/test_search_integration.cpp
+        integration)
 endif()
 
 # Real World Tests

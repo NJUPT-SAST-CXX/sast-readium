@@ -20,6 +20,7 @@
 #include "ui/core/ViewWidget.h"
 #include "ui/widgets/WelcomeWidget.h"
 #include "ui/managers/WelcomeScreenManager.h"
+#include "logging/SimpleLogging.h"
 
 
 class MainWindow : public QMainWindow {
@@ -86,6 +87,9 @@ private:
 
     // Theme state tracking
     QString m_currentAppliedTheme;
+    
+    // Logging
+    SastLogging::CategoryLogger m_logger{"MainWindow"};
 
 signals:
     void pdfViewerActionRequested(ActionMap action);

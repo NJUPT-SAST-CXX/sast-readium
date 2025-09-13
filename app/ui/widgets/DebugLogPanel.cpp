@@ -46,6 +46,7 @@
 #include <QShowEvent>
 #include <QHideEvent>
 #include <QStringConverter>
+#include <QEvent>
 #include "../../managers/StyleManager.h"
 
 const QString DebugLogPanel::SETTINGS_GROUP = "DebugLogPanel";
@@ -180,39 +181,39 @@ void DebugLogPanel::setupLogDisplay()
 
 void DebugLogPanel::setupFilterControls()
 {
-    m_filterGroup = new QGroupBox("Filters", this);
+    m_filterGroup = new QGroupBox(tr("Filters"), this);
     QGridLayout* filterLayout = new QGridLayout(m_filterGroup);
     
     // Log level filter
-    filterLayout->addWidget(new QLabel("Level:"), 0, 0);
+    filterLayout->addWidget(new QLabel(tr("Level:")), 0, 0);
     m_logLevelFilter = new QComboBox();
-    m_logLevelFilter->addItem("All", static_cast<int>(Logger::LogLevel::Trace));
-    m_logLevelFilter->addItem("Debug+", static_cast<int>(Logger::LogLevel::Debug));
-    m_logLevelFilter->addItem("Info+", static_cast<int>(Logger::LogLevel::Info));
-    m_logLevelFilter->addItem("Warning+", static_cast<int>(Logger::LogLevel::Warning));
-    m_logLevelFilter->addItem("Error+", static_cast<int>(Logger::LogLevel::Error));
-    m_logLevelFilter->addItem("Critical", static_cast<int>(Logger::LogLevel::Critical));
+    m_logLevelFilter->addItem(tr("All"), static_cast<int>(Logger::LogLevel::Trace));
+    m_logLevelFilter->addItem(tr("Debug+"), static_cast<int>(Logger::LogLevel::Debug));
+    m_logLevelFilter->addItem(tr("Info+"), static_cast<int>(Logger::LogLevel::Info));
+    m_logLevelFilter->addItem(tr("Warning+"), static_cast<int>(Logger::LogLevel::Warning));
+    m_logLevelFilter->addItem(tr("Error+"), static_cast<int>(Logger::LogLevel::Error));
+    m_logLevelFilter->addItem(tr("Critical"), static_cast<int>(Logger::LogLevel::Critical));
     m_logLevelFilter->setCurrentIndex(1); // Default to Debug+
     filterLayout->addWidget(m_logLevelFilter, 0, 1);
     
     // Category filter
-    filterLayout->addWidget(new QLabel("Category:"), 0, 2);
+    filterLayout->addWidget(new QLabel(tr("Category:")), 0, 2);
     m_categoryFilter = new QComboBox();
-    m_categoryFilter->addItem("All Categories");
+    m_categoryFilter->addItem(tr("All Categories"));
     m_categoryFilter->setEditable(true);
     filterLayout->addWidget(m_categoryFilter, 0, 3);
     
     // Search controls
-    filterLayout->addWidget(new QLabel("Search:"), 1, 0);
+    filterLayout->addWidget(new QLabel(tr("Search:")), 1, 0);
     m_searchEdit = new QLineEdit();
-    m_searchEdit->setPlaceholderText("Search log messages...");
+    m_searchEdit->setPlaceholderText(tr("Search log messages..."));
     filterLayout->addWidget(m_searchEdit, 1, 1, 1, 2);
     
     // Search buttons
     QHBoxLayout* searchBtnLayout = new QHBoxLayout();
-    m_searchNextBtn = new QPushButton("Next");
+    m_searchNextBtn = new QPushButton(tr("Next"));
     m_searchNextBtn->setMaximumWidth(60);
-    m_searchPrevBtn = new QPushButton("Prev");
+    m_searchPrevBtn = new QPushButton(tr("Prev"));
     m_searchPrevBtn->setMaximumWidth(60);
     searchBtnLayout->addWidget(m_searchPrevBtn);
     searchBtnLayout->addWidget(m_searchNextBtn);
@@ -221,8 +222,8 @@ void DebugLogPanel::setupFilterControls()
     
     // Search options
     QHBoxLayout* searchOptionsLayout = new QHBoxLayout();
-    m_caseSensitiveCheck = new QCheckBox("Case sensitive");
-    m_regexCheck = new QCheckBox("Regex");
+    m_caseSensitiveCheck = new QCheckBox(tr("Case sensitive"));
+    m_regexCheck = new QCheckBox(tr("Regex"));
     searchOptionsLayout->addWidget(m_caseSensitiveCheck);
     searchOptionsLayout->addWidget(m_regexCheck);
     searchOptionsLayout->addStretch();
@@ -238,24 +239,24 @@ void DebugLogPanel::setupActionButtons()
     m_actionLayout->setContentsMargins(0, 5, 0, 5);
     
     // Control buttons
-    m_pauseBtn = new QPushButton("Pause");
+    m_pauseBtn = new QPushButton(tr("Pause"));
     m_pauseBtn->setCheckable(true);
     m_pauseBtn->setMaximumWidth(80);
     
-    m_clearBtn = new QPushButton("Clear");
+    m_clearBtn = new QPushButton(tr("Clear"));
     m_clearBtn->setMaximumWidth(80);
     
-    m_exportBtn = new QPushButton("Export");
+    m_exportBtn = new QPushButton(tr("Export"));
     m_exportBtn->setMaximumWidth(80);
     
-    m_copyBtn = new QPushButton("Copy");
+    m_copyBtn = new QPushButton(tr("Copy"));
     m_copyBtn->setMaximumWidth(80);
     
-    m_settingsBtn = new QPushButton("Settings");
+    m_settingsBtn = new QPushButton(tr("Settings"));
     m_settingsBtn->setMaximumWidth(80);
     
     // Auto-scroll checkbox
-    m_autoScrollCheck = new QCheckBox("Auto-scroll");
+    m_autoScrollCheck = new QCheckBox(tr("Auto-scroll"));
     m_autoScrollCheck->setChecked(true);
     
     // Add to layout
@@ -272,13 +273,13 @@ void DebugLogPanel::setupActionButtons()
 
 void DebugLogPanel::setupStatisticsDisplay()
 {
-    m_statsGroup = new QGroupBox("Statistics", this);
+    m_statsGroup = new QGroupBox(tr("Statistics"), this);
     QVBoxLayout* statsLayout = new QVBoxLayout(m_statsGroup);
     
     // Statistics table
     m_statsTable = new QTableWidget(6, 2);
-    m_statsTable->setHorizontalHeaderLabels({"Metric", "Value"});
-    m_statsTable->setVerticalHeaderLabels({"Total", "Debug", "Info", "Warning", "Error", "Critical"});
+    m_statsTable->setHorizontalHeaderLabels({tr("Metric"), tr("Value")});
+    m_statsTable->setVerticalHeaderLabels({tr("Total"), tr("Debug"), tr("Info"), tr("Warning"), tr("Error"), tr("Critical")});
     m_statsTable->horizontalHeader()->setStretchLastSection(true);
     m_statsTable->setMaximumHeight(150);
     m_statsTable->setAlternatingRowColors(true);
@@ -292,12 +293,12 @@ void DebugLogPanel::setupStatisticsDisplay()
     statsLayout->addWidget(m_statsTable);
     
     // Messages per second label
-    m_messagesPerSecLabel = new QLabel("Messages/sec: 0.0");
+    m_messagesPerSecLabel = new QLabel(tr("Messages/sec: 0.0"));
     statsLayout->addWidget(m_messagesPerSecLabel);
     
     // Memory usage bar
     QHBoxLayout* memoryLayout = new QHBoxLayout();
-    memoryLayout->addWidget(new QLabel("Memory:"));
+    memoryLayout->addWidget(new QLabel(tr("Memory:")));
     m_memoryUsageBar = new QProgressBar();
     m_memoryUsageBar->setMaximum(100);
     m_memoryUsageBar->setValue(0);
@@ -311,13 +312,13 @@ void DebugLogPanel::setupContextMenu()
 {
     m_contextMenu = new QMenu(this);
     
-    m_copyAction = m_contextMenu->addAction("Copy Selected");
-    m_copyAllAction = m_contextMenu->addAction("Copy All");
+    m_copyAction = m_contextMenu->addAction(tr("Copy Selected"));
+    m_copyAllAction = m_contextMenu->addAction(tr("Copy All"));
     m_contextMenu->addSeparator();
-    m_clearAction = m_contextMenu->addAction("Clear Logs");
-    m_exportAction = m_contextMenu->addAction("Export Logs...");
+    m_clearAction = m_contextMenu->addAction(tr("Clear Logs"));
+    m_exportAction = m_contextMenu->addAction(tr("Export Logs..."));
     m_contextMenu->addSeparator();
-    m_pauseAction = m_contextMenu->addAction("Pause Logging");
+    m_pauseAction = m_contextMenu->addAction(tr("Pause Logging"));
     m_pauseAction->setCheckable(true);
 }
 
@@ -888,7 +889,7 @@ void DebugLogPanel::updateStatisticsDisplay()
     }
 
     // Update messages per second
-    m_messagesPerSecLabel->setText(QString("Messages/sec: %1").arg(stats.messagesPerSecond, 0, 'f', 2));
+    m_messagesPerSecLabel->setText(tr("Messages/sec: %1").arg(stats.messagesPerSecond, 0, 'f', 2));
 
     // Update memory usage (simplified calculation)
     int memoryUsagePercent = qMin(100, static_cast<int>((m_logEntries.size() * 100) / m_config.maxLogEntries));
@@ -1020,8 +1021,8 @@ void DebugLogPanel::exportToFile(const QString& filePath)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Export Error",
-            QString("Could not open file for writing: %1").arg(filePath));
+    QMessageBox::warning(this, tr("Export Error"),
+        tr("Could not open file for writing: %1").arg(filePath));
         return;
     }
 
@@ -1042,16 +1043,16 @@ void DebugLogPanel::exportToFile(const QString& filePath)
 
     file.close();
 
-    QMessageBox::information(this, "Export Complete",
-        QString("Log exported successfully to: %1").arg(filePath));
+    QMessageBox::information(this, tr("Export Complete"),
+        tr("Log exported successfully to: %1").arg(filePath));
 }
 
 void DebugLogPanel::showSettingsDialog()
 {
     // This would open a settings dialog for configuring the debug panel
     // For now, just show a placeholder message
-    QMessageBox::information(this, "Settings",
-        "Debug panel settings dialog would be implemented here.");
+    QMessageBox::information(this, tr("Settings"),
+        tr("Debug panel settings dialog would be implemented here."));
 }
 
 void DebugLogPanel::applyTheme()
@@ -1239,4 +1240,98 @@ void DebugLogPanel::applyTheme()
             "}"
         ).arg(borderColor, backgroundColor, textColor, highlightColor));
     }
+}
+
+void DebugLogPanel::retranslateUi()
+{
+    // Update group box titles
+    if (m_filterGroup) m_filterGroup->setTitle(tr("Filters"));
+    if (m_statsGroup) m_statsGroup->setTitle(tr("Statistics"));
+    
+    // Update filter labels (we need to find them as children since they're not member variables)
+    QList<QLabel*> labels = findChildren<QLabel*>();
+    for (QLabel* label : labels) {
+        if (label->text() == "Level:" || label->text().contains("Level")) {
+            label->setText(tr("Level:"));
+        } else if (label->text() == "Category:" || label->text().contains("Category")) {
+            label->setText(tr("Category:"));
+        } else if (label->text() == "Search:" || label->text().contains("Search")) {
+            label->setText(tr("Search:"));
+        } else if (label->text() == "Memory:" || label->text().contains("Memory")) {
+            label->setText(tr("Memory:"));
+        }
+    }
+    
+    // Update combo box items
+    if (m_logLevelFilter) {
+        int currentLevel = m_logLevelFilter->currentIndex();
+        m_logLevelFilter->blockSignals(true);
+        m_logLevelFilter->clear();
+        m_logLevelFilter->addItem(tr("All"), static_cast<int>(Logger::LogLevel::Trace));
+        m_logLevelFilter->addItem(tr("Debug+"), static_cast<int>(Logger::LogLevel::Debug));
+        m_logLevelFilter->addItem(tr("Info+"), static_cast<int>(Logger::LogLevel::Info));
+        m_logLevelFilter->addItem(tr("Warning+"), static_cast<int>(Logger::LogLevel::Warning));
+        m_logLevelFilter->addItem(tr("Error+"), static_cast<int>(Logger::LogLevel::Error));
+        m_logLevelFilter->addItem(tr("Critical"), static_cast<int>(Logger::LogLevel::Critical));
+        m_logLevelFilter->setCurrentIndex(currentLevel);
+        m_logLevelFilter->blockSignals(false);
+    }
+    
+    if (m_categoryFilter) {
+        QString currentCategory = m_categoryFilter->currentText();
+        m_categoryFilter->blockSignals(true);
+        // Only update the first item which is "All Categories"
+        if (m_categoryFilter->count() > 0) {
+            m_categoryFilter->setItemText(0, tr("All Categories"));
+        }
+        m_categoryFilter->blockSignals(false);
+    }
+    
+    // Update search edit placeholder
+    if (m_searchEdit) {
+        m_searchEdit->setPlaceholderText(tr("Search log messages..."));
+    }
+    
+    // Update buttons
+    if (m_searchNextBtn) m_searchNextBtn->setText(tr("Next"));
+    if (m_searchPrevBtn) m_searchPrevBtn->setText(tr("Prev"));
+    if (m_pauseBtn) m_pauseBtn->setText(tr("Pause"));
+    if (m_clearBtn) m_clearBtn->setText(tr("Clear"));
+    if (m_exportBtn) m_exportBtn->setText(tr("Export"));
+    if (m_copyBtn) m_copyBtn->setText(tr("Copy"));
+    if (m_settingsBtn) m_settingsBtn->setText(tr("Settings"));
+    
+    // Update checkboxes
+    if (m_caseSensitiveCheck) m_caseSensitiveCheck->setText(tr("Case sensitive"));
+    if (m_regexCheck) m_regexCheck->setText(tr("Regex"));
+    if (m_autoScrollCheck) m_autoScrollCheck->setText(tr("Auto-scroll"));
+    
+    // Update statistics table headers
+    if (m_statsTable) {
+        m_statsTable->setHorizontalHeaderLabels({tr("Metric"), tr("Value")});
+        m_statsTable->setVerticalHeaderLabels({tr("Total"), tr("Debug"), tr("Info"), 
+                                              tr("Warning"), tr("Error"), tr("Critical")});
+    }
+    
+    // Update messages per second label
+    if (m_messagesPerSecLabel) {
+        // Re-update with current value
+        LogStatistics stats = getStatistics();
+        m_messagesPerSecLabel->setText(tr("Messages/sec: %1").arg(stats.messagesPerSecond, 0, 'f', 2));
+    }
+    
+    // Update context menu actions
+    if (m_copyAction) m_copyAction->setText(tr("Copy Selected"));
+    if (m_copyAllAction) m_copyAllAction->setText(tr("Copy All"));
+    if (m_clearAction) m_clearAction->setText(tr("Clear Logs"));
+    if (m_exportAction) m_exportAction->setText(tr("Export Logs..."));
+    if (m_pauseAction) m_pauseAction->setText(tr("Pause Logging"));
+}
+
+void DebugLogPanel::changeEvent(QEvent* event)
+{
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
+    }
+    QWidget::changeEvent(event);
 }

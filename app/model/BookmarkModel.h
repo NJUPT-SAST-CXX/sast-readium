@@ -108,6 +108,14 @@ public:
     // Search and filtering
     QList<Bookmark> searchBookmarks(const QString& query) const;
     QList<Bookmark> getRecentBookmarks(int count = 10) const;
+
+    // Statistics and utility methods
+    int getBookmarkCount() const;
+    int getBookmarkCountForDocument(const QString& documentPath) const;
+    QStringList getDocumentPaths() const;
+    void clearAllBookmarks();
+    bool exportBookmarks(const QString& filePath) const;
+    bool importBookmarks(const QString& filePath);
     
     // Persistence
     bool saveToFile();
@@ -121,6 +129,10 @@ signals:
     void bookmarkUpdated(const Bookmark& bookmark);
     void bookmarksLoaded(int count);
     void bookmarksSaved(int count);
+    void bookmarksCleared();
+    void bookmarksImported(int importedCount, int skippedCount);
+    void bookmarksExported(int count, const QString& filePath);
+    void errorOccurred(const QString& error);
 
 private slots:
     void onDataChanged();
@@ -130,6 +142,7 @@ private:
     QString getStorageFilePath() const;
     int findBookmarkIndex(const QString& bookmarkId) const;
     void sortBookmarks();
+    bool validateBookmark(const Bookmark& bookmark) const;
     
     QList<Bookmark> m_bookmarks;
     bool m_autoSave;

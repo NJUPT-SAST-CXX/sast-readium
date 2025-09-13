@@ -31,10 +31,13 @@ public:
     void clearDocumentInfo();
 
     // 加载进度相关方法
-    void showLoadingProgress(const QString& message = "正在加载...");
+    void showLoadingProgress(const QString& message = QString());
     void updateLoadingProgress(int progress);
     void setLoadingMessage(const QString& message);
     void hideLoadingProgress();
+
+protected:
+    void changeEvent(QEvent* event) override;
 
 signals:
     void pageJumpRequested(int pageNumber);
@@ -59,11 +62,14 @@ private:
     QPropertyAnimation* progressAnimation;
 
     int currentTotalPages;
+    int currentPageNumber;
+    QString currentFileName;
 
     void setupUI();
     void setupSeparators();
     void setupPageInput();
     void setupLoadingProgress();
+    void retranslateUi();
     QString formatFileName(const QString& fullPath) const;
     bool validateAndJumpToPage(const QString& input);
 };

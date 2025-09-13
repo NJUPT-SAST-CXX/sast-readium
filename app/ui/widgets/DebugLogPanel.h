@@ -161,6 +161,7 @@ signals:
     void logStatisticsUpdated(const LogStatistics& stats);
 
 protected:
+    void changeEvent(QEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
@@ -188,6 +189,7 @@ private:
     void exportToFile(const QString& filePath);
     void showSettingsDialog();
     void applyTheme();
+    void retranslateUi();
 
     // UI Components
     QVBoxLayout* m_mainLayout;

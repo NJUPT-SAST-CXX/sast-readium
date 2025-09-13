@@ -11,6 +11,10 @@
 #include <QGroupBox>
 #include <QProgressBar>
 #include <QTimer>
+#include <QSpinBox>
+#include <QComboBox>
+#include <QColorDialog>
+#include <QRegularExpression>
 #include "../../model/SearchModel.h"
 
 class QShortcut;
@@ -39,12 +43,33 @@ public:
     int getResultCount() const;
     SearchResult getCurrentResult() const;
 
+    // Advanced search features
+    void setFuzzySearchEnabled(bool enabled);
+    void setPageRangeEnabled(bool enabled);
+    void setPageRange(int startPage, int endPage);
+    void updateSearchHistory();
+    void loadSearchHistory();
+
+    // Enhanced UI features
+    void setHighlightColors(const QColor& normalColor, const QColor& currentColor);
+    void showSearchProgress(bool show);
+    void updateSearchProgress(int current, int total);
+    void setSearchResultInfo(int currentResult, int totalResults);
+
+    // Color accessors
+    QColor getNormalHighlightColor() const;
+    QColor getCurrentHighlightColor() const;
+
+protected:
+    void changeEvent(QEvent* event) override;
+
 signals:
     void searchRequested(const QString& query, const SearchOptions& options);
     void resultSelected(const SearchResult& result);
     void navigateToResult(int pageNumber, const QRectF& rect);
     void searchClosed();
     void searchCleared();
+    void highlightColorsChanged(const QColor& normalColor, const QColor& currentColor);
 
 public slots:
     void performSearch();
@@ -69,10 +94,22 @@ private slots:
     // Navigation helper methods
     void navigateToCurrentResult();
 
+    // Advanced search slots
+    void onFuzzySearchToggled(bool enabled);
+    void onPageRangeToggled(bool enabled);
+    void onPageRangeChanged();
+    void onSearchHistorySelected(const QString& query);
+    void onClearHistoryClicked();
+
+    // UI enhancement slots
+    void onHighlightColorClicked();
+    void onCurrentHighlightColorClicked();
+
 private:
     void setupUI();
     void setupConnections();
     void setupShortcuts();
+    void retranslateUi();
     void updateNavigationButtons();
     void updateResultsInfo();
     SearchOptions getSearchOptions() const;
@@ -103,10 +140,32 @@ private:
     QCheckBox* m_regexCheck;
     QCheckBox* m_searchBackwardCheck;
 
+    // Advanced search options
+    QCheckBox* m_fuzzySearchCheck;
+    QSpinBox* m_fuzzyThresholdSpin;
+    QLabel* m_fuzzyThresholdLabel;
+
+    // Page range search
+    QGroupBox* m_pageRangeGroup;
+    QCheckBox* m_pageRangeCheck;
+    QSpinBox* m_startPageSpin;
+    QSpinBox* m_endPageSpin;
+    QLabel* m_pageRangeLabel;
+
+    // Search history
+    QComboBox* m_searchHistoryCombo;
+    QPushButton* m_clearHistoryButton;
+
     // Results display
     QListView* m_resultsView;
     QLabel* m_statusLabel;
     QProgressBar* m_progressBar;
+
+    // Enhanced UI elements
+    QLabel* m_searchProgressLabel;
+    QProgressBar* m_searchProgressBar;
+    QPushButton* m_highlightColorButton;
+    QPushButton* m_currentHighlightColorButton;
 
     // Data and state
     SearchModel* m_searchModel;

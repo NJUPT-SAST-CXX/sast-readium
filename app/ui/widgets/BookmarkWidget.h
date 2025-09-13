@@ -50,6 +50,9 @@ signals:
     void bookmarkRemoved(const QString& bookmarkId);
     void bookmarkUpdated(const Bookmark& bookmark);
 
+protected:
+    void changeEvent(QEvent* event) override;
+
 public slots:
     void onBookmarkDoubleClicked(const QModelIndex& index);
     void onBookmarkSelectionChanged();
@@ -67,6 +70,7 @@ private:
     void setupUI();
     void setupConnections();
     void setupContextMenu();
+    void retranslateUi();
     void updateBookmarkActions();
     void updateCategoryFilter();
     void filterBookmarks();

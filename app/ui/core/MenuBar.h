@@ -16,6 +16,7 @@ public:
 
 signals:
     void themeChanged(const QString& theme);
+    void languageChanged(const QString& languageCode);
     void onExecuted(ActionMap id, QWidget* context = nullptr);
     void openRecentFileRequested(const QString& filePath);
     void welcomeScreenToggleRequested();
@@ -26,6 +27,9 @@ signals:
 public slots:
     void setRecentFilesManager(RecentFilesManager* manager);
     void setWelcomeScreenEnabled(bool enabled);
+
+protected:
+    void changeEvent(QEvent* event) override;
 
 private slots:
     void updateRecentFilesMenu();
@@ -38,6 +42,7 @@ private:
     void createViewMenu();
     void createThemeMenu();
     void setupRecentFilesMenu();
+    void retranslateUi();
 
     RecentFilesManager* m_recentFilesManager;
     QMenu* m_recentFilesMenu;

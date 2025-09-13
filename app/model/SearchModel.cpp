@@ -1,4 +1,6 @@
 #include "SearchModel.h"
+#include "../search/OptimizedSearchEngine.h"
+#include "../utils/LoggingMacros.h"
 #include <QDebug>
 // #include <QtConcurrent> // Not available in this setup
 #include <QApplication>
@@ -20,6 +22,9 @@ SearchModel::SearchModel(QObject* parent)
     , m_realTimeSearchTimer(new QTimer(this))
     , m_isRealTimeSearchEnabled(true)
     , m_realTimeSearchDelay(300)
+    , m_optimizedSearchEngine(new OptimizedSearchEngine(this))
+    , m_optimizedSearchEnabled(true)
+    , m_maxHistorySize(20)
 {
     connect(m_searchWatcher, &QFutureWatcher<QList<SearchResult>>::finished,
             this, &SearchModel::onSearchFinished);
@@ -28,6 +33,18 @@ SearchModel::SearchModel(QObject* parent)
     m_realTimeSearchTimer->setSingleShot(true);
     connect(m_realTimeSearchTimer, &QTimer::timeout,
             this, &SearchModel::performRealTimeSearch);
+
+    // Connect optimized search engine signals
+    connect(m_optimizedSearchEngine, &OptimizedSearchEngine::searchStarted,
+            this, &SearchModel::searchStarted);
+    connect(m_optimizedSearchEngine, &OptimizedSearchEngine::searchFinished,
+            this, &SearchModel::onOptimizedSearchFinished);
+    connect(m_optimizedSearchEngine, &OptimizedSearchEngine::searchProgress,
+            this, &SearchModel::searchProgress);
+    connect(m_optimizedSearchEngine, &OptimizedSearchEngine::searchCancelled,
+            this, &SearchModel::searchCancelled);
+    connect(m_optimizedSearchEngine, &OptimizedSearchEngine::searchError,
+            this, &SearchModel::searchError);
 }
 
 int SearchModel::rowCount(const QModelIndex& parent) const {
@@ -91,11 +108,16 @@ void SearchModel::startSearch(Poppler::Document* document, const QString& query,
     m_currentResultIndex = -1;
 
     clearResults();
-    emit searchStarted();
 
-    // Start search (synchronous for now)
-    performSearch();
-    emit searchFinished(m_searchResults.size());
+    // Use optimized search engine if enabled
+    if (m_optimizedSearchEnabled) {
+        m_optimizedSearchEngine->startSearch(document, query, options);
+    } else {
+        emit searchStarted();
+        // Start search (synchronous for now)
+        performSearch();
+        emit searchFinished(m_searchResults.size());
+    }
 }
 
 void SearchModel::startRealTimeSearch(Poppler::Document* document, const QString& query, const SearchOptions& options) {
@@ -197,29 +219,47 @@ void SearchModel::onSearchFinished() {
 }
 
 void SearchModel::performSearch() {
-    QList<SearchResult> allResults;
-    
-    if (!m_document) {
-        return;
-    }
+    using namespace ErrorHandling;
 
-    const int pageCount = m_document->numPages();
-    
-    for (int i = 0; i < pageCount && !m_searchFuture.isCanceled(); ++i) {
-        std::unique_ptr<Poppler::Page> page(m_document->page(i));
-        if (page) {
+    auto result = safeExecute([&]() {
+        QList<SearchResult> allResults;
+
+        if (!m_document) {
+            throw ApplicationException(createSearchError("perform search", "Document is null"));
+        }
+
+        const int pageCount = m_document->numPages();
+        if (pageCount <= 0) {
+            throw ApplicationException(createSearchError("perform search", "Document has no pages"));
+        }
+
+        for (int i = 0; i < pageCount && !m_searchFuture.isCanceled(); ++i) {
+            std::unique_ptr<Poppler::Page> page(m_document->page(i));
+            if (!page) {
+                LOG_WARNING("SearchModel: Failed to get page {} during search", i);
+                continue; // Skip invalid pages but continue search
+            }
+
             QList<SearchResult> pageResults = searchInPage(page.get(), i, m_currentQuery, m_currentOptions);
             allResults.append(pageResults);
-            
+
             if (allResults.size() >= m_currentOptions.maxResults) {
                 break;
             }
         }
+
+        return allResults;
+    }, ErrorCategory::Search, "SearchModel::performSearch");
+
+    if (isError(result)) {
+        // Handle search error
+        emit searchError(getError(result).message);
+        return;
     }
 
     // Update the model with results
     beginResetModel();
-    m_searchResults = allResults;
+    m_searchResults = getValue(result);
     endResetModel();
 }
 
@@ -403,4 +443,267 @@ void SearchResult::transformToWidgetCoordinates(double scaleFactor, int rotation
         double offsetY = (widgetSize.height() - pageSize.height() * uniformScale) / 2.0;
         widgetRect.translate(offsetX, offsetY);
     }
+}
+
+// Optimized search methods implementation
+void SearchModel::setOptimizedSearchEnabled(bool enabled)
+{
+    m_optimizedSearchEnabled = enabled;
+    if (enabled && m_optimizedSearchEngine) {
+        m_optimizedSearchEngine->setCacheEnabled(true);
+        m_optimizedSearchEngine->setIncrementalSearchEnabled(true);
+        m_optimizedSearchEngine->setBackgroundSearchEnabled(true);
+    }
+}
+
+void SearchModel::onOptimizedSearchFinished(const QList<SearchResult>& results)
+{
+    beginResetModel();
+    m_results = results;
+    m_searchResults = results;
+    m_isSearching = false;
+    endResetModel();
+
+    emit searchFinished(results.size());
+
+    if (!results.isEmpty()) {
+        m_currentResultIndex = 0;
+        emit currentResultChanged(0);
+    }
+}
+
+// Advanced search implementations
+void SearchModel::startFuzzySearch(Poppler::Document* document, const QString& query, const SearchOptions& options)
+{
+    if (m_isSearching) {
+        cancelSearch();
+    }
+
+    if (!document || query.isEmpty()) {
+        emit searchError("Invalid document or empty query");
+        return;
+    }
+
+    m_document = document;
+    m_currentQuery = query;
+    m_currentOptions = options;
+    m_isSearching = true;
+    m_currentResultIndex = -1;
+
+    clearResults();
+    addToSearchHistory(query);
+
+    emit searchStarted();
+
+    // Perform fuzzy search
+    QList<SearchResult> results = performFuzzySearch(query, options);
+
+    beginResetModel();
+    m_searchResults = results;
+    m_results = results;
+    m_isSearching = false;
+    endResetModel();
+
+    emit searchFinished(results.size());
+}
+
+void SearchModel::startPageRangeSearch(Poppler::Document* document, const QString& query, int startPage, int endPage, const SearchOptions& options)
+{
+    if (m_isSearching) {
+        cancelSearch();
+    }
+
+    if (!document || query.isEmpty()) {
+        emit searchError("Invalid document or empty query");
+        return;
+    }
+
+    m_document = document;
+    m_currentQuery = query;
+    m_currentOptions = options;
+    m_isSearching = true;
+    m_currentResultIndex = -1;
+
+    clearResults();
+    addToSearchHistory(query);
+
+    emit searchStarted();
+
+    // Perform page range search
+    QList<SearchResult> results = performPageRangeSearch(query, startPage, endPage, options);
+
+    beginResetModel();
+    m_searchResults = results;
+    m_results = results;
+    m_isSearching = false;
+    endResetModel();
+
+    emit searchFinished(results.size());
+}
+
+// Search history management
+void SearchModel::addToSearchHistory(const QString& query)
+{
+    if (query.isEmpty()) return;
+
+    // Remove if already exists to move to front
+    m_searchHistory.removeAll(query);
+
+    // Add to front
+    m_searchHistory.prepend(query);
+
+    // Limit history size
+    while (m_searchHistory.size() > m_maxHistorySize) {
+        m_searchHistory.removeLast();
+    }
+}
+
+void SearchModel::clearSearchHistory()
+{
+    m_searchHistory.clear();
+}
+
+// Advanced search algorithm implementations
+QList<SearchResult> SearchModel::performFuzzySearch(const QString& query, const SearchOptions& options)
+{
+    QList<SearchResult> allResults;
+
+    if (!m_document) {
+        return allResults;
+    }
+
+    const int pageCount = m_document->numPages();
+
+    for (int i = 0; i < pageCount; ++i) {
+        std::unique_ptr<Poppler::Page> page(m_document->page(i));
+        if (page) {
+            QString pageText = page->text(QRectF());
+
+            // Split page text into words for fuzzy matching
+            QStringList words = pageText.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+
+            for (int wordIndex = 0; wordIndex < words.size(); ++wordIndex) {
+                const QString& word = words[wordIndex];
+
+                if (isFuzzyMatch(word, query, options.fuzzyThreshold)) {
+                    // Find the position of this word in the original text
+                    int position = pageText.indexOf(word, 0, options.caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive);
+
+                    if (position >= 0) {
+                        SearchResult result;
+                        result.pageNumber = i;
+                        result.text = word;
+                        result.context = extractContext(pageText, position, word.length());
+                        result.startIndex = position;
+                        result.length = word.length();
+                        result.isCurrentResult = false;
+
+                        // Get bounding box for the word
+                        Poppler::Page::SearchFlags flags = Poppler::Page::NoSearchFlags;
+                        if (!options.caseSensitive) {
+                            flags |= Poppler::Page::IgnoreCase;
+                        }
+                        QList<QRectF> boxes = page->search(word, flags);
+                        if (!boxes.isEmpty()) {
+                            result.boundingRect = boxes.first();
+                        }
+
+                        allResults.append(result);
+
+                        if (allResults.size() >= options.maxResults) {
+                            return allResults;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return allResults;
+}
+
+QList<SearchResult> SearchModel::performPageRangeSearch(const QString& query, int startPage, int endPage, const SearchOptions& options)
+{
+    QList<SearchResult> allResults;
+
+    if (!m_document) {
+        return allResults;
+    }
+
+    const int pageCount = m_document->numPages();
+    int actualStartPage = qMax(0, startPage);
+    int actualEndPage = qMin(pageCount - 1, endPage);
+
+    if (actualStartPage > actualEndPage) {
+        return allResults;
+    }
+
+    for (int i = actualStartPage; i <= actualEndPage; ++i) {
+        std::unique_ptr<Poppler::Page> page(m_document->page(i));
+        if (page) {
+            QList<SearchResult> pageResults = searchInPage(page.get(), i, query, options);
+            allResults.append(pageResults);
+
+            if (allResults.size() >= options.maxResults) {
+                break;
+            }
+        }
+    }
+
+    return allResults;
+}
+
+int SearchModel::calculateLevenshteinDistance(const QString& str1, const QString& str2)
+{
+    const int len1 = str1.length();
+    const int len2 = str2.length();
+
+    if (len1 == 0) return len2;
+    if (len2 == 0) return len1;
+
+    QVector<QVector<int>> matrix(len1 + 1, QVector<int>(len2 + 1));
+
+    // Initialize first row and column
+    for (int i = 0; i <= len1; ++i) {
+        matrix[i][0] = i;
+    }
+    for (int j = 0; j <= len2; ++j) {
+        matrix[0][j] = j;
+    }
+
+    // Fill the matrix
+    for (int i = 1; i <= len1; ++i) {
+        for (int j = 1; j <= len2; ++j) {
+            int cost = (str1[i-1] == str2[j-1]) ? 0 : 1;
+
+            int deletion = matrix[i-1][j] + 1;
+            int insertion = matrix[i][j-1] + 1;
+            int substitution = matrix[i-1][j-1] + cost;
+
+            matrix[i][j] = qMin(qMin(deletion, insertion), substitution);
+        }
+    }
+
+    return matrix[len1][len2];
+}
+
+bool SearchModel::isFuzzyMatch(const QString& text, const QString& query, int threshold)
+{
+    if (text.isEmpty() || query.isEmpty()) {
+        return false;
+    }
+
+    // Exact match
+    if (text.compare(query, Qt::CaseInsensitive) == 0) {
+        return true;
+    }
+
+    // Check if the text contains the query as substring
+    if (text.contains(query, Qt::CaseInsensitive)) {
+        return true;
+    }
+
+    // Calculate edit distance for fuzzy matching
+    int distance = calculateLevenshteinDistance(text.toLower(), query.toLower());
+    return distance <= threshold;
 }

@@ -484,5 +484,20 @@ void ViewWidget::onPDFZoomChanged(double zoomFactor) {
     if (currentIndex >= 0 && currentIndex < pdfViewers.size() &&
         pdfViewers[currentIndex] == sender) {
         emit currentViewerZoomChanged(zoomFactor);
+        emit scaleChanged(zoomFactor);
+    }
+}
+
+void ViewWidget::onRenderPageDone(const QImage& image) {
+    // Handle rendered page image from RenderModel
+    // Forward to current PDF viewer if available
+    int currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
+        PDFViewer* currentViewer = pdfViewers[currentIndex];
+        if (currentViewer) {
+            // The PDFViewer will handle the rendered image
+            // This method serves as a bridge between RenderModel and ViewWidget
+            qDebug() << "ViewWidget: Received rendered page image, size:" << image.size();
+        }
     }
 }

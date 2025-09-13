@@ -78,6 +78,7 @@ target_sources(
     # Core Manager components
     managers/StyleManager.cpp
     managers/FileTypeIconManager.cpp
+    managers/I18nManager.cpp
 
     # Viewer components (continued)
     ui/viewer/PDFPrerenderer.cpp
@@ -119,12 +120,15 @@ target_sources(
     # Views
     view/Views.cpp
 
-    # Logging
-    utils/Logger.cpp
-    utils/QtSpdlogBridge.cpp
-    utils/LoggingManager.cpp
-    utils/LoggingMacros.cpp
-    utils/LoggingConfig.cpp
+    # Logging and Error Handling
+    logging/Logger.cpp
+    logging/QtSpdlogBridge.cpp
+    logging/LoggingManager.cpp
+    logging/LoggingMacros.cpp
+    logging/LoggingConfig.cpp
+    logging/SimpleLogging.cpp
+    utils/ErrorHandling.cpp
+    utils/ErrorRecovery.cpp
 
     # Tests (optional, can be excluded in release builds)
     # tests/test_logging.cpp  # Commented out - file doesn't exist yet

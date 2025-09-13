@@ -610,20 +610,22 @@ QPixmap PDFUtilities::renderPageToPixmap(Poppler::Page* page, double dpi)
         dpi = 150.0;
     }
 
-    try {
+    using namespace ErrorHandling;
+
+    auto result = safeExecute([&]() -> QPixmap {
         QImage image = page->renderToImage(dpi, dpi);
         if (image.isNull()) {
-            Logger::instance().warning("[utils] PDFUtilities::renderPageToPixmap: Failed to render page to image");
-            return QPixmap();
+            throw ApplicationException(createRenderingError("render page to image",
+                QString("Failed to render page at DPI %1").arg(dpi)));
         }
         return QPixmap::fromImage(image);
-    } catch (const std::exception& e) {
-        Logger::instance().warning("[utils] PDFUtilities::renderPageToPixmap: Exception occurred: {}", e.what());
-        return QPixmap();
-    } catch (...) {
-        Logger::instance().warning("[utils] PDFUtilities::renderPageToPixmap: Unknown exception occurred");
-        return QPixmap();
+    }, ErrorCategory::Rendering, "PDFUtilities::renderPageToPixmap");
+
+    if (isError(result)) {
+        return QPixmap(); // Return empty pixmap on error
     }
+
+    return getValue(result);
 }
 
 QPixmap PDFUtilities::renderPageRegion(Poppler::Page* page, const QRectF& region, double dpi)

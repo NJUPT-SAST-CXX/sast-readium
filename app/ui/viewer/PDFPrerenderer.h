@@ -71,6 +71,7 @@ public:
     // Adaptive learning
     void recordPageView(int pageNumber, qint64 viewDuration);
     void recordNavigationPattern(int fromPage, int toPage);
+    void updateScrollDirection(int direction); // -1 = up, 0 = none, 1 = down
 
 public slots:
     void startPrerendering();
@@ -130,6 +131,10 @@ private:
     // Reading pattern analysis
     QList<int> m_accessHistory;
     int m_prerenderRange;
+
+    // Scroll direction tracking for optimized prediction
+    int m_currentScrollDirection; // -1 = up, 0 = none, 1 = down
+    QTime m_lastScrollTime;
     
     // Helper methods
     QString getCacheKey(int pageNumber, double scaleFactor, int rotation);

@@ -20,6 +20,9 @@ public:
     void updateZoomLevel(double zoomFactor);
     void setActionsEnabled(bool enabled);
 
+protected:
+    void changeEvent(QEvent* event) override;
+
 signals:
     void actionTriggered(ActionMap action);
     void pageJumpRequested(int pageNumber);
@@ -37,6 +40,7 @@ private:
     void setupThemeActions();
     void createSeparator();
     void applyToolBarStyle();
+    void retranslateUi();
 
     // 文件操作
     QAction* openAction;

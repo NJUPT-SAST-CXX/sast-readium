@@ -69,9 +69,15 @@ private slots:
     void onPDFPageChanged(int pageNumber);
     void onPDFZoomChanged(double zoomFactor);
 
+
+public slots:
+    // RenderModel信号处理
+    void onRenderPageDone(const QImage& image);
+
 signals:
     void currentViewerPageChanged(int pageNumber, int totalPages);
     void currentViewerZoomChanged(double zoomFactor);
+    void scaleChanged(double zoomFactor);
 
 private:
     // UI组件

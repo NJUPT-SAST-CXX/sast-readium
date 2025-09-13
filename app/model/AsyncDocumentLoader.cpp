@@ -66,32 +66,46 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath)
     // 连接信号
     connect(m_workerThread, &QThread::started, m_worker, &AsyncDocumentLoaderWorker::doLoad);
     connect(m_worker, &AsyncDocumentLoaderWorker::loadCompleted, this, [this](Poppler::Document* document) {
-        QMutexLocker locker(&m_stateMutex);
-        if (m_state == LoadingState::Loading) {
-            m_state = LoadingState::Completed;
-            QString filePath = m_currentFilePath;
-            locker.unlock();
+        QString filePath;
+        QThread* threadToCleanup = nullptr;
+        AsyncDocumentLoaderWorker* workerToCleanup = nullptr;
 
-            stopProgressSimulation();
-            emit loadingProgressChanged(100);
-            emit loadingMessageChanged("加载完成");
-            emit documentLoaded(document, filePath);
+        // DEADLOCK FIX: Minimize mutex scope for thread cleanup
+        {
+            QMutexLocker locker(&m_stateMutex);
+            if (m_state == LoadingState::Loading) {
+                m_state = LoadingState::Completed;
+                filePath = m_currentFilePath;
 
-            // 清理工作线程
-            if (m_workerThread) {
-                m_workerThread->quit();
-                m_workerThread->wait();
-                m_workerThread->deleteLater();
+                // Take ownership for cleanup outside mutex
+                threadToCleanup = m_workerThread;
+                workerToCleanup = m_worker;
                 m_workerThread = nullptr;
-            }
-            if (m_worker) {
-                m_worker->deleteLater();
                 m_worker = nullptr;
+            } else {
+                // State changed, cleanup document and return
+                delete document;
+                return;
             }
-
-            // 检查队列中是否还有待加载的文档
-            processNextInQueue();
         }
+
+        stopProgressSimulation();
+        emit loadingProgressChanged(100);
+        emit loadingMessageChanged("加载完成");
+        emit documentLoaded(document, filePath);
+
+        // DEADLOCK FIX: Cleanup thread outside of mutex
+        if (threadToCleanup) {
+            threadToCleanup->quit();
+            threadToCleanup->wait(3000); // Add timeout
+            threadToCleanup->deleteLater();
+        }
+        if (workerToCleanup) {
+            workerToCleanup->deleteLater();
+        }
+
+        // 检查队列中是否还有待加载的文档
+        processNextInQueue();
     });
     connect(m_worker, &AsyncDocumentLoaderWorker::loadFailed, this, [this](const QString& error) {
         QMutexLocker locker(&m_stateMutex);
@@ -110,35 +124,45 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath)
 
 void AsyncDocumentLoader::cancelLoading()
 {
-    QMutexLocker locker(&m_stateMutex);
-    
-    if (m_state != LoadingState::Loading) {
-        return;
-    }
-    
-    m_state = LoadingState::Cancelled;
-    QString filePath = m_currentFilePath;
-    
-    locker.unlock();
-    
-    stopProgressSimulation();
-    
-    // 清理工作线程
-    if (m_workerThread) {
-        m_workerThread->quit();
-        if (!m_workerThread->wait(3000)) {
-            m_workerThread->terminate();
-            m_workerThread->wait(1000);
+    QString filePath;
+    QThread* threadToCleanup = nullptr;
+    AsyncDocumentLoaderWorker* workerToCleanup = nullptr;
+
+    // DEADLOCK FIX: Minimize mutex scope and avoid holding mutex during thread operations
+    {
+        QMutexLocker locker(&m_stateMutex);
+
+        if (m_state != LoadingState::Loading) {
+            return;
         }
-        m_workerThread->deleteLater();
+
+        m_state = LoadingState::Cancelled;
+        filePath = m_currentFilePath;
+
+        // Take ownership of thread and worker for cleanup outside mutex
+        threadToCleanup = m_workerThread;
+        workerToCleanup = m_worker;
         m_workerThread = nullptr;
-    }
-    
-    if (m_worker) {
-        m_worker->deleteLater();
         m_worker = nullptr;
     }
-    
+
+    stopProgressSimulation();
+
+    // DEADLOCK FIX: Cleanup thread and worker outside of mutex to prevent deadlocks
+    if (threadToCleanup) {
+        threadToCleanup->quit();
+        if (!threadToCleanup->wait(3000)) {
+            qWarning() << "AsyncDocumentLoader: Thread cleanup timeout, terminating";
+            threadToCleanup->terminate();
+            threadToCleanup->wait(1000);
+        }
+        threadToCleanup->deleteLater();
+    }
+
+    if (workerToCleanup) {
+        workerToCleanup->deleteLater();
+    }
+
     emit loadingCancelled(filePath);
 }
 
@@ -440,39 +464,46 @@ void AsyncDocumentLoaderWorker::retryLoad(int extendedTimeoutMs)
 
 void AsyncDocumentLoaderWorker::onLoadTimeout()
 {
-    QMutexLocker locker(&m_stateMutex);
+    bool shouldEmitError = false;
+    QString timeoutMessage;
 
-    if (!m_loadingInProgress || m_cancelled) {
-        qDebug() << "AsyncDocumentLoaderWorker: Timeout ignored - already finished or cancelled";
-        return; // Already finished or cancelled
+    // DEADLOCK FIX: Minimize mutex scope and prepare error message outside mutex
+    {
+        QMutexLocker locker(&m_stateMutex);
+
+        if (!m_loadingInProgress || m_cancelled) {
+            qDebug() << "AsyncDocumentLoaderWorker: Timeout ignored - already finished or cancelled";
+            return; // Already finished or cancelled
+        }
+
+        qDebug() << "AsyncDocumentLoaderWorker: Load timeout for file:" << m_filePath
+                 << "in thread:" << QThread::currentThread();
+
+        // Set cancellation flag - this will be checked by the loading operation
+        m_cancelled = true;
+        m_loadingInProgress = false;
+        shouldEmitError = true;
+
+        // Stop the timeout timer to prevent multiple timeouts
+        if (m_timeoutTimer) {
+            m_timeoutTimer->stop();
+        }
     }
 
-    qDebug() << "AsyncDocumentLoaderWorker: Load timeout for file:" << m_filePath
-             << "in thread:" << QThread::currentThread();
+    if (shouldEmitError) {
+        // DEADLOCK FIX: Prepare error message outside of mutex
+        QFileInfo fileInfo(m_filePath);
+        timeoutMessage = QString("文档加载超时: %1 (文件大小: %2 MB，超时时间: %3 秒)")
+                                .arg(fileInfo.fileName())
+                                .arg(QString::number(fileInfo.size() / (1024.0 * 1024.0), 'f', 1))
+                                .arg(calculateTimeoutForFile(fileInfo.size()) / 1000);
 
-    // Set cancellation flag - this will be checked by the loading operation
-    m_cancelled = true;
-    m_loadingInProgress = false;
+        qDebug() << "AsyncDocumentLoaderWorker: Emitting timeout error:" << timeoutMessage;
+        emit loadFailed(timeoutMessage);
 
-    // Stop the timeout timer to prevent multiple timeouts
-    if (m_timeoutTimer) {
-        m_timeoutTimer->stop();
+        // Perform cleanup - this is now thread-safe
+        cleanup();
     }
-
-    locker.unlock();
-
-    // Emit timeout error with detailed message
-    QFileInfo fileInfo(m_filePath);
-    QString timeoutMessage = QString("文档加载超时: %1 (文件大小: %2 MB，超时时间: %3 秒)")
-                            .arg(fileInfo.fileName())
-                            .arg(QString::number(fileInfo.size() / (1024.0 * 1024.0), 'f', 1))
-                            .arg(calculateTimeoutForFile(fileInfo.size()) / 1000);
-
-    qDebug() << "AsyncDocumentLoaderWorker: Emitting timeout error:" << timeoutMessage;
-    emit loadFailed(timeoutMessage);
-
-    // Perform cleanup - this is now thread-safe
-    cleanup();
 }
 
 int AsyncDocumentLoaderWorker::calculateTimeoutForFile(qint64 fileSize) const

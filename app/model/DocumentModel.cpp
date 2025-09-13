@@ -2,10 +2,35 @@
 #include <QFileInfo>
 #include "RenderModel.h"
 #include "utils/LoggingMacros.h"
+#include "utils/ErrorHandling.h"
+#include "utils/ErrorRecovery.h"
+
+void DocumentModel::initializeErrorRecovery() {
+    // Register recovery actions for document-related errors
+    auto& recoveryManager = ErrorRecovery::RecoveryManager::instance();
+
+    // Register file system recovery action
+    recoveryManager.registerRecoveryAction(
+        ErrorHandling::ErrorCategory::FileSystem,
+        std::make_shared<ErrorRecovery::FileSystemRecoveryAction>()
+    );
+
+    // Register document recovery action
+    recoveryManager.registerRecoveryAction(
+        ErrorHandling::ErrorCategory::Document,
+        std::make_shared<ErrorRecovery::DocumentRecoveryAction>()
+    );
+
+    LOG_DEBUG("DocumentModel: Error recovery actions registered");
+}
 
 // 添加支持RenderModel的构造函数
 DocumentModel::DocumentModel(RenderModel* _renderModel): renderModel(_renderModel), currentDocumentIndex(-1) {
     LOG_DEBUG("DocumentModel created with RenderModel");
+
+    // Register error recovery actions
+    initializeErrorRecovery();
+
     // 初始化异步加载器
     asyncLoader = new AsyncDocumentLoader(this);
 
@@ -21,6 +46,9 @@ DocumentModel::DocumentModel(RenderModel* _renderModel): renderModel(_renderMode
 }
 
 DocumentModel::DocumentModel() : currentDocumentIndex(-1) {
+    // Register error recovery actions
+    initializeErrorRecovery();
+
     // 初始化异步加载器
     asyncLoader = new AsyncDocumentLoader(this);
 
@@ -36,27 +64,63 @@ DocumentModel::DocumentModel() : currentDocumentIndex(-1) {
 }
 
 bool DocumentModel::openFromFile(const QString& filePath) {
-    if (filePath.isEmpty() || !QFile::exists(filePath)) {
-        qWarning() << "Invalid file path:" << filePath;
-        emit loadingFailed("文件路径无效", filePath);
+    using namespace ErrorHandling;
+    using namespace ErrorRecovery;
+
+    // Use retry policy for file operations
+    auto retryConfig = Utils::createStandardRetry();
+
+    auto result = RecoveryManager::instance().retryWithPolicy([&]() -> bool {
+        // Input validation with standardized error handling
+        if (filePath.isEmpty()) {
+            throw ApplicationException(createFileSystemError("open document", filePath, "File path is empty"));
+        }
+
+        if (!QFile::exists(filePath)) {
+            throw ApplicationException(createFileSystemError("open document", filePath, "File does not exist"));
+        }
+
+        // 检查文档是否已经打开
+        for (size_t i = 0; i < documents.size(); ++i) {
+            if (documents[i]->filePath == filePath) {
+                LOG_INFO("Document already open, switching to existing: {}", filePath.toStdString());
+                switchToDocument(static_cast<int>(i));
+                return true;
+            }
+        }
+
+        // 发送加载开始信号
+        LOG_INFO("Starting document load: {}", filePath.toStdString());
+        emit loadingStarted(filePath);
+
+        // 使用异步加载器加载文档
+        asyncLoader->loadDocument(filePath);
+        return true; // 异步加载，立即返回true
+
+    }, retryConfig, QString("DocumentModel::openFromFile(%1)").arg(filePath));
+
+    if (isError(result)) {
+        const auto& error = getError(result);
+
+        // Attempt recovery
+        auto recoveryResult = RecoveryManager::instance().executeRecovery(
+            error, "DocumentModel", "openFromFile");
+
+        if (recoveryResult == RecoveryResult::Retry) {
+            // Retry the operation once more
+            return openFromFile(filePath);
+        } else if (recoveryResult == RecoveryResult::Fallback) {
+            // Try alternative loading method or provide user feedback
+            emit loadingFailed("Document loading failed, but recovery options available", filePath);
+            return false;
+        }
+
+        // Recovery failed, emit error
+        emit loadingFailed(error.message, filePath);
         return false;
     }
 
-    // 检查文档是否已经打开
-    for (size_t i = 0; i < documents.size(); ++i) {
-        if (documents[i]->filePath == filePath) {
-            switchToDocument(static_cast<int>(i));
-            return true;
-        }
-    }
-
-    // 发送加载开始信号
-    emit loadingStarted(filePath);
-
-    // 使用异步加载器加载文档
-    asyncLoader->loadDocument(filePath);
-
-    return true; // 异步加载，立即返回true
+    return getValue(result);
 }
 
 bool DocumentModel::openFromFiles(const QStringList& filePaths) {

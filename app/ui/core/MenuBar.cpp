@@ -4,6 +4,8 @@
 #include <QMenu>
 #include <QFileInfo>
 #include <QDebug>
+#include <QEvent>
+#include "../managers/I18nManager.h"
 
 MenuBar::MenuBar(QWidget* parent)
     : QMenuBar(parent)
@@ -18,25 +20,25 @@ MenuBar::MenuBar(QWidget* parent)
 }
 
 void MenuBar::createFileMenu() {
-    QMenu* fileMenu = new QMenu(tr("文件(F)"), this);
+    QMenu* fileMenu = new QMenu(tr("&File"), this);
     addMenu(fileMenu);
 
-    QAction* openAction = new QAction(tr("打开"), this);
+    QAction* openAction = new QAction(tr("&Open"), this);
     openAction->setShortcut(QKeySequence("Ctrl+O"));
 
-    QAction* openFolderAction = new QAction(tr("打开文件夹"), this);
+    QAction* openFolderAction = new QAction(tr("Open &Folder"), this);
     openFolderAction->setShortcut(QKeySequence("Ctrl+Shift+O"));
 
-    QAction* saveAction = new QAction(tr("保存"), this);
+    QAction* saveAction = new QAction(tr("&Save"), this);
     saveAction->setShortcut(QKeySequence("Ctrl+S"));
 
-    QAction* saveAsAction = new QAction(tr("另存副本"), this);
+    QAction* saveAsAction = new QAction(tr("Save &As..."), this);
     saveAsAction->setShortcut(QKeySequence("Ctrl+Shift+S"));
 
-    QAction* documentPropertiesAction = new QAction(tr("文档属性"), this);
+    QAction* documentPropertiesAction = new QAction(tr("Document &Properties"), this);
     documentPropertiesAction->setShortcut(QKeySequence("Ctrl+I"));
 
-    QAction* exitAction = new QAction(tr("退出"), this);
+    QAction* exitAction = new QAction(tr("E&xit"), this);
     exitAction->setShortcut(QKeySequence("Ctrl+Q"));
 
     fileMenu->addAction(openAction);
@@ -67,22 +69,22 @@ void MenuBar::createFileMenu() {
 }
 
 void MenuBar::createTabMenu() {
-    QMenu* tabMenu = new QMenu(tr("标签页(T)"), this);
+    QMenu* tabMenu = new QMenu(tr("&Tabs"), this);
     addMenu(tabMenu);
 
-    QAction* newTabAction = new QAction(tr("新建标签页"), this);
+    QAction* newTabAction = new QAction(tr("&New Tab"), this);
     newTabAction->setShortcut(QKeySequence("Ctrl+T"));
 
-    QAction* closeTabAction = new QAction(tr("关闭标签页"), this);
+    QAction* closeTabAction = new QAction(tr("&Close Tab"), this);
     closeTabAction->setShortcut(QKeySequence("Ctrl+W"));
 
-    QAction* closeAllTabsAction = new QAction(tr("关闭所有标签页"), this);
+    QAction* closeAllTabsAction = new QAction(tr("Close &All Tabs"), this);
     closeAllTabsAction->setShortcut(QKeySequence("Ctrl+Shift+W"));
 
-    QAction* nextTabAction = new QAction(tr("下一个标签页"), this);
+    QAction* nextTabAction = new QAction(tr("Ne&xt Tab"), this);
     nextTabAction->setShortcut(QKeySequence("Ctrl+Tab"));
 
-    QAction* prevTabAction = new QAction(tr("上一个标签页"), this);
+    QAction* prevTabAction = new QAction(tr("&Previous Tab"), this);
     prevTabAction->setShortcut(QKeySequence("Ctrl+Shift+Tab"));
 
     tabMenu->addAction(newTabAction);
@@ -107,63 +109,63 @@ void MenuBar::createTabMenu() {
 }
 
 void MenuBar::createViewMenu() {
-    QMenu* viewMenu = new QMenu(tr("视图(V)"), this);
+    QMenu* viewMenu = new QMenu(tr("&View"), this);
     addMenu(viewMenu);
 
-    // 欢迎界面控制
-    m_welcomeScreenToggleAction = new QAction(tr("显示欢迎界面"), this);
+    // Welcome screen control
+    m_welcomeScreenToggleAction = new QAction(tr("Show &Welcome Screen"), this);
     m_welcomeScreenToggleAction->setCheckable(true);
-    m_welcomeScreenToggleAction->setChecked(true); // 默认启用
-    m_welcomeScreenToggleAction->setToolTip(tr("切换欢迎界面的显示"));
+    m_welcomeScreenToggleAction->setChecked(true); // Default enabled
+    m_welcomeScreenToggleAction->setToolTip(tr("Toggle welcome screen display"));
 
-    // 侧边栏控制
-    QAction* toggleSideBarAction = new QAction(tr("切换侧边栏"), this);
+    // Sidebar control
+    QAction* toggleSideBarAction = new QAction(tr("Toggle &Sidebar"), this);
     toggleSideBarAction->setShortcut(QKeySequence("F9"));
     toggleSideBarAction->setCheckable(true);
-    toggleSideBarAction->setChecked(true); // 默认显示
+    toggleSideBarAction->setChecked(true); // Default show
 
-    QAction* showSideBarAction = new QAction(tr("显示侧边栏"), this);
-    QAction* hideSideBarAction = new QAction(tr("隐藏侧边栏"), this);
+    QAction* showSideBarAction = new QAction(tr("Show Sidebar"), this);
+    QAction* hideSideBarAction = new QAction(tr("Hide Sidebar"), this);
 
-    // 查看模式控制
-    QAction* singlePageAction = new QAction(tr("单页视图"), this);
+    // View mode control
+    QAction* singlePageAction = new QAction(tr("Single &Page View"), this);
     singlePageAction->setShortcut(QKeySequence("Ctrl+1"));
     singlePageAction->setCheckable(true);
-    singlePageAction->setChecked(true); // 默认单页视图
+    singlePageAction->setChecked(true); // Default single page view
 
-    QAction* continuousScrollAction = new QAction(tr("连续滚动"), this);
+    QAction* continuousScrollAction = new QAction(tr("&Continuous Scroll"), this);
     continuousScrollAction->setShortcut(QKeySequence("Ctrl+2"));
     continuousScrollAction->setCheckable(true);
 
-    // 创建查看模式动作组
+    // Create view mode action group
     QActionGroup* viewModeGroup = new QActionGroup(this);
     viewModeGroup->addAction(singlePageAction);
     viewModeGroup->addAction(continuousScrollAction);
 
-    // 视图控制
-    QAction* fullScreenAction = new QAction(tr("全屏"), this);
+    // View control
+    QAction* fullScreenAction = new QAction(tr("&Full Screen"), this);
     fullScreenAction->setShortcut(QKeySequence("Ctrl+Shift+F"));
 
-    QAction* zoomInAction = new QAction(tr("放大"), this);
+    QAction* zoomInAction = new QAction(tr("Zoom &In"), this);
     zoomInAction->setShortcut(QKeySequence("Ctrl++"));
 
-    QAction* zoomOutAction = new QAction(tr("缩小"), this);
+    QAction* zoomOutAction = new QAction(tr("Zoom &Out"), this);
     zoomOutAction->setShortcut(QKeySequence("Ctrl+-"));
 
-    // 调试面板控制
-    m_debugPanelToggleAction = new QAction(tr("显示调试面板"), this);
+    // Debug panel control
+    m_debugPanelToggleAction = new QAction(tr("Show &Debug Panel"), this);
     m_debugPanelToggleAction->setShortcut(QKeySequence("F12"));
     m_debugPanelToggleAction->setCheckable(true);
-    m_debugPanelToggleAction->setChecked(true); // 默认显示
-    m_debugPanelToggleAction->setToolTip(tr("切换调试日志面板的显示"));
+    m_debugPanelToggleAction->setChecked(true); // Default show
+    m_debugPanelToggleAction->setToolTip(tr("Toggle debug log panel display"));
 
-    m_debugPanelClearAction = new QAction(tr("清空调试日志"), this);
+    m_debugPanelClearAction = new QAction(tr("&Clear Debug Log"), this);
     m_debugPanelClearAction->setShortcut(QKeySequence("Ctrl+Shift+L"));
-    m_debugPanelClearAction->setToolTip(tr("清空调试面板中的所有日志"));
+    m_debugPanelClearAction->setToolTip(tr("Clear all logs in debug panel"));
 
-    m_debugPanelExportAction = new QAction(tr("导出调试日志"), this);
+    m_debugPanelExportAction = new QAction(tr("&Export Debug Log"), this);
     m_debugPanelExportAction->setShortcut(QKeySequence("Ctrl+Shift+E"));
-    m_debugPanelExportAction->setToolTip(tr("将调试日志导出到文件"));
+    m_debugPanelExportAction->setToolTip(tr("Export debug log to file"));
 
     // 添加到菜单
     viewMenu->addAction(m_welcomeScreenToggleAction);
@@ -211,19 +213,56 @@ void MenuBar::createViewMenu() {
 }
 
 void MenuBar::createThemeMenu() {
-    QMenu* themeMenu = new QMenu(tr("主题(T)"), this);
+    QMenu* themeMenu = new QMenu(tr("&Settings"), this);
     addMenu(themeMenu);
 
-    QAction* lightThemeAction = new QAction(tr("浅色"), this);
+    // Theme submenu
+    QMenu* themeSubMenu = new QMenu(tr("&Theme"), this);
+    
+    QAction* lightThemeAction = new QAction(tr("&Light"), this);
     lightThemeAction->setCheckable(true);
 
-    QAction* darkThemeAction = new QAction(tr("深色"), this);
+    QAction* darkThemeAction = new QAction(tr("&Dark"), this);
     darkThemeAction->setCheckable(true);
 
     QActionGroup* themeGroup = new QActionGroup(this);
     themeGroup->addAction(lightThemeAction);
     themeGroup->addAction(darkThemeAction);
 
+    themeSubMenu->addAction(lightThemeAction);
+    themeSubMenu->addAction(darkThemeAction);
+    
+    // Language submenu
+    QMenu* languageSubMenu = new QMenu(tr("&Language"), this);
+    
+    QAction* englishAction = new QAction(tr("&English"), this);
+    englishAction->setCheckable(true);
+    englishAction->setData("en");
+    
+    QAction* chineseAction = new QAction(tr("简体中文(&C)"), this);
+    chineseAction->setCheckable(true);
+    chineseAction->setData("zh");
+    
+    QActionGroup* languageGroup = new QActionGroup(this);
+    languageGroup->addAction(englishAction);
+    languageGroup->addAction(chineseAction);
+    
+    languageSubMenu->addAction(englishAction);
+    languageSubMenu->addAction(chineseAction);
+    
+    // Set current language as checked
+    QString currentLang = I18nManager::instance().currentLanguageCode();
+    if (currentLang == "zh") {
+        chineseAction->setChecked(true);
+    } else {
+        englishAction->setChecked(true);
+    }
+    
+    // Add submenus to main menu
+    themeMenu->addMenu(themeSubMenu);
+    themeMenu->addMenu(languageSubMenu);
+
+    // Connect theme signals
     connect(lightThemeAction, &QAction::triggered, this, [this](bool checked) {
         if (checked) {
             emit themeChanged("light");
@@ -234,6 +273,17 @@ void MenuBar::createThemeMenu() {
         if (checked) {
             emit themeChanged("dark");
         }
+    });
+    
+    // Connect language signals
+    connect(englishAction, &QAction::triggered, this, [this]() {
+        I18nManager::instance().loadLanguage("en");
+        emit languageChanged("en");
+    });
+    
+    connect(chineseAction, &QAction::triggered, this, [this]() {
+        I18nManager::instance().loadLanguage("zh");
+        emit languageChanged("zh");
     });
 }
 
@@ -261,10 +311,10 @@ void MenuBar::setWelcomeScreenEnabled(bool enabled)
 
 void MenuBar::setupRecentFilesMenu()
 {
-    m_recentFilesMenu = new QMenu(tr("最近打开的文件"), this);
-    m_recentFilesMenu->setEnabled(false); // 初始状态禁用，直到有文件
+    m_recentFilesMenu = new QMenu(tr("&Recent Files"), this);
+    m_recentFilesMenu->setEnabled(false); // Initially disabled until there are files
 
-    m_clearRecentFilesAction = new QAction(tr("清空最近文件"), this);
+    m_clearRecentFilesAction = new QAction(tr("&Clear Recent Files"), this);
     connect(m_clearRecentFilesAction, &QAction::triggered,
             this, &MenuBar::onClearRecentFilesTriggered);
 }
@@ -282,7 +332,7 @@ void MenuBar::updateRecentFilesMenu()
 
     if (recentFiles.isEmpty()) {
         m_recentFilesMenu->setEnabled(false);
-        QAction* noFilesAction = m_recentFilesMenu->addAction(tr("无最近文件"));
+        QAction* noFilesAction = m_recentFilesMenu->addAction(tr("No Recent Files"));
         noFilesAction->setEnabled(false);
         return;
     }
@@ -331,6 +381,29 @@ void MenuBar::onRecentFileTriggered()
             }
         }
     }
+}
+
+void MenuBar::retranslateUi()
+{
+    // Simplest approach: rebuild the menus so all tr() calls apply in new language
+    this->clear();
+    createFileMenu();
+    createTabMenu();
+    createViewMenu();
+    createThemeMenu();
+
+    // Refresh recent files submenu contents if manager is present
+    if (m_recentFilesManager) {
+        updateRecentFilesMenu();
+    }
+}
+
+void MenuBar::changeEvent(QEvent* event)
+{
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
+    }
+    QMenuBar::changeEvent(event);
 }
 
 void MenuBar::onClearRecentFilesTriggered()

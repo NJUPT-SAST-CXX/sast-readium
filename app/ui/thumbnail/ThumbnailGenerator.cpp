@@ -1,7 +1,4 @@
 #include "ThumbnailGenerator.h"
-#include <QtCore>
-#include <QtGui>
-#include <QtWidgets>
 #include <QApplication>
 #include <QDebug>
 #include <QDateTime>
@@ -10,10 +7,13 @@
 #include <QThread>
 #include <QHash>
 #include <QQueue>
+#include <QTimer>
+#include <QImageWriter>
+#include <QBuffer>
 #include <poppler-qt6.h>
 #include <cmath>
 #include <algorithm>
-#include "utils/LoggingMacros.h"
+#include "../../utils/LoggingMacros.h"
 
 ThumbnailGenerator::ThumbnailGenerator(QObject* parent)
     : QObject(parent)
@@ -21,6 +21,13 @@ ThumbnailGenerator::ThumbnailGenerator(QObject* parent)
     , m_defaultQuality(DEFAULT_QUALITY)
     , m_maxConcurrentJobs(DEFAULT_MAX_CONCURRENT_JOBS)
     , m_maxRetries(DEFAULT_MAX_RETRIES)
+    , m_renderMode(RenderMode::HYBRID)
+    , m_cacheStrategy(CacheStrategy::ADAPTIVE)
+    , m_gpuAccelerationEnabled(true)
+    , m_gpuAccelerationAvailable(false)
+    , m_memoryPoolSize(DEFAULT_MEMORY_POOL_SIZE)
+    , m_compressionEnabled(true)
+    , m_compressionQuality(DEFAULT_COMPRESSION_QUALITY)
     , m_running(false)
     , m_paused(false)
     , m_batchSize(DEFAULT_BATCH_SIZE)
@@ -29,13 +36,26 @@ ThumbnailGenerator::ThumbnailGenerator(QObject* parent)
     , m_totalErrors(0)
     , m_totalTime(0)
 {
+    // 初始化压缩缓存
+    m_compressedCache.setMaxCost(COMPRESSED_CACHE_SIZE);
+
     initializeGenerator();
+
+    // 检查GPU加速可用性
+    if (m_gpuAccelerationEnabled) {
+        m_gpuAccelerationAvailable = initializeGpuContext();
+        if (!m_gpuAccelerationAvailable) {
+            LOG_WARNING("GPU acceleration not available, falling back to CPU rendering");
+        }
+    }
 }
 
 ThumbnailGenerator::~ThumbnailGenerator()
 {
     stop();
     cleanupJobs();
+    cleanupGpuContext();
+    cleanupMemoryPool();
 }
 
 void ThumbnailGenerator::initializeGenerator()
@@ -56,14 +76,17 @@ void ThumbnailGenerator::initializeGenerator()
 
 void ThumbnailGenerator::setDocument(std::shared_ptr<Poppler::Document> document)
 {
-    QMutexLocker locker(&m_documentMutex);
-    
-    // 停止当前所有任务
+    // DEADLOCK FIX: Avoid nested mutex calls by clearing queues/jobs before acquiring document mutex
+    // This prevents the lock ordering: documentMutex -> queueMutex -> jobsMutex
+
+    // First, stop all operations without holding document mutex
     clearQueue();
     cleanupJobs();
-    
+
+    // Now safely acquire document mutex and set the new document
+    QMutexLocker locker(&m_documentMutex);
     m_document = document;
-    
+
     // 配置文档渲染设置
     if (m_document) {
         // ArthurBackend可能不可用，注释掉
@@ -110,12 +133,14 @@ void ThumbnailGenerator::setQuality(double quality)
 void ThumbnailGenerator::setMaxConcurrentJobs(int maxJobs)
 {
     m_maxConcurrentJobs = qBound(1, maxJobs, 8);
-    
-    // 如果当前活动任务超过限制，等待一些完成
-    while (activeJobCount() > m_maxConcurrentJobs) {
-        QThread::msleep(10);
-        QApplication::processEvents();
-    }
+
+    // DEADLOCK FIX: Replace busy-wait loop with proper signaling
+    // The old busy-wait loop could cause deadlocks if called from main thread while holding locks
+    // Instead, we'll let the natural job completion process handle the reduction
+
+    // If we're reducing concurrent jobs, the processQueue() method will naturally
+    // respect the new limit when starting new jobs. No need to forcefully wait here.
+    // This prevents potential deadlocks and improves responsiveness.
 }
 
 void ThumbnailGenerator::setMaxRetries(int maxRetries)
@@ -123,44 +148,51 @@ void ThumbnailGenerator::setMaxRetries(int maxRetries)
     m_maxRetries = qBound(0, maxRetries, 5);
 }
 
-void ThumbnailGenerator::generateThumbnail(int pageNumber, const QSize& size, 
+void ThumbnailGenerator::generateThumbnail(int pageNumber, const QSize& size,
                                           double quality, int priority)
 {
     if (!m_document) {
         emit thumbnailError(pageNumber, "No document loaded");
         return;
     }
-    
+
     if (pageNumber < 0 || pageNumber >= m_document->numPages()) {
         emit thumbnailError(pageNumber, "Invalid page number");
         return;
     }
-    
+
     // 使用默认值填充参数
     QSize actualSize = size.isValid() ? size : m_defaultSize;
     double actualQuality = (quality > 0) ? quality : m_defaultQuality;
-    
+
     GenerationRequest request(pageNumber, actualSize, actualQuality, priority);
-    
-    QMutexLocker locker(&m_queueMutex);
-    
-    // 检查是否已经在队列中或正在处理
+
+    // DEADLOCK FIX: Check if already generating BEFORE acquiring queue mutex
+    // This prevents nested mutex calls (queueMutex -> jobsMutex)
+    bool alreadyGenerating = false;
+    {
+        QMutexLocker jobsLocker(&m_jobsMutex);
+        alreadyGenerating = m_activeJobs.contains(pageNumber);
+    }
+
+    if (alreadyGenerating) {
+        return; // Already being processed
+    }
+
+    QMutexLocker queueLocker(&m_queueMutex);
+
+    // 检查是否已经在队列中
     for (const auto& existing : m_requestQueue) {
-        if (existing.pageNumber == pageNumber && 
-            existing.size == actualSize && 
+        if (existing.pageNumber == pageNumber &&
+            existing.size == actualSize &&
             qAbs(existing.quality - actualQuality) < 0.001) {
             return; // 已存在相同请求
         }
     }
-    
-    // 检查是否正在处理
-    if (isGenerating(pageNumber)) {
-        return;
-    }
-    
+
     m_requestQueue.enqueue(request);
     std::sort(m_requestQueue.begin(), m_requestQueue.end());
-    
+
     emit queueSizeChanged(m_requestQueue.size());
     m_queueCondition.wakeOne();
 }
@@ -263,13 +295,15 @@ void ThumbnailGenerator::stop()
 {
     m_running = false;
     m_paused = false;
-    
-    clearQueue();
-    cleanupJobs();
-    
+
+    // DEADLOCK FIX: Stop timer first to prevent new operations
     if (m_batchTimer) {
         m_batchTimer->stop();
     }
+
+    // Clear operations in safe order
+    clearQueue();
+    cleanupJobs();
 }
 
 void ThumbnailGenerator::start()
@@ -296,41 +330,52 @@ void ThumbnailGenerator::processQueue()
 
 void ThumbnailGenerator::startNextJob()
 {
-    QMutexLocker queueLocker(&m_queueMutex);
-    
-    if (m_requestQueue.isEmpty()) {
+    GenerationRequest request;
+    bool hasRequest = false;
+
+    // DEADLOCK FIX: Minimize mutex scope and avoid nested mutex calls
+    {
+        QMutexLocker queueLocker(&m_queueMutex);
+        if (!m_requestQueue.isEmpty()) {
+            request = m_requestQueue.dequeue();
+            hasRequest = true;
+            emit queueSizeChanged(m_requestQueue.size());
+        }
+    }
+
+    if (!hasRequest) {
         return;
     }
-    
-    GenerationRequest request = m_requestQueue.dequeue();
-    emit queueSizeChanged(m_requestQueue.size());
-    
-    queueLocker.unlock();
-    
-    // 检查是否已经在处理
-    if (isGenerating(request.pageNumber)) {
-        return;
+
+    // Check if already generating (separate mutex scope)
+    {
+        QMutexLocker jobsLocker(&m_jobsMutex);
+        if (m_activeJobs.contains(request.pageNumber)) {
+            return; // Already being processed
+        }
     }
-    
+
     // 创建新任务
     auto job = std::make_unique<GenerationJob>();
     job->request = request;
     job->watcher = new QFutureWatcher<QPixmap>();
-    
+
     connect(job->watcher, &QFutureWatcher<QPixmap>::finished,
             this, &ThumbnailGenerator::onGenerationFinished);
-    
+
     // 启动异步生成
     job->future = QtConcurrent::run([this, request]() {
         return generatePixmap(request);
     });
-    
+
     job->watcher->setFuture(job->future);
-    
-    // 添加到活动任务
-    QMutexLocker jobsLocker(&m_jobsMutex);
-    m_activeJobs[request.pageNumber] = job.release(); // 转移所有权
-    emit activeJobsChanged(m_activeJobs.size());
+
+    // 添加到活动任务 (separate mutex scope)
+    {
+        QMutexLocker jobsLocker(&m_jobsMutex);
+        m_activeJobs[request.pageNumber] = job.release(); // 转移所有权
+        emit activeJobsChanged(m_activeJobs.size());
+    }
 }
 
 void ThumbnailGenerator::onGenerationFinished()
@@ -401,19 +446,25 @@ void ThumbnailGenerator::onBatchTimer()
 
 void ThumbnailGenerator::cleanupJobs()
 {
-    QMutexLocker locker(&m_jobsMutex);
+    QHash<int, GenerationJob*> jobsToCleanup;
 
-    for (auto it = m_activeJobs.begin(); it != m_activeJobs.end(); ++it) {
+    // DEADLOCK FIX: Copy jobs to cleanup outside of mutex to minimize lock time
+    {
+        QMutexLocker locker(&m_jobsMutex);
+        jobsToCleanup = m_activeJobs;
+        m_activeJobs.clear();
+        emit activeJobsChanged(0);
+    }
+
+    // Cleanup jobs outside of mutex to prevent deadlocks during waitForFinished()
+    for (auto it = jobsToCleanup.begin(); it != jobsToCleanup.end(); ++it) {
         GenerationJob* job = it.value();
         if (job && job->watcher) {
             job->watcher->cancel();
-            job->watcher->waitForFinished();
+            job->watcher->waitForFinished(); // Wait for completion
         }
         delete job; // 手动删除
     }
-
-    m_activeJobs.clear();
-    emit activeJobsChanged(0);
 }
 
 void ThumbnailGenerator::handleJobCompletion(GenerationJob* job)
@@ -462,13 +513,51 @@ QPixmap ThumbnailGenerator::generatePixmap(const GenerationRequest& request)
             return QPixmap();
         }
 
-        return renderPageToPixmap(page.get(), request.size, request.quality);
+        // 检查压缩缓存
+        if (m_compressionEnabled) {
+            QByteArray* cachedData = m_compressedCache.object(request.cacheKey);
+            if (cachedData) {
+                QPixmap cachedPixmap = decompressPixmap(*cachedData);
+                if (!cachedPixmap.isNull()) {
+                    return cachedPixmap;
+                }
+            }
+        }
+
+        QPixmap result;
+
+        // 根据渲染模式选择渲染方法
+        switch (request.preferredMode) {
+            case RenderMode::GPU_ACCELERATED:
+                if (m_gpuAccelerationAvailable) {
+                    result = renderPageToPixmapGpu(page.get(), request.size, request.quality);
+                    if (!result.isNull()) break;
+                }
+                // 如果GPU渲染失败，回退到CPU渲染
+                [[fallthrough]];
+
+            case RenderMode::CPU_ONLY:
+            case RenderMode::HYBRID:
+            default:
+                result = renderPageToPixmap(page.get(), request.size, request.quality);
+                break;
+        }
+
+        // 如果启用压缩，缓存压缩后的数据
+        if (m_compressionEnabled && !result.isNull()) {
+            QByteArray compressedData = compressPixmap(result);
+            if (!compressedData.isEmpty()) {
+                m_compressedCache.insert(request.cacheKey, new QByteArray(compressedData));
+            }
+        }
+
+        return result;
 
     } catch (const std::exception& e) {
-        LOG_WARNING("Exception in generatePixmap: {}", std::string(e.what()));
+        qWarning() << "Exception in generatePixmap:" << e.what();
         return QPixmap();
     } catch (...) {
-        LOG_WARNING("Unknown exception in generatePixmap");
+        qWarning() << "Unknown exception in generatePixmap";
         return QPixmap();
     }
 }
@@ -620,5 +709,265 @@ void ThumbnailGenerator::logPerformance(const GenerationRequest& request, qint64
                  << "Size" << request.size
                  << "Quality" << request.quality
                  << "Duration" << duration << "ms";
+    }
+}
+
+// ============================================================================
+// 新增的优化方法实现
+// ============================================================================
+
+void ThumbnailGenerator::setRenderMode(RenderMode mode)
+{
+    if (m_renderMode != mode) {
+        m_renderMode = mode;
+
+        // 如果切换到GPU模式但GPU不可用，回退到CPU模式
+        if (mode == RenderMode::GPU_ACCELERATED && !m_gpuAccelerationAvailable) {
+            m_renderMode = RenderMode::CPU_ONLY;
+            qWarning() << "GPU acceleration not available, falling back to CPU rendering";
+        }
+    }
+}
+
+void ThumbnailGenerator::setCacheStrategy(CacheStrategy strategy)
+{
+    m_cacheStrategy = strategy;
+}
+
+void ThumbnailGenerator::setGpuAccelerationEnabled(bool enabled)
+{
+    if (m_gpuAccelerationEnabled != enabled) {
+        m_gpuAccelerationEnabled = enabled;
+
+        if (enabled && !m_gpuAccelerationAvailable) {
+            m_gpuAccelerationAvailable = initializeGpuContext();
+        } else if (!enabled) {
+            cleanupGpuContext();
+            m_gpuAccelerationAvailable = false;
+        }
+    }
+}
+
+bool ThumbnailGenerator::isGpuAccelerationAvailable() const
+{
+    return m_gpuAccelerationAvailable;
+}
+
+void ThumbnailGenerator::setMemoryPoolSize(qint64 size)
+{
+    if (m_memoryPoolSize != size) {
+        m_memoryPoolSize = qBound(static_cast<qint64>(16 * 1024 * 1024), // 最小16MB
+                                  size,
+                                  static_cast<qint64>(512 * 1024 * 1024)); // 最大512MB
+
+        // 如果新大小小于当前使用量，清理内存池
+        if (m_memoryPoolUsage > m_memoryPoolSize) {
+            cleanupMemoryPool();
+        }
+    }
+}
+
+qint64 ThumbnailGenerator::memoryPoolUsage() const
+{
+    return m_memoryPoolUsage.load();
+}
+
+void ThumbnailGenerator::setCompressionEnabled(bool enabled)
+{
+    m_compressionEnabled = enabled;
+}
+
+void ThumbnailGenerator::setCompressionQuality(int quality)
+{
+    m_compressionQuality = qBound(1, quality, 100);
+}
+
+void ThumbnailGenerator::generateThumbnailBatch(const QList<int>& pageNumbers,
+                                               const QSize& size, double quality)
+{
+    if (!m_document || pageNumbers.isEmpty()) return;
+
+    QList<GenerationRequest> requests;
+    requests.reserve(pageNumbers.size());
+
+    QSize actualSize = size.isValid() ? size : m_defaultSize;
+    double actualQuality = (quality > 0) ? quality : m_defaultQuality;
+
+    // 创建批处理请求
+    for (int i = 0; i < pageNumbers.size(); ++i) {
+        int pageNumber = pageNumbers[i];
+        if (pageNumber >= 0 && pageNumber < m_document->numPages()) {
+            GenerationRequest request(pageNumber, actualSize, actualQuality, i);
+            requests.append(request);
+        }
+    }
+
+    if (!requests.isEmpty()) {
+        processBatchRequest(requests);
+    }
+}
+
+bool ThumbnailGenerator::initializeGpuContext()
+{
+    // 简化的GPU初始化 - 在实际项目中需要完整的OpenGL上下文设置
+    // 这里只是检查OpenGL是否可用
+    try {
+        // 检查OpenGL支持
+        // 在实际实现中，这里会创建OpenGL上下文
+        return false; // 暂时禁用GPU加速，直到完整实现
+    } catch (...) {
+        return false;
+    }
+}
+
+void ThumbnailGenerator::cleanupGpuContext()
+{
+    if (m_gpuContext) {
+        m_gpuContext->cleanup();
+        m_gpuContext.reset();
+    }
+}
+
+QPixmap ThumbnailGenerator::renderPageToPixmapGpu(Poppler::Page* page, const QSize& size, double quality)
+{
+    Q_UNUSED(page)
+    Q_UNUSED(size)
+    Q_UNUSED(quality)
+
+    // GPU渲染实现 - 暂时返回空，需要完整的OpenGL实现
+    return QPixmap();
+}
+
+ThumbnailGenerator::MemoryPoolEntry* ThumbnailGenerator::acquireMemoryPoolEntry(const QSize& size)
+{
+    QMutexLocker locker(&m_memoryPoolMutex);
+
+    qint64 requiredSize = size.width() * size.height() * 4; // RGBA
+
+    // 查找可用的内存池条目
+    for (MemoryPoolEntry* entry : m_memoryPool) {
+        if (!entry->inUse && entry->data.size() >= requiredSize) {
+            entry->inUse = true;
+            entry->lastUsed = QDateTime::currentMSecsSinceEpoch();
+            entry->size = size;
+            return entry;
+        }
+    }
+
+    // 如果没有找到合适的条目，创建新的
+    if (m_memoryPoolUsage + requiredSize <= m_memoryPoolSize) {
+        MemoryPoolEntry* entry = new MemoryPoolEntry();
+        entry->data.resize(requiredSize);
+        entry->inUse = true;
+        entry->lastUsed = QDateTime::currentMSecsSinceEpoch();
+        entry->size = size;
+
+        m_memoryPool.append(entry);
+        m_memoryPoolUsage += requiredSize;
+
+        return entry;
+    }
+
+    return nullptr; // 内存池已满
+}
+
+void ThumbnailGenerator::releaseMemoryPoolEntry(MemoryPoolEntry* entry)
+{
+    if (entry) {
+        QMutexLocker locker(&m_memoryPoolMutex);
+        entry->inUse = false;
+    }
+}
+
+void ThumbnailGenerator::cleanupMemoryPool()
+{
+    QMutexLocker locker(&m_memoryPoolMutex);
+
+    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+    const qint64 maxAge = 300000; // 5分钟
+
+    auto it = m_memoryPool.begin();
+    while (it != m_memoryPool.end()) {
+        MemoryPoolEntry* entry = *it;
+
+        // 清理未使用且过期的条目
+        if (!entry->inUse && (currentTime - entry->lastUsed) > maxAge) {
+            m_memoryPoolUsage -= entry->data.size();
+            delete entry;
+            it = m_memoryPool.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+QByteArray ThumbnailGenerator::compressPixmap(const QPixmap& pixmap)
+{
+    if (!m_compressionEnabled || pixmap.isNull()) {
+        return QByteArray();
+    }
+
+    QByteArray data;
+    QBuffer buffer(&data);
+    buffer.open(QIODevice::WriteOnly);
+
+    QImageWriter writer(&buffer, "JPEG");
+    writer.setQuality(m_compressionQuality);
+
+    if (writer.write(pixmap.toImage())) {
+        return data;
+    }
+
+    return QByteArray();
+}
+
+QPixmap ThumbnailGenerator::decompressPixmap(const QByteArray& data)
+{
+    if (data.isEmpty()) {
+        return QPixmap();
+    }
+
+    QPixmap pixmap;
+    if (pixmap.loadFromData(data, "JPEG")) {
+        return pixmap;
+    }
+
+    return QPixmap();
+}
+
+void ThumbnailGenerator::processBatchRequest(const QList<GenerationRequest>& requests)
+{
+    if (requests.isEmpty()) return;
+
+    QList<GenerationRequest> optimizedRequests = requests;
+    optimizeBatchOrder(optimizedRequests);
+
+    // 将批处理请求添加到队列
+    QMutexLocker locker(&m_queueMutex);
+    for (const GenerationRequest& request : optimizedRequests) {
+        m_requestQueue.enqueue(request);
+    }
+
+    emit queueSizeChanged(m_requestQueue.size());
+    m_queueCondition.wakeAll(); // 唤醒所有等待的线程
+}
+
+void ThumbnailGenerator::optimizeBatchOrder(QList<GenerationRequest>& requests)
+{
+    // 按页码排序以优化磁盘访问模式
+    std::sort(requests.begin(), requests.end(),
+              [](const GenerationRequest& a, const GenerationRequest& b) {
+                  return a.pageNumber < b.pageNumber;
+              });
+
+    // 根据缓存策略调整优先级
+    if (m_cacheStrategy == CacheStrategy::MEMORY_AWARE) {
+        // 内存感知策略：优先处理小尺寸的缩略图
+        std::stable_sort(requests.begin(), requests.end(),
+                        [](const GenerationRequest& a, const GenerationRequest& b) {
+                            qint64 sizeA = a.size.width() * a.size.height();
+                            qint64 sizeB = b.size.width() * b.size.height();
+                            return sizeA < sizeB;
+                        });
     }
 }

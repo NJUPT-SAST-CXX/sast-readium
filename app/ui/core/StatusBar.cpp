@@ -6,29 +6,30 @@
 #include <QProgressBar>
 #include <QPropertyAnimation>
 #include <QEasingCurve>
+#include <QEvent>
 
-StatusBar::StatusBar(QWidget* parent) : QStatusBar(parent), currentTotalPages(0) {
+StatusBar::StatusBar(QWidget* parent) : QStatusBar(parent), currentTotalPages(0), currentPageNumber(0) {
     setupUI();
     setupLoadingProgress();
 }
 
 void StatusBar::setupUI() {
-    // 创建文件名标签
-    fileNameLabel = new QLabel("无文档", this);
+    // Create file name label
+    fileNameLabel = new QLabel(tr("No Document"), this);
     fileNameLabel->setMinimumWidth(150);
     fileNameLabel->setMaximumWidth(300);
     fileNameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     fileNameLabel->setStyleSheet("QLabel { padding: 2px 8px; }");
 
-    // 创建页面信息标签和输入框
-    pageLabel = new QLabel("页:", this);
+    // Create page info label and input box
+    pageLabel = new QLabel(tr("Page:"), this);
     pageLabel->setAlignment(Qt::AlignCenter);
     pageLabel->setStyleSheet("QLabel { padding: 2px 4px; }");
 
     setupPageInput();
 
-    // 创建缩放信息标签
-    zoomLabel = new QLabel("缩放: 100%", this);
+    // Create zoom info label
+    zoomLabel = new QLabel(tr("Zoom: %1%").arg(100), this);
     zoomLabel->setMinimumWidth(80);
     zoomLabel->setAlignment(Qt::AlignCenter);
     zoomLabel->setStyleSheet("QLabel { padding: 2px 8px; }");
@@ -45,12 +46,12 @@ void StatusBar::setupUI() {
 }
 
 void StatusBar::setupPageInput() {
-    // 创建页码输入框
+    // Create page number input box
     pageInputEdit = new QLineEdit(this);
     pageInputEdit->setMaximumWidth(60);
     pageInputEdit->setMinimumWidth(60);
     pageInputEdit->setAlignment(Qt::AlignCenter);
-    pageInputEdit->setPlaceholderText("页码");
+    pageInputEdit->setPlaceholderText(tr("Page"));
     pageInputEdit->setStyleSheet(
         "QLineEdit { "
         "padding: 2px 4px; "
@@ -102,12 +103,13 @@ void StatusBar::setDocumentInfo(const QString& fileName, int currentPage, int to
 
 void StatusBar::setPageInfo(int current, int total) {
     currentTotalPages = total;
+    currentPageNumber = current;
 
     if (total > 0) {
         // 更新页码输入框的占位符文本
         pageInputEdit->setPlaceholderText(QString("%1/%2").arg(current + 1).arg(total));
         pageInputEdit->setEnabled(true);
-        pageInputEdit->setToolTip(QString("输入页码 (1-%1) 并按回车跳转").arg(total));
+        pageInputEdit->setToolTip(tr("Enter page number (1-%1) and press Enter to jump").arg(total));
     } else {
         pageInputEdit->setPlaceholderText("0/0");
         pageInputEdit->setEnabled(false);
@@ -116,7 +118,7 @@ void StatusBar::setPageInfo(int current, int total) {
 }
 
 void StatusBar::setZoomLevel(int percent) {
-    zoomLabel->setText(QString("缩放: %1%").arg(percent));
+    zoomLabel->setText(tr("Zoom: %1%").arg(percent));
 }
 
 void StatusBar::setZoomLevel(double percent) {
@@ -125,12 +127,13 @@ void StatusBar::setZoomLevel(double percent) {
 }
 
 void StatusBar::setFileName(const QString& fileName) {
+    currentFileName = fileName;
     if (fileName.isEmpty()) {
-        fileNameLabel->setText("无文档");
+        fileNameLabel->setText(tr("No Document"));
     } else {
         QString displayName = formatFileName(fileName);
         fileNameLabel->setText(displayName);
-        fileNameLabel->setToolTip(fileName); // 完整路径作为工具提示
+        fileNameLabel->setToolTip(fileName); // Full path as tooltip
     }
 }
 
@@ -139,19 +142,19 @@ void StatusBar::setMessage(const QString& message) {
 }
 
 void StatusBar::clearDocumentInfo() {
-    fileNameLabel->setText("无文档");
+    fileNameLabel->setText(tr("No Document"));
     fileNameLabel->setToolTip("");
     pageInputEdit->setPlaceholderText("0/0");
     pageInputEdit->setEnabled(false);
     pageInputEdit->setToolTip("");
     pageInputEdit->clear();
-    zoomLabel->setText("缩放: 100%");
+    zoomLabel->setText(tr("Zoom: %1%").arg(100));
     currentTotalPages = 0;
 }
 
 QString StatusBar::formatFileName(const QString& fullPath) const {
     if (fullPath.isEmpty()) {
-        return "无文档";
+        return tr("No Document");
     }
 
     QFileInfo fileInfo(fullPath);
@@ -209,13 +212,13 @@ void StatusBar::onPageInputTextChanged(const QString& text) {
 
 bool StatusBar::validateAndJumpToPage(const QString& input) {
     if (input.isEmpty()) {
-        showMessage("请输入页码", 1500);
+        showMessage(tr("Please enter page number"), 1500);
         return false;
     }
 
     // 检查是否有有效文档
     if (currentTotalPages <= 0) {
-        showMessage("没有可跳转的文档", 2000);
+        showMessage(tr("No document to navigate"), 2000);
         return false;
     }
 
@@ -223,7 +226,7 @@ bool StatusBar::validateAndJumpToPage(const QString& input) {
     int pageNumber = input.toInt(&ok);
 
     if (!ok) {
-        showMessage("请输入有效的页码数字", 2000);
+        showMessage(tr("Please enter a valid page number"), 2000);
         // 添加错误样式
         QString currentStyle = pageInputEdit->styleSheet();
         if (!currentStyle.contains("border: 2px solid red;")) {
@@ -233,7 +236,7 @@ bool StatusBar::validateAndJumpToPage(const QString& input) {
     }
 
     if (pageNumber < 1 || pageNumber > currentTotalPages) {
-        showMessage(QString("页码超出范围 (1-%1)").arg(currentTotalPages), 2000);
+        showMessage(tr("Page number out of range (1-%1)").arg(currentTotalPages), 2000);
         // 添加错误样式
         QString currentStyle = pageInputEdit->styleSheet();
         if (!currentStyle.contains("border: 2px solid red;")) {
@@ -244,7 +247,7 @@ bool StatusBar::validateAndJumpToPage(const QString& input) {
 
     // 发出页码跳转信号
     emit pageJumpRequested(pageNumber - 1); // 转换为0-based
-    showMessage(QString("跳转到第 %1 页").arg(pageNumber), 1000);
+    showMessage(tr("Jump to page %1").arg(pageNumber), 1000);
     return true;
 }
 
@@ -255,7 +258,7 @@ void StatusBar::enablePageInput(bool enabled) {
 void StatusBar::setPageInputRange(int min, int max) {
     currentTotalPages = max;
     if (max > 0) {
-        pageInputEdit->setToolTip(QString("输入页码 (%1-%2) 并按回车跳转").arg(min).arg(max));
+        pageInputEdit->setToolTip(tr("Enter page number (%1-%2) and press Enter to jump").arg(min).arg(max));
     }
 }
 
@@ -309,7 +312,8 @@ void StatusBar::setupLoadingProgress()
 
 void StatusBar::showLoadingProgress(const QString& message)
 {
-    loadingMessageLabel->setText(message);
+    QString displayMessage = message.isEmpty() ? tr("Loading...") : message;
+    loadingMessageLabel->setText(displayMessage);
     loadingMessageLabel->setVisible(true);
     loadingProgressBar->setValue(0);
     loadingProgressBar->setVisible(true);
@@ -345,4 +349,34 @@ void StatusBar::hideLoadingProgress()
     // 恢复其他控件显示
     fileNameLabel->setVisible(true);
     separatorLabel1->setVisible(true);
+}
+
+void StatusBar::retranslateUi()
+{
+    // Update labels with current translations
+    pageLabel->setText(tr("Page:"));
+    pageInputEdit->setPlaceholderText(tr("Page"));
+    
+    // Re-apply current state with new translations
+    if (currentFileName.isEmpty()) {
+        fileNameLabel->setText(tr("No Document"));
+    } else {
+        setFileName(currentFileName);
+    }
+    
+    // Update page info tooltips
+    if (currentTotalPages > 0) {
+        pageInputEdit->setToolTip(tr("Enter page number (1-%1) and press Enter to jump").arg(currentTotalPages));
+    }
+    
+    // Update zoom label (will be set with correct value by setZoomLevel)
+    zoomLabel->setText(tr("Zoom: %1%").arg(100));
+}
+
+void StatusBar::changeEvent(QEvent* event)
+{
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
+    }
+    QStatusBar::changeEvent(event);
 }

@@ -32,23 +32,35 @@ ThumbnailDelegate::ThumbnailDelegate(QObject* parent)
     , m_shadowBlurRadius(DEFAULT_SHADOW_BLUR_RADIUS)
     , m_shadowOffset(DEFAULT_SHADOW_OFFSET)
     , m_borderWidth(DEFAULT_BORDER_WIDTH)
+    , m_renderCacheEnabled(true)
+    , m_maxCacheSize(DEFAULT_MAX_CACHE_SIZE)
+    , m_highQualityRendering(true)
+    , m_antiAliasingEnabled(true)
+    , m_smoothPixmapTransform(true)
     , m_loadingTimer(new QTimer(this))
 {
     // 设置默认颜色主题
     setLightTheme();
-    
+
     // 设置字体
     m_pageNumberFont = QFont("Arial", 9);
     m_errorFont = QFont("Arial", 8);
-    
+
     // 设置加载动画定时器
     m_loadingTimer->setInterval(LOADING_ANIMATION_INTERVAL);
     connect(m_loadingTimer, &QTimer::timeout, this, &ThumbnailDelegate::onLoadingAnimationTimer);
+
+    // 设置缓存清理定时器
+    QTimer* cacheCleanupTimer = new QTimer(this);
+    cacheCleanupTimer->setInterval(CACHE_CLEANUP_INTERVAL);
+    connect(cacheCleanupTimer, &QTimer::timeout, this, &ThumbnailDelegate::cleanupExpiredCache);
+    cacheCleanupTimer->start();
 }
 
 ThumbnailDelegate::~ThumbnailDelegate()
 {
     cleanupAnimations();
+    clearRenderCache();
 }
 
 QSize ThumbnailDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
@@ -65,45 +77,68 @@ void ThumbnailDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
     if (!index.isValid()) {
         return;
     }
-    
-    painter->save();
-    painter->setRenderHint(QPainter::Antialiasing);
-    
-    // 获取数据
-    QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
-    bool isLoading = index.data(ThumbnailModel::LoadingRole).toBool();
-    bool hasError = index.data(ThumbnailModel::ErrorRole).toBool();
-    QString errorMessage = index.data(ThumbnailModel::ErrorMessageRole).toString();
-    int pageNumber = index.data(ThumbnailModel::PageNumberRole).toInt();
-    
-    // 计算矩形
-    QRect thumbnailRect = getThumbnailRect(option.rect);
-    QRect pageNumberRect = getPageNumberRect(thumbnailRect);
-    
-    // 绘制背景
-    paintBackground(painter, option.rect, option);
-    
-    // 绘制阴影
-    if (m_shadowEnabled) {
-        paintShadow(painter, thumbnailRect, option);
+
+    // 性能监控
+    QElapsedTimer paintTimer;
+    paintTimer.start();
+
+    // 使用优化渲染
+    if (m_renderCacheEnabled) {
+        paintOptimized(painter, option, index);
+    } else {
+        // 传统渲染路径
+        painter->save();
+
+        if (m_antiAliasingEnabled) {
+            painter->setRenderHint(QPainter::Antialiasing);
+        }
+        if (m_smoothPixmapTransform) {
+            painter->setRenderHint(QPainter::SmoothPixmapTransform);
+        }
+        if (m_highQualityRendering) {
+            painter->setRenderHint(QPainter::TextAntialiasing);
+        }
+
+        // 获取数据
+        QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
+        bool isLoading = index.data(ThumbnailModel::LoadingRole).toBool();
+        bool hasError = index.data(ThumbnailModel::ErrorRole).toBool();
+        QString errorMessage = index.data(ThumbnailModel::ErrorMessageRole).toString();
+        int pageNumber = index.data(ThumbnailModel::PageNumberRole).toInt();
+
+        // 计算矩形
+        QRect thumbnailRect = getThumbnailRect(option.rect);
+        QRect pageNumberRect = getPageNumberRect(thumbnailRect);
+
+        // 绘制背景
+        paintBackground(painter, option.rect, option);
+
+        // 绘制阴影
+        if (m_shadowEnabled) {
+            paintShadow(painter, thumbnailRect, option);
+        }
+
+        // 绘制边框
+        paintBorder(painter, thumbnailRect, option);
+
+        // 绘制缩略图内容
+        if (hasError) {
+            paintErrorIndicator(painter, thumbnailRect, errorMessage, option);
+        } else if (isLoading) {
+            paintLoadingIndicator(painter, thumbnailRect, option);
+        } else if (!thumbnail.isNull()) {
+            paintThumbnail(painter, thumbnailRect, thumbnail, option);
+        }
+
+        // 绘制页码
+        paintPageNumber(painter, pageNumberRect, pageNumber, option);
+
+        painter->restore();
     }
-    
-    // 绘制边框
-    paintBorder(painter, thumbnailRect, option);
-    
-    // 绘制缩略图内容
-    if (hasError) {
-        paintErrorIndicator(painter, thumbnailRect, errorMessage, option);
-    } else if (isLoading) {
-        paintLoadingIndicator(painter, thumbnailRect, option);
-    } else if (!thumbnail.isNull()) {
-        paintThumbnail(painter, thumbnailRect, thumbnail, option);
-    }
-    
-    // 绘制页码
-    paintPageNumber(painter, pageNumberRect, pageNumber, option);
-    
-    painter->restore();
+
+    // 记录性能数据
+    qint64 paintTime = paintTimer.elapsed();
+    recordPaintTime(paintTime);
 }
 
 void ThumbnailDelegate::setThumbnailSize(const QSize& size)
@@ -470,4 +505,262 @@ void ThumbnailDelegate::updateSelectionState(const QModelIndex& index, bool sele
         state->selectionAnimation->setEndValue(targetOpacity);
         state->selectionAnimation->start();
     }
+}
+
+// ============================================================================
+// 新增的性能优化方法实现
+// ============================================================================
+
+void ThumbnailDelegate::setRenderCacheEnabled(bool enabled)
+{
+    if (m_renderCacheEnabled != enabled) {
+        m_renderCacheEnabled = enabled;
+        if (!enabled) {
+            clearRenderCache();
+        }
+    }
+}
+
+void ThumbnailDelegate::setHighQualityRenderingEnabled(bool enabled)
+{
+    m_highQualityRendering = enabled;
+}
+
+void ThumbnailDelegate::setAntiAliasingEnabled(bool enabled)
+{
+    m_antiAliasingEnabled = enabled;
+}
+
+void ThumbnailDelegate::clearRenderCache()
+{
+    QMutexLocker locker(&m_cacheMutex);
+
+    for (auto it = m_renderCache.begin(); it != m_renderCache.end(); ++it) {
+        delete it.value();
+    }
+    m_renderCache.clear();
+}
+
+void ThumbnailDelegate::setMaxCacheSize(int size)
+{
+    m_maxCacheSize = qBound(10, size, 200);
+
+    // 如果当前缓存超过新的限制，清理一些条目
+    if (m_renderCache.size() > m_maxCacheSize) {
+        cleanupExpiredCache();
+    }
+}
+
+double ThumbnailDelegate::averagePaintTime() const
+{
+    return m_performanceStats.averagePaintTime();
+}
+
+double ThumbnailDelegate::cacheHitRate() const
+{
+    return m_performanceStats.cacheHitRate();
+}
+
+int ThumbnailDelegate::totalPaintCalls() const
+{
+    return m_performanceStats.paintCalls.load();
+}
+
+void ThumbnailDelegate::resetPerformanceStats()
+{
+    m_performanceStats.paintCalls = 0;
+    m_performanceStats.totalPaintTime = 0;
+    m_performanceStats.cacheHits = 0;
+    m_performanceStats.cacheMisses = 0;
+    m_performanceStats.sessionTimer.restart();
+}
+
+QString ThumbnailDelegate::generateCacheKey(const QModelIndex& index, const QStyleOptionViewItem& option) const
+{
+    // 生成基于索引、状态和尺寸的缓存键
+    return QString("%1_%2_%3x%4_%5")
+           .arg(index.row())
+           .arg(static_cast<int>(option.state))
+           .arg(option.rect.width())
+           .arg(option.rect.height())
+           .arg(m_thumbnailSize.width());
+}
+
+ThumbnailDelegate::RenderCache* ThumbnailDelegate::getRenderCache(const QString& key) const
+{
+    QMutexLocker locker(&m_cacheMutex);
+
+    auto it = m_renderCache.find(key);
+    if (it != m_renderCache.end()) {
+        RenderCache* cache = it.value();
+
+        // 检查缓存是否过期
+        qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+        if (cache->isValid && (currentTime - cache->timestamp) < CACHE_EXPIRY_TIME) {
+            return cache;
+        } else {
+            // 缓存过期，删除
+            delete cache;
+            m_renderCache.erase(it);
+        }
+    }
+
+    return nullptr;
+}
+
+void ThumbnailDelegate::insertRenderCache(const QString& key, RenderCache* cache)
+{
+    QMutexLocker locker(&m_cacheMutex);
+
+    // 如果缓存已满，删除最旧的条目
+    if (m_renderCache.size() >= m_maxCacheSize) {
+        qint64 oldestTime = QDateTime::currentMSecsSinceEpoch();
+        QString oldestKey;
+
+        for (auto it = m_renderCache.begin(); it != m_renderCache.end(); ++it) {
+            if (it.value()->timestamp < oldestTime) {
+                oldestTime = it.value()->timestamp;
+                oldestKey = it.key();
+            }
+        }
+
+        if (!oldestKey.isEmpty()) {
+            delete m_renderCache.take(oldestKey);
+        }
+    }
+
+    cache->timestamp = QDateTime::currentMSecsSinceEpoch();
+    cache->isValid = true;
+    m_renderCache.insert(key, cache);
+}
+
+void ThumbnailDelegate::cleanupExpiredCache()
+{
+    QMutexLocker locker(&m_cacheMutex);
+
+    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+
+    auto it = m_renderCache.begin();
+    while (it != m_renderCache.end()) {
+        if (!it.value()->isValid || (currentTime - it.value()->timestamp) > CACHE_EXPIRY_TIME) {
+            delete it.value();
+            it = m_renderCache.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void ThumbnailDelegate::paintOptimized(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
+{
+    QString cacheKey = generateCacheKey(index, option);
+    RenderCache* cache = getRenderCache(cacheKey);
+
+    if (cache) {
+        // 缓存命中
+        m_performanceStats.cacheHits.fetch_add(1);
+        paintFromCache(painter, option.rect, cache->cachedBackground);
+        return;
+    }
+
+    // 缓存未命中，渲染到缓存
+    m_performanceStats.cacheMisses.fetch_add(1);
+    QPixmap cached = renderToCache(option, index);
+
+    if (!cached.isNull()) {
+        // 创建新的缓存条目
+        RenderCache* newCache = new RenderCache();
+        newCache->cachedBackground = cached;
+        newCache->cacheSize = option.rect.size();
+        newCache->cacheState = static_cast<int>(option.state);
+
+        insertRenderCache(cacheKey, newCache);
+
+        // 绘制缓存的内容
+        paintFromCache(painter, option.rect, cached);
+    } else {
+        // 回退到传统渲染
+        painter->save();
+        if (m_antiAliasingEnabled) {
+            painter->setRenderHint(QPainter::Antialiasing);
+        }
+
+        // 简化的渲染逻辑
+        QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
+        if (!thumbnail.isNull()) {
+            QRect thumbnailRect = getThumbnailRect(option.rect);
+            paintThumbnail(painter, thumbnailRect, thumbnail, option);
+        }
+
+        painter->restore();
+    }
+}
+
+QPixmap ThumbnailDelegate::renderToCache(const QStyleOptionViewItem& option, const QModelIndex& index) const
+{
+    QPixmap pixmap(option.rect.size());
+    pixmap.fill(Qt::transparent);
+
+    QPainter cachePainter(&pixmap);
+    if (m_antiAliasingEnabled) {
+        cachePainter.setRenderHint(QPainter::Antialiasing);
+    }
+    if (m_smoothPixmapTransform) {
+        cachePainter.setRenderHint(QPainter::SmoothPixmapTransform);
+    }
+
+    // 调整坐标系统到pixmap的本地坐标
+    QStyleOptionViewItem localOption = option;
+    localOption.rect = QRect(0, 0, option.rect.width(), option.rect.height());
+
+    // 获取数据
+    QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
+    bool isLoading = index.data(ThumbnailModel::LoadingRole).toBool();
+    bool hasError = index.data(ThumbnailModel::ErrorRole).toBool();
+    QString errorMessage = index.data(ThumbnailModel::ErrorMessageRole).toString();
+    int pageNumber = index.data(ThumbnailModel::PageNumberRole).toInt();
+
+    // 计算矩形
+    QRect thumbnailRect = getThumbnailRect(localOption.rect);
+    QRect pageNumberRect = getPageNumberRect(thumbnailRect);
+
+    // 绘制所有元素
+    paintBackground(&cachePainter, localOption.rect, localOption);
+
+    if (m_shadowEnabled) {
+        paintShadow(&cachePainter, thumbnailRect, localOption);
+    }
+
+    paintBorder(&cachePainter, thumbnailRect, localOption);
+
+    if (hasError) {
+        paintErrorIndicator(&cachePainter, thumbnailRect, errorMessage, localOption);
+    } else if (isLoading) {
+        paintLoadingIndicator(&cachePainter, thumbnailRect, localOption);
+    } else if (!thumbnail.isNull()) {
+        paintThumbnail(&cachePainter, thumbnailRect, thumbnail, localOption);
+    }
+
+    paintPageNumber(&cachePainter, pageNumberRect, pageNumber, localOption);
+
+    return pixmap;
+}
+
+void ThumbnailDelegate::paintFromCache(QPainter* painter, const QRect& rect, const QPixmap& cached) const
+{
+    if (!cached.isNull()) {
+        painter->drawPixmap(rect, cached);
+    }
+}
+
+void ThumbnailDelegate::recordPaintTime(qint64 time) const
+{
+    m_performanceStats.paintCalls.fetch_add(1);
+    m_performanceStats.totalPaintTime.fetch_add(time);
+}
+
+void ThumbnailDelegate::updatePerformanceStats() const
+{
+    // 这个方法可以用于定期更新性能统计
+    // 目前主要通过其他方法实时更新
 }

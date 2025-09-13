@@ -7,6 +7,7 @@
 #include <QClipboard>
 #include <QFileInfo>
 #include <QDebug>
+#include <QEvent>
 
 BookmarkWidget::BookmarkWidget(QWidget* parent)
     : QWidget(parent)
@@ -34,23 +35,23 @@ void BookmarkWidget::setupUI() {
     // Toolbar
     m_toolbarLayout = new QHBoxLayout();
     
-    m_addButton = new QPushButton("添加书签");
+    m_addButton = new QPushButton(tr("Add Bookmark"));
     m_addButton->setIcon(QApplication::style()->standardIcon(QStyle::SP_FileDialogNewFolder));
-    m_addButton->setToolTip("为当前页面添加书签");
+    m_addButton->setToolTip(tr("Add bookmark for current page"));
     
-    m_removeButton = new QPushButton("删除");
+    m_removeButton = new QPushButton(tr("Delete"));
     m_removeButton->setIcon(QApplication::style()->standardIcon(QStyle::SP_TrashIcon));
-    m_removeButton->setToolTip("删除选中的书签");
+    m_removeButton->setToolTip(tr("Delete selected bookmark"));
     m_removeButton->setEnabled(false);
     
-    m_editButton = new QPushButton("编辑");
+    m_editButton = new QPushButton(tr("Edit"));
     m_editButton->setIcon(QApplication::style()->standardIcon(QStyle::SP_FileDialogDetailedView));
-    m_editButton->setToolTip("编辑选中的书签");
+    m_editButton->setToolTip(tr("Edit selected bookmark"));
     m_editButton->setEnabled(false);
     
-    m_refreshButton = new QPushButton("刷新");
+    m_refreshButton = new QPushButton(tr("Refresh"));
     m_refreshButton->setIcon(QApplication::style()->standardIcon(QStyle::SP_BrowserReload));
-    m_refreshButton->setToolTip("刷新书签列表");
+    m_refreshButton->setToolTip(tr("Refresh bookmark list"));
     
     m_toolbarLayout->addWidget(m_addButton);
     m_toolbarLayout->addWidget(m_removeButton);
@@ -62,27 +63,27 @@ void BookmarkWidget::setupUI() {
     m_filterLayout = new QHBoxLayout();
     
     m_searchEdit = new QLineEdit();
-    m_searchEdit->setPlaceholderText("搜索书签...");
+    m_searchEdit->setPlaceholderText(tr("Search bookmarks..."));
     m_searchEdit->setClearButtonEnabled(true);
     
     m_categoryFilter = new QComboBox();
-    m_categoryFilter->addItem("所有分类", "");
+    m_categoryFilter->addItem(tr("All Categories"), "");
     m_categoryFilter->setMinimumWidth(120);
     
     m_sortOrder = new QComboBox();
-    m_sortOrder->addItem("最近访问", "recent");
-    m_sortOrder->addItem("创建时间", "created");
-    m_sortOrder->addItem("标题", "title");
-    m_sortOrder->addItem("页码", "page");
+    m_sortOrder->addItem(tr("Recently Visited"), "recent");
+    m_sortOrder->addItem(tr("Created Time"), "created");
+    m_sortOrder->addItem(tr("Title"), "title");
+    m_sortOrder->addItem(tr("Page"), "page");
     m_sortOrder->setMinimumWidth(100);
     
-    m_countLabel = new QLabel("0 个书签");
+    m_countLabel = new QLabel(tr("%1 bookmarks").arg(0));
     
-    m_filterLayout->addWidget(new QLabel("搜索:"));
+    m_filterLayout->addWidget(new QLabel(tr("Search:")));
     m_filterLayout->addWidget(m_searchEdit);
-    m_filterLayout->addWidget(new QLabel("分类:"));
+    m_filterLayout->addWidget(new QLabel(tr("Category:")));
     m_filterLayout->addWidget(m_categoryFilter);
-    m_filterLayout->addWidget(new QLabel("排序:"));
+    m_filterLayout->addWidget(new QLabel(tr("Sort:")));
     m_filterLayout->addWidget(m_sortOrder);
     m_filterLayout->addStretch();
     m_filterLayout->addWidget(m_countLabel);
@@ -135,7 +136,7 @@ void BookmarkWidget::setupConnections() {
     connect(m_bookmarkModel, &BookmarkModel::bookmarkRemoved, this, &BookmarkWidget::bookmarkRemoved);
     connect(m_bookmarkModel, &BookmarkModel::bookmarkUpdated, this, &BookmarkWidget::bookmarkUpdated);
     connect(m_bookmarkModel, &BookmarkModel::bookmarksLoaded, this, [this](int count) {
-        m_countLabel->setText(QString("%1 个书签").arg(count));
+        m_countLabel->setText(tr("%1 bookmarks").arg(count));
         updateCategoryFilter();
     });
 }
@@ -143,7 +144,7 @@ void BookmarkWidget::setupConnections() {
 void BookmarkWidget::setupContextMenu() {
     m_contextMenu = new QMenu(this);
     
-    m_navigateAction = m_contextMenu->addAction("导航到此页", [this]() {
+    m_navigateAction = m_contextMenu->addAction(tr("Navigate to Page"), [this]() {
         Bookmark bookmark = getSelectedBookmark();
         if (!bookmark.id.isEmpty()) {
             emit navigateToBookmark(bookmark.documentPath, bookmark.pageNumber);
@@ -152,17 +153,17 @@ void BookmarkWidget::setupContextMenu() {
     
     m_contextMenu->addSeparator();
     
-    m_editAction = m_contextMenu->addAction("编辑书签", this, &BookmarkWidget::onEditBookmarkRequested);
-    m_deleteAction = m_contextMenu->addAction("删除书签", this, &BookmarkWidget::onRemoveBookmarkRequested);
+    m_editAction = m_contextMenu->addAction(tr("Edit Bookmark"), this, &BookmarkWidget::onEditBookmarkRequested);
+    m_deleteAction = m_contextMenu->addAction(tr("Delete Bookmark"), this, &BookmarkWidget::onRemoveBookmarkRequested);
     
     m_contextMenu->addSeparator();
     
-    m_addCategoryAction = m_contextMenu->addAction("添加到分类", [this]() {
+    m_addCategoryAction = m_contextMenu->addAction(tr("Add to Category"), [this]() {
         Bookmark bookmark = getSelectedBookmark();
         if (!bookmark.id.isEmpty()) {
             bool ok;
-            QString category = QInputDialog::getText(this, "添加到分类", 
-                                                   "分类名称:", QLineEdit::Normal, 
+            QString category = QInputDialog::getText(this, tr("Add to Category"), 
+                                                   tr("Category Name:"), QLineEdit::Normal, 
                                                    bookmark.category, &ok);
             if (ok) {
                 m_bookmarkModel->moveBookmarkToCategory(bookmark.id, category);
@@ -171,7 +172,7 @@ void BookmarkWidget::setupContextMenu() {
         }
     });
     
-    m_removeCategoryAction = m_contextMenu->addAction("移除分类", [this]() {
+    m_removeCategoryAction = m_contextMenu->addAction(tr("Remove Category"), [this]() {
         Bookmark bookmark = getSelectedBookmark();
         if (!bookmark.id.isEmpty()) {
             m_bookmarkModel->moveBookmarkToCategory(bookmark.id, "");
@@ -192,8 +193,8 @@ bool BookmarkWidget::addBookmark(const QString& documentPath, int pageNumber, co
     
     // Check if bookmark already exists
     if (m_bookmarkModel->hasBookmarkForPage(documentPath, pageNumber)) {
-        QMessageBox::information(this, "书签已存在", 
-                                QString("第 %1 页已经有书签了").arg(pageNumber + 1));
+        QMessageBox::information(this, tr("Bookmark Exists"), 
+                                tr("Page %1 already has a bookmark").arg(pageNumber + 1));
         return false;
     }
     
@@ -203,8 +204,8 @@ bool BookmarkWidget::addBookmark(const QString& documentPath, int pageNumber, co
     // Allow user to customize title
     if (title.isEmpty()) {
         bool ok;
-        QString customTitle = QInputDialog::getText(this, "添加书签", 
-                                                  "书签标题:", QLineEdit::Normal, 
+        QString customTitle = QInputDialog::getText(this, tr("Add Bookmark"), 
+                                                  tr("Bookmark Title:"), QLineEdit::Normal, 
                                                   bookmark.title, &ok);
         if (!ok) {
             return false; // User cancelled
@@ -226,7 +227,7 @@ bool BookmarkWidget::hasBookmarkForPage(const QString& documentPath, int pageNum
 void BookmarkWidget::refreshView() {
     updateCategoryFilter();
     filterBookmarks();
-    m_countLabel->setText(QString("%1 个书签").arg(m_proxyModel->rowCount()));
+    m_countLabel->setText(tr("%1 bookmarks").arg(m_proxyModel->rowCount()));
 }
 
 void BookmarkWidget::expandAll() {
@@ -263,14 +264,14 @@ void BookmarkWidget::onBookmarkSelectionChanged() {
 
 void BookmarkWidget::onAddBookmarkRequested() {
     if (m_currentDocument.isEmpty()) {
-        QMessageBox::warning(this, "无法添加书签", "请先打开一个PDF文档");
+        QMessageBox::warning(this, tr("Cannot Add Bookmark"), tr("Please open a PDF document first"));
         return;
     }
     
     // This would typically get the current page from the parent viewer
     // For now, we'll ask the user
     bool ok;
-    int pageNumber = QInputDialog::getInt(this, "添加书签", "页码:", 1, 1, 9999, 1, &ok) - 1;
+    int pageNumber = QInputDialog::getInt(this, tr("Add Bookmark"), tr("Page:"), 1, 1, 9999, 1, &ok) - 1;
     if (ok) {
         addBookmark(m_currentDocument, pageNumber);
     }
@@ -282,8 +283,8 @@ void BookmarkWidget::onRemoveBookmarkRequested() {
         return;
     }
     
-    int ret = QMessageBox::question(this, "删除书签", 
-                                   QString("确定要删除书签 \"%1\" 吗?").arg(bookmark.title),
+    int ret = QMessageBox::question(this, tr("Delete Bookmark"), 
+                                   tr("Are you sure you want to delete bookmark \"%1\"?").arg(bookmark.title),
                                    QMessageBox::Yes | QMessageBox::No);
     
     if (ret == QMessageBox::Yes) {
@@ -298,8 +299,8 @@ void BookmarkWidget::onEditBookmarkRequested() {
     }
     
     bool ok;
-    QString newTitle = QInputDialog::getText(this, "编辑书签", 
-                                           "书签标题:", QLineEdit::Normal, 
+    QString newTitle = QInputDialog::getText(this, tr("Edit Bookmark"), 
+                                           tr("Bookmark Title:"), QLineEdit::Normal, 
                                            bookmark.title, &ok);
     if (ok && newTitle != bookmark.title) {
         bookmark.title = newTitle;
@@ -360,7 +361,7 @@ void BookmarkWidget::filterBookmarks() {
     m_proxyModel->setFilterRegularExpression(QRegularExpression(filterPattern, QRegularExpression::CaseInsensitiveOption));
     
     // Update count
-    m_countLabel->setText(QString("%1 个书签").arg(m_proxyModel->rowCount()));
+    m_countLabel->setText(tr("%1 bookmarks").arg(m_proxyModel->rowCount()));
 }
 
 Bookmark BookmarkWidget::getSelectedBookmark() const {
@@ -387,7 +388,7 @@ void BookmarkWidget::updateCategoryFilter() {
     QString currentCategory = m_categoryFilter->currentData().toString();
     
     m_categoryFilter->clear();
-    m_categoryFilter->addItem("所有分类", "");
+    m_categoryFilter->addItem(tr("All Categories"), "");
     
     QStringList categories = m_bookmarkModel->getCategories();
     for (const QString& category : categories) {
@@ -399,4 +400,61 @@ void BookmarkWidget::updateCategoryFilter() {
     if (index >= 0) {
         m_categoryFilter->setCurrentIndex(index);
     }
+}
+
+void BookmarkWidget::retranslateUi() {
+    // Update all UI text with new translations
+    m_addButton->setText(tr("Add Bookmark"));
+    m_addButton->setToolTip(tr("Add bookmark for current page"));
+    
+    m_removeButton->setText(tr("Delete"));
+    m_removeButton->setToolTip(tr("Delete selected bookmark"));
+    
+    m_editButton->setText(tr("Edit"));
+    m_editButton->setToolTip(tr("Edit selected bookmark"));
+    
+    m_refreshButton->setText(tr("Refresh"));
+    m_refreshButton->setToolTip(tr("Refresh bookmark list"));
+    
+    m_searchEdit->setPlaceholderText(tr("Search bookmarks..."));
+    
+    // Update category filter while preserving current selection
+    updateCategoryFilter();
+    
+    // Update sort order combo
+    int currentSortIndex = m_sortOrder->currentIndex();
+    m_sortOrder->clear();
+    m_sortOrder->addItem(tr("Recently Visited"), "recent");
+    m_sortOrder->addItem(tr("Created Time"), "created");
+    m_sortOrder->addItem(tr("Title"), "title");
+    m_sortOrder->addItem(tr("Page"), "page");
+    if (currentSortIndex >= 0 && currentSortIndex < m_sortOrder->count()) {
+        m_sortOrder->setCurrentIndex(currentSortIndex);
+    }
+    
+    // Update labels
+    QLabel* searchLabel = findChild<QLabel*>("searchLabel");
+    if (searchLabel) searchLabel->setText(tr("Search:"));
+    
+    QLabel* categoryLabel = findChild<QLabel*>("categoryLabel");
+    if (categoryLabel) categoryLabel->setText(tr("Category:"));
+    
+    QLabel* sortLabel = findChild<QLabel*>("sortLabel");
+    if (sortLabel) sortLabel->setText(tr("Sort:"));
+    
+    m_countLabel->setText(tr("%1 bookmarks").arg(m_proxyModel->rowCount()));
+    
+    // Update context menu actions
+    if (m_navigateAction) m_navigateAction->setText(tr("Navigate to Page"));
+    if (m_editAction) m_editAction->setText(tr("Edit Bookmark"));
+    if (m_deleteAction) m_deleteAction->setText(tr("Delete Bookmark"));
+    if (m_addCategoryAction) m_addCategoryAction->setText(tr("Add to Category"));
+    if (m_removeCategoryAction) m_removeCategoryAction->setText(tr("Remove Category"));
+}
+
+void BookmarkWidget::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
+    }
+    QWidget::changeEvent(event);
 }

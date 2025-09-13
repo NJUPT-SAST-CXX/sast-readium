@@ -3,13 +3,14 @@
 #include <QAction>
 #include <QHBoxLayout>
 #include <QWidget>
+#include <QEvent>
 
 ToolBar::ToolBar(QWidget* parent) : QToolBar(parent) {
     setMovable(true);
     setObjectName("MainToolBar");
     setToolButtonStyle(Qt::ToolButtonIconOnly);
 
-    // 初始化所有控件
+    // Initialize all controls
     setupFileActions();
     createSeparator();
     setupNavigationActions();
@@ -22,33 +23,33 @@ ToolBar::ToolBar(QWidget* parent) : QToolBar(parent) {
     createSeparator();
     setupThemeActions();
 
-    // 应用样式
+    // Apply style
     applyToolBarStyle();
 
-    // 初始状态：禁用所有操作（没有文档时）
+    // Initial state: disable all actions (when no document)
     setActionsEnabled(false);
 }
 
 void ToolBar::setupFileActions() {
-    // 打开文件
+    // Open file
     openAction = new QAction("📁", this);
-    openAction->setToolTip("打开PDF文件 (Ctrl+O)");
+    openAction->setToolTip(tr("Open PDF File (Ctrl+O)"));
     openAction->setShortcut(QKeySequence("Ctrl+O"));
     addAction(openAction);
 
-    // 打开文件夹
+    // Open folder
     openFolderAction = new QAction("📂", this);
-    openFolderAction->setToolTip("打开文件夹 (Ctrl+Shift+O)");
+    openFolderAction->setToolTip(tr("Open Folder (Ctrl+Shift+O)"));
     openFolderAction->setShortcut(QKeySequence("Ctrl+Shift+O"));
     addAction(openFolderAction);
 
-    // 保存文件
+    // Save file
     saveAction = new QAction("💾", this);
-    saveAction->setToolTip("保存文件 (Ctrl+S)");
+    saveAction->setToolTip(tr("Save File (Ctrl+S)"));
     saveAction->setShortcut(QKeySequence("Ctrl+S"));
     addAction(saveAction);
 
-    // 连接信号
+    // Connect signals
     connect(openAction, &QAction::triggered, this, [this]() {
         emit actionTriggered(ActionMap::openFile);
     });
@@ -61,17 +62,17 @@ void ToolBar::setupFileActions() {
 }
 
 void ToolBar::setupNavigationActions() {
-    // 第一页
+    // First page
     firstPageAction = new QAction("⏮", this);
-    firstPageAction->setToolTip("第一页 (Ctrl+Home)");
+    firstPageAction->setToolTip(tr("First Page (Ctrl+Home)"));
     addAction(firstPageAction);
 
-    // 上一页
+    // Previous page
     prevPageAction = new QAction("◀", this);
-    prevPageAction->setToolTip("上一页 (Page Up)");
+    prevPageAction->setToolTip(tr("Previous Page (Page Up)"));
     addAction(prevPageAction);
 
-    // 页码输入
+    // Page number input
     QWidget* pageWidget = new QWidget(this);
     QHBoxLayout* pageLayout = new QHBoxLayout(pageWidget);
     pageLayout->setContentsMargins(4, 0, 4, 0);
@@ -82,7 +83,7 @@ void ToolBar::setupNavigationActions() {
     pageSpinBox->setMaximum(1);
     pageSpinBox->setValue(1);
     pageSpinBox->setFixedWidth(60);
-    pageSpinBox->setToolTip("当前页码");
+    pageSpinBox->setToolTip(tr("Current Page"));
 
     pageCountLabel = new QLabel("/ 1", pageWidget);
     pageCountLabel->setMinimumWidth(30);
@@ -91,17 +92,17 @@ void ToolBar::setupNavigationActions() {
     pageLayout->addWidget(pageCountLabel);
     addWidget(pageWidget);
 
-    // 下一页
+    // Next page
     nextPageAction = new QAction("▶", this);
-    nextPageAction->setToolTip("下一页 (Page Down)");
+    nextPageAction->setToolTip(tr("Next Page (Page Down)"));
     addAction(nextPageAction);
 
-    // 最后一页
+    // Last page
     lastPageAction = new QAction("⏭", this);
-    lastPageAction->setToolTip("最后一页 (Ctrl+End)");
+    lastPageAction->setToolTip(tr("Last Page (Ctrl+End)"));
     addAction(lastPageAction);
 
-    // 连接信号
+    // Connect signals
     connect(firstPageAction, &QAction::triggered, this, [this]() {
         emit actionTriggered(ActionMap::firstPage);
     });
@@ -119,32 +120,32 @@ void ToolBar::setupNavigationActions() {
 }
 
 void ToolBar::setupZoomActions() {
-    // 缩小
+    // Zoom out
     zoomOutAction = new QAction("🔍-", this);
-    zoomOutAction->setToolTip("缩小 (Ctrl+-)");
+    zoomOutAction->setToolTip(tr("Zoom Out (Ctrl+-)"));
     addAction(zoomOutAction);
 
-    // 放大
+    // Zoom in
     zoomInAction = new QAction("🔍+", this);
-    zoomInAction->setToolTip("放大 (Ctrl++)");
+    zoomInAction->setToolTip(tr("Zoom In (Ctrl++)"));
     addAction(zoomInAction);
 
-    // 适合宽度
+    // Fit to width
     fitWidthAction = new QAction("📏", this);
-    fitWidthAction->setToolTip("适合宽度 (Ctrl+1)");
+    fitWidthAction->setToolTip(tr("Fit to Width (Ctrl+1)"));
     addAction(fitWidthAction);
 
-    // 适合页面
+    // Fit to page
     fitPageAction = new QAction("🗎", this);
-    fitPageAction->setToolTip("适合页面 (Ctrl+0)");
+    fitPageAction->setToolTip(tr("Fit to Page (Ctrl+0)"));
     addAction(fitPageAction);
 
-    // 适合高度
+    // Fit to height
     fitHeightAction = new QAction("📐", this);
-    fitHeightAction->setToolTip("适合高度 (Ctrl+2)");
+    fitHeightAction->setToolTip(tr("Fit to Height (Ctrl+2)"));
     addAction(fitHeightAction);
 
-    // 连接信号
+    // Connect signals
     connect(zoomOutAction, &QAction::triggered, this, [this]() {
         emit actionTriggered(ActionMap::zoomOut);
     });
@@ -163,29 +164,29 @@ void ToolBar::setupZoomActions() {
 }
 
 void ToolBar::setupViewActions() {
-    // 侧边栏切换
+    // Toggle sidebar
     toggleSidebarAction = new QAction("📋", this);
-    toggleSidebarAction->setToolTip("切换侧边栏 (F9)");
+    toggleSidebarAction->setToolTip(tr("Toggle Sidebar (F9)"));
     toggleSidebarAction->setCheckable(true);
     toggleSidebarAction->setChecked(true);
     addAction(toggleSidebarAction);
 
-    // 视图模式选择
+    // View mode selection
     QWidget* viewWidget = new QWidget(this);
     QHBoxLayout* viewLayout = new QHBoxLayout(viewWidget);
     viewLayout->setContentsMargins(4, 0, 4, 0);
 
     viewModeCombo = new QComboBox(viewWidget);
-    viewModeCombo->addItem("单页视图");
-    viewModeCombo->addItem("连续滚动");
+    viewModeCombo->addItem(tr("Single Page View"));
+    viewModeCombo->addItem(tr("Continuous Scroll"));
     viewModeCombo->setCurrentIndex(0);
-    viewModeCombo->setToolTip("选择视图模式");
+    viewModeCombo->setToolTip(tr("Select View Mode"));
     viewModeCombo->setFixedWidth(100);
 
     viewLayout->addWidget(viewModeCombo);
     addWidget(viewWidget);
 
-    // 连接信号
+    // Connect signals
     connect(toggleSidebarAction, &QAction::triggered, this, [this]() {
         emit actionTriggered(ActionMap::toggleSideBar);
     });
@@ -194,17 +195,17 @@ void ToolBar::setupViewActions() {
 }
 
 void ToolBar::setupRotationActions() {
-    // 向左旋转
+    // Rotate left
     rotateLeftAction = new QAction("↺", this);
-    rotateLeftAction->setToolTip("向左旋转90度 (Ctrl+L)");
+    rotateLeftAction->setToolTip(tr("Rotate Left 90° (Ctrl+L)"));
     addAction(rotateLeftAction);
 
-    // 向右旋转
+    // Rotate right
     rotateRightAction = new QAction("↻", this);
-    rotateRightAction->setToolTip("向右旋转90度 (Ctrl+R)");
+    rotateRightAction->setToolTip(tr("Rotate Right 90° (Ctrl+R)"));
     addAction(rotateRightAction);
 
-    // 连接信号
+    // Connect signals
     connect(rotateLeftAction, &QAction::triggered, this, [this]() {
         emit actionTriggered(ActionMap::rotateLeft);
     });
@@ -214,12 +215,12 @@ void ToolBar::setupRotationActions() {
 }
 
 void ToolBar::setupThemeActions() {
-    // 主题切换
+    // Theme toggle
     themeToggleAction = new QAction("🌙", this);
-    themeToggleAction->setToolTip("切换主题 (Ctrl+T)");
+    themeToggleAction->setToolTip(tr("Toggle Theme (Ctrl+T)"));
     addAction(themeToggleAction);
 
-    // 连接信号
+    // Connect signals
     connect(themeToggleAction, &QAction::triggered, this, [this]() {
         emit actionTriggered(ActionMap::toggleTheme);
     });
@@ -230,10 +231,10 @@ void ToolBar::createSeparator() {
 }
 
 void ToolBar::applyToolBarStyle() {
-    // 应用工具栏样式
+    // Apply toolbar style
     setStyleSheet(STYLE.getToolbarStyleSheet());
 
-    // 设置工具按钮样式
+    // Set tool button style
     QList<QAction*> actions = this->actions();
     for (QAction* action : actions) {
         if (!action->isSeparator()) {
@@ -254,7 +255,7 @@ void ToolBar::updatePageInfo(int currentPage, int totalPages) {
 
         pageCountLabel->setText(QString("/ %1").arg(totalPages));
 
-        // 更新导航按钮状态
+        // Update navigation button states
         firstPageAction->setEnabled(currentPage > 0);
         prevPageAction->setEnabled(currentPage > 0);
         nextPageAction->setEnabled(currentPage < totalPages - 1);
@@ -263,18 +264,18 @@ void ToolBar::updatePageInfo(int currentPage, int totalPages) {
 }
 
 void ToolBar::updateZoomLevel(double zoomFactor) {
-    // 可以在这里更新缩放相关的UI状态
-    // 例如禁用/启用缩放按钮基于当前缩放级别
+    // Can update zoom-related UI state here
+    // For example, disable/enable zoom buttons based on current zoom level
     Q_UNUSED(zoomFactor)
 }
 
 void ToolBar::setActionsEnabled(bool enabled) {
-    // 文件操作始终可用
+    // File operations are always available
     openAction->setEnabled(true);
     openFolderAction->setEnabled(true);
     saveAction->setEnabled(enabled);
 
-    // 文档相关操作只有在有文档时才可用
+    // Document-related operations are only available when there is a document
     firstPageAction->setEnabled(enabled);
     prevPageAction->setEnabled(enabled);
     nextPageAction->setEnabled(enabled);
@@ -292,13 +293,13 @@ void ToolBar::setActionsEnabled(bool enabled) {
     rotateLeftAction->setEnabled(enabled);
     rotateRightAction->setEnabled(enabled);
 
-    // 侧边栏和主题切换始终可用
+    // Sidebar and theme toggle are always available
     toggleSidebarAction->setEnabled(true);
     themeToggleAction->setEnabled(true);
 }
 
 void ToolBar::onPageSpinBoxChanged(int pageNumber) {
-    // 发出页码跳转请求（转换为0-based）
+    // Emit page jump request (convert to 0-based)
     emit pageJumpRequested(pageNumber - 1);
 }
 
@@ -309,4 +310,47 @@ void ToolBar::onViewModeChanged() {
     } else if (mode == 1) {
         emit actionTriggered(ActionMap::setContinuousScrollMode);
     }
+}
+
+void ToolBar::retranslateUi() {
+    // Update all tooltips and text with new translations
+    openAction->setToolTip(tr("Open PDF File (Ctrl+O)"));
+    openFolderAction->setToolTip(tr("Open Folder (Ctrl+Shift+O)"));
+    saveAction->setToolTip(tr("Save File (Ctrl+S)"));
+    
+    firstPageAction->setToolTip(tr("First Page (Ctrl+Home)"));
+    prevPageAction->setToolTip(tr("Previous Page (Page Up)"));
+    nextPageAction->setToolTip(tr("Next Page (Page Down)"));
+    lastPageAction->setToolTip(tr("Last Page (Ctrl+End)"));
+    pageSpinBox->setToolTip(tr("Current Page"));
+    
+    zoomOutAction->setToolTip(tr("Zoom Out (Ctrl+-)"));
+    zoomInAction->setToolTip(tr("Zoom In (Ctrl++)"));
+    fitWidthAction->setToolTip(tr("Fit to Width (Ctrl+1)"));
+    fitPageAction->setToolTip(tr("Fit to Page (Ctrl+0)"));
+    fitHeightAction->setToolTip(tr("Fit to Height (Ctrl+2)"));
+    
+    toggleSidebarAction->setToolTip(tr("Toggle Sidebar (F9)"));
+    
+    // Update combo box items
+    int currentViewMode = viewModeCombo->currentIndex();
+    viewModeCombo->blockSignals(true);
+    viewModeCombo->clear();
+    viewModeCombo->addItem(tr("Single Page View"));
+    viewModeCombo->addItem(tr("Continuous Scroll"));
+    viewModeCombo->setCurrentIndex(currentViewMode);
+    viewModeCombo->setToolTip(tr("Select View Mode"));
+    viewModeCombo->blockSignals(false);
+    
+    rotateLeftAction->setToolTip(tr("Rotate Left 90° (Ctrl+L)"));
+    rotateRightAction->setToolTip(tr("Rotate Right 90° (Ctrl+R)"));
+    
+    themeToggleAction->setToolTip(tr("Toggle Theme (Ctrl+T)"));
+}
+
+void ToolBar::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
+    }
+    QToolBar::changeEvent(event);
 }
