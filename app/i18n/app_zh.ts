@@ -412,4 +412,205 @@
         <translation>第 %1 页已经有书签了</translation>
     </message>
 </context>
+<context>
+    <name>WelcomeWidget</name>
+    <message>
+        <source>Welcome to SAST Readium</source>
+        <translation>欢迎使用 SAST Readium</translation>
+    </message>
+    <message>
+        <source>New File</source>
+        <translation>新建文件</translation>
+    </message>
+    <message>
+        <source>Open File...</source>
+        <translation>打开文件...</translation>
+    </message>
+    <message>
+        <source>Open Folder...</source>
+        <translation>打开文件夹...</translation>
+    </message>
+    <message>
+        <source>Recent Files</source>
+        <translation>最近文件</translation>
+    </message>
+    <message>
+        <source>No recent files</source>
+        <translation>无最近文件</translation>
+    </message>
+    <message>
+        <source>Quick Actions</source>
+        <translation>快速操作</translation>
+    </message>
+    <message>
+        <source>Get Started</source>
+        <translation>开始使用</translation>
+    </message>
+    <message>
+        <source>Interactive Tutorials</source>
+        <translation>互动教程</translation>
+    </message>
+    <message>
+        <source>Start Tour</source>
+        <translation>开始导览</translation>
+    </message>
+    <message>
+        <source>Tips &amp; Tricks</source>
+        <translation>提示与技巧</translation>
+    </message>
+    <message>
+        <source>Show More Tips</source>
+        <translation>显示更多提示</translation>
+    </message>
+    <message>
+        <source>Previous Tip</source>
+        <translation>上一条提示</translation>
+    </message>
+    <message>
+        <source>Next Tip</source>
+        <translation>下一条提示</translation>
+    </message>
+    <message>
+        <source>Keyboard Shortcuts</source>
+        <translation>键盘快捷键</translation>
+    </message>
+    <message>
+        <source>Learn Shortcuts</source>
+        <translation>学习快捷键</translation>
+    </message>
+</context>
+<context>
+    <name>OnboardingWidget</name>
+    <message>
+        <source>Welcome!</source>
+        <translation>欢迎！</translation>
+    </message>
+    <message>
+        <source>Let's take a quick tour of the main features</source>
+        <translation>让我们快速了解一下主要功能</translation>
+    </message>
+    <message>
+        <source>Opening Files</source>
+        <translation>打开文件</translation>
+    </message>
+    <message>
+        <source>You can open PDF files using the menu or drag and drop</source>
+        <translation>您可以使用菜单或拖放来打开PDF文件</translation>
+    </message>
+    <message>
+        <source>Navigation</source>
+        <translation>导航</translation>
+    </message>
+    <message>
+        <source>Navigate through pages using keyboard shortcuts or the navigation bar</source>
+        <translation>使用键盘快捷键或导航栏浏览页面</translation>
+    </message>
+    <message>
+        <source>Search</source>
+        <translation>搜索</translation>
+    </message>
+    <message>
+        <source>Find text quickly with powerful search features</source>
+        <translation>使用强大的搜索功能快速查找文本</translation>
+    </message>
+    <message>
+        <source>Bookmarks</source>
+        <translation>书签</translation>
+    </message>
+    <message>
+        <source>Save important pages for quick access</source>
+        <translation>保存重要页面以便快速访问</translation>
+    </message>
+    <message>
+        <source>Annotations</source>
+        <translation>批注</translation>
+    </message>
+    <message>
+        <source>Add highlights and notes to your documents</source>
+        <translation>为文档添加高亮和注释</translation>
+    </message>
+    <message>
+        <source>View Modes</source>
+        <translation>视图模式</translation>
+    </message>
+    <message>
+        <source>Choose between single page and continuous scroll modes</source>
+        <translation>在单页和连续滚动模式之间选择</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation>设置</translation>
+    </message>
+    <message>
+        <source>Customize the application to your preferences</source>
+        <translation>根据您的偏好自定义应用程序</translation>
+    </message>
+    <message>
+        <source>Keyboard Shortcuts</source>
+        <translation>键盘快捷键</translation>
+    </message>
+    <message>
+        <source>Learn keyboard shortcuts to work more efficiently</source>
+        <translation>学习键盘快捷键以提高工作效率</translation>
+    </message>
+    <message>
+        <source>Tour Complete!</source>
+        <translation>导览完成！</translation>
+    </message>
+    <message>
+        <source>You're ready to start using SAST Readium</source>
+        <translation>您已准备好开始使用 SAST Readium</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>下一步</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>上一步</translation>
+    </message>
+    <message>
+        <source>Skip Tour</source>
+        <translation>跳过导览</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2</source>
+        <translation>第 %1 步，共 %2 步</translation>
+    </message>
+</context>
+<context>
+    <name>TutorialCard</name>
+    <message>
+        <source>Start</source>
+        <translation>开始</translation>
+    </message>
+    <message>
+        <source>Completed</source>
+        <translation>已完成</translation>
+    </message>
+    <message>
+        <source>Duration: %1</source>
+        <translation>时长：%1</translation>
+    </message>
+    <message>
+        <source>Difficulty: %1</source>
+        <translation>难度：%1</translation>
+    </message>
+    <message>
+        <source>Beginner</source>
+        <translation>初级</translation>
+    </message>
+    <message>
+        <source>Intermediate</source>
+        <translation>中级</translation>
+    </message>
+    <message>
+        <source>Advanced</source>
+        <translation>高级</translation>
+    </message>
+</context>
 </TS>

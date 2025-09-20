@@ -4,9 +4,20 @@ A Qt6-based PDF reader application with comprehensive build support for multiple
 
 ## Features
 
-- Modern Qt6-based PDF viewer
-- Cross-platform support (Windows, Linux, macOS)
-- Multiple build environments:
+- **PDF Viewing**: High-quality PDF rendering with zoom, rotation, and navigation
+- **Search Functionality**: Advanced text search with highlighting and navigation
+- **Bookmarks**: Create, manage, and navigate bookmarks
+- **Annotations**: Add and manage PDF annotations
+- **Thumbnails**: Generate and display page thumbnails with GPU fallback rendering
+- **Multi-tab Interface**: Open multiple documents simultaneously
+- **Internationalization**: Support for multiple languages (English/Chinese)
+- **Theme Support**: Light and dark theme options
+- **Performance Optimizations**: Efficient rendering and memory management
+- **Advanced Logging**: Comprehensive logging system with configurable sinks and categories
+- **Memory Management**: Smart memory optimization with multiple eviction strategies
+- **Debug Tools**: Advanced debug log panel with search and filtering capabilities
+- **Cross-platform Support**: Windows, Linux, macOS
+- **Multiple Build Environments**:
   - **vcpkg** for dependency management
   - **MSYS2** for Windows Unix-like development
   - **System packages** for native Linux/macOS builds

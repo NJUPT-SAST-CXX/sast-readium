@@ -56,9 +56,9 @@ public:
     bool goToLastPage();
 
     // Page validation and information
-    PageValidationResult validatePage(int pageNum) const;
-    bool isValidPage(int pageNum) const;
-    QString getValidationErrorMessage(PageValidationResult result) const;
+    virtual PageValidationResult validatePage(int pageNum) const;
+    virtual bool isValidPage(int pageNum) const;
+    virtual QString getValidationErrorMessage(PageValidationResult result) const;
 
     // Page metadata and properties
     PageMetadata getPageMetadata(int pageNum) const;
@@ -80,9 +80,9 @@ public:
     bool hasRenderModel() const;
 
     // Document state
-    bool hasDocument() const;
-    bool isDocumentValid() const;
-    QString getLastError() const;
+    virtual bool hasDocument() const;
+    virtual bool isDocumentValid() const;
+    virtual QString getLastError() const;
 
     // Statistics and monitoring
     int getCacheSize() const;
@@ -108,7 +108,7 @@ signals:
     void renderModelChanged(RenderModel* newModel);
     void cacheUpdated(int cacheSize);
 
-private:
+protected:
     // Core data
     int _totalPages;
     int _currentPage;

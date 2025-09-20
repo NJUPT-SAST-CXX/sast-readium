@@ -609,7 +609,9 @@ void DebugLogPanel::onSearchNext()
     if (m_searchResults.isEmpty()) return;
 
     m_currentSearchIndex = (m_currentSearchIndex + 1) % m_searchResults.size();
-    // Implementation for jumping to next search result would go here
+
+    // Jump to the next search result
+    jumpToSearchResult(m_currentSearchIndex);
 }
 
 void DebugLogPanel::onSearchPrevious()
@@ -617,7 +619,9 @@ void DebugLogPanel::onSearchPrevious()
     if (m_searchResults.isEmpty()) return;
 
     m_currentSearchIndex = (m_currentSearchIndex - 1 + m_searchResults.size()) % m_searchResults.size();
-    // Implementation for jumping to previous search result would go here
+
+    // Jump to the previous search result
+    jumpToSearchResult(m_currentSearchIndex);
 }
 
 void DebugLogPanel::onClearLogs()
@@ -863,6 +867,54 @@ void DebugLogPanel::updateStatistics()
     }
 
     emit logStatisticsUpdated(m_statistics);
+}
+
+void DebugLogPanel::jumpToSearchResult(int index)
+{
+    if (!m_logDisplay || index < 0 || index >= m_searchResults.size()) {
+        return;
+    }
+
+    // Get the position of the search result
+    bool ok;
+    int position = m_searchResults[index].toInt(&ok);
+    if (!ok) {
+        return;
+    }
+
+    // Move cursor to the search result position
+    QTextCursor cursor = m_logDisplay->textCursor();
+    cursor.setPosition(position);
+
+    // Select the search term for better visibility
+    QString searchTerm = m_searchEdit->text();
+    if (!searchTerm.isEmpty()) {
+        // Find the actual search term at this position
+        QTextDocument* document = m_logDisplay->document();
+
+        if (m_config.regexSearch) {
+            // For regex search, we need to find the match length
+            QRegularExpression regex(searchTerm);
+            if (!m_config.caseSensitiveSearch) {
+                regex.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
+            }
+
+            QString text = document->toPlainText();
+            QRegularExpressionMatch match = regex.match(text, position);
+            if (match.hasMatch() && match.capturedStart() == position) {
+                cursor.setPosition(position);
+                cursor.setPosition(position + match.capturedLength(), QTextCursor::KeepAnchor);
+            }
+        } else {
+            // For plain text search
+            cursor.setPosition(position);
+            cursor.setPosition(position + searchTerm.length(), QTextCursor::KeepAnchor);
+        }
+    }
+
+    // Set the cursor and ensure it's visible
+    m_logDisplay->setTextCursor(cursor);
+    m_logDisplay->ensureCursorVisible();
 }
 
 void DebugLogPanel::updateStatisticsDisplay()

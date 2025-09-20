@@ -1,7 +1,10 @@
 #pragma once
 
-#include <QLabel>
 #include <QObject>
+#include <memory>
+
+// Forward declarations
+class QLabel;
 
 class PageNavigationDelegate : public QObject {
     Q_OBJECT
@@ -9,11 +12,12 @@ class PageNavigationDelegate : public QObject {
 public:
     explicit PageNavigationDelegate(QLabel* pageLabel,
                                     QObject* parent = nullptr);
-    ~PageNavigationDelegate() {};
+    ~PageNavigationDelegate();
 
 public slots:
     void viewUpdate(int pageNum);
 
 private:
-    QLabel* _pageLabel;
+    class Implementation;
+    std::unique_ptr<Implementation> d;
 };

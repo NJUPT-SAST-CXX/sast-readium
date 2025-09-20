@@ -6,6 +6,7 @@
 #include <QFutureWatcher>
 #include <functional>
 #include <memory>
+#include <QtConcurrent>
 
 /**
  * Background processing component

@@ -7,7 +7,7 @@
 #include <memory>
 #include <optional>
 #include <variant>
-#include "Logger.h"
+#include "../logging/Logger.h"
 
 namespace ErrorHandling {
 

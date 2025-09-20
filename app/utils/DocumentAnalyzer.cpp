@@ -3,7 +3,7 @@
 #include <poppler-qt6.h>
 #include <QDateTime>
 #include <QFile>
-#include "Logger.h"
+#include "../logging/Logger.h"
 #include <QTextStream>
 #include <QJsonDocument>
 #include <QJsonArray>

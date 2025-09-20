@@ -16,36 +16,47 @@ public:
 
     QString extractPageTextInternal(int pageNumber)
     {
-        if (!document || pageNumber < 0 || pageNumber >= document->numPages()) {
-            qWarning() << "Invalid page number or document:" << pageNumber;
-            return QString();
-        }
-
-        // Check cache first
-        if (cacheEnabled) {
-            QMutexLocker locker(&cacheMutex);
-            if (textCache.contains(pageNumber)) {
-                return textCache[pageNumber];
+        try {
+            if (!document || pageNumber < 0 || pageNumber >= document->numPages()) {
+                qWarning() << "Invalid page number or document:" << pageNumber;
+                return QString();
             }
-        }
 
-        // Extract text from page
-        std::unique_ptr<Poppler::Page> page(document->page(pageNumber));
-        if (!page) {
-            emit q_ptr->extractionError(pageNumber, "Failed to load page");
+            // Check cache first
+            if (cacheEnabled) {
+                QMutexLocker locker(&cacheMutex);
+                if (textCache.contains(pageNumber)) {
+                    return textCache[pageNumber];
+                }
+            }
+
+            // Extract text from page with error handling
+            std::unique_ptr<Poppler::Page> page(document->page(pageNumber));
+            if (!page) {
+                emit q_ptr->extractionError(pageNumber, "Failed to load page");
+                return QString();
+            }
+
+            QString text = page->text(QRectF());
+
+            // Store in cache
+            if (cacheEnabled && !text.isEmpty()) {
+                QMutexLocker locker(&cacheMutex);
+                textCache[pageNumber] = text;
+            }
+
+            emit q_ptr->textExtracted(pageNumber, text);
+            return text;
+
+        } catch (const std::exception& e) {
+            QString errorMsg = QString("Text extraction failed for page %1: %2").arg(pageNumber).arg(e.what());
+            emit q_ptr->extractionError(pageNumber, errorMsg);
+            return QString();
+        } catch (...) {
+            QString errorMsg = QString("Unknown error during text extraction for page %1").arg(pageNumber);
+            emit q_ptr->extractionError(pageNumber, errorMsg);
             return QString();
         }
-
-        QString text = page->text(QRectF());
-        
-        // Store in cache
-        if (cacheEnabled && !text.isEmpty()) {
-            QMutexLocker locker(&cacheMutex);
-            textCache[pageNumber] = text;
-        }
-
-        emit q_ptr->textExtracted(pageNumber, text);
-        return text;
     }
 
     qint64 calculateCacheMemoryUsage() const

@@ -1,6 +1,6 @@
 #include "StyleManager.h"
 #include <QFontDatabase>
-#include "utils/Logger.h"
+#include "../logging/Logger.h"
 
 StyleManager& StyleManager::instance() {
     static StyleManager instance;

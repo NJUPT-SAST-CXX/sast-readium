@@ -1,5 +1,5 @@
 #include "ErrorRecovery.h"
-#include "Logger.h"
+#include "../logging/Logger.h"
 #include <QThread>
 #include <QDir>
 #include <QFileInfo>

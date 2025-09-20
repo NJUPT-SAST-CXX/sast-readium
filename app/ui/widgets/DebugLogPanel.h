@@ -35,8 +35,8 @@
 #include <QTabWidget>
 #include <deque>
 #include <memory>
-#include "../../utils/Logger.h"
-#include "../../utils/LoggingManager.h"
+#include "../../logging/Logger.h"
+#include "../../logging/LoggingManager.h"
 
 /**
  * @brief Comprehensive debug logging panel widget
@@ -190,6 +190,7 @@ private:
     void showSettingsDialog();
     void applyTheme();
     void retranslateUi();
+    void jumpToSearchResult(int index);
 
     // UI Components
     QVBoxLayout* m_mainLayout;

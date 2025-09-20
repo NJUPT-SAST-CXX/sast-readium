@@ -53,16 +53,16 @@ struct PDFAnnotation {
     QString fontFamily;           // Font for text annotations
     int fontSize;                 // Font size for text annotations
     
-    PDFAnnotation() 
+    PDFAnnotation()
         : type(AnnotationType::Highlight)
         , pageNumber(-1)
+        , createdTime(QDateTime::currentDateTime())
+        , modifiedTime(QDateTime::currentDateTime())
+        , color(Qt::yellow)
         , opacity(1.0)
         , isVisible(true)
         , lineWidth(1.0)
         , fontSize(12)
-        , color(Qt::yellow)
-        , createdTime(QDateTime::currentDateTime())
-        , modifiedTime(QDateTime::currentDateTime())
     {
         // Generate unique ID
         id = QString("ann_%1_%2").arg(QDateTime::currentMSecsSinceEpoch())

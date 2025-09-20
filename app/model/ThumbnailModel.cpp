@@ -1,6 +1,6 @@
 #include "ThumbnailModel.h"
 #include "../ui/thumbnail/ThumbnailGenerator.h"
-#include "../utils/LoggingMacros.h"
+#include "../logging/LoggingMacros.h"
 #include <QDebug>
 #include <QDateTime>
 #include <QMutexLocker>

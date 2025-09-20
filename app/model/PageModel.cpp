@@ -1,6 +1,6 @@
 #include "PageModel.h"
 #include "RenderModel.h"
-#include "utils/LoggingMacros.h"
+#include "../logging/LoggingMacros.h"
 
 PageModel::PageModel(int totalPages, QObject* parent)
     : QObject(parent), _totalPages(totalPages), _currentPage(1), _renderModel(nullptr),

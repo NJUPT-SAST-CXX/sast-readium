@@ -1,7 +1,9 @@
 #include "WelcomeWidget.h"
 #include "RecentFileListWidget.h"
+#include "TutorialCard.h"
 #include "../../managers/RecentFilesManager.h"
 #include "../../managers/StyleManager.h"
+#include "../../managers/OnboardingManager.h"
 #include "../managers/WelcomeScreenManager.h"
 #include <QApplication>
 #include <QVBoxLayout>
@@ -21,7 +23,11 @@
 #include <QDebug>
 #include <QStyle>
 #include <QWidget>
-#include "utils/LoggingMacros.h"
+#include <QToolButton>
+#include <QGridLayout>
+#include <QJsonArray>
+#include <QJsonObject>
+#include "../../logging/LoggingMacros.h"
 #include <QEasingCurve>
 #include <Qt>
 
@@ -238,6 +244,12 @@ void WelcomeWidget::onOpenFileClicked()
     emit openFileRequested();
 }
 
+void WelcomeWidget::onOpenFolderClicked()
+{
+    LOG_DEBUG("WelcomeWidget: Open folder requested");
+    emit openFolderRequested();
+}
+
 void WelcomeWidget::onRecentFileClicked(const QString& filePath)
 {
     LOG_DEBUG("WelcomeWidget: Recent file clicked: {}", filePath.toStdString());
@@ -247,6 +259,53 @@ void WelcomeWidget::onRecentFileClicked(const QString& filePath)
 void WelcomeWidget::onFadeInFinished()
 {
     LOG_DEBUG("WelcomeWidget: Fade in animation finished");
+}
+
+void WelcomeWidget::onTutorialCardClicked(const QString& tutorialId)
+{
+    LOG_DEBUG("WelcomeWidget: Tutorial card clicked: {}", tutorialId.toStdString());
+    emit tutorialRequested(tutorialId);
+}
+
+void WelcomeWidget::onQuickActionClicked()
+{
+    QToolButton* btn = qobject_cast<QToolButton*>(sender());
+    if (btn) {
+        QString action = btn->text();
+        LOG_DEBUG("WelcomeWidget: Quick action clicked: {}", action.toStdString());
+        
+        if (action == tr("Search")) {
+            // Handle search action
+        } else if (action == tr("Bookmarks")) {
+            // Handle bookmarks action
+        } else if (action == tr("Settings")) {
+            emit showSettingsRequested();
+        } else if (action == tr("Help")) {
+            emit showDocumentationRequested();
+        }
+    }
+}
+
+void WelcomeWidget::onShowMoreTipsClicked()
+{
+    LOG_DEBUG("WelcomeWidget: Show more tips requested");
+    refreshTips();
+}
+
+void WelcomeWidget::onKeyboardShortcutClicked()
+{
+    LOG_DEBUG("WelcomeWidget: Keyboard shortcuts requested");
+    emit showDocumentationRequested();
+}
+
+void WelcomeWidget::onStartTourClicked()
+{
+    LOG_DEBUG("WelcomeWidget: Start tour requested");
+    emit startOnboardingRequested();
+    
+    if (m_onboardingManager) {
+        m_onboardingManager->startOnboarding();
+    }
 }
 
 void WelcomeWidget::initializeUI()
@@ -273,7 +332,11 @@ void WelcomeWidget::initializeUI()
     setupLayout();
     setupLogo();
     setupActions();
+    setupQuickActions();
+    setupTutorialCards();
     setupRecentFiles();
+    setupTipsSection();
+    setupKeyboardShortcuts();
 
     // 将内容设置到滚动区域
     m_scrollArea->setWidget(m_contentWidget);
@@ -304,7 +367,7 @@ void WelcomeWidget::setupLayout()
     m_actionsWidget->setObjectName("WelcomeActionsWidget");
     contentLayout->addWidget(m_actionsWidget, 0, Qt::AlignCenter);
 
-    // 分隔线
+    // 分隔线1
     m_separatorLine = new QFrame();
     m_separatorLine->setObjectName("WelcomeSeparatorLine");
     m_separatorLine->setFrameShape(QFrame::HLine);
@@ -313,11 +376,53 @@ void WelcomeWidget::setupLayout()
     m_separatorLine->setMaximumWidth(CONTENT_MAX_WIDTH);
     contentLayout->addWidget(m_separatorLine, 0, Qt::AlignCenter);
 
+    // Quick Actions区域
+    m_quickActionsWidget = new QWidget();
+    m_quickActionsWidget->setObjectName("WelcomeQuickActionsWidget");
+    m_quickActionsWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
+    contentLayout->addWidget(m_quickActionsWidget, 0, Qt::AlignCenter);
+    
+    // Tutorial Cards区域
+    m_tutorialCardsWidget = new QWidget();
+    m_tutorialCardsWidget->setObjectName("WelcomeTutorialCardsWidget");
+    m_tutorialCardsWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
+    contentLayout->addWidget(m_tutorialCardsWidget, 0, Qt::AlignCenter);
+    
+    // 分隔线2
+    m_separatorLine2 = new QFrame();
+    m_separatorLine2->setObjectName("WelcomeSeparatorLine2");
+    m_separatorLine2->setFrameShape(QFrame::HLine);
+    m_separatorLine2->setFrameShadow(QFrame::Plain);
+    m_separatorLine2->setFixedHeight(1);
+    m_separatorLine2->setMaximumWidth(CONTENT_MAX_WIDTH);
+    contentLayout->addWidget(m_separatorLine2, 0, Qt::AlignCenter);
+
     // 最近文件区域
     m_recentFilesWidget = new QWidget();
     m_recentFilesWidget->setObjectName("WelcomeRecentFilesWidget");
     m_recentFilesWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
     contentLayout->addWidget(m_recentFilesWidget, 0, Qt::AlignCenter);
+    
+    // 分隔线3
+    m_separatorLine3 = new QFrame();
+    m_separatorLine3->setObjectName("WelcomeSeparatorLine3");
+    m_separatorLine3->setFrameShape(QFrame::HLine);
+    m_separatorLine3->setFrameShadow(QFrame::Plain);
+    m_separatorLine3->setFixedHeight(1);
+    m_separatorLine3->setMaximumWidth(CONTENT_MAX_WIDTH);
+    contentLayout->addWidget(m_separatorLine3, 0, Qt::AlignCenter);
+    
+    // Tips区域
+    m_tipsWidget = new QWidget();
+    m_tipsWidget->setObjectName("WelcomeTipsWidget");
+    m_tipsWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
+    contentLayout->addWidget(m_tipsWidget, 0, Qt::AlignCenter);
+    
+    // Keyboard Shortcuts区域
+    m_shortcutsWidget = new QWidget();
+    m_shortcutsWidget->setObjectName("WelcomeShortcutsWidget");
+    m_shortcutsWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
+    contentLayout->addWidget(m_shortcutsWidget, 0, Qt::AlignCenter);
 
     // 添加底部弹性空间
     contentLayout->addStretch(2);
@@ -416,17 +521,23 @@ void WelcomeWidget::setupActions()
     m_actionsLayout->setAlignment(Qt::AlignCenter);
 
     // 新建文件按钮
-    m_newFileButton = new QPushButton("New File");
+    m_newFileButton = new QPushButton(tr("New File"));
     m_newFileButton->setObjectName("WelcomeNewFileButton");
     m_newFileButton->setCursor(Qt::PointingHandCursor);
 
     // 打开文件按钮
-    m_openFileButton = new QPushButton("Open File...");
+    m_openFileButton = new QPushButton(tr("Open File..."));
     m_openFileButton->setObjectName("WelcomeOpenFileButton");
     m_openFileButton->setCursor(Qt::PointingHandCursor);
+    
+    // 打开文件夹按钮
+    m_openFolderButton = new QPushButton(tr("Open Folder..."));
+    m_openFolderButton->setObjectName("WelcomeOpenFolderButton");
+    m_openFolderButton->setCursor(Qt::PointingHandCursor);
 
     m_actionsLayout->addWidget(m_newFileButton);
     m_actionsLayout->addWidget(m_openFileButton);
+    m_actionsLayout->addWidget(m_openFolderButton);
 }
 
 void WelcomeWidget::setupRecentFiles()
@@ -438,7 +549,7 @@ void WelcomeWidget::setupRecentFiles()
     m_recentFilesLayout->setSpacing(SPACING_SMALL);
 
     // 最近文件标题
-    m_recentFilesTitle = new QLabel("Recent Files");
+    m_recentFilesTitle = new QLabel(tr("Recent Files"));
     m_recentFilesTitle->setObjectName("WelcomeRecentFilesTitle");
     m_recentFilesTitle->setAlignment(Qt::AlignLeft);
 
@@ -447,7 +558,7 @@ void WelcomeWidget::setupRecentFiles()
     m_recentFilesList->setObjectName("WelcomeRecentFilesList");
 
     // 无最近文件标签
-    m_noRecentFilesLabel = new QLabel("No recent files");
+    m_noRecentFilesLabel = new QLabel(tr("No recent files"));
     m_noRecentFilesLabel->setObjectName("WelcomeNoRecentFilesLabel");
     m_noRecentFilesLabel->setAlignment(Qt::AlignCenter);
     m_noRecentFilesLabel->setVisible(false);
@@ -455,6 +566,192 @@ void WelcomeWidget::setupRecentFiles()
     m_recentFilesLayout->addWidget(m_recentFilesTitle);
     m_recentFilesLayout->addWidget(m_recentFilesList);
     m_recentFilesLayout->addWidget(m_noRecentFilesLabel);
+}
+
+void WelcomeWidget::setupQuickActions()
+{
+    if (!m_quickActionsWidget) return;
+    
+    m_quickActionsLayout = new QGridLayout(m_quickActionsWidget);
+    m_quickActionsLayout->setContentsMargins(0, 0, 0, 0);
+    m_quickActionsLayout->setSpacing(SPACING_MEDIUM);
+    
+    // Create quick action buttons
+    auto createQuickAction = [this](const QString& text, const QString& icon, int row, int col) {
+        QToolButton* btn = new QToolButton();
+        btn->setText(text);
+        btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+        btn->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        btn->setCursor(Qt::PointingHandCursor);
+        if (!icon.isEmpty()) {
+            btn->setIcon(QIcon(icon));
+            btn->setIconSize(QSize(32, 32));
+        }
+        m_quickActionsLayout->addWidget(btn, row, col);
+        m_quickActionButtons.append(btn);
+        return btn;
+    };
+    
+    createQuickAction(tr("Search"), ":/icons/search", 0, 0);
+    createQuickAction(tr("Bookmarks"), ":/icons/bookmark", 0, 1);
+    createQuickAction(tr("Settings"), ":/icons/settings", 0, 2);
+    createQuickAction(tr("Help"), ":/icons/help", 0, 3);
+}
+
+void WelcomeWidget::setupTutorialCards()
+{
+    if (!m_tutorialCardsWidget) return;
+    
+    m_tutorialCardsLayout = new QVBoxLayout(m_tutorialCardsWidget);
+    m_tutorialCardsLayout->setContentsMargins(0, 0, 0, 0);
+    m_tutorialCardsLayout->setSpacing(SPACING_MEDIUM);
+    
+    // Title
+    m_tutorialCardsTitle = new QLabel(tr("Interactive Tutorials"));
+    m_tutorialCardsTitle->setObjectName("WelcomeTutorialCardsTitle");
+    m_tutorialCardsTitle->setAlignment(Qt::AlignLeft);
+    
+    // Container for cards
+    m_tutorialCardsContainer = new QWidget();
+    m_tutorialCardsContainerLayout = new QHBoxLayout(m_tutorialCardsContainer);
+    m_tutorialCardsContainerLayout->setSpacing(SPACING_MEDIUM);
+    m_tutorialCardsContainerLayout->setAlignment(Qt::AlignLeft);
+    
+    // Add tutorial cards using OnboardingManager's data
+    if (m_onboardingManager) {
+        QJsonArray tutorials = m_onboardingManager->getAvailableTutorials();
+        for (const auto& tutorialValue : tutorials) {
+            QJsonObject tutorial = tutorialValue.toObject();
+            createTutorialCard(
+                tutorial["id"].toString(),
+                tutorial["title"].toString(),
+                tutorial["description"].toString(),
+                QString(":/icons/tutorial")
+            );
+        }
+    }
+    
+    m_tutorialCardsLayout->addWidget(m_tutorialCardsTitle);
+    m_tutorialCardsLayout->addWidget(m_tutorialCardsContainer);
+    
+    // Start tour button
+    QPushButton* startTourBtn = new QPushButton(tr("Start Tour"));
+    startTourBtn->setObjectName("WelcomeStartTourButton");
+    startTourBtn->setCursor(Qt::PointingHandCursor);
+    connect(startTourBtn, &QPushButton::clicked, this, &WelcomeWidget::onStartTourClicked);
+    m_tutorialCardsLayout->addWidget(startTourBtn, 0, Qt::AlignLeft);
+}
+
+void WelcomeWidget::setupTipsSection()
+{
+    if (!m_tipsWidget) return;
+    
+    m_tipsLayout = new QVBoxLayout(m_tipsWidget);
+    m_tipsLayout->setContentsMargins(0, 0, 0, 0);
+    m_tipsLayout->setSpacing(SPACING_SMALL);
+    
+    // Title
+    m_tipsTitle = new QLabel(tr("Tips & Tricks"));
+    m_tipsTitle->setObjectName("WelcomeTipsTitle");
+    m_tipsTitle->setAlignment(Qt::AlignLeft);
+    
+    // Initialize tips list
+    m_tips = QStringList()
+        << tr("Press Ctrl+F to quickly search within the document")
+        << tr("Use Ctrl+B to add a bookmark to the current page")
+        << tr("Double-click on the page to zoom in, right-click to zoom out")
+        << tr("Press F11 to toggle full-screen mode")
+        << tr("Use Page Up/Down keys for quick navigation")
+        << tr("Drag and drop PDF files directly into the window to open them")
+        << tr("Press Ctrl+Tab to switch between open documents")
+        << tr("Use Ctrl+G to jump to a specific page number");
+    
+    m_currentTipIndex = 0;
+    
+    // Current tip label
+    m_currentTipLabel = new QLabel(m_tips[m_currentTipIndex]);
+    m_currentTipLabel->setObjectName("WelcomeCurrentTipLabel");
+    m_currentTipLabel->setWordWrap(true);
+    m_currentTipLabel->setAlignment(Qt::AlignLeft);
+    
+    // Navigation buttons
+    QHBoxLayout* tipNavLayout = new QHBoxLayout();
+    m_previousTipButton = new QPushButton(tr("Previous Tip"));
+    m_nextTipButton = new QPushButton(tr("Next Tip"));
+    
+    connect(m_previousTipButton, &QPushButton::clicked, [this]() {
+        if (--m_currentTipIndex < 0) m_currentTipIndex = m_tips.size() - 1;
+        m_currentTipLabel->setText(m_tips[m_currentTipIndex]);
+    });
+    
+    connect(m_nextTipButton, &QPushButton::clicked, [this]() {
+        if (++m_currentTipIndex >= m_tips.size()) m_currentTipIndex = 0;
+        m_currentTipLabel->setText(m_tips[m_currentTipIndex]);
+    });
+    
+    tipNavLayout->addWidget(m_previousTipButton);
+    tipNavLayout->addWidget(m_nextTipButton);
+    tipNavLayout->addStretch();
+    
+    m_tipsLayout->addWidget(m_tipsTitle);
+    m_tipsLayout->addWidget(m_currentTipLabel);
+    m_tipsLayout->addLayout(tipNavLayout);
+}
+
+void WelcomeWidget::setupKeyboardShortcuts()
+{
+    if (!m_shortcutsWidget) return;
+    
+    m_shortcutsLayout = new QVBoxLayout(m_shortcutsWidget);
+    m_shortcutsLayout->setContentsMargins(0, 0, 0, 0);
+    m_shortcutsLayout->setSpacing(SPACING_SMALL);
+    
+    // Title
+    m_shortcutsTitle = new QLabel(tr("Keyboard Shortcuts"));
+    m_shortcutsTitle->setObjectName("WelcomeShortcutsTitle");
+    m_shortcutsTitle->setAlignment(Qt::AlignLeft);
+    
+    // Shortcuts list widget
+    m_shortcutsListWidget = new QWidget();
+    QGridLayout* shortcutsGrid = new QGridLayout(m_shortcutsListWidget);
+    shortcutsGrid->setSpacing(SPACING_XSMALL);
+    
+    // Add common shortcuts
+    struct Shortcut {
+        QString keys;
+        QString description;
+    };
+    
+    QList<Shortcut> shortcuts = {
+        {"Ctrl+O", tr("Open file")},
+        {"Ctrl+S", tr("Save file")},
+        {"Ctrl+F", tr("Search")},
+        {"Ctrl+B", tr("Add bookmark")},
+        {"Ctrl+G", tr("Go to page")},
+        {"F11", tr("Full screen")},
+        {"Ctrl++", tr("Zoom in")},
+        {"Ctrl+-", tr("Zoom out")}
+    };
+    
+    int row = 0;
+    for (const auto& shortcut : shortcuts) {
+        QLabel* keysLabel = new QLabel(shortcut.keys);
+        QLabel* descLabel = new QLabel(shortcut.description);
+        keysLabel->setObjectName("ShortcutKeys");
+        descLabel->setObjectName("ShortcutDescription");
+        shortcutsGrid->addWidget(keysLabel, row, 0);
+        shortcutsGrid->addWidget(descLabel, row, 1);
+        row++;
+    }
+    
+    // Learn more button
+    QPushButton* learnMoreBtn = new QPushButton(tr("Learn More Shortcuts"));
+    learnMoreBtn->setObjectName("WelcomeLearnShortcutsButton");
+    connect(learnMoreBtn, &QPushButton::clicked, this, &WelcomeWidget::onKeyboardShortcutClicked);
+    
+    m_shortcutsLayout->addWidget(m_shortcutsTitle);
+    m_shortcutsLayout->addWidget(m_shortcutsListWidget);
+    m_shortcutsLayout->addWidget(learnMoreBtn, 0, Qt::AlignLeft);
 }
 
 void WelcomeWidget::setupConnections()
@@ -466,6 +763,10 @@ void WelcomeWidget::setupConnections()
 
     if (m_openFileButton) {
         connect(m_openFileButton, &QPushButton::clicked, this, &WelcomeWidget::onOpenFileClicked);
+    }
+    
+    if (m_openFolderButton) {
+        connect(m_openFolderButton, &QPushButton::clicked, this, &WelcomeWidget::onOpenFolderClicked);
     }
 
     // 最近文件列表连接
@@ -504,6 +805,46 @@ void WelcomeWidget::updateLayout()
 
     if (m_separatorLine) {
         m_separatorLine->setMaximumWidth(contentWidth);
+    }
+}
+
+void WelcomeWidget::createTutorialCard(const QString& id, const QString& title, 
+                                       const QString& description, const QString& iconPath)
+{
+    if (!m_tutorialCardsContainerLayout) return;
+    
+    TutorialCard* card = new TutorialCard(id, title, description, QIcon(iconPath));
+    connect(card, &TutorialCard::clicked, this, &WelcomeWidget::onTutorialCardClicked);
+    m_tutorialCardsContainerLayout->addWidget(card);
+}
+
+void WelcomeWidget::setOnboardingManager(OnboardingManager* manager)
+{
+    m_onboardingManager = manager;
+    
+    // Refresh tutorial cards if widget is already initialized
+    if (m_isInitialized && m_tutorialCardsWidget) {
+        setupTutorialCards();
+    }
+}
+
+void WelcomeWidget::refreshTips()
+{
+    // Rotate to next tip
+    if (++m_currentTipIndex >= m_tips.size()) {
+        m_currentTipIndex = 0;
+    }
+    
+    if (m_currentTipLabel && !m_tips.isEmpty()) {
+        m_currentTipLabel->setText(m_tips[m_currentTipIndex]);
+    }
+}
+
+void WelcomeWidget::refreshShortcuts()
+{
+    // Refresh keyboard shortcuts if needed
+    if (m_shortcutsWidget) {
+        setupKeyboardShortcuts();
     }
 }
 

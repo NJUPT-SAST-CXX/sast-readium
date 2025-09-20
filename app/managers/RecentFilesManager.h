@@ -48,7 +48,7 @@ public:
     ~RecentFilesManager();
 
     // 文件操作
-    void addRecentFile(const QString& filePath);
+    virtual void addRecentFile(const QString& filePath);
     QList<RecentFileInfo> getRecentFiles() const;
     QStringList getRecentFilePaths() const;
     void clearRecentFiles();

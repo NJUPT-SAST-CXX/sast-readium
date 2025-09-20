@@ -52,5 +52,9 @@ enum ActionMap {
     // 从合并分支添加的操作
     saveFile,
     closeFile,
-    fullScreen
+    fullScreen,
+    // 文档操作
+    exportFile,
+    printFile,
+    reloadFile
 };

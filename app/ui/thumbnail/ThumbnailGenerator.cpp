@@ -13,7 +13,7 @@
 #include <poppler-qt6.h>
 #include <cmath>
 #include <algorithm>
-#include "../../utils/LoggingMacros.h"
+#include "../../logging/LoggingMacros.h"
 
 ThumbnailGenerator::ThumbnailGenerator(QObject* parent)
     : QObject(parent)
@@ -149,7 +149,8 @@ void ThumbnailGenerator::setMaxRetries(int maxRetries)
 }
 
 void ThumbnailGenerator::generateThumbnail(int pageNumber, const QSize& size,
-                                          double quality, int priority)
+                                          double quality, int priority,
+                                          RenderMode mode)
 {
     if (!m_document) {
         emit thumbnailError(pageNumber, "No document loaded");
@@ -830,12 +831,26 @@ void ThumbnailGenerator::cleanupGpuContext()
 
 QPixmap ThumbnailGenerator::renderPageToPixmapGpu(Poppler::Page* page, const QSize& size, double quality)
 {
-    Q_UNUSED(page)
-    Q_UNUSED(size)
-    Q_UNUSED(quality)
+    // GPU rendering is not yet implemented, fall back to CPU rendering
+    // This provides a functional implementation while GPU acceleration can be added later
+    if (!page) {
+        return QPixmap();
+    }
 
-    // GPU渲染实现 - 暂时返回空，需要完整的OpenGL实现
-    return QPixmap();
+    // Use CPU rendering as fallback with optimized settings
+    double dpi = 72.0 * quality; // Scale DPI based on quality
+    QImage image = page->renderToImage(dpi, dpi, -1, -1, -1, -1, Poppler::Page::Rotate0);
+
+    if (image.isNull()) {
+        return QPixmap();
+    }
+
+    // Scale to requested size if needed
+    if (image.size() != size) {
+        image = image.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    }
+
+    return QPixmap::fromImage(image);
 }
 
 ThumbnailGenerator::MemoryPoolEntry* ThumbnailGenerator::acquireMemoryPoolEntry(const QSize& size)

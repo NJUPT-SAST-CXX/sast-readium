@@ -4,47 +4,102 @@
 #include <QRectF>
 
 /**
- * Search configuration and options
+ * Comprehensive search configuration and options
+ * Unified structure combining all search features
  */
 struct SearchOptions {
+    // Basic search options
     bool caseSensitive = false;
     bool wholeWords = false;
     bool useRegex = false;
+    bool searchBackward = false;
     int maxResults = 1000;
     int contextLength = 50;
-    
+    QString highlightColor = "#FFFF00";
+
+    // Advanced search features
+    bool fuzzySearch = false;
+    int fuzzyThreshold = 2; // Maximum edit distance for fuzzy search
+    int startPage = -1; // -1 means search all pages
+    int endPage = -1;   // -1 means search all pages
+    bool searchInSelection = false;
+    QRectF selectionRect; // For search within selection
+
+    // Performance options
+    bool useIndexedSearch = true;
+    bool enableSearchCache = true;
+    bool enableIncrementalSearch = true;
+    int searchTimeout = 30000; // 30 seconds timeout
+
+    SearchOptions() = default;
+
     bool operator==(const SearchOptions& other) const {
         return caseSensitive == other.caseSensitive &&
                wholeWords == other.wholeWords &&
                useRegex == other.useRegex &&
+               searchBackward == other.searchBackward &&
                maxResults == other.maxResults &&
-               contextLength == other.contextLength;
+               contextLength == other.contextLength &&
+               highlightColor == other.highlightColor &&
+               fuzzySearch == other.fuzzySearch &&
+               fuzzyThreshold == other.fuzzyThreshold &&
+               startPage == other.startPage &&
+               endPage == other.endPage &&
+               searchInSelection == other.searchInSelection &&
+               selectionRect == other.selectionRect &&
+               useIndexedSearch == other.useIndexedSearch &&
+               enableSearchCache == other.enableSearchCache &&
+               enableIncrementalSearch == other.enableIncrementalSearch &&
+               searchTimeout == other.searchTimeout;
     }
 };
 
 /**
- * Individual search result
+ * Comprehensive search result with enhanced features
+ * Unified structure combining all search result functionality
  */
 class SearchResult {
 public:
     SearchResult() = default;
-    SearchResult(int page, const QString& text, const QString& context, 
+    SearchResult(int page, const QString& text, const QString& context,
                  const QRectF& rect, int position, int length)
         : pageNumber(page)
         , matchedText(text)
         , contextText(context)
         , boundingRect(rect)
         , textPosition(position)
-        , textLength(length) {}
+        , textLength(length)
+        , text(text)  // Alias for compatibility
+        , context(context)  // Alias for compatibility
+        , startIndex(position)  // Alias for compatibility
+        , length(length)  // Alias for compatibility
+        , isCurrentResult(false) {}
 
+    // Primary properties
     int pageNumber = -1;
     QString matchedText;
     QString contextText;
-    QRectF boundingRect;
+    QRectF boundingRect;        // PDF coordinates from Poppler
     int textPosition = 0;
     int textLength = 0;
-    
+
+    // Compatibility aliases (for SearchModel compatibility)
+    QString text;               // Alias for matchedText
+    QString context;            // Alias for contextText
+    int startIndex = 0;         // Alias for textPosition
+    int length = 0;             // Alias for textLength
+
+    // Enhanced features
+    QRectF widgetRect;          // Transformed widget coordinates for highlighting
+    bool isCurrentResult = false; // Whether this is the currently selected result
+
+    // Validation methods
     bool isValid() const { return pageNumber >= 0; }
+    bool isValidForHighlight() const { return pageNumber >= 0 && !boundingRect.isEmpty(); }
+
+    // Transform PDF coordinates to widget coordinates
+    void transformToWidgetCoordinates(double scaleFactor, int rotation,
+                                    const QSizeF& pageSize, const QSize& widgetSize);
 };
 
 /**

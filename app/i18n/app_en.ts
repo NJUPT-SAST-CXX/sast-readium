@@ -412,4 +412,205 @@
         <translation>Page %1 already has a bookmark</translation>
     </message>
 </context>
+<context>
+    <name>WelcomeWidget</name>
+    <message>
+        <source>Welcome to SAST Readium</source>
+        <translation>Welcome to SAST Readium</translation>
+    </message>
+    <message>
+        <source>New File</source>
+        <translation>New File</translation>
+    </message>
+    <message>
+        <source>Open File...</source>
+        <translation>Open File...</translation>
+    </message>
+    <message>
+        <source>Open Folder...</source>
+        <translation>Open Folder...</translation>
+    </message>
+    <message>
+        <source>Recent Files</source>
+        <translation>Recent Files</translation>
+    </message>
+    <message>
+        <source>No recent files</source>
+        <translation>No recent files</translation>
+    </message>
+    <message>
+        <source>Quick Actions</source>
+        <translation>Quick Actions</translation>
+    </message>
+    <message>
+        <source>Get Started</source>
+        <translation>Get Started</translation>
+    </message>
+    <message>
+        <source>Interactive Tutorials</source>
+        <translation>Interactive Tutorials</translation>
+    </message>
+    <message>
+        <source>Start Tour</source>
+        <translation>Start Tour</translation>
+    </message>
+    <message>
+        <source>Tips &amp; Tricks</source>
+        <translation>Tips &amp; Tricks</translation>
+    </message>
+    <message>
+        <source>Show More Tips</source>
+        <translation>Show More Tips</translation>
+    </message>
+    <message>
+        <source>Previous Tip</source>
+        <translation>Previous Tip</translation>
+    </message>
+    <message>
+        <source>Next Tip</source>
+        <translation>Next Tip</translation>
+    </message>
+    <message>
+        <source>Keyboard Shortcuts</source>
+        <translation>Keyboard Shortcuts</translation>
+    </message>
+    <message>
+        <source>Learn Shortcuts</source>
+        <translation>Learn Shortcuts</translation>
+    </message>
+</context>
+<context>
+    <name>OnboardingWidget</name>
+    <message>
+        <source>Welcome!</source>
+        <translation>Welcome!</translation>
+    </message>
+    <message>
+        <source>Let's take a quick tour of the main features</source>
+        <translation>Let's take a quick tour of the main features</translation>
+    </message>
+    <message>
+        <source>Opening Files</source>
+        <translation>Opening Files</translation>
+    </message>
+    <message>
+        <source>You can open PDF files using the menu or drag and drop</source>
+        <translation>You can open PDF files using the menu or drag and drop</translation>
+    </message>
+    <message>
+        <source>Navigation</source>
+        <translation>Navigation</translation>
+    </message>
+    <message>
+        <source>Navigate through pages using keyboard shortcuts or the navigation bar</source>
+        <translation>Navigate through pages using keyboard shortcuts or the navigation bar</translation>
+    </message>
+    <message>
+        <source>Search</source>
+        <translation>Search</translation>
+    </message>
+    <message>
+        <source>Find text quickly with powerful search features</source>
+        <translation>Find text quickly with powerful search features</translation>
+    </message>
+    <message>
+        <source>Bookmarks</source>
+        <translation>Bookmarks</translation>
+    </message>
+    <message>
+        <source>Save important pages for quick access</source>
+        <translation>Save important pages for quick access</translation>
+    </message>
+    <message>
+        <source>Annotations</source>
+        <translation>Annotations</translation>
+    </message>
+    <message>
+        <source>Add highlights and notes to your documents</source>
+        <translation>Add highlights and notes to your documents</translation>
+    </message>
+    <message>
+        <source>View Modes</source>
+        <translation>View Modes</translation>
+    </message>
+    <message>
+        <source>Choose between single page and continuous scroll modes</source>
+        <translation>Choose between single page and continuous scroll modes</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation>Settings</translation>
+    </message>
+    <message>
+        <source>Customize the application to your preferences</source>
+        <translation>Customize the application to your preferences</translation>
+    </message>
+    <message>
+        <source>Keyboard Shortcuts</source>
+        <translation>Keyboard Shortcuts</translation>
+    </message>
+    <message>
+        <source>Learn keyboard shortcuts to work more efficiently</source>
+        <translation>Learn keyboard shortcuts to work more efficiently</translation>
+    </message>
+    <message>
+        <source>Tour Complete!</source>
+        <translation>Tour Complete!</translation>
+    </message>
+    <message>
+        <source>You're ready to start using SAST Readium</source>
+        <translation>You're ready to start using SAST Readium</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Next</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Previous</translation>
+    </message>
+    <message>
+        <source>Skip Tour</source>
+        <translation>Skip Tour</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2</source>
+        <translation>Step %1 of %2</translation>
+    </message>
+</context>
+<context>
+    <name>TutorialCard</name>
+    <message>
+        <source>Start</source>
+        <translation>Start</translation>
+    </message>
+    <message>
+        <source>Completed</source>
+        <translation>Completed</translation>
+    </message>
+    <message>
+        <source>Duration: %1</source>
+        <translation>Duration: %1</translation>
+    </message>
+    <message>
+        <source>Difficulty: %1</source>
+        <translation>Difficulty: %1</translation>
+    </message>
+    <message>
+        <source>Beginner</source>
+        <translation>Beginner</translation>
+    </message>
+    <message>
+        <source>Intermediate</source>
+        <translation>Intermediate</translation>
+    </message>
+    <message>
+        <source>Advanced</source>
+        <translation>Advanced</translation>
+    </message>
+</context>
 </TS>

@@ -1,6 +1,6 @@
 #include "RecentFilesManager.h"
 #include <QDir>
-#include "utils/Logger.h"
+#include "../logging/Logger.h"
 #include <QFileInfo>
 #include <QMutexLocker>
 #include <QTimer>

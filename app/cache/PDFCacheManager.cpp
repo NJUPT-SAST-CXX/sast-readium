@@ -4,7 +4,7 @@
 #include <QMutexLocker>
 #include <QPixmap>
 // #include <QtConcurrent> // Not available in this MSYS2 setup
-#include "utils/LoggingMacros.h"
+#include "../logging/LoggingMacros.h"
 
 // CacheItem Implementation
 qint64 CacheItem::calculateSize() const {
@@ -91,192 +91,94 @@ void PreloadTask::run() {
                                   Qt::QueuedConnection);
 
     } catch (...) {
-        LOG_WARNING("PreloadTask: Exception during preload of page {}", m_pageNumber);
+        LOG_WARNING("PreloadTask: Exception during preload of page {}",
+                    m_pageNumber);
     }
 }
 
-// PDFCacheManager Implementation
-PDFCacheManager::PDFCacheManager(QObject* parent)
-    : QObject(parent),
-      m_maxMemoryUsage(256 * 1024 * 1024)  // 256MB default
-      ,
-      m_maxItems(1000),
-      m_itemMaxAge(30 * 60 * 1000)  // 30 minutes
-      ,
-      m_evictionPolicy("LRU"),
-      m_lowPriorityWeight(0.1),
-      m_normalPriorityWeight(1.0),
-      m_highPriorityWeight(10.0),
-      m_hitCount(0),
-      m_missCount(0),
-      m_totalAccessTime(0),
-      m_accessCount(0),
-      m_preloadingEnabled(true),
-      m_preloadingStrategy("adaptive"),
-      m_preloadThreadPool(new QThreadPool(this)),
-      m_maintenanceTimer(new QTimer(this)),
-      m_settings(new QSettings("SAST", "Readium-Cache", this)) {
-    // Configure thread pool
-    m_preloadThreadPool->setMaxThreadCount(2);
+// PDFCacheManager Implementation class
+class PDFCacheManager::Implementation
+{
+public:
+    explicit Implementation(PDFCacheManager* q)
+        : q_ptr(q)
+        , maxMemoryUsage(256 * 1024 * 1024)  // 256MB default
+        , maxItems(1000)
+        , itemMaxAge(30 * 60 * 1000)  // 30 minutes
+        , evictionPolicy("LRU")
+        , lowPriorityWeight(0.1)
+        , normalPriorityWeight(1.0)
+        , highPriorityWeight(10.0)
+        , hitCount(0)
+        , missCount(0)
+        , totalAccessTime(0)
+        , accessCount(0)
+        , preloadingEnabled(true)
+        , preloadingStrategy("adaptive")
+        , preloadThreadPool(new QThreadPool(q))
+        , maintenanceTimer(new QTimer(q))
+        , settings(new QSettings("SAST", "Readium-Cache", q))
+    {
+        // Configure thread pool
+        preloadThreadPool->setMaxThreadCount(QThread::idealThreadCount());
 
-    // Setup maintenance timer
-    m_maintenanceTimer->setInterval(60000);  // 1 minute
-    connect(m_maintenanceTimer, &QTimer::timeout, this,
-            &PDFCacheManager::performMaintenance);
-    m_maintenanceTimer->start();
-
-    // Load settings
-    loadSettings();
-
-    LOG_DEBUG("PDFCacheManager initialized with max memory: {} bytes, max items: {}",
-              m_maxMemoryUsage, m_maxItems);
-}
-
-bool PDFCacheManager::insert(const QString& key, const QVariant& data,
-                             CacheItemType type, CachePriority priority,
-                             int pageNumber) {
-    QMutexLocker locker(&m_cacheMutex);
-
-    CacheItem item;
-    item.data = data;
-    item.type = type;
-    item.priority = priority;
-    item.pageNumber = pageNumber;
-    item.key = key;
-    item.memorySize = item.calculateSize();
-
-    // Check if we need to make room
-    while (m_cache.size() >= m_maxItems ||
-           (getCurrentMemoryUsage() + item.memorySize) > m_maxMemoryUsage) {
-        if (!evictLeastUsedItems(1)) {
-            LOG_WARNING("PDFCacheManager: Failed to evict items, cache full");
-            return false;
-        }
+        // Setup maintenance timer
+        maintenanceTimer->setSingleShot(false);
+        maintenanceTimer->setInterval(60000); // 1 minute
+        QObject::connect(maintenanceTimer, &QTimer::timeout, q, &PDFCacheManager::performMaintenance);
+        maintenanceTimer->start();
     }
 
-    m_cache[key] = item;
+    PDFCacheManager* q_ptr;
 
-    LOG_DEBUG("PDFCacheManager: Cached item {} type: {} size: {} bytes",
-              key.toStdString(), static_cast<int>(type), item.memorySize);
+    // Cache storage
+    mutable QMutex cacheMutex;
+    QHash<QString, CacheItem> cache;
 
-    return true;
-}
+    // Configuration
+    qint64 maxMemoryUsage;
+    int maxItems;
+    qint64 itemMaxAge;
+    QString evictionPolicy;
 
-QVariant PDFCacheManager::get(const QString& key) {
-    QMutexLocker locker(&m_cacheMutex);
+    // Priority weights for eviction scoring
+    double lowPriorityWeight;
+    double normalPriorityWeight;
+    double highPriorityWeight;
 
-    auto it = m_cache.find(key);
-    if (it != m_cache.end()) {
-        it->updateAccess();
-        updateStatistics(true);
-        emit cacheHit(key, 0);  // TODO: measure actual access time
-        return it->data;
-    }
+    // Statistics
+    mutable QMutex statsMutex;
+    qint64 hitCount;
+    qint64 missCount;
+    qint64 totalAccessTime;
+    qint64 accessCount;
 
-    updateStatistics(false);
-    emit cacheMiss(key);
-    return QVariant();
-}
+    // Preloading
+    bool preloadingEnabled;
+    QString preloadingStrategy;
+    QThreadPool* preloadThreadPool;
+    QQueue<QPair<int, CacheItemType>> preloadQueue;
+    QSet<QString> preloadingItems;
 
-bool PDFCacheManager::contains(const QString& key) const {
-    QMutexLocker locker(&m_cacheMutex);
-    return m_cache.contains(key);
-}
+    // Maintenance
+    QTimer* maintenanceTimer;
+    QElapsedTimer lastOptimization;
 
-bool PDFCacheManager::remove(const QString& key) {
-    QMutexLocker locker(&m_cacheMutex);
+    // Settings
+    QSettings* settings;
 
-    auto it = m_cache.find(key);
-    if (it != m_cache.end()) {
-        emit itemEvicted(key, it->type);
-        m_cache.erase(it);
-        return true;
-    }
-    return false;
-}
+    // Private methods
+    QString generateKey(int pageNumber, CacheItemType type, const QVariant& extra = QVariant()) const;
+    void updateStatistics(bool hit);
+    void enforceMemoryLimit();
+    void enforceItemLimit();
+    bool shouldEvict(const CacheItem& item) const;
+    double calculateEvictionScore(const CacheItem& item) const;
+    void schedulePreload(int pageNumber, CacheItemType type);
+};
 
-void PDFCacheManager::clear() {
-    QMutexLocker locker(&m_cacheMutex);
-    m_cache.clear();
-    LOG_DEBUG("PDFCacheManager: Cache cleared");
-}
-
-bool PDFCacheManager::cacheRenderedPage(int pageNumber, const QPixmap& pixmap,
-                                        double scaleFactor) {
-    QString key =
-        generateKey(pageNumber, CacheItemType::RenderedPage, scaleFactor);
-    return insert(key, pixmap, CacheItemType::RenderedPage,
-                  CachePriority::Normal, pageNumber);
-}
-
-QPixmap PDFCacheManager::getRenderedPage(int pageNumber, double scaleFactor) {
-    QString key =
-        generateKey(pageNumber, CacheItemType::RenderedPage, scaleFactor);
-    QVariant result = get(key);
-    return result.canConvert<QPixmap>() ? result.value<QPixmap>() : QPixmap();
-}
-
-bool PDFCacheManager::cacheThumbnail(int pageNumber, const QPixmap& thumbnail) {
-    QString key = generateKey(pageNumber, CacheItemType::Thumbnail);
-    return insert(key, thumbnail, CacheItemType::Thumbnail, CachePriority::High,
-                  pageNumber);
-}
-
-QPixmap PDFCacheManager::getThumbnail(int pageNumber) {
-    QString key = generateKey(pageNumber, CacheItemType::Thumbnail);
-    QVariant result = get(key);
-    return result.canConvert<QPixmap>() ? result.value<QPixmap>() : QPixmap();
-}
-
-bool PDFCacheManager::cacheTextContent(int pageNumber, const QString& text) {
-    QString key = generateKey(pageNumber, CacheItemType::TextContent);
-    return insert(key, text, CacheItemType::TextContent, CachePriority::Normal,
-                  pageNumber);
-}
-
-QString PDFCacheManager::getTextContent(int pageNumber) {
-    QString key = generateKey(pageNumber, CacheItemType::TextContent);
-    QVariant result = get(key);
-    return result.canConvert<QString>() ? result.toString() : QString();
-}
-
-void PDFCacheManager::enablePreloading(bool enabled) {
-    m_preloadingEnabled = enabled;
-    LOG_DEBUG("PDFCacheManager: Preloading {}", enabled ? "enabled" : "disabled");
-}
-
-void PDFCacheManager::preloadPages(const QList<int>& pageNumbers,
-                                   CacheItemType type) {
-    if (!m_preloadingEnabled)
-        return;
-
-    for (int pageNumber : pageNumbers) {
-        schedulePreload(pageNumber, type);
-    }
-}
-
-void PDFCacheManager::preloadAroundPage(int centerPage, int radius) {
-    if (!m_preloadingEnabled)
-        return;
-
-    QList<int> pagesToPreload;
-    for (int i = centerPage - radius; i <= centerPage + radius; ++i) {
-        if (i >= 0) {  // Assume page numbers start from 0
-            pagesToPreload.append(i);
-        }
-    }
-
-    preloadPages(pagesToPreload, CacheItemType::RenderedPage);
-    preloadPages(pagesToPreload, CacheItemType::Thumbnail);
-}
-
-void PDFCacheManager::setPreloadingStrategy(const QString& strategy) {
-    m_preloadingStrategy = strategy;
-    LOG_DEBUG("PDFCacheManager: Preloading strategy set to {}", strategy.toStdString());
-}
-
-QString PDFCacheManager::generateKey(int pageNumber, CacheItemType type,
-                                     const QVariant& extra) const {
+// Implementation method definitions
+QString PDFCacheManager::Implementation::generateKey(int pageNumber, CacheItemType type, const QVariant& extra) const {
     QString typeStr;
     switch (type) {
         case CacheItemType::RenderedPage:
@@ -306,34 +208,240 @@ QString PDFCacheManager::generateKey(int pageNumber, CacheItemType type,
     return key;
 }
 
-void PDFCacheManager::updateStatistics(bool hit) {
-    QMutexLocker locker(&m_statsMutex);
+void PDFCacheManager::Implementation::updateStatistics(bool hit) {
+    QMutexLocker locker(&statsMutex);
     if (hit) {
-        m_hitCount++;
+        hitCount++;
     } else {
-        m_missCount++;
+        missCount++;
     }
-    m_accessCount++;
+    accessCount++;
 }
 
-void PDFCacheManager::schedulePreload(int pageNumber, CacheItemType type) {
+void PDFCacheManager::Implementation::schedulePreload(int pageNumber, CacheItemType type) {
     QString key = generateKey(pageNumber, type);
-    if (contains(key) || m_preloadingItems.contains(key)) {
+    if (q_ptr->contains(key) || preloadingItems.contains(key)) {
         return;  // Already cached or being preloaded
     }
 
-    m_preloadingItems.insert(key);
+    preloadingItems.insert(key);
     // Note: Actual preloading would require document reference
     // This is a placeholder for the preloading mechanism
 }
+
+void PDFCacheManager::Implementation::enforceMemoryLimit() {
+    // Implementation for memory limit enforcement
+}
+
+void PDFCacheManager::Implementation::enforceItemLimit() {
+    // Implementation for item limit enforcement
+}
+
+bool PDFCacheManager::Implementation::shouldEvict(const CacheItem& item) const {
+    return item.isExpired(itemMaxAge);
+}
+
+double PDFCacheManager::Implementation::calculateEvictionScore(const CacheItem& item) const {
+    double score = 0.0;
+
+    // Priority weight
+    switch (item.priority) {
+        case CachePriority::Low:
+            score += lowPriorityWeight;
+            break;
+        case CachePriority::Normal:
+            score += normalPriorityWeight;
+            break;
+        case CachePriority::High:
+            score += highPriorityWeight;
+            break;
+        case CachePriority::Critical:
+            score += highPriorityWeight * 2.0;  // Even higher priority
+            break;
+    }
+
+    // Age factor (older items have higher score for eviction)
+    qint64 age = QDateTime::currentMSecsSinceEpoch() - item.timestamp;
+    score += age / 1000.0;  // Convert to seconds
+
+    // Access frequency factor (less accessed items have higher score)
+    score += 1.0 / (item.accessCount + 1);
+
+    return score;
+}
+
+// PDFCacheManager Implementation
+PDFCacheManager::PDFCacheManager(QObject* parent)
+    : QObject(parent)
+    , d(std::make_unique<Implementation>(this))
+{
+
+    // Load settings
+    loadSettings();
+
+    LOG_DEBUG(
+        "PDFCacheManager initialized with max memory: {} bytes, max items: {}",
+        d->maxMemoryUsage, d->maxItems);
+}
+
+PDFCacheManager::~PDFCacheManager() = default;
+
+bool PDFCacheManager::insert(const QString& key, const QVariant& data,
+                             CacheItemType type, CachePriority priority,
+                             int pageNumber) {
+    QMutexLocker locker(&d->cacheMutex);
+
+    CacheItem item;
+    item.data = data;
+    item.type = type;
+    item.priority = priority;
+    item.pageNumber = pageNumber;
+    item.key = key;
+    item.memorySize = item.calculateSize();
+
+    // Check if we need to make room
+    while (d->cache.size() >= d->maxItems ||
+           (getCurrentMemoryUsage() + item.memorySize) > d->maxMemoryUsage) {
+        if (!evictLeastUsedItems(1)) {
+            LOG_WARNING("PDFCacheManager: Failed to evict items, cache full");
+            return false;
+        }
+    }
+
+    d->cache[key] = item;
+
+    LOG_DEBUG("PDFCacheManager: Cached item {} type: {} size: {} bytes",
+              key.toStdString(), static_cast<int>(type), item.memorySize);
+
+    return true;
+}
+
+QVariant PDFCacheManager::get(const QString& key) {
+    QMutexLocker locker(&d->cacheMutex);
+
+    auto it = d->cache.find(key);
+    if (it != d->cache.end()) {
+        it->updateAccess();
+        d->updateStatistics(true);
+        emit cacheHit(key, 0);  // TODO: measure actual access time
+        return it->data;
+    }
+
+    d->updateStatistics(false);
+    emit cacheMiss(key);
+    return QVariant();
+}
+
+bool PDFCacheManager::contains(const QString& key) const {
+    QMutexLocker locker(&d->cacheMutex);
+    return d->cache.contains(key);
+}
+
+bool PDFCacheManager::remove(const QString& key) {
+    QMutexLocker locker(&d->cacheMutex);
+
+    auto it = d->cache.find(key);
+    if (it != d->cache.end()) {
+        emit itemEvicted(key, it->type);
+        d->cache.erase(it);
+        return true;
+    }
+    return false;
+}
+
+void PDFCacheManager::clear() {
+    QMutexLocker locker(&d->cacheMutex);
+    d->cache.clear();
+    LOG_DEBUG("PDFCacheManager: Cache cleared");
+}
+
+bool PDFCacheManager::cacheRenderedPage(int pageNumber, const QPixmap& pixmap,
+                                        double scaleFactor) {
+    QString key =
+        d->generateKey(pageNumber, CacheItemType::RenderedPage, scaleFactor);
+    return insert(key, pixmap, CacheItemType::RenderedPage,
+                  CachePriority::Normal, pageNumber);
+}
+
+QPixmap PDFCacheManager::getRenderedPage(int pageNumber, double scaleFactor) {
+    QString key =
+        d->generateKey(pageNumber, CacheItemType::RenderedPage, scaleFactor);
+    QVariant result = get(key);
+    return result.canConvert<QPixmap>() ? result.value<QPixmap>() : QPixmap();
+}
+
+bool PDFCacheManager::cacheThumbnail(int pageNumber, const QPixmap& thumbnail) {
+    QString key = d->generateKey(pageNumber, CacheItemType::Thumbnail);
+    return insert(key, thumbnail, CacheItemType::Thumbnail, CachePriority::High,
+                  pageNumber);
+}
+
+QPixmap PDFCacheManager::getThumbnail(int pageNumber) {
+    QString key = d->generateKey(pageNumber, CacheItemType::Thumbnail);
+    QVariant result = get(key);
+    return result.canConvert<QPixmap>() ? result.value<QPixmap>() : QPixmap();
+}
+
+bool PDFCacheManager::cacheTextContent(int pageNumber, const QString& text) {
+    QString key = d->generateKey(pageNumber, CacheItemType::TextContent);
+    return insert(key, text, CacheItemType::TextContent, CachePriority::Normal,
+                  pageNumber);
+}
+
+QString PDFCacheManager::getTextContent(int pageNumber) {
+    QString key = d->generateKey(pageNumber, CacheItemType::TextContent);
+    QVariant result = get(key);
+    return result.canConvert<QString>() ? result.toString() : QString();
+}
+
+void PDFCacheManager::enablePreloading(bool enabled) {
+    d->preloadingEnabled = enabled;
+    LOG_DEBUG("PDFCacheManager: Preloading {}",
+              enabled ? "enabled" : "disabled");
+}
+
+void PDFCacheManager::preloadPages(const QList<int>& pageNumbers,
+                                   CacheItemType type) {
+    if (!d->preloadingEnabled)
+        return;
+
+    for (int pageNumber : pageNumbers) {
+        d->schedulePreload(pageNumber, type);
+    }
+}
+
+void PDFCacheManager::preloadAroundPage(int centerPage, int radius) {
+    if (!d->preloadingEnabled)
+        return;
+
+    QList<int> pagesToPreload;
+    for (int i = centerPage - radius; i <= centerPage + radius; ++i) {
+        if (i >= 0) {  // Assume page numbers start from 0
+            pagesToPreload.append(i);
+        }
+    }
+
+    preloadPages(pagesToPreload, CacheItemType::RenderedPage);
+    preloadPages(pagesToPreload, CacheItemType::Thumbnail);
+}
+
+void PDFCacheManager::setPreloadingStrategy(const QString& strategy) {
+    d->preloadingStrategy = strategy;
+    LOG_DEBUG("PDFCacheManager: Preloading strategy set to {}",
+              strategy.toStdString());
+}
+
+
+
+
 
 void PDFCacheManager::performMaintenance() {
     cleanupExpiredItems();
 
     // Perform optimization if needed
-    if (m_lastOptimization.elapsed() > 300000) {  // 5 minutes
+    if (d->lastOptimization.elapsed() > 300000) {  // 5 minutes
         optimizeCache();
-        m_lastOptimization.restart();
+        d->lastOptimization.restart();
     }
 }
 
@@ -343,30 +451,30 @@ void PDFCacheManager::onPreloadTaskCompleted() {
 }
 
 void PDFCacheManager::setMaxMemoryUsage(qint64 bytes) {
-    m_maxMemoryUsage = bytes;
-    enforceMemoryLimit();
+    d->maxMemoryUsage = bytes;
+    d->enforceMemoryLimit();
 }
 
 void PDFCacheManager::setMaxItems(int count) {
-    m_maxItems = count;
-    enforceItemLimit();
+    d->maxItems = count;
+    d->enforceItemLimit();
 }
 
 void PDFCacheManager::setItemMaxAge(qint64 milliseconds) {
-    m_itemMaxAge = milliseconds;
+    d->itemMaxAge = milliseconds;
 }
 
 void PDFCacheManager::optimizeCache() {
-    QMutexLocker locker(&m_cacheMutex);
+    QMutexLocker locker(&d->cacheMutex);
 
-    int initialSize = m_cache.size();
+    int initialSize = d->cache.size();
     qint64 initialMemory = getCurrentMemoryUsage();
 
     cleanupExpiredItems();
 
     // Additional optimization logic could go here
 
-    int itemsRemoved = initialSize - m_cache.size();
+    int itemsRemoved = initialSize - d->cache.size();
     qint64 memoryFreed = initialMemory - getCurrentMemoryUsage();
 
     if (itemsRemoved > 0 || memoryFreed > 0) {
@@ -375,15 +483,15 @@ void PDFCacheManager::optimizeCache() {
 }
 
 void PDFCacheManager::cleanupExpiredItems() {
-    if (m_itemMaxAge <= 0)
+    if (d->itemMaxAge <= 0)
         return;
 
-    QMutexLocker locker(&m_cacheMutex);
-    auto it = m_cache.begin();
-    while (it != m_cache.end()) {
-        if (it->isExpired(m_itemMaxAge)) {
+    QMutexLocker locker(&d->cacheMutex);
+    auto it = d->cache.begin();
+    while (it != d->cache.end()) {
+        if (it->isExpired(d->itemMaxAge)) {
             emit itemEvicted(it->key, it->type);
-            it = m_cache.erase(it);
+            it = d->cache.erase(it);
         } else {
             ++it;
         }
@@ -391,16 +499,16 @@ void PDFCacheManager::cleanupExpiredItems() {
 }
 
 bool PDFCacheManager::evictLeastUsedItems(int count) {
-    QMutexLocker locker(&m_cacheMutex);
+    QMutexLocker locker(&d->cacheMutex);
 
-    if (m_cache.isEmpty() || count <= 0)
+    if (d->cache.isEmpty() || count <= 0)
         return false;
 
     // Create list of items with eviction scores
     QList<QPair<double, QString>> candidates;
-    for (auto it = m_cache.begin(); it != m_cache.end(); ++it) {
+    for (auto it = d->cache.begin(); it != d->cache.end(); ++it) {
         if (it->priority != CachePriority::Critical) {
-            double score = calculateEvictionScore(*it);
+            double score = d->calculateEvictionScore(*it);
             candidates.append({score, it->key});
         }
     }
@@ -414,86 +522,42 @@ bool PDFCacheManager::evictLeastUsedItems(int count) {
         if (evicted >= count)
             break;
 
-        auto it = m_cache.find(candidate.second);
-        if (it != m_cache.end()) {
+        auto it = d->cache.find(candidate.second);
+        if (it != d->cache.end()) {
             emit itemEvicted(it->key, it->type);
-            m_cache.erase(it);
+            d->cache.erase(it);
             evicted++;
         }
     }
     return evicted > 0;
 }
 
-double PDFCacheManager::calculateEvictionScore(const CacheItem& item) const {
-    double score = 0.0;
 
-    // Priority weight
-    switch (item.priority) {
-        case CachePriority::Low:
-            score += m_lowPriorityWeight;
-            break;
-        case CachePriority::Normal:
-            score += m_normalPriorityWeight;
-            break;
-        case CachePriority::High:
-            score += m_highPriorityWeight;
-            break;
-        case CachePriority::Critical:
-            score += 1000.0;
-            break;  // Should not be evicted
-    }
-
-    // Age factor (older items have lower scores)
-    qint64 age = QDateTime::currentMSecsSinceEpoch() - item.timestamp;
-    score -= age / 1000.0;  // Convert to seconds
-
-    // Access frequency factor
-    score += item.accessCount * 10.0;
-
-    // Recent access factor
-    qint64 timeSinceLastAccess =
-        QDateTime::currentMSecsSinceEpoch() - item.lastAccessed;
-    score -= timeSinceLastAccess / 1000.0;
-
-    return score;
-}
-
-void PDFCacheManager::enforceMemoryLimit() {
-    while (getCurrentMemoryUsage() > m_maxMemoryUsage && !m_cache.isEmpty()) {
-        evictLeastUsedItems(1);
-    }
-}
-
-void PDFCacheManager::enforceItemLimit() {
-    while (m_cache.size() > m_maxItems && !m_cache.isEmpty()) {
-        evictLeastUsedItems(1);
-    }
-}
 
 qint64 PDFCacheManager::getCurrentMemoryUsage() const {
     qint64 total = 0;
-    for (const auto& item : m_cache) {
+    for (const auto& item : d->cache) {
         total += item.memorySize;
     }
     return total;
 }
 
 CacheStatistics PDFCacheManager::getStatistics() const {
-    QMutexLocker locker(&m_cacheMutex);
-    QMutexLocker statsLocker(&m_statsMutex);
+    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker statsLocker(&d->statsMutex);
 
     CacheStatistics stats;
-    stats.totalItems = m_cache.size();
+    stats.totalItems = d->cache.size();
     stats.totalMemoryUsage = getCurrentMemoryUsage();
-    stats.hitCount = m_hitCount;
-    stats.missCount = m_missCount;
+    stats.hitCount = d->hitCount;
+    stats.missCount = d->missCount;
     stats.hitRate =
-        (m_hitCount + m_missCount > 0)
-            ? static_cast<double>(m_hitCount) / (m_hitCount + m_missCount)
+        (d->hitCount + d->missCount > 0)
+            ? static_cast<double>(d->hitCount) / (d->hitCount + d->missCount)
             : 0.0;
 
     // Calculate items by type
-    for (const auto& item : m_cache) {
+    for (const auto& item : d->cache) {
         int typeIndex = static_cast<int>(item.type);
         if (typeIndex >= 0 && typeIndex < 6) {
             stats.itemsByType[typeIndex]++;
@@ -504,35 +568,56 @@ CacheStatistics PDFCacheManager::getStatistics() const {
 }
 
 double PDFCacheManager::getHitRate() const {
-    QMutexLocker locker(&m_statsMutex);
-    return (m_hitCount + m_missCount > 0)
-               ? static_cast<double>(m_hitCount) / (m_hitCount + m_missCount)
+    QMutexLocker locker(&d->statsMutex);
+    return (d->hitCount + d->missCount > 0)
+               ? static_cast<double>(d->hitCount) / (d->hitCount + d->missCount)
                : 0.0;
 }
 
 void PDFCacheManager::resetStatistics() {
-    QMutexLocker locker(&m_statsMutex);
-    m_hitCount = 0;
-    m_missCount = 0;
-    m_totalAccessTime = 0;
-    m_accessCount = 0;
+    QMutexLocker locker(&d->statsMutex);
+    d->hitCount = 0;
+    d->missCount = 0;
+    d->totalAccessTime = 0;
+    d->accessCount = 0;
+}
+
+// Getter methods that were converted from inline
+qint64 PDFCacheManager::getMaxMemoryUsage() const {
+    return d->maxMemoryUsage;
+}
+
+int PDFCacheManager::getMaxItems() const {
+    return d->maxItems;
+}
+
+qint64 PDFCacheManager::getItemMaxAge() const {
+    return d->itemMaxAge;
+}
+
+QString PDFCacheManager::getEvictionPolicy() const {
+    return d->evictionPolicy;
+}
+
+bool PDFCacheManager::isPreloadingEnabled() const {
+    return d->preloadingEnabled;
 }
 
 void PDFCacheManager::loadSettings() {
-    m_maxMemoryUsage =
-        m_settings->value("maxMemoryUsage", m_maxMemoryUsage).toLongLong();
-    m_maxItems = m_settings->value("maxItems", m_maxItems).toInt();
-    m_itemMaxAge = m_settings->value("itemMaxAge", m_itemMaxAge).toLongLong();
-    m_evictionPolicy =
-        m_settings->value("evictionPolicy", m_evictionPolicy).toString();
-    m_preloadingEnabled =
-        m_settings->value("preloadingEnabled", m_preloadingEnabled).toBool();
+    d->maxMemoryUsage =
+        d->settings->value("maxMemoryUsage", d->maxMemoryUsage).toLongLong();
+    d->maxItems = d->settings->value("maxItems", d->maxItems).toInt();
+    d->itemMaxAge = d->settings->value("itemMaxAge", d->itemMaxAge).toLongLong();
+    d->evictionPolicy =
+        d->settings->value("evictionPolicy", d->evictionPolicy).toString();
+    d->preloadingEnabled =
+        d->settings->value("preloadingEnabled", d->preloadingEnabled).toBool();
 }
 
 void PDFCacheManager::saveSettings() {
-    m_settings->setValue("maxMemoryUsage", m_maxMemoryUsage);
-    m_settings->setValue("maxItems", m_maxItems);
-    m_settings->setValue("itemMaxAge", m_itemMaxAge);
-    m_settings->setValue("evictionPolicy", m_evictionPolicy);
-    m_settings->setValue("preloadingEnabled", m_preloadingEnabled);
+    d->settings->setValue("maxMemoryUsage", d->maxMemoryUsage);
+    d->settings->setValue("maxItems", d->maxItems);
+    d->settings->setValue("itemMaxAge", d->itemMaxAge);
+    d->settings->setValue("evictionPolicy", d->evictionPolicy);
+    d->settings->setValue("preloadingEnabled", d->preloadingEnabled);
 }

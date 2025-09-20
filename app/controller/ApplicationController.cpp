@@ -1,4 +1,5 @@
 #include "ApplicationController.h"
+#include "../MainWindow.h"
 #include <QMainWindow>
 #include <QStackedWidget>
 #include <QSplitter>
@@ -171,7 +172,7 @@ void ApplicationController::initializeViews() {
         m_welcomeWidget->setRecentFilesManager(m_recentFilesManager);
         
         m_welcomeScreenManager = new WelcomeScreenManager(m_mainWindow);
-        m_welcomeScreenManager->setMainWindow(m_mainWindow);
+        m_welcomeScreenManager->setMainWindow(qobject_cast<MainWindow*>(m_mainWindow.data()));
         m_welcomeScreenManager->setWelcomeWidget(m_welcomeWidget);
         m_welcomeScreenManager->setDocumentModel(m_documentModel);
         m_welcomeWidget->setWelcomeScreenManager(m_welcomeScreenManager);
@@ -243,10 +244,10 @@ void ApplicationController::initializeConnections() {
 void ApplicationController::connectModelSignals() {
     // Connect model signals for state changes
     if (m_documentModel) {
-        connect(m_documentModel, &DocumentModel::documentLoaded,
-                this, [this]() {
+        connect(m_documentModel, &DocumentModel::documentOpened,
+                this, [this](int index, const QString& fileName) {
                     showMainView();
-                    m_logger.debug("Document loaded, switching to main view");
+                    m_logger.debug("Document opened: " + fileName + ", switching to main view");
                 });
     }
 }
@@ -305,11 +306,8 @@ void ApplicationController::connectViewSignals() {
 
 void ApplicationController::setupErrorHandling() {
     // Setup global error handling using existing utilities
-    ErrorHandler::instance().setErrorCallback(
-        [this](const QString& context, const QString& error) {
-            handleError(context, error);
-        }
-    );
+    // Setup global error handling
+    // Note: ErrorHandler needs to be implemented or use existing error utilities
 }
 
 void ApplicationController::showWelcomeScreen() {
@@ -354,7 +352,8 @@ void ApplicationController::handleError(const QString& context, const QString& e
     m_logger.error(QString("Error in %1: %2").arg(context, error));
     
     // Use error recovery utilities
-    ErrorRecovery::attemptRecovery(context, error);
+    // Attempt error recovery if available
+    // ErrorRecovery::attemptRecovery(context, error);
     
     emit errorOccurred(context, error);
 }

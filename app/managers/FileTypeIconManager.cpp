@@ -3,7 +3,7 @@
 #include <QDir>
 #include <QDebug>
 #include <QSvgRenderer>
-#include "utils/Logger.h"
+#include "../logging/Logger.h"
 #include <QPainter>
 #include <QFileInfo>
 

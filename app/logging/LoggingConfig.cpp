@@ -11,8 +11,8 @@
 const LoggingConfig::GlobalConfiguration LoggingConfig::s_defaultGlobalConfig = {};
 
 const QList<LoggingConfig::SinkConfiguration> LoggingConfig::s_defaultSinkConfigs = {
-    {"console", "console", Logger::LogLevel::Debug, "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v", true},
-    {"file", "rotating_file", Logger::LogLevel::Info, "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v", true}
+    {"console", "console", Logger::LogLevel::Debug, "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v", true, "", 10*1024*1024, 5, false, true, "", {}},
+    {"file", "rotating_file", Logger::LogLevel::Info, "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v", true, "", 10*1024*1024, 5, false, true, "", {}}
 };
 
 const QHash<QString, QString> LoggingConfig::s_environmentVariableMap = {
@@ -270,15 +270,40 @@ void LoggingConfig::addSinkConfiguration(const SinkConfiguration& config)
     emit configurationChanged();
 }
 
+void LoggingConfig::setSinkConfigurations(const QList<SinkConfiguration>& configs) {
+    QMutexLocker locker(&m_mutex);
+
+    // Clear existing sink configurations
+    m_sinkConfigs.clear();
+
+    // Add all new configurations
+    for (const auto& config : configs) {
+        // Validate configuration before adding
+        QStringList errors;
+        if (validateSinkConfiguration(config, errors)) {
+            m_sinkConfigs.append(config);
+            emit sinkConfigurationChanged(config.name);
+        } else {
+            // Log validation errors
+            for (const QString& error : errors) {
+                emit configurationError(QString("Sink configuration error for '%1': %2")
+                                      .arg(config.name, error));
+            }
+        }
+    }
+
+    emit configurationChanged();
+}
+
 void LoggingConfig::addCategoryConfiguration(const CategoryConfiguration& config)
 {
     QMutexLocker locker(&m_mutex);
-    
+
     // Remove existing category with same name
     m_categoryConfigs.removeIf([&config](const CategoryConfiguration& existing) {
         return existing.name == config.name;
     });
-    
+
     m_categoryConfigs.append(config);
     emit categoryConfigurationChanged(config.name);
     emit configurationChanged();
@@ -689,4 +714,115 @@ std::unique_ptr<LoggingConfig> LoggingConfigBuilder::buildUnique()
 {
     // Transfer ownership of the config object
     return std::move(m_config);
+}
+
+// Validation helper methods implementation
+bool LoggingConfig::validateSinkConfiguration(const SinkConfiguration& config, QStringList& errors) const
+{
+    bool isValid = true;
+
+    // Validate sink name
+    if (config.name.isEmpty()) {
+        errors.append("Sink name cannot be empty");
+        isValid = false;
+    }
+
+    // Validate sink type
+    QStringList validTypes = {"console", "file", "rotating_file", "qt_widget"};
+    if (!validTypes.contains(config.type)) {
+        errors.append(QString("Invalid sink type '%1'. Valid types: %2")
+                     .arg(config.type, validTypes.join(", ")));
+        isValid = false;
+    }
+
+    // Validate file-specific settings
+    if (config.type == "file" || config.type == "rotating_file") {
+        if (config.filename.isEmpty()) {
+            errors.append("Filename cannot be empty for file sinks");
+            isValid = false;
+        }
+
+        if (config.maxFileSize <= 0) {
+            errors.append("Max file size must be greater than 0");
+            isValid = false;
+        }
+
+        if (config.maxFiles <= 0) {
+            errors.append("Max files count must be greater than 0");
+            isValid = false;
+        }
+    }
+
+    // Validate Qt widget-specific settings
+    if (config.type == "qt_widget" && config.widgetObjectName.isEmpty()) {
+        errors.append("Widget object name cannot be empty for Qt widget sinks");
+        isValid = false;
+    }
+
+    // Validate pattern
+    if (config.pattern.isEmpty()) {
+        errors.append("Log pattern cannot be empty");
+        isValid = false;
+    }
+
+    return isValid;
+}
+
+bool LoggingConfig::validateCategoryConfiguration(const CategoryConfiguration& config, QStringList& errors) const
+{
+    bool isValid = true;
+
+    // Validate category name
+    if (config.name.isEmpty()) {
+        errors.append("Category name cannot be empty");
+        isValid = false;
+    }
+
+    // Validate enabled sinks exist
+    for (const QString& sinkName : config.enabledSinks) {
+        bool sinkExists = false;
+        for (const auto& sink : m_sinkConfigs) {
+            if (sink.name == sinkName) {
+                sinkExists = true;
+                break;
+            }
+        }
+        if (!sinkExists) {
+            errors.append(QString("Referenced sink '%1' does not exist").arg(sinkName));
+            isValid = false;
+        }
+    }
+
+    return isValid;
+}
+
+bool LoggingConfig::validateGlobalConfiguration(const GlobalConfiguration& config, QStringList& errors) const
+{
+    bool isValid = true;
+
+    // Validate async queue size
+    if (config.asyncLogging && config.asyncQueueSize <= 0) {
+        errors.append("Async queue size must be greater than 0 when async logging is enabled");
+        isValid = false;
+    }
+
+    // Validate flush interval
+    if (config.flushIntervalSeconds < 0) {
+        errors.append("Flush interval cannot be negative");
+        isValid = false;
+    }
+
+    // Validate performance threshold
+    if (config.enablePerformanceLogging && config.performanceThresholdMs < 0) {
+        errors.append("Performance threshold cannot be negative");
+        isValid = false;
+    }
+
+    // Validate memory logging interval
+    if (config.enableMemoryLogging && config.memoryLoggingIntervalSeconds <= 0) {
+        errors.append("Memory logging interval must be greater than 0 when memory logging is enabled");
+        isValid = false;
+    }
+
+    return isValid;
 }

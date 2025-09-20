@@ -18,9 +18,9 @@ struct PageBookmark {
     double zoomLevel;
     int rotation;
 
-    PageBookmark() : pageNumber(0), zoomLevel(1.0), rotation(0), createdAt(QDateTime::currentDateTime()) {}
+    PageBookmark() : pageNumber(0), createdAt(QDateTime::currentDateTime()), zoomLevel(1.0), rotation(0) {}
     PageBookmark(int page, const QString& t = "", const QString& desc = "", double zoom = 1.0, int rot = 0)
-        : pageNumber(page), title(t), description(desc), zoomLevel(zoom), rotation(rot), createdAt(QDateTime::currentDateTime()) {}
+        : pageNumber(page), title(t), description(desc), createdAt(QDateTime::currentDateTime()), zoomLevel(zoom), rotation(rot) {}
 };
 
 // Error codes for page operations

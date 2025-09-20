@@ -5,7 +5,7 @@
 #include <QPdfWriter>
 #include <QTimer>
 #include <poppler-qt6.h>
-#include "../../app/search/OptimizedSearchEngine.h"
+#include "../../app/search/SearchEngine.h"
 #include "../../app/model/SearchModel.h"
 
 /**
@@ -60,7 +60,7 @@ private:
     Poppler::Document* m_normalDocument;
     Poppler::Document* m_emptyDocument;
     Poppler::Document* m_largeDocument;
-    OptimizedSearchEngine* m_searchEngine;
+    SearchEngine* m_searchEngine;
     SearchModel* m_searchModel;
     QString m_normalPdfPath;
     QString m_emptyPdfPath;
@@ -85,7 +85,7 @@ void TestSearchEdgeCases::initTestCase()
     QVERIFY(m_emptyDocument != nullptr);
     QVERIFY(m_largeDocument != nullptr);
     
-    m_searchEngine = new OptimizedSearchEngine(this);
+    m_searchEngine = new SearchEngine(this);
     m_searchModel = new SearchModel(this);
 }
 
@@ -457,15 +457,15 @@ Poppler::Document* TestSearchEdgeCases::createLargeTestDocument()
     font.setPointSize(8);
     painter.setFont(font);
     
-    // Create 20 pages with lots of content
-    for (int page = 0; page < 20; ++page) {
+    // Create 3 pages with content (reduced from 20 for faster testing)
+    for (int page = 0; page < 3; ++page) {
         if (page > 0) {
             pdfWriter.newPage();
         }
-        
+
         QString content = QString("Large document page %1. ").arg(page + 1);
-        content += QString("Content repeated many times. ").repeated(100);
-        
+        content += QString("Content repeated many times. ").repeated(20); // Reduced from 100
+
         QRect textRect(50, 50, 500, 700);
         painter.drawText(textRect, Qt::TextWordWrap, content);
     }

@@ -455,6 +455,43 @@ QString LoggingManager::getCurrentLogFilePath() const
     return getLogFilePath();
 }
 
+QStringList LoggingManager::getLogFileList() const
+{
+    QMutexLocker locker(&m_mutex);
+    QStringList logFiles;
+    
+    if (m_config.enableFileLogging) {
+        QString logDir = m_config.logDirectory.isEmpty() ? getDefaultLogDirectory() : m_config.logDirectory;
+        QDirIterator it(logDir, QStringList() << "*.log*", QDir::Files);
+        
+        while (it.hasNext()) {
+            it.next();
+            logFiles.append(it.filePath());
+        }
+    }
+    
+    return logFiles;
+}
+
+qint64 LoggingManager::getTotalLogFileSize() const
+{
+    QMutexLocker locker(&m_mutex);
+    qint64 totalSize = 0;
+    
+    if (m_config.enableFileLogging) {
+        QString logDir = m_config.logDirectory.isEmpty() ? getDefaultLogDirectory() : m_config.logDirectory;
+        QDirIterator it(logDir, QStringList() << "*.log*", QDir::Files);
+        
+        while (it.hasNext()) {
+            it.next();
+            QFileInfo info = it.fileInfo();
+            totalSize += info.size();
+        }
+    }
+    
+    return totalSize;
+}
+
 LoggingManager::LoggingStatistics LoggingManager::getStatistics() const
 {
     QMutexLocker locker(&m_mutex);
@@ -550,6 +587,105 @@ void LoggingManager::disconnectSignals()
 {
     // Disconnect all signals
     disconnect(&Logger::instance(), nullptr, this, nullptr);
+}
+
+// Category management implementations
+void LoggingManager::addLoggingCategory(const QString& category, Logger::LogLevel level) {
+    QMutexLocker locker(&m_mutex);
+
+    if (category.isEmpty()) {
+        return; // Invalid category name
+    }
+
+    // Add or update category level
+    m_categoryLevels[category] = level;
+
+    // If using modern config, also update the LoggingConfig structure
+    if (m_usingModernConfig) {
+        // Create or update category configuration
+        LoggingConfig::CategoryConfiguration categoryConfig;
+        categoryConfig.name = category;
+        categoryConfig.level = level;
+        categoryConfig.enabled = true;
+
+        // Note: We can't directly modify LoggingConfig here since we don't store it
+        // This would require a redesign to properly support modern config persistence
+    }
+
+    // Apply the category level to the Qt logging system if Qt integration is enabled
+    if (m_config.enableQtCategoryFiltering) {
+        // Add category mapping to Qt bridge (maps Qt category to spdlog logger)
+        QtSpdlogBridge::instance().addCategoryMapping(category);
+    }
+}
+
+void LoggingManager::setLoggingCategoryLevel(const QString& category, Logger::LogLevel level) {
+    QMutexLocker locker(&m_mutex);
+
+    if (category.isEmpty()) {
+        return; // Invalid category name
+    }
+
+    // Check if category exists
+    if (!m_categoryLevels.contains(category)) {
+        // Category doesn't exist, add it
+        addLoggingCategory(category, level);
+        return;
+    }
+
+    // Update existing category level
+    Logger::LogLevel oldLevel = m_categoryLevels[category];
+    if (oldLevel != level) {
+        m_categoryLevels[category] = level;
+
+        // Apply the category level to the Qt logging system if Qt integration is enabled
+        if (m_config.enableQtCategoryFiltering) {
+            // Update category mapping in Qt bridge
+            QtSpdlogBridge::instance().addCategoryMapping(category);
+        }
+
+        // Emit signal for level change (unlock mutex first to avoid deadlock)
+        locker.unlock();
+        emit configurationChanged();
+    }
+}
+
+void LoggingManager::removeLoggingCategory(const QString& category) {
+    QMutexLocker locker(&m_mutex);
+
+    if (category.isEmpty()) {
+        return; // Invalid category name
+    }
+
+    // Remove category if it exists
+    if (m_categoryLevels.remove(category) > 0) {
+        // Remove from Qt logging system if Qt integration is enabled
+        if (m_config.enableQtCategoryFiltering) {
+            QtSpdlogBridge::instance().removeCategoryMapping(category);
+        }
+
+        // Emit signal for configuration change (unlock mutex first to avoid deadlock)
+        locker.unlock();
+        emit configurationChanged();
+    }
+}
+
+Logger::LogLevel LoggingManager::getLoggingCategoryLevel(const QString& category) const {
+    QMutexLocker locker(&m_mutex);
+
+    if (category.isEmpty()) {
+        return Logger::LogLevel::Info; // Default level for invalid category
+    }
+
+    // Return category level if it exists, otherwise return global level
+    return m_categoryLevels.value(category, m_config.globalLogLevel);
+}
+
+QStringList LoggingManager::getLoggingCategories() const {
+    QMutexLocker locker(&m_mutex);
+
+    // Return all registered category names
+    return m_categoryLevels.keys();
 }
 
 // ============================================================================

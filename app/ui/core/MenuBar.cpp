@@ -5,7 +5,7 @@
 #include <QFileInfo>
 #include <QDebug>
 #include <QEvent>
-#include "../managers/I18nManager.h"
+#include "../../managers/I18nManager.h"
 
 MenuBar::MenuBar(QWidget* parent)
     : QMenuBar(parent)

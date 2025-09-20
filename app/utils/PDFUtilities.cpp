@@ -22,7 +22,7 @@
 #include <vector>
 #include <memory>
 #include <poppler/qt6/poppler-qt6.h>
-#include "Logger.h"
+#include "../logging/Logger.h"
 
 QJsonObject PDFUtilities::analyzeDocument(Poppler::Document* document)
 {

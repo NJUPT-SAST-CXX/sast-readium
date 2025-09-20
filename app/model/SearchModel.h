@@ -10,63 +10,9 @@
 #include <QTimer>
 #include <poppler-qt6.h>
 #include "../utils/ErrorHandling.h"
+#include "../search/SearchConfiguration.h"
 
-// Forward declaration for optimized search engine
-class OptimizedSearchEngine;
-
-/**
- * Represents a single search result with enhanced coordinate transformation support
- */
-struct SearchResult {
-    int pageNumber;
-    QString text;
-    QString context;
-    QRectF boundingRect;        // PDF coordinates from Poppler
-    int startIndex;
-    int length;
-    QRectF widgetRect;          // Transformed widget coordinates for highlighting
-    bool isCurrentResult;       // Whether this is the currently selected result
-
-    SearchResult() : pageNumber(-1), startIndex(-1), length(0), isCurrentResult(false) {}
-    SearchResult(int page, const QString& txt, const QString& ctx,
-                const QRectF& rect, int start, int len)
-        : pageNumber(page), text(txt), context(ctx), boundingRect(rect),
-          startIndex(start), length(len), isCurrentResult(false) {}
-
-    // Transform PDF coordinates to widget coordinates
-    void transformToWidgetCoordinates(double scaleFactor, int rotation, const QSizeF& pageSize, const QSize& widgetSize);
-
-    // Check if the result is valid for highlighting
-    bool isValidForHighlight() const { return pageNumber >= 0 && !boundingRect.isEmpty(); }
-};
-
-/**
- * Search options and parameters
- */
-struct SearchOptions {
-    bool caseSensitive = false;
-    bool wholeWords = false;
-    bool useRegex = false;
-    bool searchBackward = false;
-    int maxResults = 1000;
-    QString highlightColor = "#FFFF00";
-
-    // Advanced search features
-    bool fuzzySearch = false;
-    int fuzzyThreshold = 2; // Maximum edit distance for fuzzy search
-    int startPage = -1; // -1 means search all pages
-    int endPage = -1;   // -1 means search all pages
-    bool searchInSelection = false;
-    QRectF selectionRect; // For search within selection
-
-    // Performance options
-    bool useIndexedSearch = true;
-    bool enableSearchCache = true;
-    bool enableIncrementalSearch = true;
-    int searchTimeout = 30000; // 30 seconds timeout
-
-    SearchOptions() = default;
-};
+// SearchResult and SearchOptions now defined in SearchConfiguration.h
 
 /**
  * Model for managing search results and operations
@@ -108,10 +54,9 @@ public:
     void clearSearchHistory();
     void setMaxHistorySize(int size) { m_maxHistorySize = size; }
 
-    // Optimized search operations
-    void setOptimizedSearchEnabled(bool enabled);
-    bool isOptimizedSearchEnabled() const { return m_optimizedSearchEnabled; }
-    OptimizedSearchEngine* getOptimizedSearchEngine() const { return m_optimizedSearchEngine; }
+    // Advanced search operations
+    void setAdvancedSearchEnabled(bool enabled);
+    bool isAdvancedSearchEnabled() const { return m_advancedSearchEnabled; }
 
     // Result access
     const QList<SearchResult>& getResults() const { return m_results; }
@@ -150,7 +95,7 @@ signals:
 
 private slots:
     void onSearchFinished();
-    void onOptimizedSearchFinished(const QList<SearchResult>& results);
+    void onAdvancedSearchFinished(const QList<SearchResult>& results);
 
 private:
     void performSearch();
@@ -180,9 +125,8 @@ private:
     bool m_isRealTimeSearchEnabled;
     int m_realTimeSearchDelay;
 
-    // Optimized search members
-    OptimizedSearchEngine* m_optimizedSearchEngine;
-    bool m_optimizedSearchEnabled;
+    // Advanced search members
+    bool m_advancedSearchEnabled;
 
     // Search history and navigation
     QStringList m_searchHistory;

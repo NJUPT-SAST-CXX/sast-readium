@@ -7,9 +7,9 @@
 #include <QPushButton>
 #include "controller/PageController.h"
 
-
+// Forward declarations
 class Controller;
-class Command;
+class NavigationCommand;
 
 enum actionID { next, prev };
 class WidgetFactory : public QObject {
@@ -23,7 +23,7 @@ public:
 
 private:
     PageController* _controller;
-    QMap<actionID, Command*> _actionMap;
+    QMap<actionID, NavigationCommand*> _actionMap;
 };
 
 #endif  // FACTORY_WIDGETFACTORY_H

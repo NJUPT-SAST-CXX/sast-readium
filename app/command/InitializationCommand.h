@@ -4,6 +4,7 @@
 #include <QList>
 #include <memory>
 #include <functional>
+#include <vector>
 #include "../logging/SimpleLogging.h"
 
 // Forward declarations
@@ -167,7 +168,7 @@ public:
     int commandCount() const { return m_commands.size(); }
 
 private:
-    QList<std::unique_ptr<InitializationCommand>> m_commands;
+    std::vector<std::unique_ptr<InitializationCommand>> m_commands;
     QList<InitializationCommand*> m_executedCommands;
 };
 

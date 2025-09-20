@@ -3,7 +3,7 @@
 #include <QDebug>
 #include <QFileInfo>
 #include <QDirIterator>
-#include "utils/LoggingMacros.h"
+#include "../logging/LoggingMacros.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>

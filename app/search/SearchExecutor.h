@@ -33,6 +33,9 @@ public:
     QRegularExpression createSearchPattern(const QString& query) const;
     QRegularExpression createSearchPattern(const QString& query, const SearchOptions& options) const;
 
+    // Bounding rect calculation
+    QRectF calculateBoundingRect(int pageNumber, int textPosition, int textLength);
+
 signals:
     void searchProgress(int current, int total);
     void resultFound(const SearchResult& result);

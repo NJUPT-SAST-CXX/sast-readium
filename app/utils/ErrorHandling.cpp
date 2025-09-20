@@ -1,5 +1,5 @@
 #include "ErrorHandling.h"
-#include "Logger.h"
+#include "../logging/Logger.h"
 
 namespace ErrorHandling {
 

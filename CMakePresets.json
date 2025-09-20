@@ -55,7 +55,10 @@
             "binaryDir": "${sourceDir}/build/Debug-Windows",
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "USE_VCPKG": "ON"
+                "USE_VCPKG": "ON",
+                "CMAKE_CXX_FLAGS": "/Zc:__cplusplus /EHsc /utf-8",
+                "BUILD_TESTING": "OFF",
+                "ENABLE_CLANGD_CONFIG": "OFF"
             }
         },
         {
@@ -66,7 +69,10 @@
             "binaryDir": "${sourceDir}/build/Release-Windows",
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "USE_VCPKG": "ON"
+                "USE_VCPKG": "ON",
+                "CMAKE_CXX_FLAGS": "/Zc:__cplusplus /EHsc /utf-8",
+                "BUILD_TESTING": "OFF",
+                "ENABLE_CLANGD_CONFIG": "OFF"
             }
         },
         {

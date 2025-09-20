@@ -6,15 +6,22 @@
 #include <QMessageBox>
 #include <QApplication>
 #include <QDir>
+#include <QStyle>
+#include <QClipboard>
+#include <QMimeData>
+#include <QTextStream>
+#include <QIcon>
 #include <stdexcept>
 
 DocumentMetadataDialog::DocumentMetadataDialog(QWidget* parent)
     : QDialog(parent)
     , m_currentDocument(nullptr)
+    , m_fontCount(0)
+    , m_embeddedFontCount(0)
 {
-    setWindowTitle(tr("文档属性"));
+    setWindowTitle(tr("📄 文档详细信息"));
     setModal(true);
-    resize(600, 500);
+    resize(750, 600);
     
     setupUI();
     setupConnections();
@@ -28,17 +35,17 @@ void DocumentMetadataDialog::setupUI()
     m_mainLayout->setSpacing(12);
     
     // 创建滚动区域
-    m_scrollArea = new QScrollArea(this);
-    m_scrollArea->setWidgetResizable(true);
-    m_scrollArea->setFrameShape(QFrame::NoFrame);
-    
-    m_contentWidget = new QWidget();
-    m_contentLayout = new QVBoxLayout(m_contentWidget);
-    m_contentLayout->setContentsMargins(0, 0, 0, 0);
-    m_contentLayout->setSpacing(16);
+    m_propertiesScrollArea = new QScrollArea(this);
+    m_propertiesScrollArea->setWidgetResizable(true);
+    m_propertiesScrollArea->setFrameShape(QFrame::NoFrame);
+
+    m_propertiesContentWidget = new QWidget();
+    m_propertiesContentLayout = new QVBoxLayout(m_propertiesContentWidget);
+    m_propertiesContentLayout->setContentsMargins(0, 0, 0, 0);
+    m_propertiesContentLayout->setSpacing(16);
     
     // 基本信息组
-    m_basicInfoGroup = new QGroupBox(tr("基本信息"), m_contentWidget);
+    m_basicInfoGroup = new QGroupBox(tr("基本信息"), m_propertiesContentWidget);
     m_basicInfoLayout = new QGridLayout(m_basicInfoGroup);
     m_basicInfoLayout->setColumnStretch(1, 1);
     
@@ -66,10 +73,10 @@ void DocumentMetadataDialog::setupUI()
     m_pageCountEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_pageCountEdit, 3, 1);
     
-    m_contentLayout->addWidget(m_basicInfoGroup);
-    
+    m_propertiesContentLayout->addWidget(m_basicInfoGroup);
+
     // 文档属性组
-    m_propertiesGroup = new QGroupBox(tr("文档属性"), m_contentWidget);
+    m_propertiesGroup = new QGroupBox(tr("文档属性"), m_propertiesContentWidget);
     m_propertiesLayout = new QGridLayout(m_propertiesGroup);
     m_propertiesLayout->setColumnStretch(1, 1);
     
@@ -93,7 +100,7 @@ void DocumentMetadataDialog::setupUI()
     
     // 关键词
     m_propertiesLayout->addWidget(new QLabel(tr("关键词:")), 3, 0);
-    m_keywordsEdit = new QLineEdit();
+    m_keywordsEdit = new QTextEdit();
     m_keywordsEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_keywordsEdit, 3, 1);
     
@@ -121,10 +128,10 @@ void DocumentMetadataDialog::setupUI()
     m_modificationDateEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_modificationDateEdit, 7, 1);
     
-    m_contentLayout->addWidget(m_propertiesGroup);
-    
+    m_propertiesContentLayout->addWidget(m_propertiesGroup);
+
     // 安全信息组
-    m_securityGroup = new QGroupBox(tr("安全信息"), m_contentWidget);
+    m_securityGroup = new QGroupBox(tr("安全信息"), m_propertiesContentWidget);
     m_securityLayout = new QGridLayout(m_securityGroup);
     m_securityLayout->setColumnStretch(1, 1);
     
@@ -152,13 +159,13 @@ void DocumentMetadataDialog::setupUI()
     m_canModifyEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canModifyEdit, 3, 1);
     
-    m_contentLayout->addWidget(m_securityGroup);
-    
+    m_propertiesContentLayout->addWidget(m_securityGroup);
+
     // 添加弹性空间
-    m_contentLayout->addStretch();
-    
-    m_scrollArea->setWidget(m_contentWidget);
-    m_mainLayout->addWidget(m_scrollArea);
+    m_propertiesContentLayout->addStretch();
+
+    m_propertiesScrollArea->setWidget(m_propertiesContentWidget);
+    m_mainLayout->addWidget(m_propertiesScrollArea);
     
     // 按钮布局
     m_buttonLayout = new QHBoxLayout();

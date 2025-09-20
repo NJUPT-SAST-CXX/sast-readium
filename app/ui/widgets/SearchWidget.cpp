@@ -499,8 +499,13 @@ void SearchWidget::onRealTimeSearchProgress(int currentPage, int totalPages) {
 
 // Navigation helper methods
 void SearchWidget::navigateToCurrentResult() {
-    if (m_searchModel->getCurrentResultIndex() >= 0) {
-        SearchResult result = getCurrentResult();
+    if (m_searchModel->getResults().isEmpty()) {
+        return;
+    }
+
+    int currentIndex = m_searchModel->getCurrentResultIndex();
+    if (currentIndex >= 0 && currentIndex < m_searchModel->getResults().size()) {
+        SearchResult result = m_searchModel->getResult(currentIndex);
         emit navigateToResult(result.pageNumber, result.boundingRect);
         emit resultSelected(result);
     }
@@ -558,19 +563,6 @@ void SearchWidget::changeEvent(QEvent* event) {
     QWidget::changeEvent(event);
 }
 
-// Advanced search features
-void SearchWidget::setFuzzySearchEnabled(bool enabled) {
-    if (m_searchModel->getResults().isEmpty()) {
-        return;
-    }
-
-    int currentIndex = m_searchModel->getCurrentResultIndex();
-    if (currentIndex >= 0 && currentIndex < m_searchModel->getResults().size()) {
-        SearchResult result = m_searchModel->getResult(currentIndex);
-        emit navigateToResult(result.pageNumber, result.boundingRect);
-        emit resultSelected(result);
-    }
-}
 
 // Advanced search feature implementations
 void SearchWidget::onFuzzySearchToggled(bool enabled) {

@@ -1,19 +1,37 @@
-#include <QtTest/QtTest>
-#include <QApplication>
+#include <QTest>
 #include <QSignalSpy>
 #include <QTimer>
 #include <QEventLoop>
 #include <QStandardPaths>
-#include <poppler-qt6.h>
+#include <QElapsedTimer>
+#include <QCoreApplication>
+#include <QFile>
+#include <QByteArray>
+#include <QDebug>
+#include <poppler/qt6/poppler-qt6.h>
+#include "../TestUtilities.h"
 #include "../../app/ui/viewer/PDFViewer.h"
+#include "../../app/controller/ApplicationController.h"
+#include "../../app/controller/ServiceLocator.h"
+#include "../../app/factory/ModelFactory.h"
 
-class TestRenderingModeSwitch : public QObject
+class MockDocumentService : public QObject {
+    Q_OBJECT
+public:
+    explicit MockDocumentService(QObject* parent = nullptr) : QObject(parent) {}
+    bool isDocumentLoaded() const { return true; }
+    QString documentPath() const { return "test.pdf"; }
+};
+
+class TestRenderingModeSwitch : public TestBase
 {
     Q_OBJECT
 
 private slots:
-    void initTestCase();
-    void cleanupTestCase();
+    void initTestCase() override;
+    void cleanupTestCase() override;
+    void init() override;
+    void cleanup() override;
     
     // Integration tests
     void testModeSwitch();
@@ -23,33 +41,80 @@ private slots:
     void testErrorHandling();
     void testMemoryManagement();
     void testConcurrentOperations();
+    void testWithServiceLocator();
+    void testWithModelFactory();
 
 private:
     Poppler::Document* createTestDocument();
     void verifyViewerState(PDFViewer* viewer, int expectedPage, double expectedZoom, int expectedRotation);
     void performStandardOperations(PDFViewer* viewer);
+    void setupServices();
+    void teardownServices();
     
     PDFViewer* m_viewer;
     Poppler::Document* m_testDocument;
+    ApplicationController* m_appController;
+    ModelFactory* m_modelFactory;
 };
 
 void TestRenderingModeSwitch::initTestCase()
 {
-    m_viewer = new PDFViewer(nullptr, false); // Disable styling for tests
+    // Initialize service locator and factories
+    setupServices();
+    
+    // Create test document
     m_testDocument = createTestDocument();
-    
-    QVERIFY(m_viewer != nullptr);
     QVERIFY(m_testDocument != nullptr);
-    
-    m_viewer->setDocument(m_testDocument);
 }
 
 void TestRenderingModeSwitch::cleanupTestCase()
 {
-    delete m_viewer;
+    teardownServices();
+    
     if (m_testDocument) {
         delete m_testDocument;
+        m_testDocument = nullptr;
     }
+}
+
+void TestRenderingModeSwitch::init()
+{
+    // Create viewer for each test
+    m_viewer = new PDFViewer(nullptr, false);
+    QVERIFY(m_viewer != nullptr);
+    m_viewer->setDocument(m_testDocument);
+}
+
+void TestRenderingModeSwitch::cleanup()
+{
+    // Clean up viewer after each test
+    if (m_viewer) {
+        delete m_viewer;
+        m_viewer = nullptr;
+    }
+}
+
+void TestRenderingModeSwitch::setupServices()
+{
+    // Clear any existing services
+    ServiceLocator::instance().clearServices();
+    
+    // Create and register model factory
+    m_modelFactory = new ModelFactory(this);
+    ServiceLocator::instance().registerService<ModelFactory>(m_modelFactory);
+    
+    // Create mock application controller if needed
+    // m_appController = new ApplicationController(nullptr, this);
+    // ServiceLocator::instance().registerService<ApplicationController>(m_appController);
+}
+
+void TestRenderingModeSwitch::teardownServices()
+{
+    ServiceLocator::instance().clearServices();
+    
+    // Cleanup is handled by parent-child relationship
+    m_modelFactory = nullptr;
+    m_appController = nullptr;
 }
 
 Poppler::Document* TestRenderingModeSwitch::createTestDocument()
@@ -188,23 +253,24 @@ void TestRenderingModeSwitch::performStandardOperations(PDFViewer* viewer)
 void TestRenderingModeSwitch::testModeSwitch()
 {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
-    // Test basic mode switching
+    // Test basic mode switching without a dedicated signal
     QVERIFY(!m_viewer->isQGraphicsRenderingEnabled()); // Should start in traditional mode
-    
+
     // Switch to QGraphics mode
     m_viewer->setQGraphicsRenderingEnabled(true);
     QVERIFY(m_viewer->isQGraphicsRenderingEnabled());
-    
+
     // Switch back to traditional mode
     m_viewer->setQGraphicsRenderingEnabled(false);
     QVERIFY(!m_viewer->isQGraphicsRenderingEnabled());
-    
+
     // Test multiple switches
     for (int i = 0; i < 5; ++i) {
         m_viewer->setQGraphicsRenderingEnabled(i % 2 == 0);
+        QCoreApplication::processEvents();
         QCOMPARE(m_viewer->isQGraphicsRenderingEnabled(), i % 2 == 0);
     }
-    
+
     qDebug() << "Mode switching test passed";
 #else
     QSKIP("QGraphics support not compiled in");
@@ -443,6 +509,62 @@ void TestRenderingModeSwitch::testConcurrentOperations()
 #else
     QSKIP("QGraphics support not compiled in");
 #endif
+}
+
+void TestRenderingModeSwitch::testWithServiceLocator()
+{
+    // Test that viewer can work with services from ServiceLocator
+    
+    // Register a mock document service
+    auto* docService = new MockDocumentService();
+    ServiceLocator::instance().registerService<MockDocumentService>(docService);
+    
+    // Verify service is available
+    auto* retrievedService = ServiceLocator::instance().getService<MockDocumentService>();
+    QVERIFY(retrievedService != nullptr);
+    QCOMPARE(retrievedService->documentPath(), QString("test.pdf"));
+    
+    // Test viewer functionality with service
+    QVERIFY(m_viewer != nullptr);
+    QVERIFY(m_viewer->hasDocument());
+    
+    // Cleanup
+    ServiceLocator::instance().removeService(QString::fromStdString(typeid(MockDocumentService).name()));
+}
+
+void TestRenderingModeSwitch::testWithModelFactory()
+{
+    // Test integration with ModelFactory
+    QVERIFY(m_modelFactory != nullptr);
+    
+    // Register a custom viewer model creator
+    m_modelFactory->registerModelType("ViewerModel", [](QObject* parent) -> QObject* {
+        return new QObject(parent);
+    });
+    
+    // Create model through factory
+    QObject* viewerModel = m_modelFactory->createCustomModel("ViewerModel");
+    QVERIFY(viewerModel != nullptr);
+    
+    // Test with signal spy
+    QSignalSpy modelCreatedSpy(m_modelFactory, &ModelFactory::modelCreated);
+    
+    // Create another model
+    m_modelFactory->registerModelType("TestModel", [](QObject* parent) -> QObject* {
+        return new QObject(parent);
+    });
+    
+    QObject* testModel = m_modelFactory->createCustomModel("TestModel");
+    QVERIFY(testModel != nullptr);
+    QCOMPARE(modelCreatedSpy.count(), 1);
+    
+    // Verify viewer still works with factory in place
+    QVERIFY(m_viewer->hasDocument());
+    performStandardOperations(m_viewer);
+    
+    // Cleanup
+    delete viewerModel;
+    delete testModel;
 }
 
 QTEST_MAIN(TestRenderingModeSwitch)

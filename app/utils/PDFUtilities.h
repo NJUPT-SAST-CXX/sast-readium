@@ -8,7 +8,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <poppler-qt6.h>
-#include "Logger.h"
+#include "../logging/Logger.h"
 #include "ErrorHandling.h"
 
 // Forward declaration

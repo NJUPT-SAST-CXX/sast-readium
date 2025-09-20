@@ -84,7 +84,7 @@ TEST_F(ThreadSafetyTest, ThumbnailGeneratorConcurrentOperations) {
     ASSERT_NE(document, nullptr);
     
     ThumbnailGenerator generator;
-    generator.setDocument(std::shared_ptr<Poppler::Document>(document));
+    generator.setDocument(std::shared_ptr<Poppler::Document>(document.release(), [](Poppler::Document* p){ delete p; }));
     generator.start();
     
     std::atomic<int> completedThumbnails{0};
@@ -187,7 +187,7 @@ TEST_F(ThreadSafetyTest, PDFPrerendererThreadCoordination) {
     ASSERT_NE(document, nullptr);
     
     PDFPrerenderer prerenderer;
-    prerenderer.setDocument(document);
+    prerenderer.setDocument(document.get());
     prerenderer.setMaxWorkerThreads(4);
     prerenderer.startPrerendering();
     
@@ -224,7 +224,7 @@ TEST_F(ThreadSafetyTest, DocumentSwitchingUnderLoad) {
     ASSERT_NE(document1, nullptr);
     
     ThumbnailGenerator generator;
-    generator.setDocument(std::shared_ptr<Poppler::Document>(document1));
+    generator.setDocument(std::shared_ptr<Poppler::Document>(document1.release(), [](Poppler::Document* p){ delete p; }));
     generator.start();
     
     std::atomic<bool> keepRunning{true};
@@ -247,7 +247,7 @@ TEST_F(ThreadSafetyTest, DocumentSwitchingUnderLoad) {
         QThread::msleep(50);
         auto newDocument = Poppler::Document::load(testPdfFile.fileName());
         if (newDocument) {
-            generator.setDocument(std::shared_ptr<Poppler::Document>(newDocument));
+            generator.setDocument(std::shared_ptr<Poppler::Document>(newDocument.release(), [](Poppler::Document* p){ delete p; }));
         }
     }
     

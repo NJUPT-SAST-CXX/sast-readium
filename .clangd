@@ -1,5 +1,5 @@
 ﻿CompileFlags:
-  CompilationDatabase: build/Debug-MSYS2
+  CompilationDatabase: build/Debug
   Add:
     # Add Qt-specific defines to help with symbol resolution
     - "-DQT_CORE_LIB"
@@ -42,6 +42,47 @@ Hover:
 # Qt-specific configuration to improve symbol resolution
 Completion:
   AllScopes: true
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

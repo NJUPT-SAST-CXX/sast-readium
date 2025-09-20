@@ -81,7 +81,6 @@ function configure_toolchain()
         toolchain = get_default_toolchain()
     end
 
-    print("Selected toolchain: " .. toolchain)
 
     if toolchain == "mingw" then
         set_toolchains("mingw")
@@ -203,7 +202,6 @@ target("sast-readium")
     add_files("app/utils/DocumentAnalyzer.h")
     add_files("app/ui/thumbnail/ThumbnailWidget.h")
     add_files("app/ui/thumbnail/ThumbnailContextMenu.h")
-    add_files("app/view/Views.h")
 
     -- Set output directory
     set_targetdir("$(builddir)")
@@ -303,7 +301,7 @@ target("sast-readium")
     add_includedirs("app/ui", "app/ui/core", "app/ui/viewer", "app/ui/widgets")
     add_includedirs("app/ui/dialogs", "app/ui/thumbnail", "app/ui/managers")
     add_includedirs("app/managers", "app/model", "app/controller", "app/delegate")
-    add_includedirs("app/view", "app/cache", "app/utils", "app/plugin")
+    add_includedirs("app/cache", "app/utils", "app/plugin")
     add_includedirs("app/factory", "app/command")
     
     -- Compiler settings
@@ -458,8 +456,7 @@ target("sast-readium")
     add_files("app/delegate/PageNavigationDelegate.cpp")
     add_files("app/delegate/ThumbnailDelegate.cpp")
 
-    -- Views
-    add_files("app/view/Views.cpp")
+
 
     -- Add all header files for proper organization
     add_headerfiles("app/*.h")
@@ -473,7 +470,6 @@ target("sast-readium")
     add_headerfiles("app/model/*.h")
     add_headerfiles("app/controller/*.h")
     add_headerfiles("app/delegate/*.h")
-    add_headerfiles("app/view/*.h")
     add_headerfiles("app/cache/*.h")
     add_headerfiles("app/utils/*.h")
     add_headerfiles("app/plugin/*.h")

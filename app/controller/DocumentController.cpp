@@ -2,7 +2,7 @@
 #include <poppler/qt6/poppler-qt6.h>
 #include <QFile>
 #include <QFileDialog>
-#include "utils/LoggingMacros.h"
+#include "../logging/LoggingMacros.h"
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QStringList>
@@ -10,7 +10,6 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include "../ui/dialogs/DocumentMetadataDialog.h"
-#include "utils/LoggingMacros.h"
 
 
 void DocumentController::initializeCommandMap() {
@@ -202,6 +201,11 @@ void DocumentController::execute(ActionMap actionID, QWidget* context) {
 }
 
 bool DocumentController::openDocument(const QString& filePath) {
+    if (!documentModel) {
+        // DocumentModel is null - cannot proceed
+        return false;
+    }
+
     bool success = documentModel->openFromFile(filePath);
 
     // 如果文件打开成功，添加到最近文件列表
@@ -217,27 +221,22 @@ bool DocumentController::openDocuments(const QStringList& filePaths) {
         return false;
     }
 
-    // 过滤有效的PDF文件
-    QStringList validPaths;
-    for (const QString& filePath : filePaths) {
-        if (!filePath.isEmpty() && QFile::exists(filePath) &&
-            filePath.toLower().endsWith(".pdf")) {
-            validPaths.append(filePath);
-        }
-    }
-
-    if (validPaths.isEmpty()) {
-        LOG_WARNING("No valid PDF files found in the selection");
+    if (!documentModel) {
+        // DocumentModel is null - cannot proceed
         return false;
     }
 
-    // 使用DocumentModel的批量打开方法
-    bool success = documentModel->openFromFiles(validPaths);
+    // Let the DocumentModel handle validation - it knows best what files it can open
+    bool success = documentModel->openFromFiles(filePaths);
 
-    // 如果文件打开成功，添加到最近文件列表
+    // If files opened successfully, add them to recent files
+    // Only add files that the model actually accepted
     if (success && recentFilesManager) {
-        for (const QString& filePath : validPaths) {
-            recentFilesManager->addRecentFile(filePath);
+        // Filter to only add valid files that were actually opened
+        for (const QString& filePath : filePaths) {
+            if (!filePath.isEmpty() && filePath.toLower().endsWith(".pdf")) {
+                recentFilesManager->addRecentFile(filePath);
+            }
         }
     }
 
@@ -245,10 +244,18 @@ bool DocumentController::openDocuments(const QStringList& filePaths) {
 }
 
 bool DocumentController::closeDocument(int index) {
+    if (!documentModel) {
+        // DocumentModel is null - cannot proceed
+        return false;
+    }
     return documentModel->closeDocument(index);
 }
 
 bool DocumentController::closeCurrentDocument() {
+    if (!documentModel) {
+        // DocumentModel is null - cannot proceed
+        return false;
+    }
     return documentModel->closeCurrentDocument();
 }
 

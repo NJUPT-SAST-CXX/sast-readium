@@ -55,24 +55,24 @@ public:
     ~DocumentModel() = default;
 
     // 多文档管理
-    bool openFromFile(const QString& filePath);
-    bool openFromFiles(const QStringList& filePaths);
-    bool closeDocument(int index);
-    bool closeCurrentDocument();
-    void switchToDocument(int index);
+    virtual bool openFromFile(const QString& filePath);
+    virtual bool openFromFiles(const QStringList& filePaths);
+    virtual bool closeDocument(int index);
+    virtual bool closeCurrentDocument();
+    virtual void switchToDocument(int index);
 
     // 查询方法
-    int getDocumentCount() const;
-    int getCurrentDocumentIndex() const;
-    QString getCurrentFilePath() const;
-    QString getCurrentFileName() const;
-    QString getDocumentFileName(int index) const;
-    QString getDocumentFilePath(int index) const;
-    Poppler::Document* getCurrentDocument() const;
-    Poppler::Document* getDocument(int index) const;
-    bool isEmpty() const;
-    bool isValidIndex(int index) const;
-    bool isNULL();
+    virtual int getDocumentCount() const;
+    virtual int getCurrentDocumentIndex() const;
+    virtual QString getCurrentFilePath() const;
+    virtual QString getCurrentFileName() const;
+    virtual QString getDocumentFileName(int index) const;
+    virtual QString getDocumentFilePath(int index) const;
+    virtual Poppler::Document* getCurrentDocument() const;
+    virtual Poppler::Document* getDocument(int index) const;
+    virtual bool isEmpty() const;
+    virtual bool isValidIndex(int index) const;
+    virtual bool isNULL();
 
     // 最近文件管理器设置
     void setRecentFilesManager(RecentFilesManager* manager);

@@ -1,7 +1,7 @@
 #include "DocumentModel.h"
 #include <QFileInfo>
 #include "RenderModel.h"
-#include "utils/LoggingMacros.h"
+#include "../logging/LoggingMacros.h"
 #include "utils/ErrorHandling.h"
 #include "utils/ErrorRecovery.h"
 
@@ -304,4 +304,8 @@ bool DocumentModel::isEmpty() const {
 
 bool DocumentModel::isValidIndex(int index) const {
     return index >= 0 && index < static_cast<int>(documents.size());
+}
+
+bool DocumentModel::isNULL() {
+    return false; // DocumentModel is not null when this method is called
 }

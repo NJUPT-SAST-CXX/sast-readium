@@ -187,3 +187,5 @@ echo   %~nx0 build/Release-MSYS2
 echo   %~nx0 --list
 echo   %~nx0 --auto --force
 exit /b 0
+
+:VCEnd

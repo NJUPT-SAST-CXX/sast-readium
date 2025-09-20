@@ -15,10 +15,21 @@
 class RecentFilesManager;
 class RecentFileListWidget;
 class WelcomeScreenManager;
+class OnboardingManager;
+class QGridLayout;
+class QToolButton;
 
 /**
- * VSCode风格的欢迎界面组件
- * 显示应用程序logo和最近打开的文件列表
+ * Enhanced Welcome Screen Widget
+ * 
+ * Provides a comprehensive welcome experience with:
+ * - Application branding and logo
+ * - Quick action buttons for common tasks
+ * - Recent files and projects
+ * - Interactive tutorial cards
+ * - Keyboard shortcuts reference
+ * - Daily tips and productivity suggestions
+ * - First-time user onboarding integration
  */
 class WelcomeWidget : public QWidget {
     Q_OBJECT
@@ -30,12 +41,15 @@ public:
     // 设置管理器
     void setRecentFilesManager(RecentFilesManager* manager);
     void setWelcomeScreenManager(WelcomeScreenManager* manager);
+    void setOnboardingManager(OnboardingManager* manager);
 
     // 主题支持
     void applyTheme();
 
     // 刷新内容
     void refreshContent();
+    void refreshTips();
+    void refreshShortcuts();
 
 public slots:
     void onRecentFilesChanged();
@@ -45,6 +59,11 @@ signals:
     void fileOpenRequested(const QString& filePath);
     void newFileRequested();
     void openFileRequested();
+    void openFolderRequested();
+    void tutorialRequested(const QString& tutorialId);
+    void showSettingsRequested();
+    void showDocumentationRequested();
+    void startOnboardingRequested();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -54,7 +73,13 @@ protected:
 private slots:
     void onNewFileClicked();
     void onOpenFileClicked();
+    void onOpenFolderClicked();
     void onRecentFileClicked(const QString& filePath);
+    void onTutorialCardClicked(const QString& tutorialId);
+    void onQuickActionClicked();
+    void onShowMoreTipsClicked();
+    void onKeyboardShortcutClicked();
+    void onStartTourClicked();
     void onFadeInFinished();
 
 private:
@@ -63,10 +88,16 @@ private:
     void setupLogo();
     void setupActions();
     void setupRecentFiles();
+    void setupQuickActions();
+    void setupTutorialCards();
+    void setupTipsSection();
+    void setupKeyboardShortcuts();
     void setupConnections();
     void updateLayout();
     void updateLogo();
     void startFadeInAnimation();
+    void createTutorialCard(const QString& id, const QString& title, 
+                           const QString& description, const QString& iconPath);
 
     // UI组件
     QVBoxLayout* m_mainLayout;
@@ -85,6 +116,7 @@ private:
     QHBoxLayout* m_actionsLayout;
     QPushButton* m_newFileButton;
     QPushButton* m_openFileButton;
+    QPushButton* m_openFolderButton;
     
     // 最近文件区域
     QWidget* m_recentFilesWidget;
@@ -93,12 +125,43 @@ private:
     RecentFileListWidget* m_recentFilesList;
     QLabel* m_noRecentFilesLabel;
     
+    // Quick Actions区域
+    QWidget* m_quickActionsWidget;
+    QGridLayout* m_quickActionsLayout;
+    QList<QToolButton*> m_quickActionButtons;
+    
+    // Tutorial Cards区域
+    QWidget* m_tutorialCardsWidget;
+    QVBoxLayout* m_tutorialCardsLayout;
+    QLabel* m_tutorialCardsTitle;
+    QWidget* m_tutorialCardsContainer;
+    QHBoxLayout* m_tutorialCardsContainerLayout;
+    
+    // Tips区域
+    QWidget* m_tipsWidget;
+    QVBoxLayout* m_tipsLayout;
+    QLabel* m_tipsTitle;
+    QLabel* m_currentTipLabel;
+    QPushButton* m_nextTipButton;
+    QPushButton* m_previousTipButton;
+    int m_currentTipIndex;
+    QStringList m_tips;
+    
+    // Keyboard Shortcuts区域
+    QWidget* m_shortcutsWidget;
+    QVBoxLayout* m_shortcutsLayout;
+    QLabel* m_shortcutsTitle;
+    QWidget* m_shortcutsListWidget;
+    
     // 分隔线
     QFrame* m_separatorLine;
+    QFrame* m_separatorLine2;
+    QFrame* m_separatorLine3;
     
     // 管理器
     RecentFilesManager* m_recentFilesManager;
     WelcomeScreenManager* m_welcomeScreenManager;
+    OnboardingManager* m_onboardingManager;
     
     // 动画效果
     QGraphicsOpacityEffect* m_opacityEffect;

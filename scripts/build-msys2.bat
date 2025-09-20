@@ -164,3 +164,4 @@ goto :eof
 
 REM Main execution starts here
 call :parse_args %*
+exit /b %ERRORLEVEL%

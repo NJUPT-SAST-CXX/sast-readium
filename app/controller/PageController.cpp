@@ -1,6 +1,6 @@
 #include "PageController.h"
 #include "model/PageModel.h"
-#include "utils/LoggingMacros.h"
+#include "../logging/LoggingMacros.h"
 #include <algorithm>
 
 PageController::PageController(PageModel* model, QObject* parent)

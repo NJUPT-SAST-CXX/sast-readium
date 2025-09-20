@@ -30,7 +30,7 @@ struct Bookmark {
     Bookmark() : pageNumber(-1) {}
     
     Bookmark(const QString& docPath, int page, const QString& bookmarkTitle = QString())
-        : documentPath(docPath), pageNumber(page), title(bookmarkTitle)
+        : title(bookmarkTitle), documentPath(docPath), pageNumber(page)
         , createdTime(QDateTime::currentDateTime())
         , lastAccessed(QDateTime::currentDateTime())
     {
