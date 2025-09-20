@@ -59,7 +59,6 @@ CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
-*.cmake
 !CMakeLists.txt
 CMakeLists.txt.user*
 CTestTestfile.cmake
