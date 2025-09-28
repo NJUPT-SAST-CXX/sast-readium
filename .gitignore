@@ -257,6 +257,10 @@ settings/
 # Development and Testing
 # =============================================================================
 
+# Demo and test files
+demo/
+*.pdf
+
 # Test results
 test_results/
 *.xml

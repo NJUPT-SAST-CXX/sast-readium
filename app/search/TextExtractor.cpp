@@ -78,7 +78,7 @@ public:
 
 TextExtractor::TextExtractor(QObject* parent)
     : QObject(parent)
-    , d(std::make_unique<Implementation>(this))
+    , m_d(std::make_unique<Implementation>(this))
 {
 }
 
@@ -86,21 +86,21 @@ TextExtractor::~TextExtractor() = default;
 
 void TextExtractor::setDocument(Poppler::Document* document)
 {
-    if (d->document != document) {
+    if (m_d->document != document) {
         clearCache();
-        d->document = document;
+        m_d->document = document;
     }
 }
 
 void TextExtractor::clearDocument()
 {
-    d->document = nullptr;
+    m_d->document = nullptr;
     clearCache();
 }
 
 QString TextExtractor::extractPageText(int pageNumber)
 {
-    return d->extractPageTextInternal(pageNumber);
+    return m_d->extractPageTextInternal(pageNumber);
 }
 
 QStringList TextExtractor::extractPagesText(const QList<int>& pageNumbers)
@@ -110,7 +110,7 @@ QStringList TextExtractor::extractPagesText(const QList<int>& pageNumbers)
     int current = 0;
 
     for (int pageNumber : pageNumbers) {
-        texts.append(d->extractPageTextInternal(pageNumber));
+        texts.append(m_d->extractPageTextInternal(pageNumber));
         current++;
         emit extractionProgress(current, total);
     }
@@ -120,15 +120,15 @@ QStringList TextExtractor::extractPagesText(const QList<int>& pageNumbers)
 
 QString TextExtractor::extractAllText()
 {
-    if (!d->document) {
+    if (!m_d->document) {
         return QString();
     }
 
     QString allText;
-    int pageCount = d->document->numPages();
+    int pageCount = m_d->document->numPages();
 
     for (int i = 0; i < pageCount; ++i) {
-        allText.append(d->extractPageTextInternal(i));
+        allText.append(m_d->extractPageTextInternal(i));
         allText.append("\n\n");
         emit extractionProgress(i + 1, pageCount);
     }
@@ -138,7 +138,7 @@ QString TextExtractor::extractAllText()
 
 void TextExtractor::setCacheEnabled(bool enabled)
 {
-    d->cacheEnabled = enabled;
+    m_d->cacheEnabled = enabled;
     if (!enabled) {
         clearCache();
     }
@@ -146,38 +146,38 @@ void TextExtractor::setCacheEnabled(bool enabled)
 
 bool TextExtractor::isCacheEnabled() const
 {
-    return d->cacheEnabled;
+    return m_d->cacheEnabled;
 }
 
 void TextExtractor::clearCache()
 {
-    QMutexLocker locker(&d->cacheMutex);
-    d->textCache.clear();
+    QMutexLocker locker(&m_d->cacheMutex);
+    m_d->textCache.clear();
 }
 
 qint64 TextExtractor::cacheMemoryUsage() const
 {
-    return d->calculateCacheMemoryUsage();
+    return m_d->calculateCacheMemoryUsage();
 }
 
 void TextExtractor::prefetchPages(const QList<int>& pageNumbers)
 {
     for (int pageNumber : pageNumbers) {
-        d->extractPageTextInternal(pageNumber);
+        m_d->extractPageTextInternal(pageNumber);
     }
 }
 
 void TextExtractor::prefetchRange(int startPage, int endPage)
 {
-    if (!d->document) {
+    if (!m_d->document) {
         return;
     }
 
-    int maxPage = d->document->numPages() - 1;
+    int maxPage = m_d->document->numPages() - 1;
     startPage = qMax(0, startPage);
     endPage = qMin(maxPage, endPage);
 
     for (int i = startPage; i <= endPage; ++i) {
-        d->extractPageTextInternal(i);
+        m_d->extractPageTextInternal(i);
     }
 }

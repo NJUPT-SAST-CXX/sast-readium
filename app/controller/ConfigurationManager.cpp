@@ -245,6 +245,22 @@ void ConfigurationManager::initializeDefaults() {
     m_defaults["UI/font_size"] = 12;
     m_defaults["UI/window_width"] = 1024;
     m_defaults["UI/window_height"] = 768;
+
+    // System tray settings
+    m_defaults["UI/system_tray_enabled"] = true;
+    m_defaults["UI/minimize_to_tray"] = true;
+    m_defaults["UI/show_tray_notifications"] = true;
+    m_defaults["UI/first_time_tray_notification_shown"] = false;
+
+    // Enhanced system tray features
+    m_defaults["UI/show_status_indicators"] = true;
+    m_defaults["UI/show_recent_files"] = true;
+    m_defaults["UI/recent_files_count"] = 5;
+    m_defaults["UI/show_quick_actions"] = true;
+    m_defaults["UI/enhanced_notifications"] = true;
+    m_defaults["UI/notification_types"] = "document,status,error";
+    m_defaults["UI/dynamic_tooltip"] = true;
+
     m_defaults["Document/auto_save"] = true;
     m_defaults["View/zoom_level"] = 1.0;
     m_defaults["Performance/cache_size"] = 100;

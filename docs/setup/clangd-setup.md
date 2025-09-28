@@ -1,268 +1,270 @@
-# Cross-Platform Support for clangd Configuration
+# clangd Configuration for Simplified Build System
 
-This document describes the cross-platform support added to the sast-readium project for automatic clangd configuration management.
+This document describes the unified clangd configuration system for the simplified SAST Readium build system.
 
 ## Overview
 
-The project now includes comprehensive cross-platform support for automatically configuring clangd to work with different build configurations. This ensures that developers on Windows, Linux, and macOS can all benefit from enhanced IDE features like code completion, error checking, and navigation.
+The project uses a streamlined clangd configuration system that works with the 6 essential CMake presets. The system now includes **automatic compile database copying** - `compile_commands.json` is automatically copied to the project root after each build, ensuring clangd always has access to the latest compilation information without manual intervention.
 
-## Supported Platforms
+For advanced use cases, the unified scripts can still be used to manually configure clangd for specific build directories, providing enhanced IDE features across all platforms.
 
-### Windows
+## Simplified Build Presets
 
-- **PowerShell Script**: `scripts/update-clangd-config.ps1` (Recommended)
-- **Batch Script**: `scripts/update-clangd-config.bat` (Alternative)
-- **CMake Integration**: Automatic detection and execution of appropriate script
+The clangd configuration system works with 6 essential build presets:
 
-### Linux
+- **Debug-Unix** / **Release-Unix**: Linux/macOS with system packages
+- **Debug-Windows** / **Release-Windows**: Windows with vcpkg
+- **Debug-MSYS2** / **Release-MSYS2**: Windows MSYS2 with system packages
 
-- **Shell Script**: `scripts/update-clangd-config.sh`
-- **Makefile**: Convenient targets for common tasks
-- **CMake Integration**: Automatic bash/sh detection and execution
+## Automatic Compile Database Copying
 
-### macOS
+**New Feature**: The build system now automatically copies `compile_commands.json` to the project root directory after each successful build. This means:
 
-- **Shell Script**: `scripts/update-clangd-config.sh` (same as Linux)
-- **Makefile**: Convenient targets for common tasks
-- **CMake Integration**: Automatic bash/sh detection and execution
+- **No manual script execution required** for basic clangd functionality
+- **Always up-to-date** compile database in the project root
+- **Seamless IDE integration** - clangd finds the database automatically
+- **Cross-platform compatibility** - works with all build presets
+
+The `.clangd` configuration file is pre-configured to use the root directory compile database (`CompilationDatabase: .`), so clangd will work out-of-the-box after your first build.
+
+## Unified Scripts
+
+### clangd-config.sh (Unix/Linux/macOS)
+
+Cross-platform shell script for Unix-like systems:
+
+- **Path**: `scripts/clangd-config.sh`
+- **Platforms**: Linux, macOS, WSL, MSYS2
+- **Features**: Auto-detection, manual configuration, preset listing
+
+### clangd-config.ps1 (Windows PowerShell)
+
+PowerShell script for Windows environments:
+
+- **Path**: `scripts/clangd-config.ps1`
+- **Platforms**: Windows PowerShell, PowerShell Core
+- **Features**: Auto-detection, manual configuration, preset listing
 
 ## Features
 
-### Automatic Platform Detection
+### Unified Interface
 
-The CMake build system automatically detects the platform and uses the appropriate script:
+Both scripts provide identical functionality:
 
-- Windows: PowerShell → Batch (fallback)
-- Unix-like: bash → sh (fallback)
+- **Auto-detection**: Finds the most recently built configuration
+- **Manual selection**: Specify exact build directory
+- **Preset listing**: Shows all available build directories
+- **Verbose output**: Detailed logging for troubleshooting
 
-### Consistent Interface
+### Simplified Configuration
 
-All scripts provide the same functionality across platforms:
+The scripts work with the streamlined preset system:
 
-- Auto-detection of best build configuration
-- Manual specification of build directory
-- Listing of available configurations
-- Verbose output for debugging
+- **6 essential presets** instead of 20+ complex configurations
+- **Clear naming**: Debug/Release × Platform combinations
+- **Consistent paths**: Predictable build directory structure
 
-### CMake Integration
+### Cross-Platform Compatibility
 
-When you run `cmake --preset <preset>`, the system automatically:
-
-1. Detects the current platform
-2. Selects the appropriate script
-3. Updates the `.clangd` configuration file
-4. Reports success/failure status
-
-## Script Comparison
-
-| Feature             | Windows PowerShell | Windows Batch | Unix Shell |
-| ------------------- | ------------------ | ------------- | ---------- |
-| Auto-detection      | ✅                 | ✅            | ✅         |
-| Manual selection    | ✅                 | ✅            | ✅         |
-| List configurations | ✅                 | ✅            | ✅         |
-| Verbose output      | ✅                 | ❌            | ✅         |
-| Help message        | ✅                 | ✅            | ✅         |
-| Error handling      | ✅                 | ✅            | ✅         |
+- **Unix script**: Works on Linux, macOS, WSL, MSYS2
+- **PowerShell script**: Works on Windows PowerShell and PowerShell Core
+- **Consistent behavior**: Same functionality across all platforms
 
 ## Usage Examples
 
-### Windows (PowerShell)
+### Quick Start
+
+The most common usage is auto-detection:
+
+```bash
+# Unix/Linux/macOS
+./scripts/clangd-config.sh --auto
+
+# Windows PowerShell
+.\scripts\clangd-config.ps1 -Auto
+```
+
+### Windows PowerShell
 
 ```powershell
 # Auto-detect best configuration
-.\scripts\update-clangd-config.ps1 -Auto
+.\scripts\clangd-config.ps1 -Auto
 
 # Use specific build directory
-.\scripts\update-clangd-config.ps1 -BuildDir "build/Release-MSYS2"
+.\scripts\clangd-config.ps1 -BuildDir "build/Debug-Windows"
 
 # List available configurations
-.\scripts\update-clangd-config.ps1 -List
+.\scripts\clangd-config.ps1 -List
 
 # Enable verbose output
-.\scripts\update-clangd-config.ps1 -Auto -Verbose
-```
-
-### Windows (Batch)
-
-```cmd
-# Auto-detect best configuration
-scripts\update-clangd-config.bat --auto
-
-# Use specific build directory
-scripts\update-clangd-config.bat build/Release-MSYS2
-
-# List available configurations
-scripts\update-clangd-config.bat --list
-```
-
-### Linux/macOS (Shell)
-
-```bash
-# Auto-detect best configuration
-./scripts/update-clangd-config.sh --auto
-
-# Use specific build directory
-./scripts/update-clangd-config.sh --build-dir "build/Release"
-
-# List available configurations
-./scripts/update-clangd-config.sh --list
-
-# Enable verbose output
-./scripts/update-clangd-config.sh --auto --verbose
+.\scripts\clangd-config.ps1 -Auto -Verbose
 
 # Show help
-./scripts/update-clangd-config.sh --help
+.\scripts\clangd-config.ps1 -Help
 ```
 
-### Linux/macOS (Makefile)
+### Unix/Linux/macOS Shell
 
 ```bash
-# Setup development environment
-make dev
+# Auto-detect best configuration
+./scripts/clangd-config.sh --auto
 
-# Update clangd configuration
-make clangd-auto
+# Use specific build directory
+./scripts/clangd-config.sh build/Debug-Unix
 
 # List available configurations
-make clangd-list
+./scripts/clangd-config.sh --list
 
-# Set specific configuration
-make clangd-debug    # or clangd-release
+# Enable verbose output
+./scripts/clangd-config.sh --auto --verbose
+
+# Show help
+./scripts/clangd-config.sh --help
 ```
 
-## Build Configuration Support
+### Available Build Directories
 
-All platforms support the same build configurations defined in `CMakePresets.json`:
+The scripts work with the simplified preset system:
 
-- `build/Debug` - Debug build (Unix/Linux/macOS)
-- `build/Release` - Release build (Unix/Linux/macOS)
-- `build/Debug-MSYS2` - Debug build (Windows MSYS2)
-- `build/Release-MSYS2` - Release build (Windows MSYS2)
-- `build/Debug-MSYS2-vcpkg` - Debug build (Windows MSYS2 + vcpkg)
-- `build/Release-MSYS2-vcpkg` - Release build (Windows MSYS2 + vcpkg)
-- `build/Debug-Windows` - Debug build (Windows Visual Studio)
-- `build/Release-Windows` - Release build (Windows Visual Studio)
+- `build/Debug-Unix` / `build/Release-Unix`
+- `build/Debug-Windows` / `build/Release-Windows`
+- `build/Debug-MSYS2` / `build/Release-MSYS2`
 
+## IDE Integration
+
+### VS Code
+
+1. Install the clangd extension
+2. Configure your project with a preset:
+   ```bash
+   cmake --preset Debug-Unix  # or your platform preset
+   ```
+3. Update clangd configuration:
+   ```bash
+   ./scripts/clangd-config.sh --auto
+   ```
+4. Restart VS Code or reload the window
+
+### CLion
+
+1. Open the project in CLion
+2. Configure CMake with your preferred preset
+3. Run the clangd configuration script:
+   ```bash
+   ./scripts/clangd-config.sh --auto
+   ```
+4. CLion will automatically detect the compilation database
+
+### Other IDEs
+
+Any IDE that supports clangd can use the generated `.clangd` configuration:
+
+1. Configure the project: `cmake --preset Debug-Unix`
+2. Update clangd: `./scripts/clangd-config.sh --auto`
+3. Point your IDE to the project root directory
 ## Configuration Options
-
-### Enabling/Disabling clangd Auto-Configuration
-
-The project includes a CMake option to control automatic clangd configuration:
-
-```cmake
-option(ENABLE_CLANGD_CONFIG "Enable automatic clangd configuration updates" ON)
-```
-
-**To disable clangd auto-configuration:**
-
-```bash
-cmake --preset Debug-MSYS2 -DENABLE_CLANGD_CONFIG=OFF
-```
-
-**To re-enable clangd auto-configuration:**
-
-```bash
-cmake --preset Debug-MSYS2 -DENABLE_CLANGD_CONFIG=ON
-```
 
 ### Force Override
 
-When `ENABLE_CLANGD_CONFIG` is disabled, the scripts will refuse to update the `.clangd` file. You can override this behavior using the `--force` parameter:
+The scripts include a `--force` option to update configuration even when `compile_commands.json` doesn't exist:
 
-**Windows:**
+**Windows PowerShell:**
 
 ```powershell
-# Force update even when disabled
-.\scripts\update-clangd-config.ps1 -Auto -Force
-.\scripts\update-clangd-config.ps1 -BuildDir "build/Release-MSYS2" -Force
+# Force update even without compile_commands.json
+.\scripts\clangd-config.ps1 -Auto -Force
+.\scripts\clangd-config.ps1 -BuildDir "build/Debug-Windows" -Force
 ```
 
-**Linux/macOS:**
+**Unix/Linux/macOS:**
 
 ```bash
-# Force update even when disabled
-./scripts/update-clangd-config.sh --auto --force
-./scripts/update-clangd-config.sh --build-dir "build/Release" --force
+# Force update even without compile_commands.json
+./scripts/clangd-config.sh --auto --force
+./scripts/clangd-config.sh build/Debug-Unix --force
 ```
 
-## Implementation Details
+### Generated Configuration
 
-### CMake Integration
+The scripts generate a comprehensive `.clangd` configuration:
 
-The `CMakeLists.txt` file includes platform-specific logic:
+```yaml
+# clangd configuration for SAST Readium
+CompileFlags:
+  Add:
+    - -std=c++20
+    - -Wall
+    - -Wextra
+  Remove:
+    - -W*
+    - -fcoroutines-ts
 
-1. Detects Windows vs Unix-like systems
-2. Finds appropriate script interpreter (PowerShell, bash, sh)
-3. Executes the correct script with proper arguments
-4. Reports results to the user
+CompilationDatabase: build/Debug-Unix
 
-### Script Architecture
+Index:
+  Background: Build
+  StandardLibrary: Yes
 
-All scripts follow a consistent pattern:
+InlayHints:
+  Enabled: Yes
+  ParameterNames: Yes
+  DeducedTypes: Yes
 
-1. Parse command-line arguments
-2. Validate build directories
-3. Update `.clangd` configuration file
-4. Provide user feedback
-
-### Error Handling
-
-Robust error handling across all platforms:
-
-- Missing build directories
-- Invalid script arguments
-- File permission issues
-- Missing dependencies
-
-## Benefits
-
-1. **Consistent Developer Experience**: Same functionality across all platforms
-2. **Automatic Configuration**: No manual `.clangd` file editing required
-3. **IDE Integration**: Enhanced code completion and error checking
-4. **Build System Integration**: Automatic updates during CMake configuration
-5. **Flexible Usage**: Both automatic and manual configuration options
+Diagnostics:
+  ClangTidy:
+    Add:
+      - readability-*
+      - modernize-*
+      - performance-*
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-- **clangd not working**: Run `.\scripts\update-clangd-config.ps1 -List` to see available configurations
-- **No build directories found**: Run CMake configuration first: `cmake --preset Debug-MSYS2`
-- **Wrong build directory**: Use `.\scripts\update-clangd-config.ps1 -Auto` to auto-detect the correct one
-- **Script execution errors**: Ensure PowerShell execution policy allows script execution
-
-### C++20 Modules Warnings
-
-If you see warnings like:
-
-```
-Unknown argument: '-fmodules-ts'
-Unknown argument: '-fmodule-mapper=...'
-Unknown argument: '-fdeps-format=p1689r5'
+**clangd not working:**
+```bash
+# List available configurations
+./scripts/clangd-config.sh --list
+.\scripts\clangd-config.ps1 -List
 ```
 
-These are C++20 modules-related compiler flags that clangd doesn't fully support yet. The project's `.clangd` configuration automatically filters out these problematic flags:
-
-```yaml
-CompileFlags:
-  CompilationDatabase: build/Debug-MSYS2
-  Remove:
-    # Remove C++20 modules flags that clangd doesn't support yet
-    - "-fmodules-ts"
-    - "-fmodule-mapper=*"
-    - "-fdeps-format=*"
-    # Remove other potentially problematic flags
-    - "-MD"
-    - "-x"
+**No build directories found:**
+```bash
+# Configure project first
+cmake --preset Debug-Unix  # or your platform preset
 ```
 
-The configuration scripts automatically include these filters when creating or updating the `.clangd` file.
+**Wrong build directory:**
+```bash
+# Auto-detect the correct one
+./scripts/clangd-config.sh --auto
+.\scripts\clangd-config.ps1 -Auto
+```
 
-## Future Enhancements
+**Script execution errors on Windows:**
+- Ensure PowerShell execution policy allows script execution
+- Try running PowerShell as administrator
 
-Potential improvements for future versions:
+### C++20 Compatibility
 
-- GUI configuration tool
-- Integration with more build systems
-- Support for additional IDEs
-- Configuration templates for different project types
+The generated `.clangd` configuration automatically handles C++20 compatibility issues by filtering out unsupported compiler flags. If you encounter warnings about unknown arguments, the configuration should resolve them automatically.
+
+## Benefits of Simplified System
+
+1. **Unified Scripts**: Single script per platform instead of multiple variants
+2. **Clear Presets**: 6 essential configurations instead of 20+ complex options
+3. **Consistent Interface**: Same functionality across all platforms
+4. **Better Maintenance**: Easier to update and maintain
+5. **Improved Documentation**: Clear examples and usage patterns
+
+## Migration from Old System
+
+If you're migrating from the previous clangd configuration system:
+
+1. **Remove old scripts**: The new unified scripts replace multiple old scripts
+2. **Update commands**: Use `clangd-config.sh` instead of `update-clangd-config.sh`
+3. **Use new presets**: Reference the 6 simplified presets instead of old complex names
+4. **Update documentation**: Any local documentation should reference the new script names
+
+For detailed migration information, see the [Migration Guide](../MIGRATION-GUIDE.md).

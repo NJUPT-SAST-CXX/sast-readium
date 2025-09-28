@@ -1,0 +1,150 @@
+---
+# Comprehensive clang-tidy configuration for C++20 Qt-based project
+# Focuses on code quality, security, performance, and modernization
+
+Checks: >
+  clang-analyzer-*,
+  -clang-analyzer-apiModeling.*,
+  -clang-analyzer-osx.*,
+  -clang-analyzer-optin.osx.*,
+  -clang-analyzer-optin.mpi.*,
+  -clang-analyzer-fuchsia.*,
+  -clang-analyzer-webkit.*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  readability-*,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-function-cognitive-complexity,
+  performance-*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  misc-*,
+  -misc-non-private-member-variables-in-classes,
+  -misc-const-correctness,
+  cert-*,
+  -cert-dcl50-cpp,
+  -cert-dcl58-cpp,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  google-*,
+  -google-readability-todo,
+  -google-runtime-references,
+  hicpp-*,
+  -hicpp-avoid-c-arrays,
+  -hicpp-vararg,
+  -hicpp-no-array-decay
+
+# Treat warnings as errors for critical issues
+WarningsAsErrors: >
+  clang-analyzer-core.*,
+  clang-analyzer-cplusplus.*,
+  clang-analyzer-security.*,
+  clang-analyzer-unix.*,
+  bugprone-use-after-move,
+  bugprone-dangling-handle,
+  cert-err58-cpp,
+  misc-unconventional-assign-operator
+
+CheckOptions:
+  # Modernization options
+  modernize-loop-convert.MaxCopySize: '16'
+  modernize-loop-convert.MinConfidence: reasonable
+  modernize-loop-convert.NamingStyle: CamelCase
+  modernize-pass-by-value.IncludeStyle: llvm
+  modernize-replace-auto-ptr.IncludeStyle: llvm
+  modernize-use-auto.MinTypeNameLength: '5'
+  modernize-use-auto.RemoveStars: 'false'
+  modernize-use-nullptr.NullMacros: 'NULL'
+  
+  # Readability options
+  readability-braces-around-statements.ShortStatementLines: '1'
+  readability-function-size.LineThreshold: '80'
+  readability-function-size.StatementThreshold: '800'
+  readability-function-size.BranchThreshold: '20'
+  readability-function-size.ParameterThreshold: '10'
+  readability-function-size.NestingThreshold: '4'
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.FunctionCase: camelBack
+  readability-identifier-naming.VariableCase: camelBack
+  readability-identifier-naming.ParameterCase: camelBack
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: UPPER_CASE
+  readability-identifier-naming.ConstantCase: UPPER_CASE
+  readability-identifier-naming.MemberCase: camelBack
+  readability-identifier-naming.MethodCase: camelBack
+  readability-identifier-naming.PrivateMemberPrefix: 'm_'
+  readability-identifier-naming.ProtectedMemberPrefix: 'm_'
+  readability-identifier-naming.PublicMemberCase: camelBack
+  readability-simplify-boolean-expr.ChainedConditionalReturn: 'true'
+  readability-simplify-boolean-expr.ChainedConditionalAssignment: 'true'
+  
+  # Performance options
+  performance-for-range-copy.WarnOnAllAutoCopies: 'true'
+  performance-inefficient-vector-operation.EnableProto: 'false'
+  performance-move-const-arg.CheckTriviallyCopyableMove: 'true'
+  performance-type-promotion-in-math-fn.IncludeStyle: llvm
+  performance-unnecessary-value-param.IncludeStyle: llvm
+  
+  # Bugprone options
+  bugprone-argument-comment.StrictMode: 'false'
+  bugprone-assert-side-effect.AssertMacros: 'assert,Q_ASSERT'
+  bugprone-dangling-handle.HandleClasses: 'std::basic_string_view;std::experimental::basic_string_view;QStringView'
+  bugprone-exception-escape.FunctionsThatShouldNotThrow: ''
+  bugprone-misplaced-widening-cast.CheckImplicitCasts: 'false'
+  bugprone-sizeof-expression.WarnOnSizeOfConstant: 'true'
+  bugprone-sizeof-expression.WarnOnSizeOfIntegerExpression: 'false'
+  bugprone-sizeof-expression.WarnOnSizeOfThis: 'true'
+  bugprone-string-constructor.WarnOnLargeLength: 'true'
+  bugprone-string-constructor.LargeLengthThreshold: '8388608'
+  bugprone-suspicious-enum-usage.StrictMode: 'false'
+  bugprone-suspicious-missing-comma.SizeThreshold: '5'
+  bugprone-suspicious-missing-comma.RatioThreshold: '0.2'
+  bugprone-suspicious-missing-comma.MaxConcatenatedTokens: '5'
+  bugprone-suspicious-string-compare.WarnOnImplicitComparison: 'true'
+  bugprone-suspicious-string-compare.WarnOnLogicalNotComparison: 'true'
+  bugprone-swapped-arguments.QualifiersShouldBeIgnored: 'true'
+  bugprone-too-small-loop-variable.MagnitudeBitsUpperLimit: '16'
+  
+  # Misc options
+  misc-definitions-in-headers.UseHeaderFileExtension: 'true'
+  misc-definitions-in-headers.HeaderFileExtensions: 'h,hh,hpp,hxx'
+  misc-throw-by-value-catch-by-reference.CheckThrowTemporaries: 'true'
+  misc-uniqueptr-reset-release.IncludeStyle: llvm
+  misc-unused-parameters.StrictMode: 'false'
+  
+  # Cert options
+  cert-dcl16-c.NewSuffixes: 'L;LL;LU;LLU'
+  cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField: 'false'
+  
+  # Core Guidelines options
+  cppcoreguidelines-explicit-virtual-functions.IgnoreDestructors: 'true'
+  cppcoreguidelines-macro-usage.AllowedRegexp: '^Q_.*'
+  cppcoreguidelines-narrowing-conversions.WarnOnFloatingPointNarrowingConversion: 'true'
+  cppcoreguidelines-narrowing-conversions.WarnOnEquivalentBitWidth: 'true'
+  cppcoreguidelines-pro-type-member-init.IgnoreArrays: 'false'
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: 'true'
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions: 'false'
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted: 'true'
+  
+  # Google options
+  google-readability-braces-around-statements.ShortStatementLines: '1'
+  google-readability-function-size.StatementThreshold: '800'
+  google-readability-namespace-comments.ShortNamespaceLines: '10'
+  google-readability-namespace-comments.SpacesBeforeComments: '2'
+
+# Header filter for project files only
+HeaderFilterRegex: '^.*/(app|tests)/.*\.(h|hpp|hxx)$'
+
+# Exclude auto-generated files and external dependencies
+FormatStyle: file
+User: clang-tidy

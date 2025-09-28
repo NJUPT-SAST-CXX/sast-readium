@@ -59,7 +59,7 @@ void DebugLogPanelIntegrationTest::init()
 {
     m_panel = new DebugLogPanel(m_parentWidget);
     m_panel->show();
-    QTest::qWaitForWindowExposed(m_panel);
+    [[maybe_unused]] bool exposed = QTest::qWaitForWindowExposed(m_panel);
 }
 
 void DebugLogPanelIntegrationTest::cleanup()

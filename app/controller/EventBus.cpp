@@ -505,4 +505,4 @@ void EventAggregator::onTimeWindowExpired() {
     m_bufferedEvents.clear();
 }
 
-#include "EventBus.moc"
+

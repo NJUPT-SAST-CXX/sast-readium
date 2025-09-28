@@ -33,9 +33,9 @@ public:
 
     // Cache management
     void setCacheEnabled(bool enabled);
-    bool isCacheEnabled() const;
+    [[nodiscard]] bool isCacheEnabled() const;
     void clearCache();
-    qint64 cacheMemoryUsage() const;
+    [[nodiscard]] qint64 cacheMemoryUsage() const;
 
     // Prefetching
     void prefetchPages(const QList<int>& pageNumbers);
@@ -48,5 +48,5 @@ signals:
 
 private:
     class Implementation;
-    std::unique_ptr<Implementation> d;
+    std::unique_ptr<Implementation> m_d;
 };

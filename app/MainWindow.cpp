@@ -3,6 +3,7 @@
 #include <QCloseEvent>
 #include <QMessageBox>
 #include "controller/ApplicationController.h"
+#include "managers/SystemTrayManager.h"
 #include "delegate/ViewDelegate.h"
 #include "command/InitializationCommand.h"
 #include "factory/ModelFactory.h"
@@ -67,17 +68,30 @@ MainWindow::~MainWindow() noexcept {
 
 void MainWindow::closeEvent(QCloseEvent* event) {
     m_logger.debug("Close event received");
-    
+
+    // Check if we should minimize to tray instead of closing
+    if (m_applicationController && m_applicationController->systemTrayManager()) {
+        bool shouldMinimizeToTray = m_applicationController->systemTrayManager()->handleMainWindowCloseEvent();
+
+        if (shouldMinimizeToTray) {
+            m_logger.debug("Minimizing to system tray instead of closing");
+            event->ignore(); // Ignore the close event
+            return;
+        }
+    }
+
+    m_logger.debug("Proceeding with normal application shutdown");
+
     // Save application state before closing
     if (m_viewDelegate) {
         m_viewDelegate->saveLayoutState();
     }
-    
+
     // Shutdown application controller
     if (m_applicationController) {
         m_applicationController->shutdown();
     }
-    
+
     event->accept();
 }
 

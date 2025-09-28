@@ -1,12 +1,153 @@
-# TargetUtils.cmake - Target setup and configuration utilities for SAST Readium
-# This module provides functions for standardized target creation and configuration
+# TargetUtils.cmake - Target setup, source discovery, and testing utilities for SAST Readium
+# This module consolidates target creation, source discovery, component libraries, and testing
 
 cmake_minimum_required(VERSION 3.28)
 
 include(Dependencies)
-include(PlatformUtils)
-include(CompilerSettings)
-include(SourceUtils)
+
+#[=======================================================================[.rst:
+discover_app_sources
+--------------------
+
+Automatically discover application source files organized by component.
+
+.. code-block:: cmake
+
+  discover_app_sources(output_var [BASE_DIR directory])
+
+Arguments:
+  output_var    Variable to store discovered source files
+  BASE_DIR      Base directory for source discovery (default: CMAKE_CURRENT_SOURCE_DIR)
+
+This function discovers sources in standard application components:
+- ui/core, ui/viewer, ui/widgets, ui/dialogs, ui/thumbnail, ui/managers
+- managers, model, controller, delegate, view, cache, utils
+- plugin, factory, command, search, logging
+
+#]=======================================================================]
+function(discover_app_sources output_var)
+    cmake_parse_arguments(APP "" "BASE_DIR" "" ${ARGN})
+    
+    set(base_dir ${APP_BASE_DIR})
+    if(NOT base_dir)
+        set(base_dir ${CMAKE_CURRENT_SOURCE_DIR})
+    endif()
+    
+    message(STATUS "Discovering application sources in: ${base_dir}")
+    
+    # Define standard application components
+    set(app_components
+        ui/core ui/viewer ui/widgets ui/dialogs ui/thumbnail ui/managers
+        managers model controller delegate view cache utils
+        plugin factory command search logging
+    )
+    
+    set(discovered_sources)
+    
+    # Discover sources in each component
+    foreach(component ${app_components})
+        set(component_dir "${base_dir}/${component}")
+        if(EXISTS "${component_dir}")
+            file(GLOB_RECURSE component_sources
+                "${component_dir}/*.cpp"
+                "${component_dir}/*.cc"
+                "${component_dir}/*.cxx"
+            )
+            
+            # Exclude test files
+            list(FILTER component_sources EXCLUDE REGEX ".*_test\\.(cpp|cc|cxx)$")
+            list(FILTER component_sources EXCLUDE REGEX ".*Test\\.(cpp|cc|cxx)$")
+            list(FILTER component_sources EXCLUDE REGEX "^test_.*\\.(cpp|cc|cxx)$")
+            
+            if(component_sources)
+                list(APPEND discovered_sources ${component_sources})
+                list(LENGTH component_sources source_count)
+                message(STATUS "  Found ${source_count} sources in ${component}")
+            endif()
+        endif()
+    endforeach()
+    
+    # Also include main source files in base directory
+    file(GLOB base_sources
+        "${base_dir}/*.cpp"
+        "${base_dir}/*.cc"
+        "${base_dir}/*.cxx"
+    )
+    list(FILTER base_sources EXCLUDE REGEX ".*_test\\.(cpp|cc|cxx)$")
+    list(FILTER base_sources EXCLUDE REGEX ".*Test\\.(cpp|cc|cxx)$")
+    list(FILTER base_sources EXCLUDE REGEX "^test_.*\\.(cpp|cc|cxx)$")
+    
+    if(base_sources)
+        list(APPEND discovered_sources ${base_sources})
+        list(LENGTH base_sources source_count)
+        message(STATUS "  Found ${source_count} sources in base directory")
+    endif()
+    
+    list(LENGTH discovered_sources total_count)
+    message(STATUS "Total application sources discovered: ${total_count}")
+    
+    set(${output_var} ${discovered_sources} PARENT_SCOPE)
+endfunction()
+
+#[=======================================================================[.rst:
+validate_discovered_sources
+---------------------------
+
+Validate that critical source files were discovered.
+
+.. code-block:: cmake
+
+  validate_discovered_sources(source_list
+    REQUIRED_FILES file1 file2 ...
+    [REQUIRED_PATTERNS pattern1 pattern2 ...]
+  )
+
+Arguments:
+  source_list        List of discovered source files
+  REQUIRED_FILES     List of required filenames (basename only)
+  REQUIRED_PATTERNS  List of regex patterns that must match at least one file
+
+#]=======================================================================]
+function(validate_discovered_sources source_list)
+    cmake_parse_arguments(VALIDATE "" "" "REQUIRED_FILES;REQUIRED_PATTERNS" ${ARGN})
+    
+    # Check required files
+    if(VALIDATE_REQUIRED_FILES)
+        foreach(required_file ${VALIDATE_REQUIRED_FILES})
+            set(found FALSE)
+            foreach(source ${source_list})
+                get_filename_component(basename ${source} NAME)
+                if(basename STREQUAL required_file)
+                    set(found TRUE)
+                    break()
+                endif()
+            endforeach()
+            
+            if(NOT found)
+                message(FATAL_ERROR "Required source file not found: ${required_file}")
+            endif()
+        endforeach()
+    endif()
+    
+    # Check required patterns
+    if(VALIDATE_REQUIRED_PATTERNS)
+        foreach(pattern ${VALIDATE_REQUIRED_PATTERNS})
+            set(found FALSE)
+            foreach(source ${source_list})
+                if(source MATCHES ${pattern})
+                    set(found TRUE)
+                    break()
+                endif()
+            endforeach()
+            
+            if(NOT found)
+                message(FATAL_ERROR "No source file matches required pattern: ${pattern}")
+            endif()
+        endforeach()
+    endif()
+    
+    message(STATUS "Source validation passed")
+endfunction()
 
 #[=======================================================================[.rst:
 setup_target
@@ -26,457 +167,187 @@ Set up common configuration for a target.
   )
 
 Arguments:
-  target_name           Name of the target to configure
-  TYPE                  Type of target (EXECUTABLE or LIBRARY)
-  SOURCES              List of source files
-  INCLUDE_DIRS         List of include directories
-  LINK_LIBRARIES       List of libraries to link
-  COMPILE_DEFINITIONS  List of compile definitions
-  CXX_STANDARD         C++ standard (default: 20)
-
-This function applies common settings to targets including:
-- C++ standard and compile features
-- Common include directories
-- Standard library linkage
-- Platform-specific configurations
+  target_name         Name of the target
+  TYPE               Target type (default: EXECUTABLE)
+  SOURCES            Source files for the target
+  INCLUDE_DIRS       Include directories
+  LINK_LIBRARIES     Libraries to link
+  COMPILE_DEFINITIONS Compile definitions
+  CXX_STANDARD       C++ standard (default: 20)
 
 #]=======================================================================]
 function(setup_target target_name)
-    cmake_parse_arguments(TARGET 
-        "" 
-        "TYPE;CXX_STANDARD" 
-        "SOURCES;INCLUDE_DIRS;LINK_LIBRARIES;COMPILE_DEFINITIONS" 
-        ${ARGN}
-    )
+    cmake_parse_arguments(TARGET "" "TYPE;CXX_STANDARD" "SOURCES;INCLUDE_DIRS;LINK_LIBRARIES;COMPILE_DEFINITIONS" ${ARGN})
     
-    if(NOT TARGET ${target_name})
-        message(FATAL_ERROR "Target ${target_name} does not exist")
+    # Set defaults
+    if(NOT TARGET_TYPE)
+        set(TARGET_TYPE EXECUTABLE)
     endif()
     
-    message(STATUS "Setting up target: ${target_name}")
+    if(NOT TARGET_CXX_STANDARD)
+        set(TARGET_CXX_STANDARD 20)
+    endif()
+    
+    message(STATUS "Setting up target: ${target_name} (${TARGET_TYPE})")
+    
+    # Create target
+    if(TARGET_TYPE STREQUAL "EXECUTABLE")
+        add_executable(${target_name} ${TARGET_SOURCES})
+    elseif(TARGET_TYPE STREQUAL "LIBRARY")
+        add_library(${target_name} ${TARGET_SOURCES})
+    else()
+        message(FATAL_ERROR "Unknown target type: ${TARGET_TYPE}")
+    endif()
     
     # Set C++ standard
-    set(cxx_standard ${TARGET_CXX_STANDARD})
-    if(NOT cxx_standard)
-        set(cxx_standard 20)
+    set_target_properties(${target_name} PROPERTIES
+        CXX_STANDARD ${TARGET_CXX_STANDARD}
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+    )
+    
+    # Add include directories
+    if(TARGET_INCLUDE_DIRS)
+        target_include_directories(${target_name} PRIVATE ${TARGET_INCLUDE_DIRS})
     endif()
     
-    target_compile_features(${target_name} PUBLIC cxx_std_${cxx_standard})
-    message(STATUS "  C++ standard: ${cxx_standard}")
-    
-    # Add sources if provided
-    if(TARGET_SOURCES)
-        target_sources(${target_name} PRIVATE ${TARGET_SOURCES})
-        list(LENGTH TARGET_SOURCES source_count)
-        message(STATUS "  Added ${source_count} source files")
+    # Link libraries
+    if(TARGET_LINK_LIBRARIES)
+        target_link_libraries(${target_name} PRIVATE ${TARGET_LINK_LIBRARIES})
     endif()
     
-    # Set up include directories
-    _setup_target_includes(${target_name} "${TARGET_INCLUDE_DIRS}")
-    
-    # Set up library linkage
-    _setup_target_libraries(${target_name} "${TARGET_LINK_LIBRARIES}")
-    
-    # Apply compile definitions
+    # Add compile definitions
     if(TARGET_COMPILE_DEFINITIONS)
         target_compile_definitions(${target_name} PRIVATE ${TARGET_COMPILE_DEFINITIONS})
-        message(STATUS "  Applied compile definitions")
     endif()
     
-    # Apply common target settings
-    _apply_common_target_settings(${target_name})
+    # Get common libraries and link them
+    get_common_libraries(common_libs)
+    target_link_libraries(${target_name} PRIVATE ${common_libs})
     
     message(STATUS "Target ${target_name} configured successfully")
 endfunction()
 
 #[=======================================================================[.rst:
-setup_executable
----------------
+setup_testing_environment
+-------------------------
 
-Set up an executable target with common configuration.
+Set up the testing environment for the project.
 
 .. code-block:: cmake
 
-  setup_executable(target_name
-    [SOURCES source1 source2 ...]
-    [WIN32]
-    [MACOSX_BUNDLE]
+  setup_testing_environment()
+
+This function:
+- Enables testing with enable_testing()
+- Sets up common test settings (AUTOMOC, etc.)
+- Configures test-specific compile definitions
+
+#]=======================================================================]
+function(setup_testing_environment)
+    message(STATUS "Setting up testing environment...")
+    
+    # Enable testing
+    enable_testing()
+    
+    # Common test settings
+    set(CMAKE_AUTOMOC ON PARENT_SCOPE)
+    set(CMAKE_AUTORCC ON PARENT_SCOPE)
+    set(CMAKE_AUTOUIC ON PARENT_SCOPE)
+    
+    message(STATUS "Testing environment configured")
+endfunction()
+
+#[=======================================================================[.rst:
+create_test_target
+------------------
+
+Create a test target with standard configuration.
+
+.. code-block:: cmake
+
+  create_test_target(test_name
+    SOURCES source1 source2 ...
+    [LINK_LIBRARIES lib1 lib2 ...]
+    [WORKING_DIRECTORY directory]
+    [TIMEOUT seconds]
   )
 
 Arguments:
-  target_name    Name of the executable target
-  SOURCES       List of source files
-  WIN32         Create a Windows GUI application
-  MACOSX_BUNDLE Create a macOS bundle
+  test_name         Name of the test
+  SOURCES          Test source files
+  LINK_LIBRARIES   Additional libraries to link
+  WORKING_DIRECTORY Working directory for test execution
+  TIMEOUT          Test timeout in seconds (default: 30)
 
 #]=======================================================================]
-function(setup_executable target_name)
-    cmake_parse_arguments(EXE "WIN32;MACOSX_BUNDLE" "" "SOURCES" ${ARGN})
+function(create_test_target test_name)
+    cmake_parse_arguments(TEST "" "WORKING_DIRECTORY;TIMEOUT" "SOURCES;LINK_LIBRARIES" ${ARGN})
     
-    # Create executable with appropriate options
-    set(exe_options)
-    if(EXE_WIN32)
-        list(APPEND exe_options WIN32)
-    endif()
-    if(EXE_MACOSX_BUNDLE)
-        list(APPEND exe_options MACOSX_BUNDLE)
-    endif()
-    
-    add_executable(${target_name} ${exe_options})
-    
-    # Apply common setup
-    setup_target(${target_name} 
-        TYPE EXECUTABLE
-        SOURCES ${EXE_SOURCES}
-    )
-    
-    # Set runtime output directory
-    set_target_properties(${target_name} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    )
-    
-    # Platform-specific executable configuration
-    _configure_executable_platform_specific(${target_name})
-    
-    message(STATUS "Executable ${target_name} set up successfully")
-endfunction()
-
-#[=======================================================================[.rst:
-setup_library
-------------
-
-Set up a library target with common configuration.
-
-.. code-block:: cmake
-
-  setup_library(target_name
-    [TYPE STATIC|SHARED|INTERFACE]
-    [SOURCES source1 source2 ...]
-    [PUBLIC_HEADERS header1 header2 ...]
-  )
-
-Arguments:
-  target_name     Name of the library target
-  TYPE           Type of library (STATIC, SHARED, or INTERFACE)
-  SOURCES        List of source files
-  PUBLIC_HEADERS List of public header files
-
-#]=======================================================================]
-function(setup_library target_name)
-    cmake_parse_arguments(LIB "" "TYPE" "SOURCES;PUBLIC_HEADERS" ${ARGN})
-    
-    # Default to STATIC if no type specified
-    set(lib_type ${LIB_TYPE})
-    if(NOT lib_type)
-        set(lib_type STATIC)
-    endif()
-    
-    add_library(${target_name} ${lib_type})
-    
-    # Apply common setup
-    setup_target(${target_name} 
-        TYPE LIBRARY
-        SOURCES ${LIB_SOURCES}
-    )
-    
-    # Set up public headers
-    if(LIB_PUBLIC_HEADERS)
-        set_target_properties(${target_name} PROPERTIES
-            PUBLIC_HEADER "${LIB_PUBLIC_HEADERS}"
-        )
-        message(STATUS "  Set public headers for ${target_name}")
-    endif()
-    
-    message(STATUS "Library ${target_name} (${lib_type}) set up successfully")
-endfunction()
-
-#[=======================================================================[.rst:
-add_asset_copying
-----------------
-
-Add asset copying functionality to a target.
-
-.. code-block:: cmake
-
-  add_asset_copying(target_name source_dir [destination_dir])
-
-Arguments:
-  target_name      Target that depends on the assets
-  source_dir       Source directory containing assets
-  destination_dir  Destination directory (default: target output dir)
-
-#]=======================================================================]
-function(add_asset_copying target_name source_dir)
-    cmake_parse_arguments(ASSETS "" "DESTINATION" "" ${ARGN})
-    
-    if(NOT TARGET ${target_name})
-        message(FATAL_ERROR "Target ${target_name} does not exist")
-    endif()
-    
-    # Default destination to target output directory
-    set(dest_dir ${ASSETS_DESTINATION})
-    if(NOT dest_dir)
-        set(dest_dir $<TARGET_FILE_DIR:${target_name}>)
-    endif()
-    
-    # Create asset copying target
-    set(asset_target "${target_name}_assets")
-    set(dummy_file "${CMAKE_BINARY_DIR}/${asset_target}_dummy")
-    
-    add_custom_target(${asset_target} DEPENDS ${dummy_file})
-    add_custom_command(
-        OUTPUT ${dummy_file}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${source_dir} ${dest_dir}
-        COMMAND ${CMAKE_COMMAND} -E touch ${dummy_file}
-        DEPENDS ${source_dir}
-        COMMENT "Copying assets from ${source_dir} to ${dest_dir}"
-        VERBATIM
-    )
-    
-    # Make target depend on asset copying
-    add_dependencies(${target_name} ${asset_target})
-    
-    message(STATUS "Asset copying configured for ${target_name}: ${source_dir} -> ${dest_dir}")
-endfunction()
-
-#[=======================================================================[.rst:
-_setup_target_includes
----------------------
-
-Internal function to set up target include directories.
-#]=======================================================================]
-function(_setup_target_includes target_name include_dirs)
-    # Common include directories
-    set(common_includes
-        ${CMAKE_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_BINARY_DIR}
-    )
-    
-    # Add custom include directories
-    if(include_dirs)
-        list(APPEND common_includes ${include_dirs})
-    endif()
-    
-    target_include_directories(${target_name} PRIVATE ${common_includes})
-    
-    list(LENGTH common_includes include_count)
-    message(STATUS "  Added ${include_count} include directories")
-endfunction()
-
-#[=======================================================================[.rst:
-_setup_target_libraries
-----------------------
-
-Internal function to set up target library linkage.
-#]=======================================================================]
-function(_setup_target_libraries target_name link_libraries)
-    # Get common libraries
-    get_common_libraries(common_libs)
-    
-    # Add custom libraries
-    set(all_libs ${common_libs})
-    if(link_libraries)
-        list(APPEND all_libs ${link_libraries})
-    endif()
-    
-    target_link_libraries(${target_name} PRIVATE ${all_libs})
-    
-    list(LENGTH all_libs lib_count)
-    message(STATUS "  Linked ${lib_count} libraries")
-endfunction()
-
-#[=======================================================================[.rst:
-_apply_common_target_settings
-----------------------------
-
-Internal function to apply common settings to all targets.
-#]=======================================================================]
-function(_apply_common_target_settings target_name)
-    # Apply QGraphics PDF support if enabled
-    if(ENABLE_QGRAPHICS_PDF_SUPPORT)
-        target_compile_definitions(${target_name} PRIVATE ENABLE_QGRAPHICS_PDF_SUPPORT)
-    endif()
-    
-    # Apply common compile options
-    get_common_compile_options(compile_options)
-    if(compile_options)
-        target_compile_options(${target_name} PRIVATE ${compile_options})
-    endif()
-endfunction()
-
-#[=======================================================================[.rst:
-_configure_executable_platform_specific
---------------------------------------
-
-Internal function for platform-specific executable configuration.
-#]=======================================================================]
-function(_configure_executable_platform_specific target_name)
-    if(WIN32)
-        # Windows-specific executable properties
-        set_target_properties(${target_name} PROPERTIES
-            WIN32_EXECUTABLE $<IF:$<CONFIG:Release>,ON,OFF>
-        )
-
-        # Set up Windows deployment
-        setup_deployment_tools(${target_name})
-    endif()
-endfunction()
-
-#[=======================================================================[.rst:
-setup_executable_with_components
---------------------------------
-
-Set up an executable target using component-based source discovery.
-
-.. code-block:: cmake
-
-  setup_executable_with_components(target_name
-    [BASE_DIR directory]
-    [ADDITIONAL_SOURCES source1 source2 ...]
-    [WIN32]
-    [MACOSX_BUNDLE]
-  )
-
-Arguments:
-  target_name         Name of the executable target
-  BASE_DIR           Base directory for source discovery (default: current)
-  ADDITIONAL_SOURCES Additional source files beyond discovered ones
-  WIN32              Create a Windows GUI application
-  MACOSX_BUNDLE      Create a macOS bundle
-
-This function automatically discovers application sources and creates
-an executable with proper configuration.
-
-#]=======================================================================]
-function(setup_executable_with_components target_name)
-    cmake_parse_arguments(EXE "WIN32;MACOSX_BUNDLE" "BASE_DIR" "ADDITIONAL_SOURCES" ${ARGN})
-
-    set(base_dir ${EXE_BASE_DIR})
-    if(NOT base_dir)
-        set(base_dir ${CMAKE_CURRENT_SOURCE_DIR})
-    endif()
-
-    message(STATUS "Setting up executable with component discovery: ${target_name}")
-
-    # Discover application sources
-    discover_app_sources(discovered_sources BASE_DIR ${base_dir})
-
-    # Combine with additional sources
-    set(all_sources ${discovered_sources})
-    if(EXE_ADDITIONAL_SOURCES)
-        list(APPEND all_sources ${EXE_ADDITIONAL_SOURCES})
-    endif()
-
-    # Validate sources
-    validate_discovered_sources("${all_sources}"
-        REQUIRED_FILES "main.cpp"
-        REQUIRED_PATTERNS ".*\\.cpp$"
-    )
-
-    # Create executable with appropriate options
-    set(exe_options)
-    if(EXE_WIN32)
-        list(APPEND exe_options WIN32)
-    endif()
-    if(EXE_MACOSX_BUNDLE)
-        list(APPEND exe_options MACOSX_BUNDLE)
-    endif()
-
-    add_executable(${target_name} ${exe_options})
-
-    # Apply common setup
-    setup_target(${target_name}
-        TYPE EXECUTABLE
-        SOURCES ${all_sources}
-    )
-
-    # Set runtime output directory
-    set_target_properties(${target_name} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    )
-
-    # Platform-specific executable configuration
-    _configure_executable_platform_specific(${target_name})
-
-    # Print source summary
-    print_source_summary("${all_sources}" TITLE "Executable Sources: ${target_name}")
-
-    message(STATUS "Executable ${target_name} set up successfully with component discovery")
-endfunction()
-
-#[=======================================================================[.rst:
-setup_library_with_components
------------------------------
-
-Set up a library target using component-based source discovery.
-
-.. code-block:: cmake
-
-  setup_library_with_components(target_name
-    COMPONENTS component1 component2 ...
-    [BASE_DIR directory]
-    [TYPE STATIC|SHARED|INTERFACE]
-    [ADDITIONAL_SOURCES source1 source2 ...]
-  )
-
-Arguments:
-  target_name         Name of the library target
-  COMPONENTS         List of component directories to include
-  BASE_DIR           Base directory for source discovery (default: current)
-  TYPE               Library type (default: STATIC)
-  ADDITIONAL_SOURCES Additional source files beyond discovered ones
-
-This function creates a library using component-based source discovery.
-
-#]=======================================================================]
-function(setup_library_with_components target_name)
-    cmake_parse_arguments(LIB "" "BASE_DIR;TYPE" "COMPONENTS;ADDITIONAL_SOURCES" ${ARGN})
-
-    if(NOT LIB_COMPONENTS)
-        message(FATAL_ERROR "COMPONENTS must be specified for ${target_name}")
-    endif()
-
-    set(base_dir ${LIB_BASE_DIR})
-    if(NOT base_dir)
-        set(base_dir ${CMAKE_CURRENT_SOURCE_DIR})
-    endif()
-
-    set(lib_type ${LIB_TYPE})
-    if(NOT lib_type)
-        set(lib_type STATIC)
-    endif()
-
-    message(STATUS "Setting up library with component discovery: ${target_name}")
-
-    # Discover component sources
-    discover_component_sources(discovered_sources
-        BASE_DIR ${base_dir}
-        COMPONENTS ${LIB_COMPONENTS}
-    )
-
-    # Combine with additional sources
-    set(all_sources ${discovered_sources})
-    if(LIB_ADDITIONAL_SOURCES)
-        list(APPEND all_sources ${LIB_ADDITIONAL_SOURCES})
-    endif()
-
-    if(NOT all_sources)
-        message(WARNING "No sources found for library ${target_name}")
+    if(NOT BUILD_TESTING)
         return()
     endif()
-
-    # Create library
-    add_library(${target_name} ${lib_type})
-
-    # Apply common setup
-    setup_target(${target_name}
-        TYPE LIBRARY
-        SOURCES ${all_sources}
+    
+    message(STATUS "Creating test target: ${test_name}")
+    
+    # Create test executable
+    add_executable(${test_name} ${TEST_SOURCES})
+    
+    # Set C++ standard
+    set_target_properties(${test_name} PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+    )
+    
+    # Add include directories for tests to access app sources
+    target_include_directories(${test_name} PRIVATE
+        ${CMAKE_SOURCE_DIR}/app
+        ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
-    # Print source summary
-    print_source_summary("${all_sources}" TITLE "Library Sources: ${target_name}")
+    # Get test libraries
+    get_test_libraries(test_libs)
+    target_link_libraries(${test_name} PRIVATE ${test_libs})
 
-    message(STATUS "Library ${target_name} (${lib_type}) set up successfully with component discovery")
+    # Link to app_lib if it exists (for tests that need app functionality)
+    if(TARGET app_lib)
+        target_link_libraries(${test_name} PRIVATE app_lib)
+    endif()
+
+    # Link to TestUtilities if it exists (for tests that use test utilities)
+    if(TARGET TestUtilities)
+        target_link_libraries(${test_name} PRIVATE TestUtilities)
+    endif()
+
+    # Link additional libraries
+    if(TEST_LINK_LIBRARIES)
+        target_link_libraries(${test_name} PRIVATE ${TEST_LINK_LIBRARIES})
+    endif()
+    
+    # Add test to CTest
+    add_test(NAME ${test_name} COMMAND ${test_name})
+    
+    # Set test properties
+    set(test_properties)
+    
+    # Working directory
+    if(TEST_WORKING_DIRECTORY)
+        list(APPEND test_properties WORKING_DIRECTORY "${TEST_WORKING_DIRECTORY}")
+    endif()
+    
+    # Timeout
+    set(timeout ${TEST_TIMEOUT})
+    if(NOT timeout)
+        set(timeout 30)
+    endif()
+    list(APPEND test_properties TIMEOUT ${timeout})
+    
+    # Environment variables for headless testing
+    list(APPEND test_properties ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    
+    # Apply properties
+    set_tests_properties(${test_name} PROPERTIES ${test_properties})
+    
+    message(STATUS "Test ${test_name} registered with CTest")
 endfunction()

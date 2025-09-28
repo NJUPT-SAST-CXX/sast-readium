@@ -18,17 +18,15 @@ A Qt6-based PDF reader application with comprehensive build support for multiple
 - **Debug Tools**: Advanced debug log panel with search and filtering capabilities
 - **Cross-platform Support**: Windows, Linux, macOS
 - **Multiple Build Environments**:
-  - **vcpkg** for dependency management
+  - **System packages** for native Linux/macOS builds (recommended)
+  - **vcpkg** for cross-platform dependency management
   - **MSYS2** for Windows Unix-like development
-  - **System packages** for native Linux/macOS builds
 
-## Build Environments
+## Build System
 
-The project supports **multiple build systems** for maximum flexibility:
-- **CMake** (primary) - Comprehensive build system with extensive configuration
-- **Xmake** (alternative) - Modern Lua-based build system with simpler syntax
+The project uses **CMake** as the unified build system with simplified configuration presets for different platforms and environments.
 
-The project uses a **tiered dependency management approach** that prioritizes system packages for better performance and reliability. See [Dependency Management Guide](docs/getting-started/dependency-management.md) for detailed information.
+The project uses a **tiered dependency management approach** that prioritizes system packages for better performance and reliability, with vcpkg as a cross-platform alternative for consistent dependency versions. See [Dependency Management Guide](docs/getting-started/dependency-management.md) for detailed information.
 
 ### Linux/macOS (Recommended - System Packages)
 
@@ -59,7 +57,27 @@ cmake --build --preset=Release-Unix
 
 For detailed MSYS2 setup and build instructions, see [MSYS2 Build Guide](docs/setup/msys2-build.md).
 
-### Windows with vcpkg (Fallback)
+### Linux/macOS with vcpkg (Alternative)
+
+```bash
+# Install vcpkg first
+git clone https://github.com/Microsoft/vcpkg.git
+cd vcpkg
+./bootstrap-vcpkg.sh
+export VCPKG_ROOT=$(pwd)
+
+# Configure and build with vcpkg
+cd /path/to/sast-readium
+cmake --preset=Release-Linux-vcpkg    # For Linux
+cmake --preset=Release-macOS-vcpkg    # For macOS Intel
+cmake --preset=Release-macOS-vcpkg-arm64  # For macOS Apple Silicon
+
+cmake --build --preset=Release-Linux-vcpkg    # For Linux
+cmake --build --preset=Release-macOS-vcpkg    # For macOS Intel
+cmake --build --preset=Release-macOS-vcpkg-arm64  # For macOS Apple Silicon
+```
+
+### Windows with vcpkg (Alternative)
 
 ```bash
 # Configure and build with vcpkg
@@ -67,35 +85,35 @@ cmake --preset=Release-Windows
 cmake --build --preset=Release-Windows
 ```
 
-**Note**: vcpkg builds are slower but provide consistent dependency versions across platforms. Use when system packages are unavailable or insufficient.
+**Note**: vcpkg builds are slower but provide consistent dependency versions across platforms. Use when system packages are unavailable or insufficient, or when you need identical dependency versions across different platforms.
 
-### Xmake Build System (Experimental)
+## Available Build Presets
 
-An alternative xmake build system is available but currently has compatibility issues:
+The simplified CMake configuration provides multiple build presets for different platforms and dependency management approaches:
+
+**System Package Builds (Recommended):**
+
+- **Debug-Unix** / **Release-Unix**: For Linux/macOS using system packages
+- **Debug-MSYS2** / **Release-MSYS2**: For Windows MSYS2 using system packages
+
+**vcpkg Builds (Alternative):**
+
+- **Debug-Windows** / **Release-Windows**: For Windows using vcpkg
+- **Debug-Linux-vcpkg** / **Release-Linux-vcpkg**: For Linux using vcpkg
+- **Debug-macOS-vcpkg** / **Release-macOS-vcpkg**: For macOS Intel using vcpkg
+- **Debug-macOS-vcpkg-arm64** / **Release-macOS-vcpkg-arm64**: For macOS Apple Silicon using vcpkg
+
+List all available presets:
 
 ```bash
-# Install xmake first (see docs/build-systems/xmake/xmake-build.md for installation)
-
-# Note: Currently has Qt detection issues in MSYS2 environment
-# Use CMake for production builds
+cmake --list-presets=configure
 ```
-
-**Status**: 🟡 Partially implemented - Qt integration pending
-
-**Benefits when complete**:
-- Simpler configuration syntax
-- Built-in package management
-- Faster builds with automatic caching
-- Cross-platform consistency
-
-See [Xmake Status](docs/build-systems/xmake/xmake-status.md) for current implementation status and [Xmake Build Guide](docs/build-systems/xmake/xmake-build.md) for detailed instructions.
 
 ## Quick Start
 
-### Option 1: Xmake (Recommended for new users)
+### Option 1: CMake with Presets (Recommended)
 
-1. Install [xmake](https://xmake.io/)
-2. Build and run:
+1. Choose your platform preset and build:
 
    ```bash
    git clone <repository-url>
@@ -117,7 +135,33 @@ See [Xmake Status](docs/build-systems/xmake/xmake-status.md) for current impleme
    ./scripts/build-msys2.sh -d  # Install deps and build
    ```
 
-### Option 2: vcpkg (Windows, traditional)
+### Option 2: vcpkg (Cross-platform alternative)
+
+**For Linux/macOS:**
+
+1. Install [vcpkg](https://vcpkg.io/):
+
+   ```bash
+   git clone https://github.com/Microsoft/vcpkg.git
+   cd vcpkg
+   ./bootstrap-vcpkg.sh
+   export VCPKG_ROOT=$(pwd)
+   ```
+
+2. Build:
+
+   ```bash
+   git clone <repository-url>
+   cd sast-readium
+   cmake --preset=Release-Linux-vcpkg    # Linux
+   cmake --preset=Release-macOS-vcpkg    # macOS Intel
+   cmake --preset=Release-macOS-vcpkg-arm64  # macOS Apple Silicon
+   cmake --build --preset=Release-Linux-vcpkg    # Linux
+   cmake --build --preset=Release-macOS-vcpkg    # macOS Intel
+   cmake --build --preset=Release-macOS-vcpkg-arm64  # macOS Apple Silicon
+   ```
+
+**For Windows:**
 
 1. Install [vcpkg](https://vcpkg.io/)
 2. Set `VCPKG_ROOT` environment variable
@@ -146,6 +190,39 @@ The build system supports flexible dependency management and IDE integration:
 - **FORCE_VCPKG**: Force vcpkg even in MSYS2
 - **CMAKE_BUILD_TYPE**: Debug/Release
 - **ENABLE_CLANGD_CONFIG**: Enable/disable automatic clangd configuration (default: ON)
+- **VCPKG_TARGET_TRIPLET**: Override vcpkg triplet (auto-detected from preset)
+
+## vcpkg Troubleshooting
+
+**Common Issues and Solutions:**
+
+1. **VCPKG_ROOT not set:**
+
+   ```bash
+   export VCPKG_ROOT=/path/to/vcpkg  # Linux/macOS
+   set VCPKG_ROOT=C:\path\to\vcpkg   # Windows
+   ```
+
+2. **vcpkg dependencies not found:**
+
+   ```bash
+   # Install dependencies manually if needed
+   $VCPKG_ROOT/vcpkg install qtbase qtsvg qtspeech qttools[linguist] poppler[qt] spdlog
+   ```
+
+3. **Slow vcpkg builds:**
+   - vcpkg builds from source and can be very slow (30+ minutes)
+   - Consider using system packages for faster builds
+   - Use `--preset=Release-*` for faster builds than Debug
+
+4. **Platform-specific issues:**
+   - **Linux**: Ensure build-essential, cmake, ninja-build are installed
+   - **macOS**: Ensure Xcode command line tools are installed
+   - **Apple Silicon**: Use `arm64-osx` triplet presets for native builds
+
+5. **Disk space issues:**
+   - vcpkg requires significant disk space (2-5GB+)
+   - Clean vcpkg buildtrees: `$VCPKG_ROOT/vcpkg remove --outdated`
 
 ### Disabling clangd Auto-Configuration
 

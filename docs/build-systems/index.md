@@ -1,44 +1,51 @@
-# Build Systems
+# Build System
 
-SAST Readium supports multiple build systems to provide flexibility for different development preferences and environments.
+SAST Readium uses CMake as the unified build system with simplified configuration for different development environments.
 
-## Available Build Systems
+## CMake Build System
 
-### CMake (Primary)
+The project uses a streamlined CMake configuration that has been significantly simplified from the original complex setup.
 
-The primary and most mature build system with comprehensive configuration and extensive platform support.
+**Key Features:**
 
-**Advantages:**
-
-- Mature and well-tested
-- Extensive platform support
-- Comprehensive configuration options
+- Simplified preset system (6 essential presets)
+- Consolidated CMake modules (3 focused modules)
+- Multiple dependency management strategies
+- Comprehensive testing support
 - Full CI/CD integration
 
-### Xmake (Alternative)
+## Build Presets
 
-A modern Lua-based build system that offers simpler configuration syntax and built-in package management.
+The project provides 6 essential build presets covering all major platform and configuration combinations:
 
-**Advantages:**
+### Unix Platforms (Linux/macOS)
 
-- Simpler configuration syntax
-- Built-in package management
-- Faster builds with automatic caching
-- Cross-platform consistency
+- **Debug-Unix**: Debug build using system packages
+- **Release-Unix**: Release build using system packages
 
-## Documentation in this Section
+### Windows with vcpkg
 
-### [Build System Comparison](build-system-comparison.md)
+- **Debug-Windows**: Debug build using vcpkg for dependencies
+- **Release-Windows**: Release build using vcpkg for dependencies
 
-Detailed feature-by-feature comparison between CMake and Xmake implementations, including:
+### Windows with MSYS2
 
-- Core build features
-- Dependency management
-- Platform support
-- Qt integration
-- Performance characteristics
+- **Debug-MSYS2**: Debug build using MSYS2 system packages
+- **Release-MSYS2**: Release build using MSYS2 system packages
 
-### [Xmake Build System](xmake/)
+## Simplification Summary
+
+The build system has been streamlined from the original complex configuration:
+
+- **CMake Presets**: Reduced from 22+ to 6 essential presets (82% reduction)
+- **CMake Modules**: Consolidated from 8 separate files to 3 focused modules
+- **Build Systems**: Unified to CMake only (removed alternative build systems)
+- **Scripts**: Simplified and consolidated redundant build scripts
+
+## Documentation
+
+- [CMake Build Guide](../setup/cmake-build.md)
+- [Dependency Management](../getting-started/dependency-management.md)
 
 Complete documentation for the Xmake build system:
 

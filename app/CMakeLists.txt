@@ -28,20 +28,43 @@ validate_discovered_sources("${APP_SOURCES}"
 list(LENGTH APP_SOURCES source_count)
 message(STATUS "Discovered ${source_count} application sources")
 
+# Separate main.cpp from other sources for library creation
+list(REMOVE_ITEM APP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+
+# Create application library (without main.cpp) for testing
+add_library(app_lib STATIC ${APP_SOURCES})
+target_include_directories(app_lib PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# Get common libraries and link them to app_lib
+get_common_libraries(common_libs)
+target_link_libraries(app_lib PUBLIC ${common_libs})
+
+# Set C++ standard for library
+set_target_properties(app_lib PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
+
 # Create executable with platform-specific configuration
 if(WIN32)
-    setup_executable(app
-        WIN32
-        SOURCES ${APP_SOURCES}
-    )
+    add_executable(app "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+    set_target_properties(app PROPERTIES WIN32_EXECUTABLE TRUE)
 else()
-    setup_executable(app
-        SOURCES ${APP_SOURCES}
-    )
+    add_executable(app "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
 endif()
 
-# Print source summary for verification
-print_source_summary("${APP_SOURCES}" TITLE "Application Sources")
+# Link the executable to the library
+target_link_libraries(app PRIVATE app_lib)
+
+# Add generated config header and app source directory to include path
+target_include_directories(app PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
 # Add translations
 qt_add_translations(
@@ -51,7 +74,12 @@ qt_add_translations(
     TS_FILE_BASE app
 )
 
-# Add asset copying using utility function
-add_asset_copying(app ${CMAKE_SOURCE_DIR}/assets/styles)
+# Copy assets to output directory
+add_custom_command(TARGET app POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/assets/styles
+    $<TARGET_FILE_DIR:app>/styles
+    COMMENT "Copying application assets"
+)
 
 

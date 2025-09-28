@@ -657,4 +657,4 @@ void SearchErrorScope::updateDetails(const QString& details)
     m_context.details = details;
 }
 
-#include "SearchErrorRecovery.moc"
+

@@ -458,4 +458,5 @@ bool ThumbnailGeneratorIntegrationTest::comparePixmaps(const QPixmap& pixmap1, c
 }
 
 QTEST_MAIN(ThumbnailGeneratorIntegrationTest)
-#include "ThumbnailGeneratorIntegrationTest.moc"
+
+#include "thumbnail_generator_integration_test.moc"

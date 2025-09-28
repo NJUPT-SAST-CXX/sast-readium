@@ -4,7 +4,7 @@
         {
             "name": "Debug-Unix",
             "displayName": "Debug build for Unix (system packages)",
-            "description": "Debug build using system packages instead of vcpkg",
+            "description": "Debug build using system packages for Linux/macOS",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Debug",
             "cacheVariables": {
@@ -15,36 +15,12 @@
         {
             "name": "Release-Unix",
             "displayName": "Release build for Unix (system packages)",
-            "description": "Release build using system packages instead of vcpkg",
+            "description": "Release build using system packages for Linux/macOS",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "USE_VCPKG": "OFF"
-            }
-        },
-        {
-            "name": "Debug-Unix-vcpkg",
-            "displayName": "Debug build for Unix (with vcpkg)",
-            "description": "Debug build using vcpkg for dependency management",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Debug-vcpkg",
-            "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_BUILD_TYPE": "Debug",
-                "USE_VCPKG": "ON"
-            }
-        },
-        {
-            "name": "Release-Unix-vcpkg",
-            "displayName": "Release build for Unix (with vcpkg)",
-            "description": "Release build using vcpkg for dependency management",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Release-vcpkg",
-            "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_BUILD_TYPE": "Release",
-                "USE_VCPKG": "ON"
             }
         },
         {
@@ -78,7 +54,7 @@
         {
             "name": "Debug-MSYS2",
             "displayName": "Debug build for MSYS2 (system packages)",
-            "description": "Debug build using MSYS2 system packages instead of vcpkg",
+            "description": "Debug build using MSYS2 system packages",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Debug-MSYS2",
             "cacheVariables": {
@@ -89,7 +65,7 @@
         {
             "name": "Release-MSYS2",
             "displayName": "Release build for MSYS2 (system packages)",
-            "description": "Release build using MSYS2 system packages instead of vcpkg",
+            "description": "Release build using MSYS2 system packages",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/Release-MSYS2",
             "cacheVariables": {
@@ -98,78 +74,93 @@
             }
         },
         {
-            "name": "Debug-MSYS2-vcpkg",
-            "displayName": "Debug build for MSYS2 (with vcpkg)",
-            "description": "Debug build using vcpkg in MSYS2 environment",
+            "name": "Debug-Linux-vcpkg",
+            "displayName": "Debug build for Linux (with vcpkg)",
+            "description": "Debug build using vcpkg for dependency management on Linux",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Debug-MSYS2-vcpkg",
+            "binaryDir": "${sourceDir}/build/Debug-Linux-vcpkg",
             "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "FORCE_VCPKG": "ON"
-            }
-        },
-        {
-            "name": "Release-MSYS2-vcpkg",
-            "displayName": "Release build for MSYS2 (with vcpkg)",
-            "description": "Release build using vcpkg in MSYS2 environment",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Release-MSYS2-vcpkg",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "FORCE_VCPKG": "ON"
-            }
-        },
-        {
-            "name": "Release-Linux-ARM64",
-            "displayName": "Release build for Linux ARM64 (cross-compile)",
-            "description": "Cross-compilation release build for Linux ARM64",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Release-Linux-ARM64",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/aarch64-linux-gnu.cmake",
-                "USE_VCPKG": "OFF"
-            }
-        },
-        {
-            "name": "Release-Windows-ARM64",
-            "displayName": "Release build for Windows ARM64",
-            "description": "Release build for Windows ARM64 using vcpkg",
-            "generator": "Visual Studio 17 2022",
-            "binaryDir": "${sourceDir}/build/Release-Windows-ARM64",
-            "architecture": "ARM64",
-            "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "USE_VCPKG": "ON",
-                "VCPKG_TARGET_TRIPLET": "arm64-windows"
+                "VCPKG_TARGET_TRIPLET": "x64-linux",
+                "BUILD_TESTING": "OFF",
+                "ENABLE_CLANGD_CONFIG": "OFF"
             }
         },
         {
-            "name": "Debug-Windows-Ninja",
-            "displayName": "Debug build for Windows (Ninja with vcpkg)",
-            "description": "Debug build using Ninja generator with vcpkg for dependency management on Windows",
+            "name": "Release-Linux-vcpkg",
+            "displayName": "Release build for Linux (with vcpkg)",
+            "description": "Release build using vcpkg for dependency management on Linux",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Debug-Windows-Ninja",
-            "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "USE_VCPKG": "ON"
-            }
-        },
-        {
-            "name": "Release-Windows-Ninja",
-            "displayName": "Release build for Windows (Ninja with vcpkg)",
-            "description": "Release build using Ninja generator with vcpkg for dependency management on Windows",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Release-Windows-Ninja",
+            "binaryDir": "${sourceDir}/build/Release-Linux-vcpkg",
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "USE_VCPKG": "ON"
+                "USE_VCPKG": "ON",
+                "VCPKG_TARGET_TRIPLET": "x64-linux",
+                "BUILD_TESTING": "OFF",
+                "ENABLE_CLANGD_CONFIG": "OFF"
+            }
+        },
+        {
+            "name": "Debug-macOS-vcpkg",
+            "displayName": "Debug build for macOS (with vcpkg)",
+            "description": "Debug build using vcpkg for dependency management on macOS",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Debug-macOS-vcpkg",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "USE_VCPKG": "ON",
+                "VCPKG_TARGET_TRIPLET": "x64-osx",
+                "BUILD_TESTING": "OFF",
+                "ENABLE_CLANGD_CONFIG": "OFF"
+            }
+        },
+        {
+            "name": "Release-macOS-vcpkg",
+            "displayName": "Release build for macOS (with vcpkg)",
+            "description": "Release build using vcpkg for dependency management on macOS",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Release-macOS-vcpkg",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_BUILD_TYPE": "Release",
+                "USE_VCPKG": "ON",
+                "VCPKG_TARGET_TRIPLET": "x64-osx",
+                "BUILD_TESTING": "OFF",
+                "ENABLE_CLANGD_CONFIG": "OFF"
+            }
+        },
+        {
+            "name": "Debug-macOS-vcpkg-arm64",
+            "displayName": "Debug build for macOS Apple Silicon (with vcpkg)",
+            "description": "Debug build using vcpkg for dependency management on macOS Apple Silicon",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Debug-macOS-vcpkg-arm64",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "USE_VCPKG": "ON",
+                "VCPKG_TARGET_TRIPLET": "arm64-osx",
+                "BUILD_TESTING": "OFF",
+                "ENABLE_CLANGD_CONFIG": "OFF"
+            }
+        },
+        {
+            "name": "Release-macOS-vcpkg-arm64",
+            "displayName": "Release build for macOS Apple Silicon (with vcpkg)",
+            "description": "Release build using vcpkg for dependency management on macOS Apple Silicon",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Release-macOS-vcpkg-arm64",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_BUILD_TYPE": "Release",
+                "USE_VCPKG": "ON",
+                "VCPKG_TARGET_TRIPLET": "arm64-osx",
+                "BUILD_TESTING": "OFF",
+                "ENABLE_CLANGD_CONFIG": "OFF"
             }
         }
     ],
@@ -187,24 +178,14 @@
             "jobs": 8
         },
         {
-            "name": "Debug-Unix-vcpkg",
-            "displayName": "Debug build for Unix (with vcpkg)",
-            "configurePreset": "Debug-Unix-vcpkg",
-            "jobs": 8
-        },
-        {
-            "name": "Release-Unix-vcpkg",
-            "displayName": "Release build for Unix (with vcpkg)",
-            "configurePreset": "Release-Unix-vcpkg",
-            "jobs": 8
-        },
-        {
             "name": "Debug-Windows",
+            "displayName": "Debug build for Windows (with vcpkg)",
             "configurePreset": "Debug-Windows",
             "configuration": "Debug"
         },
         {
             "name": "Release-Windows",
+            "displayName": "Release build for Windows (with vcpkg)",
             "configurePreset": "Release-Windows",
             "configuration": "Release"
         },
@@ -221,38 +202,40 @@
             "jobs": 8
         },
         {
-            "name": "Debug-MSYS2-vcpkg",
-            "displayName": "Debug build for MSYS2 (with vcpkg)",
-            "configurePreset": "Debug-MSYS2-vcpkg",
+            "name": "Debug-Linux-vcpkg",
+            "displayName": "Debug build for Linux (with vcpkg)",
+            "configurePreset": "Debug-Linux-vcpkg",
             "jobs": 8
         },
         {
-            "name": "Release-MSYS2-vcpkg",
-            "displayName": "Release build for MSYS2 (with vcpkg)",
-            "configurePreset": "Release-MSYS2-vcpkg",
+            "name": "Release-Linux-vcpkg",
+            "displayName": "Release build for Linux (with vcpkg)",
+            "configurePreset": "Release-Linux-vcpkg",
             "jobs": 8
         },
         {
-            "name": "Release-Linux-ARM64",
-            "displayName": "Release build for Linux ARM64 (cross-compile)",
-            "configurePreset": "Release-Linux-ARM64",
+            "name": "Debug-macOS-vcpkg",
+            "displayName": "Debug build for macOS (with vcpkg)",
+            "configurePreset": "Debug-macOS-vcpkg",
             "jobs": 8
         },
         {
-            "name": "Release-Windows-ARM64",
-            "displayName": "Release build for Windows ARM64",
-            "configurePreset": "Release-Windows-ARM64",
-            "configuration": "Release"
+            "name": "Release-macOS-vcpkg",
+            "displayName": "Release build for macOS (with vcpkg)",
+            "configurePreset": "Release-macOS-vcpkg",
+            "jobs": 8
         },
         {
-            "name": "Debug-Windows-Ninja",
-            "displayName": "Debug build for Windows (Ninja with vcpkg)",
-            "configurePreset": "Debug-Windows-Ninja"
+            "name": "Debug-macOS-vcpkg-arm64",
+            "displayName": "Debug build for macOS Apple Silicon (with vcpkg)",
+            "configurePreset": "Debug-macOS-vcpkg-arm64",
+            "jobs": 8
         },
         {
-            "name": "Release-Windows-Ninja",
-            "displayName": "Release build for Windows (Ninja with vcpkg)",
-            "configurePreset": "Release-Windows-Ninja"
+            "name": "Release-macOS-vcpkg-arm64",
+            "displayName": "Release build for macOS Apple Silicon (with vcpkg)",
+            "configurePreset": "Release-macOS-vcpkg-arm64",
+            "jobs": 8
         }
     ]
 }

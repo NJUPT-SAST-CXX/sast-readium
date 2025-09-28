@@ -15,6 +15,7 @@ class PageModel;
 class RenderModel;
 class RecentFilesManager;
 class WelcomeScreenManager;
+class SystemTrayManager;
 class MenuBar;
 class ToolBar;
 class SideBar;
@@ -58,6 +59,7 @@ public:
     PageModel* pageModel() const { return m_pageModel; }
     RenderModel* renderModel() const { return m_renderModel; }
     RecentFilesManager* recentFilesManager() const { return m_recentFilesManager; }
+    SystemTrayManager* systemTrayManager() const { return m_systemTrayManager; }
     
     // View components access
     MenuBar* menuBar() const { return m_menuBar; }
@@ -104,6 +106,7 @@ private:
     // Managers
     RecentFilesManager* m_recentFilesManager = nullptr;
     WelcomeScreenManager* m_welcomeScreenManager = nullptr;
+    SystemTrayManager* m_systemTrayManager = nullptr;
     
     // View components (owned by main window)
     MenuBar* m_menuBar = nullptr;

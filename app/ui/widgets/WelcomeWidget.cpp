@@ -31,7 +31,7 @@
 #include <QEasingCurve>
 #include <Qt>
 
-// Static const member definitions
+// Static const member definitions - required for linking when address is taken
 const int WelcomeWidget::LOGO_SIZE;
 const int WelcomeWidget::CONTENT_MAX_WIDTH;
 const int WelcomeWidget::SPACING_XLARGE;

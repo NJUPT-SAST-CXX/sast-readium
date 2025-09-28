@@ -12,6 +12,7 @@
 #include "../managers/RecentFilesManager.h"
 #include "../managers/StyleManager.h"
 #include "../managers/FileTypeIconManager.h"
+#include "../managers/SystemTrayManager.h"
 #include "../ui/managers/WelcomeScreenManager.h"
 #include "../ui/core/MenuBar.h"
 #include "../ui/core/ToolBar.h"
@@ -177,6 +178,55 @@ void ApplicationController::initializeViews() {
         m_welcomeScreenManager->setDocumentModel(m_documentModel);
         m_welcomeWidget->setWelcomeScreenManager(m_welcomeScreenManager);
         m_welcomeWidget->applyTheme();
+
+        // Initialize system tray manager
+        m_systemTrayManager = &SystemTrayManager::instance();
+        if (!m_systemTrayManager->initialize(m_mainWindow)) {
+            m_logger.warning("Failed to initialize SystemTrayManager");
+        } else {
+            // Connect system tray exit request to application exit
+            connect(m_systemTrayManager, &SystemTrayManager::applicationExitRequested,
+                    this, [this]() {
+                        m_logger.info("Application exit requested from system tray");
+                        QApplication::quit();
+                    });
+
+            // Connect RecentFilesManager to system tray for enhanced functionality
+            if (m_recentFilesManager) {
+                m_systemTrayManager->connectToRecentFilesManager(m_recentFilesManager);
+            }
+
+            // Connect enhanced system tray signals
+            connect(m_systemTrayManager, &SystemTrayManager::recentFileRequested,
+                    this, [this](const QString& filePath) {
+                        if (m_documentController) {
+                            m_documentController->openDocument(filePath);
+                        }
+                    });
+
+            connect(m_systemTrayManager, &SystemTrayManager::quickActionTriggered,
+                    this, [this](const QString& actionId) {
+                        if (actionId == "open_file") {
+                            // Trigger file open dialog through menu bar
+                            if (m_menuBar) {
+                                // This would need to be implemented in MenuBar
+                                m_logger.debug("Quick action: open file requested");
+                            }
+                        }
+                    });
+
+            connect(m_systemTrayManager, &SystemTrayManager::settingsDialogRequested,
+                    this, [this]() {
+                        m_logger.debug("Settings dialog requested from system tray");
+                        // This would need to be implemented - open settings dialog
+                    });
+
+            connect(m_systemTrayManager, &SystemTrayManager::aboutDialogRequested,
+                    this, [this]() {
+                        m_logger.debug("About dialog requested from system tray");
+                        // This would need to be implemented - open about dialog
+                    });
+        }
         
         // Create stacked widget for view switching
         m_contentStack = new QStackedWidget(m_mainWindow);
@@ -383,6 +433,12 @@ void ApplicationController::shutdown() {
     // Delete managers
     delete m_recentFilesManager;
     delete m_welcomeScreenManager;
+
+    // Shutdown system tray manager (singleton, don't delete)
+    if (m_systemTrayManager) {
+        m_systemTrayManager->shutdown();
+        m_systemTrayManager = nullptr;
+    }
     
     m_logger.info("Application controller shutdown complete");
 }

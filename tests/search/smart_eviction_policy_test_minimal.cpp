@@ -43,4 +43,5 @@ void SmartEvictionPolicyTestMinimal::testBasicInstantiation()
 }
 
 QTEST_MAIN(SmartEvictionPolicyTestMinimal)
-#include "SmartEvictionPolicyTestMinimal.moc"
+
+#include "smart_eviction_policy_test_minimal.moc"

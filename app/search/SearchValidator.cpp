@@ -177,10 +177,15 @@ SearchValidator::ValidationResult SearchValidator::validateQuery(const QString& 
             result.errorMessages.append(forbiddenResult.errorMessages);
             result.isValid = false;
         }
+
+        // Resource exhaustion detection
+        if (d->config.preventResourceExhaustion && d->containsResourceExhaustion(query)) {
+            result.addError(SecurityViolation, "Query contains patterns that could cause resource exhaustion");
+        }
     }
 
-    // Sanitization
-    if (d->config.enableSanitization && result.isValid) {
+    // Sanitization (always perform if enabled, even for invalid queries)
+    if (d->config.enableSanitization) {
         result.sanitizedInput = sanitizeQuery(query);
     }
 
@@ -504,7 +509,7 @@ SearchValidator::ValidationResult SearchValidator::validateMemoryLimit(qint64 me
     ValidationResult result;
 
     if (memoryLimit < 0) {
-        result.addError(ResourceLimit, "Memory limit cannot be negative");
+        result.addError(InvalidRange, "Memory limit cannot be negative");
         return result;
     }
 
@@ -517,7 +522,7 @@ SearchValidator::ValidationResult SearchValidator::validateMemoryLimit(qint64 me
     // Check against minimum reasonable limit (e.g., 1MB)
     const qint64 minMemoryLimit = 1024 * 1024; // 1MB
     if (memoryLimit > 0 && memoryLimit < minMemoryLimit) {
-        result.addError(ResourceLimit, QString("Memory limit %1 is below minimum recommended %2").arg(memoryLimit).arg(minMemoryLimit));
+        result.addError(InvalidRange, QString("Memory limit %1 is below minimum recommended %2").arg(memoryLimit).arg(minMemoryLimit));
     }
 
     return result;
@@ -527,8 +532,8 @@ SearchValidator::ValidationResult SearchValidator::validateThreadCount(int threa
 {
     ValidationResult result;
 
-    if (threadCount < 0) {
-        result.addError(ResourceLimit, "Thread count cannot be negative");
+    if (threadCount <= 0) {
+        result.addError(InvalidRange, "Thread count must be positive");
         return result;
     }
 
@@ -538,23 +543,20 @@ SearchValidator::ValidationResult SearchValidator::validateThreadCount(int threa
         result.addError(ResourceLimit, QString("Thread count %1 exceeds maximum recommended %2").arg(threadCount).arg(maxThreads));
     }
 
-    // Zero threads is valid (means use default)
-    if (threadCount == 0) {
-        // This is valid - means use default thread count
-    }
-
     return result;
 }
 
 SearchValidator::ValidationResult SearchValidator::validateTimeout(int timeout) const
 {
     ValidationResult result;
-    // Simple validation - timeout should be positive and reasonable (e.g., max 5 minutes)
     const int MAX_TIMEOUT = 300000; // 5 minutes in milliseconds
-    result.isValid = (timeout > 0 && timeout <= MAX_TIMEOUT);
-    if (!result.isValid) {
-        result.addError(InvalidRange, QString("Invalid timeout %1 (must be between 1 and %2 ms)").arg(timeout).arg(MAX_TIMEOUT));
+
+    if (timeout < 0) {
+        result.addError(InvalidRange, "Timeout cannot be negative");
+    } else if (timeout > MAX_TIMEOUT) {
+        result.addError(ResourceLimit, QString("Timeout %1 ms exceeds maximum allowed %2 ms").arg(timeout).arg(MAX_TIMEOUT));
     }
+
     d->recordValidation(result);
     return result;
 }
@@ -595,7 +597,7 @@ SearchValidator::ValidationResult SearchValidator::validateForSecurityThreats(co
     }
     
     // Check for script injection patterns
-    static const QRegularExpression scriptPattern("<script|javascript:|onerror=|onload=", QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression scriptPattern("<script|javascript:|vbscript:|onerror=|onload=|eval\\(", QRegularExpression::CaseInsensitiveOption);
     if (scriptPattern.match(input).hasMatch()) {
         result.addError(SecurityViolation, "Potential script injection detected");
     }
@@ -604,8 +606,8 @@ SearchValidator::ValidationResult SearchValidator::validateForSecurityThreats(co
     if (input.contains("..") || input.contains("../")) {
         result.addError(SecurityViolation, "Potential path traversal detected");
     }
-    
-    d->recordValidation(result);
+
+    // Don't record here - will be recorded by the calling method
     return result;
 }
 
@@ -632,8 +634,14 @@ SearchValidator::ValidationResult SearchValidator::validateResourceUsage(qint64 
 
 bool SearchValidator::containsSuspiciousPatterns(const QString& input) const
 {
-    auto result = validateForSecurityThreats(input);
-    return result.hasError(SecurityViolation);
+    // Check both security threats and forbidden patterns
+    auto securityResult = validateForSecurityThreats(input);
+    if (securityResult.hasError(SecurityViolation)) {
+        return true;
+    }
+
+    auto forbiddenResult = d->validateAgainstForbiddenPatterns(input);
+    return forbiddenResult.hasError(SecurityViolation);
 }
 
 SearchValidator::ValidationResult SearchValidator::validateCacheKey(const QString& key) const
@@ -688,6 +696,14 @@ SearchValidator::ValidationResult SearchValidator::Implementation::validateQuery
 {
     ValidationResult result;
 
+    // Always check for control characters (security issue)
+    for (const QChar& ch : query) {
+        if (ch.isNonCharacter() || ch.category() == QChar::Other_Control) {
+            result.addError(InvalidCharacters, "Query contains control characters which are not allowed");
+            break;
+        }
+    }
+
     if (!config.allowSpecialCharacters) {
         static const QRegularExpression specialChars("[^a-zA-Z0-9\\s]");
         if (query.contains(specialChars)) {
@@ -712,6 +728,13 @@ SearchValidator::ValidationResult SearchValidator::Implementation::validateRegex
         if (!regex.isValid()) {
             result.addError(InvalidFormat, QString("Invalid regular expression: %1").arg(regex.errorString()));
         }
+
+        // Check for dangerous patterns that could cause catastrophic backtracking
+        static const QRegularExpression dangerousPatterns("(\\.\\*){2,}|(\\.\\+){2,}|\\(.*\\)\\*\\(.*\\)\\*|\\(.*\\)\\+\\(.*\\)\\+");
+        if (pattern.contains(dangerousPatterns)) {
+            result.addError(SecurityViolation, "Regular expression contains patterns that could cause catastrophic backtracking");
+        }
+
     } catch (...) {
         result.addError(InvalidFormat, "Failed to validate regular expression pattern");
     }
@@ -793,11 +816,29 @@ bool SearchValidator::Implementation::containsResourceExhaustion(const QString& 
 QString SearchValidator::Implementation::removeControlCharacters(const QString& input) const
 {
     QString result;
-    for (const QChar& ch : input) {
-        if (!ch.isNonCharacter() && ch.category() != QChar::Other_Control) {
+
+    // Explicitly handle each character
+    for (int i = 0; i < input.length(); ++i) {
+        QChar ch = input.at(i);
+        ushort code = ch.unicode();
+
+        // Keep only safe printable characters
+        if ((code >= 'a' && code <= 'z') ||
+            (code >= 'A' && code <= 'Z') ||
+            (code >= '0' && code <= '9') ||
+            code == ' ' || code == '\t' || code == '\n' || code == '\r' ||
+            code == '.' || code == ',' || code == ';' || code == ':' ||
+            code == '!' || code == '?' || code == '-' || code == '_' ||
+            code == '(' || code == ')' || code == '[' || code == ']' ||
+            code == '{' || code == '}' || code == '+' || code == '=' ||
+            code == '*' || code == '/' || code == '\\' || code == '|' ||
+            code == '@' || code == '#' || code == '$' || code == '%' ||
+            code == '^' || code == '&' || code == '~' || code == '`') {
             result.append(ch);
         }
+        // Skip everything else including control characters
     }
+
     return result;
 }
 

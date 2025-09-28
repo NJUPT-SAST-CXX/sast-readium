@@ -58,4 +58,5 @@ void LoggingStubsTestMinimal::testTemporaryDir()
 }
 
 QTEST_MAIN(LoggingStubsTestMinimal)
-#include "LoggingStubsTestMinimal.moc"
+
+#include "logging_stubs_test_minimal.moc"

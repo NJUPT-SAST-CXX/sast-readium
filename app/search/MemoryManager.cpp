@@ -444,15 +444,18 @@ void MemoryManager::checkMemoryPressure()
 // Implementation classes
 class MemoryAwareSearchResults::ResultsImplementation {
 public:
-    ResultsImplementation()
+    ResultsImplementation(QObject* parent = nullptr)
         : maxMemoryUsage(50 * 1024 * 1024) // 50MB default
         , currentMemoryUsage(0)
         , lazyLoadingEnabled(false)
+        , memoryTimer(nullptr)
     {
-        // Initialize memory monitoring timer
-        memoryTimer = new QTimer();
-        memoryTimer->setInterval(5000); // Check every 5 seconds
-        memoryTimer->setSingleShot(false);
+        // Initialize memory monitoring timer with proper parent
+        if (parent) {
+            memoryTimer = new QTimer(parent);
+            memoryTimer->setInterval(5000); // Check every 5 seconds
+            memoryTimer->setSingleShot(false);
+        }
     }
 
     ~ResultsImplementation() {
@@ -724,7 +727,7 @@ public:
 // Constructors (create the PIMPL)
 MemoryAwareSearchResults::MemoryAwareSearchResults(QObject* parent)
     : QObject(parent)
-    , d(std::make_unique<ResultsImplementation>()) {
+    , d(std::make_unique<ResultsImplementation>(this)) {
 }
 
 SmartEvictionPolicy::SmartEvictionPolicy(QObject* parent)
@@ -1168,4 +1171,4 @@ QString SmartEvictionPolicy::getRecommendedStrategy() const {
     }
 }
 
-#include "MemoryManager.moc"
+

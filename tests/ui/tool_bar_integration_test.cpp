@@ -54,7 +54,7 @@ void ToolBarIntegrationTest::init()
     m_toolbar = new ToolBar(m_parentWidget);
     m_parentWidget->layout()->addWidget(m_toolbar);
     m_toolbar->show();
-    QTest::qWaitForWindowExposed(m_toolbar);
+    [[maybe_unused]] bool exposed = QTest::qWaitForWindowExposed(m_toolbar);
 }
 
 void ToolBarIntegrationTest::cleanup()

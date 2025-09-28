@@ -1,9 +1,16 @@
 {
-    "name": "qt-simple-template",
+    "name": "sast-readium",
     "version": "1.0.0",
-    "description": "Example based on C++ + Qt6 + Vcpkg + GithubCI   ",
-    "homepage": "https://github.com/AstroAir/qt-simple-template",
+    "description": "A Qt6-based PDF reader application with comprehensive build support for multiple environments",
+    "homepage": "https://github.com/NJUPT-SAST/sast-readium",
     "license": "MIT",
+    "default-triplet": "x64-windows",
+    "triplets": [
+        "x64-windows",
+        "x64-linux",
+        "x64-osx",
+        "arm64-osx"
+    ],
     "dependencies": [
         "qtbase",
         "qtspeech",

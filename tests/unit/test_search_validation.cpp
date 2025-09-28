@@ -284,24 +284,24 @@ void TestSearchValidation::testDangerousRegexDetection()
 
 void TestSearchValidation::testQuerySanitization()
 {
-    QString query = "test\x00with\x01control\x1fchars";
+    QString query = QString("test%1with%2control%3chars").arg(QChar(0x00)).arg(QChar(0x01)).arg(QChar(0x1f));
     auto result = validator->validateQuery(query);
-    
+
     if (result.isValid) {
-        QVERIFY(!result.sanitizedInput.contains('\x00'));
-        QVERIFY(!result.sanitizedInput.contains('\x01'));
-        QVERIFY(!result.sanitizedInput.contains('\x1f'));
+        QVERIFY(!result.sanitizedInput.contains(QChar(0x00)));
+        QVERIFY(!result.sanitizedInput.contains(QChar(0x01)));
+        QVERIFY(!result.sanitizedInput.contains(QChar(0x1f)));
     }
 }
 
 void TestSearchValidation::testControlCharacterRemoval()
 {
-    QString input = "normal\x00text\x01with\x1fcontrol";
+    QString input = QString("normal%1text%2with%3control").arg(QChar(0x00)).arg(QChar(0x01)).arg(QChar(0x1f));
     QString sanitized = validator->sanitizeQuery(input);
-    
-    QVERIFY(!sanitized.contains('\x00'));
-    QVERIFY(!sanitized.contains('\x01'));
-    QVERIFY(!sanitized.contains('\x1f'));
+
+    QVERIFY(!sanitized.contains(QChar(0x00)));
+    QVERIFY(!sanitized.contains(QChar(0x01)));
+    QVERIFY(!sanitized.contains(QChar(0x1f)));
     QVERIFY(sanitized.contains("normal"));
     QVERIFY(sanitized.contains("text"));
 }

@@ -67,7 +67,7 @@ function(_detect_build_environment)
     if(WIN32 AND DEFINED ENV{MSYSTEM})
         set(MSYS2_DETECTED TRUE PARENT_SCOPE)
         message(STATUS "MSYS2 environment detected: $ENV{MSYSTEM}")
-        
+
         # Set Qt6 installation path for MSYS2
         if(DEFINED ENV{MSYSTEM_PREFIX})
             list(APPEND CMAKE_PREFIX_PATH "$ENV{MSYSTEM_PREFIX}")
@@ -76,6 +76,31 @@ function(_detect_build_environment)
         endif()
     else()
         set(MSYS2_DETECTED FALSE PARENT_SCOPE)
+    endif()
+
+    # Detect vcpkg environment
+    if(DEFINED ENV{VCPKG_ROOT} OR DEFINED CMAKE_TOOLCHAIN_FILE)
+        if(CMAKE_TOOLCHAIN_FILE AND CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
+            set(VCPKG_DETECTED TRUE PARENT_SCOPE)
+            message(STATUS "vcpkg toolchain detected: ${CMAKE_TOOLCHAIN_FILE}")
+        elseif(DEFINED ENV{VCPKG_ROOT})
+            set(VCPKG_DETECTED TRUE PARENT_SCOPE)
+            message(STATUS "vcpkg environment detected: $ENV{VCPKG_ROOT}")
+        endif()
+    else()
+        set(VCPKG_DETECTED FALSE PARENT_SCOPE)
+    endif()
+
+    # Detect platform for vcpkg builds
+    if(UNIX AND NOT APPLE)
+        set(PLATFORM_LINUX TRUE PARENT_SCOPE)
+        message(STATUS "Linux platform detected")
+    elseif(APPLE)
+        set(PLATFORM_MACOS TRUE PARENT_SCOPE)
+        message(STATUS "macOS platform detected")
+    elseif(WIN32)
+        set(PLATFORM_WINDOWS TRUE PARENT_SCOPE)
+        message(STATUS "Windows platform detected")
     endif()
 endfunction()
 
@@ -94,6 +119,17 @@ function(_configure_dependency_strategy)
     elseif(MSYS2_DETECTED AND NOT USE_VCPKG)
         set(USE_VCPKG_INTERNAL FALSE PARENT_SCOPE)
         message(STATUS "MSYS2 detected - using system packages instead of vcpkg")
+    elseif(VCPKG_DETECTED AND USE_VCPKG)
+        set(USE_VCPKG_INTERNAL TRUE PARENT_SCOPE)
+        if(PLATFORM_LINUX)
+            message(STATUS "Linux vcpkg build detected - using vcpkg for dependency management")
+        elseif(PLATFORM_MACOS)
+            message(STATUS "macOS vcpkg build detected - using vcpkg for dependency management")
+        elseif(PLATFORM_WINDOWS)
+            message(STATUS "Windows vcpkg build detected - using vcpkg for dependency management")
+        else()
+            message(STATUS "vcpkg build detected - using vcpkg for dependency management")
+        endif()
     else()
         set(USE_VCPKG_INTERNAL ${USE_VCPKG} PARENT_SCOPE)
         if(USE_VCPKG)
@@ -153,10 +189,21 @@ _find_pdf_dependencies
 Internal function to find PDF-related dependencies (poppler-qt6).
 #]=======================================================================]
 function(_find_pdf_dependencies)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(POPPLER_QT6 REQUIRED IMPORTED_TARGET poppler-qt6)
-    
-    message(STATUS "poppler-qt6 found")
+    if(USE_VCPKG_INTERNAL)
+        # vcpkg mode - use CONFIG mode for poppler
+        find_package(poppler CONFIG REQUIRED)
+        message(STATUS "poppler found via vcpkg")
+
+        # Create an alias for consistency with pkg-config version
+        if(TARGET poppler::poppler-qt6 AND NOT TARGET PkgConfig::POPPLER_QT6)
+            add_library(PkgConfig::POPPLER_QT6 ALIAS poppler::poppler-qt6)
+        endif()
+    else()
+        # System packages mode - use pkg-config
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(POPPLER_QT6 REQUIRED IMPORTED_TARGET poppler-qt6)
+        message(STATUS "poppler-qt6 found via pkg-config")
+    endif()
 endfunction()
 
 #[=======================================================================[.rst:
