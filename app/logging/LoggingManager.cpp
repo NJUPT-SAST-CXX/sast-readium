@@ -1,15 +1,65 @@
 #include "LoggingManager.h"
+#include "Logger.h"
+#include "LoggingConfig.h"
+#include "QtSpdlogBridge.h"
 #include "LoggingMacros.h"
 #include <QStandardPaths>
 #include <QDir>
 #include <QCoreApplication>
 #include <QMutexLocker>
+#include <QMutex>
 #include <QDateTime>
 #include <QFileInfo>
 #include <QDirIterator>
 #include <QThread>
+#include <QTimer>
+#include <QTextEdit>
+#include <QSettings>
 #include <spdlog/async.h>
 #include <spdlog/spdlog.h>
+#include <cstddef>
+
+// LoggingManager Implementation class
+class LoggingManager::Implementation
+{
+public:
+    explicit Implementation(LoggingManager* q) : q_ptr(q) {}
+    ~Implementation() = default;
+
+    // Private data members
+    LoggingManager::LoggingConfiguration config;
+    bool usingModernConfig = false;  // Track which config system is active
+    bool initialized = false;
+    mutable QMutex mutex;
+
+    // Timers
+    QTimer* flushTimer = nullptr;
+    QTimer* statisticsTimer = nullptr;
+
+    // Statistics
+    mutable LoggingManager::LoggingStatistics statistics;
+
+    // Category management
+    QHash<QString, Logger::LogLevel> categoryLevels;
+
+    // Qt widget reference
+    QTextEdit* qtLogWidget = nullptr;
+
+    // Private methods
+    void initializeLogger();
+    void initializeLoggerFromModernConfig();  // New method for modern config
+    void initializeQtBridge();
+    void setupPeriodicFlush();
+    void createLogDirectory();
+    QString getDefaultLogDirectory() const;
+    QString getLogFilePath() const;
+    void updateLoggerConfiguration();
+    void connectSignals();
+    void disconnectSignals();
+
+private:
+    LoggingManager* q_ptr;
+};
 
 // ============================================================================
 // Configuration Conversion Functions
@@ -130,14 +180,19 @@ LoggingManager::LoggingConfiguration LoggingManager::convertFromLoggingConfig(co
 
 std::unique_ptr<LoggingConfig> LoggingManager::createModernConfig() const
 {
-    QMutexLocker locker(&m_mutex);
-    return convertToLoggingConfig(m_config);
+    QMutexLocker locker(&d->mutex);
+    return convertToLoggingConfig(d->config);
 }
 
 LoggingManager& LoggingManager::instance()
 {
     static LoggingManager instance;
     return instance;
+}
+
+// Constructor implementation for PIMPL
+LoggingManager::LoggingManager() : d(std::make_unique<Implementation>(this))
+{
 }
 
 LoggingManager::~LoggingManager()
@@ -147,54 +202,54 @@ LoggingManager::~LoggingManager()
 
 void LoggingManager::initialize(const LoggingConfiguration& config)
 {
-    QMutexLocker locker(&m_mutex);
-    
-    if (m_initialized) {
+    QMutexLocker locker(&d->mutex);
+
+    if (d->initialized) {
         return; // Already initialized
     }
-    
-    m_config = config;
-    m_statistics.initializationTime = QDateTime::currentDateTime();
-    
+
+    d->config = config;
+    d->statistics.initializationTime = QDateTime::currentDateTime();
+
     try {
         // Create log directory if needed
-        createLogDirectory();
-        
+        d->createLogDirectory();
+
         // Initialize the core logger
-        initializeLogger();
-        
+        d->initializeLogger();
+
         // Initialize Qt bridge if enabled
-        if (m_config.enableQtMessageHandlerRedirection) {
-            initializeQtBridge();
+        if (d->config.enableQtMessageHandlerRedirection) {
+            d->initializeQtBridge();
         }
-        
+
         // Setup periodic operations
-        setupPeriodicFlush();
-        
+        d->setupPeriodicFlush();
+
         // Connect internal signals
-        connectSignals();
-        
-        m_initialized = true;
+        d->connectSignals();
+
+        d->initialized = true;
         
         // Log successful initialization
         LOG_INFO("LoggingManager initialized successfully");
-        LOG_INFO("Log level: {}", static_cast<int>(m_config.globalLogLevel));
-        LOG_INFO("Console logging: {}", m_config.enableConsoleLogging ? "enabled" : "disabled");
-        LOG_INFO("File logging: {}", m_config.enableFileLogging ? "enabled" : "disabled");
-        LOG_INFO("Qt widget logging: {}", m_config.enableQtWidgetLogging ? "enabled" : "disabled");
-        
+        LOG_INFO("Log level: {}", static_cast<int>(d->config.globalLogLevel));
+        LOG_INFO("Console logging: {}", d->config.enableConsoleLogging ? "enabled" : "disabled");
+        LOG_INFO("File logging: {}", d->config.enableFileLogging ? "enabled" : "disabled");
+        LOG_INFO("Qt widget logging: {}", d->config.enableQtWidgetLogging ? "enabled" : "disabled");
+
         emit loggingInitialized();
-        
+
     } catch (const std::exception& e) {
         // Fallback initialization with minimal configuration
         LoggingConfiguration fallbackConfig;
         fallbackConfig.enableFileLogging = false;
         fallbackConfig.enableQtWidgetLogging = false;
         fallbackConfig.enableQtMessageHandlerRedirection = false;
-        
-        m_config = fallbackConfig;
-        initializeLogger();
-        m_initialized = true;
+
+        d->config = fallbackConfig;
+        d->initializeLogger();
+        d->initialized = true;
         
         LOG_ERROR("LoggingManager initialization failed: {}. Using fallback configuration.", e.what());
     }
@@ -202,44 +257,44 @@ void LoggingManager::initialize(const LoggingConfiguration& config)
 
 void LoggingManager::initialize(const LoggingConfig& config)
 {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
 
-    if (m_initialized) {
+    if (d->initialized) {
         return; // Already initialized
     }
 
     // Convert modern config to legacy format for internal use
     // Note: We can't store LoggingConfig directly since it inherits from QObject
-    m_config = convertFromLoggingConfig(config);
-    m_usingModernConfig = true;
-    m_statistics.initializationTime = QDateTime::currentDateTime();
+    d->config = convertFromLoggingConfig(config);
+    d->usingModernConfig = true;
+    d->statistics.initializationTime = QDateTime::currentDateTime();
 
     try {
         // Create log directory if needed
-        createLogDirectory();
+        d->createLogDirectory();
 
         // Initialize the core logger using modern config
-        initializeLoggerFromModernConfig();
+        d->initializeLoggerFromModernConfig();
 
         // Initialize Qt bridge if enabled
-        if (m_config.enableQtMessageHandlerRedirection) {
-            initializeQtBridge();
+        if (d->config.enableQtMessageHandlerRedirection) {
+            d->initializeQtBridge();
         }
 
         // Setup periodic operations
-        setupPeriodicFlush();
+        d->setupPeriodicFlush();
 
         // Connect internal signals
-        connectSignals();
+        d->connectSignals();
 
-        m_initialized = true;
+        d->initialized = true;
 
         // Log successful initialization
         LOG_INFO("LoggingManager initialized successfully (modern config)");
-        LOG_INFO("Log level: {}", static_cast<int>(m_config.globalLogLevel));
-        LOG_INFO("Console logging: {}", m_config.enableConsoleLogging ? "enabled" : "disabled");
-        LOG_INFO("File logging: {}", m_config.enableFileLogging ? "enabled" : "disabled");
-        LOG_INFO("Qt widget logging: {}", m_config.enableQtWidgetLogging ? "enabled" : "disabled");
+        LOG_INFO("Log level: {}", static_cast<int>(d->config.globalLogLevel));
+        LOG_INFO("Console logging: {}", d->config.enableConsoleLogging ? "enabled" : "disabled");
+        LOG_INFO("File logging: {}", d->config.enableFileLogging ? "enabled" : "disabled");
+        LOG_INFO("Qt widget logging: {}", d->config.enableQtWidgetLogging ? "enabled" : "disabled");
 
         emit loggingInitialized();
 
@@ -250,10 +305,10 @@ void LoggingManager::initialize(const LoggingConfig& config)
         fallbackConfig.enableQtWidgetLogging = false;
         fallbackConfig.enableQtMessageHandlerRedirection = false;
 
-        m_config = fallbackConfig;
-        m_usingModernConfig = false;
-        initializeLogger();
-        m_initialized = true;
+        d->config = fallbackConfig;
+        d->usingModernConfig = false;
+        d->initializeLogger();
+        d->initialized = true;
 
         LOG_ERROR("LoggingManager initialization failed: {}. Using fallback configuration.", e.what());
     }
@@ -261,58 +316,86 @@ void LoggingManager::initialize(const LoggingConfig& config)
 
 void LoggingManager::shutdown()
 {
-    QMutexLocker locker(&m_mutex);
-    
-    if (!m_initialized) {
+    QMutexLocker locker(&d->mutex);
+
+    if (!d->initialized) {
         return;
     }
-    
+
     LOG_INFO("Shutting down LoggingManager");
-    
+
     // Disconnect signals
-    disconnectSignals();
-    
+    d->disconnectSignals();
+
     // Stop timers
-    if (m_flushTimer) {
-        m_flushTimer->stop();
-        delete m_flushTimer;
-        m_flushTimer = nullptr;
+    if (d->flushTimer) {
+        d->flushTimer->stop();
+        delete d->flushTimer;
+        d->flushTimer = nullptr;
     }
-    
-    if (m_statisticsTimer) {
-        m_statisticsTimer->stop();
-        delete m_statisticsTimer;
-        m_statisticsTimer = nullptr;
+
+    if (d->statisticsTimer) {
+        d->statisticsTimer->stop();
+        delete d->statisticsTimer;
+        d->statisticsTimer = nullptr;
     }
     
     // Flush all logs before shutdown
     flushLogs();
     
     // Restore Qt message handler
-    if (m_config.enableQtMessageHandlerRedirection) {
+    if (d->config.enableQtMessageHandlerRedirection) {
         QtSpdlogBridge::instance().restoreDefaultMessageHandler();
     }
     
     // Shutdown spdlog
     spdlog::shutdown();
-    
-    m_initialized = false;
+
+    d->initialized = false;
     emit loggingShutdown();
+}
+
+bool LoggingManager::isInitialized() const
+{
+    QMutexLocker locker(&d->mutex);
+    return d->initialized;
+}
+
+const LoggingManager::LoggingConfiguration& LoggingManager::getConfiguration() const
+{
+    QMutexLocker locker(&d->mutex);
+    return d->config;
+}
+
+bool LoggingManager::isUsingModernConfig() const
+{
+    QMutexLocker locker(&d->mutex);
+    return d->usingModernConfig;
+}
+
+QtSpdlogBridge& LoggingManager::getQtBridge()
+{
+    return QtSpdlogBridge::instance();
+}
+
+const QtSpdlogBridge& LoggingManager::getQtBridge() const
+{
+    return QtSpdlogBridge::instance();
 }
 
 void LoggingManager::initializeLogger()
 {
     Logger::LoggerConfig loggerConfig;
-    loggerConfig.level = m_config.globalLogLevel;
-    loggerConfig.pattern = m_config.logPattern;
-    loggerConfig.enableConsole = m_config.enableConsoleLogging;
-    loggerConfig.enableFile = m_config.enableFileLogging;
-    loggerConfig.enableQtWidget = m_config.enableQtWidgetLogging;
-    loggerConfig.qtWidget = m_qtLogWidget;
+    loggerConfig.level = d->config.globalLogLevel;
+    loggerConfig.pattern = d->config.logPattern;
+    loggerConfig.enableConsole = d->config.enableConsoleLogging;
+    loggerConfig.enableFile = d->config.enableFileLogging;
+    loggerConfig.enableQtWidget = d->config.enableQtWidgetLogging;
+    loggerConfig.qtWidget = d->qtLogWidget;
     loggerConfig.logFileName = getLogFilePath();
-    loggerConfig.maxFileSize = m_config.maxFileSize;
-    loggerConfig.maxFiles = m_config.maxFiles;
-    
+    loggerConfig.maxFileSize = d->config.maxFileSize;
+    loggerConfig.maxFiles = d->config.maxFiles;
+
     Logger::instance().initialize(loggerConfig);
 }
 
@@ -328,26 +411,26 @@ void LoggingManager::initializeQtBridge()
 {
     QtSpdlogBridge& bridge = QtSpdlogBridge::instance();
     bridge.initialize();
-    bridge.setQtCategoryFilteringEnabled(m_config.enableQtCategoryFiltering);
+    bridge.setQtCategoryFilteringEnabled(d->config.enableQtCategoryFiltering);
 }
 
 void LoggingManager::setupPeriodicFlush()
 {
-    if (m_config.flushIntervalSeconds > 0) {
-        m_flushTimer = new QTimer(this);
-        connect(m_flushTimer, &QTimer::timeout, this, &LoggingManager::onPeriodicFlush);
-        m_flushTimer->start(m_config.flushIntervalSeconds * 1000);
+    if (d->config.flushIntervalSeconds > 0) {
+        d->flushTimer = new QTimer(this);
+        connect(d->flushTimer, &QTimer::timeout, this, &LoggingManager::onPeriodicFlush);
+        d->flushTimer->start(d->config.flushIntervalSeconds * 1000);
     }
-    
+
     // Statistics update timer
-    m_statisticsTimer = new QTimer(this);
-    connect(m_statisticsTimer, &QTimer::timeout, this, &LoggingManager::updateStatistics);
-    m_statisticsTimer->start(10000); // Update every 10 seconds
+    d->statisticsTimer = new QTimer(this);
+    connect(d->statisticsTimer, &QTimer::timeout, this, &LoggingManager::updateStatistics);
+    d->statisticsTimer->start(10000); // Update every 10 seconds
 }
 
 void LoggingManager::createLogDirectory()
 {
-    QString logDir = m_config.logDirectory.isEmpty() ? getDefaultLogDirectory() : m_config.logDirectory;
+    QString logDir = d->config.logDirectory.isEmpty() ? d->getDefaultLogDirectory() : d->config.logDirectory;
     QDir dir;
     if (!dir.exists(logDir)) {
         if (!dir.mkpath(logDir)) {
@@ -363,22 +446,22 @@ QString LoggingManager::getDefaultLogDirectory() const
 
 QString LoggingManager::getLogFilePath() const
 {
-    QString logDir = m_config.logDirectory.isEmpty() ? getDefaultLogDirectory() : m_config.logDirectory;
-    return logDir + "/" + m_config.logFileName;
+    QString logDir = d->config.logDirectory.isEmpty() ? d->getDefaultLogDirectory() : d->config.logDirectory;
+    return logDir + "/" + d->config.logFileName;
 }
 
 void LoggingManager::setConfiguration(const LoggingConfiguration& config)
 {
-    QMutexLocker locker(&m_mutex);
-    
-    if (!m_initialized) {
-        m_config = config;
+    QMutexLocker locker(&d->mutex);
+
+    if (!d->initialized) {
+        d->config = config;
         return;
     }
-    
+
     // Store old config for comparison
-    LoggingConfiguration oldConfig = m_config;
-    m_config = config;
+    LoggingConfiguration oldConfig = d->config;
+    d->config = config;
     
     // Reinitialize if major settings changed
     bool needsReinit = (oldConfig.enableFileLogging != config.enableFileLogging) ||
@@ -392,7 +475,7 @@ void LoggingManager::setConfiguration(const LoggingConfiguration& config)
         initialize(config);
     } else {
         // Update runtime settings
-        updateLoggerConfiguration();
+        d->updateLoggerConfiguration();
     }
     
     emit configurationChanged();
@@ -401,38 +484,38 @@ void LoggingManager::setConfiguration(const LoggingConfiguration& config)
 void LoggingManager::updateLoggerConfiguration()
 {
     Logger& logger = Logger::instance();
-    logger.setLogLevel(m_config.globalLogLevel);
-    logger.setPattern(m_config.logPattern);
+    logger.setLogLevel(d->config.globalLogLevel);
+    logger.setPattern(d->config.logPattern);
 }
 
 void LoggingManager::setGlobalLogLevel(Logger::LogLevel level)
 {
-    QMutexLocker locker(&m_mutex);
-    m_config.globalLogLevel = level;
-    if (m_initialized) {
+    QMutexLocker locker(&d->mutex);
+    d->config.globalLogLevel = level;
+    if (d->initialized) {
         Logger::instance().setLogLevel(level);
     }
 }
 
 void LoggingManager::setQtLogWidget(QTextEdit* widget)
 {
-    QMutexLocker locker(&m_mutex);
-    m_qtLogWidget = widget;
-    
-    if (m_initialized) {
+    QMutexLocker locker(&d->mutex);
+    d->qtLogWidget = widget;
+
+    if (d->initialized) {
         Logger::instance().setQtWidget(widget);
     }
 }
 
 QTextEdit* LoggingManager::getQtLogWidget() const
 {
-    QMutexLocker locker(&m_mutex);
-    return m_qtLogWidget;
+    QMutexLocker locker(&d->mutex);
+    return d->qtLogWidget;
 }
 
 void LoggingManager::flushLogs()
 {
-    if (m_initialized) {
+    if (d->initialized) {
         spdlog::apply_all([](std::shared_ptr<spdlog::logger> logger) {
             logger->flush();
         });
@@ -441,7 +524,7 @@ void LoggingManager::flushLogs()
 
 void LoggingManager::rotateLogFiles()
 {
-    if (m_initialized && m_config.enableFileLogging) {
+    if (d->initialized && d->config.enableFileLogging) {
         // Force log rotation by flushing and recreating file sink
         flushLogs();
         // Implementation would depend on spdlog's rotating file sink capabilities
@@ -457,11 +540,11 @@ QString LoggingManager::getCurrentLogFilePath() const
 
 QStringList LoggingManager::getLogFileList() const
 {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
     QStringList logFiles;
-    
-    if (m_config.enableFileLogging) {
-        QString logDir = m_config.logDirectory.isEmpty() ? getDefaultLogDirectory() : m_config.logDirectory;
+
+    if (d->config.enableFileLogging) {
+        QString logDir = d->config.logDirectory.isEmpty() ? d->getDefaultLogDirectory() : d->config.logDirectory;
         QDirIterator it(logDir, QStringList() << "*.log*", QDir::Files);
         
         while (it.hasNext()) {
@@ -475,11 +558,11 @@ QStringList LoggingManager::getLogFileList() const
 
 qint64 LoggingManager::getTotalLogFileSize() const
 {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
     qint64 totalSize = 0;
-    
-    if (m_config.enableFileLogging) {
-        QString logDir = m_config.logDirectory.isEmpty() ? getDefaultLogDirectory() : m_config.logDirectory;
+
+    if (d->config.enableFileLogging) {
+        QString logDir = d->config.logDirectory.isEmpty() ? d->getDefaultLogDirectory() : d->config.logDirectory;
         QDirIterator it(logDir, QStringList() << "*.log*", QDir::Files);
         
         while (it.hasNext()) {
@@ -494,19 +577,19 @@ qint64 LoggingManager::getTotalLogFileSize() const
 
 LoggingManager::LoggingStatistics LoggingManager::getStatistics() const
 {
-    QMutexLocker locker(&m_mutex);
-    
+    QMutexLocker locker(&d->mutex);
+
     // Update file size information
-    LoggingStatistics stats = m_statistics;
-    
-    if (m_config.enableFileLogging) {
+    LoggingStatistics stats = d->statistics;
+
+    if (d->config.enableFileLogging) {
         QFileInfo fileInfo(getCurrentLogFilePath());
         if (fileInfo.exists()) {
             stats.currentLogFileSize = fileInfo.size();
         }
-        
+
         // Calculate total log files size
-        QString logDir = m_config.logDirectory.isEmpty() ? getDefaultLogDirectory() : m_config.logDirectory;
+        QString logDir = d->config.logDirectory.isEmpty() ? d->getDefaultLogDirectory() : d->config.logDirectory;
         QDirIterator it(logDir, QStringList() << "*.log*", QDir::Files);
         stats.totalLogFilesSize = 0;
         stats.activeLogFiles = 0;
@@ -530,26 +613,26 @@ void LoggingManager::onLogMessage(const QString& message, int level)
     QString sourceLocation = ""; // Could be enhanced to include source location
 
     {
-        QMutexLocker locker(&m_mutex);
+        QMutexLocker locker(&d->mutex);
 
-        m_statistics.totalMessagesLogged++;
-        m_statistics.lastLogTime = timestamp;
+        d->statistics.totalMessagesLogged++;
+        d->statistics.lastLogTime = timestamp;
 
         switch (static_cast<Logger::LogLevel>(level)) {
             case Logger::LogLevel::Debug:
-                m_statistics.debugMessages++;
+                d->statistics.debugMessages++;
                 break;
             case Logger::LogLevel::Info:
-                m_statistics.infoMessages++;
+                d->statistics.infoMessages++;
                 break;
             case Logger::LogLevel::Warning:
-                m_statistics.warningMessages++;
+                d->statistics.warningMessages++;
                 break;
             case Logger::LogLevel::Error:
-                m_statistics.errorMessages++;
+                d->statistics.errorMessages++;
                 break;
             case Logger::LogLevel::Critical:
-                m_statistics.criticalMessages++;
+                d->statistics.criticalMessages++;
                 break;
             default:
                 break;
@@ -591,17 +674,17 @@ void LoggingManager::disconnectSignals()
 
 // Category management implementations
 void LoggingManager::addLoggingCategory(const QString& category, Logger::LogLevel level) {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
 
     if (category.isEmpty()) {
         return; // Invalid category name
     }
 
     // Add or update category level
-    m_categoryLevels[category] = level;
+    d->categoryLevels[category] = level;
 
     // If using modern config, also update the LoggingConfig structure
-    if (m_usingModernConfig) {
+    if (d->usingModernConfig) {
         // Create or update category configuration
         LoggingConfig::CategoryConfiguration categoryConfig;
         categoryConfig.name = category;
@@ -613,33 +696,33 @@ void LoggingManager::addLoggingCategory(const QString& category, Logger::LogLeve
     }
 
     // Apply the category level to the Qt logging system if Qt integration is enabled
-    if (m_config.enableQtCategoryFiltering) {
+    if (d->config.enableQtCategoryFiltering) {
         // Add category mapping to Qt bridge (maps Qt category to spdlog logger)
         QtSpdlogBridge::instance().addCategoryMapping(category);
     }
 }
 
 void LoggingManager::setLoggingCategoryLevel(const QString& category, Logger::LogLevel level) {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
 
     if (category.isEmpty()) {
         return; // Invalid category name
     }
 
     // Check if category exists
-    if (!m_categoryLevels.contains(category)) {
+    if (!d->categoryLevels.contains(category)) {
         // Category doesn't exist, add it
         addLoggingCategory(category, level);
         return;
     }
 
     // Update existing category level
-    Logger::LogLevel oldLevel = m_categoryLevels[category];
+    Logger::LogLevel oldLevel = d->categoryLevels[category];
     if (oldLevel != level) {
-        m_categoryLevels[category] = level;
+        d->categoryLevels[category] = level;
 
         // Apply the category level to the Qt logging system if Qt integration is enabled
-        if (m_config.enableQtCategoryFiltering) {
+        if (d->config.enableQtCategoryFiltering) {
             // Update category mapping in Qt bridge
             QtSpdlogBridge::instance().addCategoryMapping(category);
         }
@@ -651,16 +734,16 @@ void LoggingManager::setLoggingCategoryLevel(const QString& category, Logger::Lo
 }
 
 void LoggingManager::removeLoggingCategory(const QString& category) {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
 
     if (category.isEmpty()) {
         return; // Invalid category name
     }
 
     // Remove category if it exists
-    if (m_categoryLevels.remove(category) > 0) {
+    if (d->categoryLevels.remove(category) > 0) {
         // Remove from Qt logging system if Qt integration is enabled
-        if (m_config.enableQtCategoryFiltering) {
+        if (d->config.enableQtCategoryFiltering) {
             QtSpdlogBridge::instance().removeCategoryMapping(category);
         }
 
@@ -671,21 +754,93 @@ void LoggingManager::removeLoggingCategory(const QString& category) {
 }
 
 Logger::LogLevel LoggingManager::getLoggingCategoryLevel(const QString& category) const {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
 
     if (category.isEmpty()) {
         return Logger::LogLevel::Info; // Default level for invalid category
     }
 
     // Return category level if it exists, otherwise return global level
-    return m_categoryLevels.value(category, m_config.globalLogLevel);
+    return d->categoryLevels.value(category, d->config.globalLogLevel);
 }
 
 QStringList LoggingManager::getLoggingCategories() const {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
 
     // Return all registered category names
-    return m_categoryLevels.keys();
+    return d->categoryLevels.keys();
+}
+
+// ============================================================================
+// LoggingManager::Implementation method implementations
+// ============================================================================
+
+void LoggingManager::Implementation::createLogDirectory()
+{
+    QString logDir = getDefaultLogDirectory();
+    QDir dir;
+    if (!dir.exists(logDir)) {
+        dir.mkpath(logDir);
+    }
+}
+
+QString LoggingManager::Implementation::getDefaultLogDirectory() const
+{
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
+}
+
+void LoggingManager::Implementation::initializeLogger()
+{
+    // Initialize the main logger with current configuration
+    Logger::LoggerConfig loggerConfig;
+    loggerConfig.level = config.globalLogLevel;
+    loggerConfig.pattern = config.logPattern;
+    Logger::instance().initialize(loggerConfig);
+}
+
+void LoggingManager::Implementation::initializeLoggerFromModernConfig()
+{
+    // This method would initialize from LoggingConfig instead of LoggingConfiguration
+    // For now, delegate to the standard initialization
+    initializeLogger();
+}
+
+void LoggingManager::Implementation::initializeQtBridge()
+{
+    // Initialize Qt message handler bridge
+    QtSpdlogBridge::instance().initialize();
+}
+
+void LoggingManager::Implementation::setupPeriodicFlush()
+{
+    if (flushTimer == nullptr) {
+        flushTimer = new QTimer();
+        flushTimer->setInterval(5000); // 5 seconds
+        QObject::connect(flushTimer, &QTimer::timeout, []() {
+            // Periodic flush functionality would go here
+            // Currently Logger doesn't expose a flush method
+        });
+    }
+    flushTimer->start();
+}
+
+void LoggingManager::Implementation::connectSignals()
+{
+    // Connect any internal signals if needed
+    // This is a placeholder for future signal connections
+}
+
+void LoggingManager::Implementation::disconnectSignals()
+{
+    // Disconnect any internal signals if needed
+    // This is a placeholder for future signal disconnections
+}
+
+void LoggingManager::Implementation::updateLoggerConfiguration()
+{
+    // Update logger configuration with current settings
+    Logger::instance().setLogLevel(config.globalLogLevel);
+    Logger::instance().setPattern(config.logPattern);
 }
 
 // ============================================================================

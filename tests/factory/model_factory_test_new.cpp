@@ -5,7 +5,6 @@
 #include "../../app/controller/ServiceLocator.h"
 #include "../../app/controller/StateManager.h"
 #include "../../app/controller/EventBus.h"
-#include "../MockObject.h"
 
 // Mock model for testing
 class MockModel : public QObject {
@@ -953,4 +952,4 @@ void TestModelFactory::testMemoryManagement() {
 }
 
 QTEST_MAIN(TestModelFactory)
-#include "ModelFactoryTest_new.moc"
+#include "model_factory_test_new.moc"

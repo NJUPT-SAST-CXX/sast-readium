@@ -489,4 +489,4 @@ QTreeView* PDFOutlineWidgetIntegrationTest::getTreeView()
 }
 
 QTEST_MAIN(PDFOutlineWidgetIntegrationTest)
-#include "PDFOutlineWidgetIntegrationTest.moc"
+#include "pdf_outline_widget_integration_test.moc"

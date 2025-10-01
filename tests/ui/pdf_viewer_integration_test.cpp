@@ -542,4 +542,4 @@ void PDFViewerIntegrationTest::simulateKeyPress(int key)
 }
 
 QTEST_MAIN(PDFViewerIntegrationTest)
-#include "PDFViewerIntegrationTest.moc"
+#include "pdf_viewer_integration_test.moc"

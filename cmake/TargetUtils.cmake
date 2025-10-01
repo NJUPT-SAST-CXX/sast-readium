@@ -246,15 +246,15 @@ This function:
 #]=======================================================================]
 function(setup_testing_environment)
     message(STATUS "Setting up testing environment...")
-    
-    # Enable testing
-    enable_testing()
-    
+
+    # Note: enable_testing() must be called at top level, not in function
+    # This is handled in the root CMakeLists.txt
+
     # Common test settings
     set(CMAKE_AUTOMOC ON PARENT_SCOPE)
     set(CMAKE_AUTORCC ON PARENT_SCOPE)
     set(CMAKE_AUTOUIC ON PARENT_SCOPE)
-    
+
     message(STATUS "Testing environment configured")
 endfunction()
 

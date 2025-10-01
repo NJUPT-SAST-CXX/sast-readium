@@ -694,4 +694,4 @@ QPixmap ThumbnailWidgetIntegrationTest::createTestPixmap(const QSize& size)
 }
 
 QTEST_MAIN(ThumbnailWidgetIntegrationTest)
-#include "ThumbnailWidgetIntegrationTest.moc"
+#include "thumbnail_widget_integration_test.moc"

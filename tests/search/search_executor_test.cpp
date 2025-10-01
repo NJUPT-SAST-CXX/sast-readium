@@ -350,4 +350,4 @@ void SearchExecutorTest::verifySearchResults(const QList<SearchResult>& results,
 }
 
 QTEST_MAIN(SearchExecutorTest)
-#include "SearchExecutorTest.moc"
+#include "search_executor_test.moc"

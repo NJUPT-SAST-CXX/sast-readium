@@ -8,6 +8,7 @@
 
 class QWidget;
 class OnboardingWidget;
+class OnboardingManagerImpl;
 
 /**
  * Onboarding steps definition
@@ -132,36 +133,10 @@ private slots:
     void updateProgress();
     
 private:
-    void initializeSteps();
-    void initializeTutorials();
-    void setupConnections();
-    QString stepToString(OnboardingStep step) const;
-    OnboardingStep stringToStep(const QString& str) const;
-    
     // Singleton instance
     static OnboardingManager* s_instance;
-    
-    // State
-    bool m_isActive;
-    bool m_isFirstTimeUser;
-    OnboardingStep m_currentStep;
-    QList<OnboardingStep> m_completedSteps;
-    
-    // Widgets
-    OnboardingWidget* m_onboardingWidget;
-    QWidget* m_attachedWidget;
-    
-    // Settings
-    std::unique_ptr<QSettings> m_settings;
-    bool m_showTips;
-    bool m_showOnStartup;
-    
-    // Tutorials
-    QJsonArray m_availableTutorials;
-    QJsonObject m_tutorialData;
-    
-    // Analytics data
-    QJsonObject m_analyticsData;
+
+    std::unique_ptr<OnboardingManagerImpl> pImpl;
     
     // Constants
     static const QString SETTINGS_GROUP;

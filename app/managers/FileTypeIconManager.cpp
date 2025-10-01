@@ -6,6 +6,35 @@
 #include "../logging/Logger.h"
 #include <QPainter>
 #include <QFileInfo>
+#include <QHash>
+
+// Private implementation class
+class FileTypeIconManagerImpl {
+public:
+    FileTypeIconManagerImpl()
+        : m_defaultIconSize(24)
+        , m_iconBasePath(":/images/filetypes/")
+    {
+    }
+
+    // Helper methods
+    QString getIconPath(const QString& extension) const;
+    QPixmap loadSvgIcon(const QString& path, int size) const;
+    QPixmap createColoredIcon(const QPixmap& base, const QColor& color) const;
+    QString normalizeExtension(const QString& extension) const;
+    void initializeExtensionMapping();
+
+    // Cache management
+    mutable QHash<QString, QPixmap> m_iconCache;
+    mutable QHash<QString, QString> m_extensionToIconMap;
+
+    // Settings
+    int m_defaultIconSize;
+    QString m_iconBasePath;
+
+    // Supported file types mapping
+    QHash<QString, QString> m_fileTypeMapping;
+};
 
 FileTypeIconManager& FileTypeIconManager::instance() {
     static FileTypeIconManager instance;
@@ -14,38 +43,39 @@ FileTypeIconManager& FileTypeIconManager::instance() {
 
 FileTypeIconManager::FileTypeIconManager(QObject* parent)
     : QObject(parent)
-    , m_defaultIconSize(24)
-    , m_iconBasePath(":/images/filetypes/")
+    , pImpl(std::make_unique<FileTypeIconManagerImpl>())
 {
     Logger::instance().info("[managers] Initializing FileTypeIconManager with base path: {}",
-             m_iconBasePath.toStdString());
-    initializeExtensionMapping();
+             pImpl->m_iconBasePath.toStdString());
+    pImpl->initializeExtensionMapping();
     preloadIcons();
     Logger::instance().debug("[managers] FileTypeIconManager initialized with {} file type mappings",
-              m_fileTypeMapping.size());
+              pImpl->m_fileTypeMapping.size());
 }
 
-void FileTypeIconManager::initializeExtensionMapping() {
+FileTypeIconManager::~FileTypeIconManager() = default;
+
+void FileTypeIconManagerImpl::initializeExtensionMapping() {
     // PDF files
     m_fileTypeMapping["pdf"] = "pdf";
-    
+
     // EPUB files
     m_fileTypeMapping["epub"] = "epub";
     m_fileTypeMapping["epub3"] = "epub";
-    
+
     // Text files
     m_fileTypeMapping["txt"] = "txt";
     m_fileTypeMapping["text"] = "txt";
     m_fileTypeMapping["log"] = "txt";
     m_fileTypeMapping["md"] = "txt";
     m_fileTypeMapping["markdown"] = "txt";
-    
+
     // Document files
     m_fileTypeMapping["doc"] = "doc";
     m_fileTypeMapping["docx"] = "doc";
     m_fileTypeMapping["rtf"] = "doc";
     m_fileTypeMapping["odt"] = "doc";
-    
+
     Logger::instance().debug("[managers] FileTypeIconManager extension mapping initialized with {} file types",
               m_fileTypeMapping.size());
 }
@@ -66,35 +96,35 @@ QPixmap FileTypeIconManager::getFileTypePixmap(const QString& filePath, int size
 }
 
 QPixmap FileTypeIconManager::getFileTypePixmap(const QFileInfo& fileInfo, int size) const {
-    QString extension = normalizeExtension(fileInfo.suffix());
+    QString extension = pImpl->normalizeExtension(fileInfo.suffix());
     QString cacheKey = QString("%1_%2").arg(extension).arg(size);
 
     // Check cache first
-    if (m_iconCache.contains(cacheKey)) {
+    if (pImpl->m_iconCache.contains(cacheKey)) {
         Logger::instance().trace("[managers] Icon cache hit for extension '{}' size {}",
                   extension.toStdString(), size);
-        return m_iconCache[cacheKey];
+        return pImpl->m_iconCache[cacheKey];
     }
 
     // Load icon
-    QString iconPath = getIconPath(extension);
+    QString iconPath = pImpl->getIconPath(extension);
     Logger::instance().debug("[managers] Loading icon for extension '{}' from path: {}",
               extension.toStdString(), iconPath.toStdString());
-    QPixmap pixmap = loadSvgIcon(iconPath, size);
+    QPixmap pixmap = pImpl->loadSvgIcon(iconPath, size);
 
     // Cache the result
-    m_iconCache[cacheKey] = pixmap;
+    pImpl->m_iconCache[cacheKey] = pixmap;
     Logger::instance().trace("[managers] Cached icon for key: {}", cacheKey.toStdString());
 
     return pixmap;
 }
 
-QString FileTypeIconManager::getIconPath(const QString& extension) const {
+QString FileTypeIconManagerImpl::getIconPath(const QString& extension) const {
     QString iconName = m_fileTypeMapping.value(extension, "default");
     return QString("%1%2.svg").arg(m_iconBasePath).arg(iconName);
 }
 
-QPixmap FileTypeIconManager::loadSvgIcon(const QString& path, int size) const {
+QPixmap FileTypeIconManagerImpl::loadSvgIcon(const QString& path, int size) const {
     QPixmap pixmap(size, size);
     pixmap.fill(Qt::transparent);
     
@@ -132,8 +162,16 @@ QPixmap FileTypeIconManager::loadSvgIcon(const QString& path, int size) const {
     return pixmap;
 }
 
-QString FileTypeIconManager::normalizeExtension(const QString& extension) const {
+QString FileTypeIconManagerImpl::normalizeExtension(const QString& extension) const {
     return extension.toLower().trimmed();
+}
+
+QPixmap FileTypeIconManagerImpl::createColoredIcon(const QPixmap& base, const QColor& color) const {
+    QPixmap coloredPixmap = base;
+    QPainter painter(&coloredPixmap);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(coloredPixmap.rect(), color);
+    return coloredPixmap;
 }
 
 void FileTypeIconManager::preloadIcons() {
@@ -141,36 +179,36 @@ void FileTypeIconManager::preloadIcons() {
 
     QStringList iconTypes = {"pdf", "epub", "txt", "doc", "default"};
     QList<int> sizes = {16, 24, 32, 48};
-    
+
     for (const QString& iconType : iconTypes) {
         for (int size : sizes) {
-            QString iconPath = QString("%1%2.svg").arg(m_iconBasePath).arg(iconType);
-            QPixmap pixmap = loadSvgIcon(iconPath, size);
+            QString iconPath = QString("%1%2.svg").arg(pImpl->m_iconBasePath).arg(iconType);
+            QPixmap pixmap = pImpl->loadSvgIcon(iconPath, size);
             QString cacheKey = QString("%1_%2").arg(iconType).arg(size);
-            m_iconCache[cacheKey] = pixmap;
+            pImpl->m_iconCache[cacheKey] = pixmap;
         }
     }
-    
-    Logger::instance().info("[managers] Icon preloading completed - cached {} icons", m_iconCache.size());
+
+    Logger::instance().info("[managers] Icon preloading completed - cached {} icons", pImpl->m_iconCache.size());
 }
 
 void FileTypeIconManager::clearCache() {
-    int cacheSize = m_iconCache.size();
-    m_iconCache.clear();
+    int cacheSize = pImpl->m_iconCache.size();
+    pImpl->m_iconCache.clear();
     Logger::instance().info("[managers] Icon cache cleared - removed {} cached icons", cacheSize);
 }
 
 void FileTypeIconManager::setIconSize(int size) {
-    if (m_defaultIconSize != size) {
-        m_defaultIconSize = size;
+    if (pImpl->m_defaultIconSize != size) {
+        pImpl->m_defaultIconSize = size;
         clearCache(); // Clear cache to force reload with new size
     }
 }
 
 QStringList FileTypeIconManager::getSupportedExtensions() const {
-    return m_fileTypeMapping.keys();
+    return pImpl->m_fileTypeMapping.keys();
 }
 
 bool FileTypeIconManager::isSupported(const QString& extension) const {
-    return m_fileTypeMapping.contains(normalizeExtension(extension));
+    return pImpl->m_fileTypeMapping.contains(pImpl->normalizeExtension(extension));
 }

@@ -320,4 +320,4 @@ void IncrementalSearchManagerTest::verifySearchTriggered(const QString& expected
 }
 
 QTEST_MAIN(IncrementalSearchManagerTest)
-#include "IncrementalSearchManagerTest.moc"
+#include "incremental_search_manager_test.moc"

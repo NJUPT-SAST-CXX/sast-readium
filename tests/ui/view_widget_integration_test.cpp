@@ -544,4 +544,4 @@ QStackedWidget* ViewWidgetIntegrationTest::getViewerStack()
 }
 
 QTEST_MAIN(ViewWidgetIntegrationTest)
-#include "ViewWidgetIntegrationTest.moc"
+#include "view_widget_integration_test.moc"

@@ -443,4 +443,4 @@ void MultiSearchEngineTest::verifySuggestionQuality(const QStringList& suggestio
 }
 
 QTEST_MAIN(MultiSearchEngineTest)
-#include "MultiSearchEngineTest.moc"
+#include "multi_search_engine_test.moc"

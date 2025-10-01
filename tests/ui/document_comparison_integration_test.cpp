@@ -582,4 +582,4 @@ QCheckBox* DocumentComparisonIntegrationTest::findCheckBox(const QString& text)
 }
 
 QTEST_MAIN(DocumentComparisonIntegrationTest)
-#include "DocumentComparisonIntegrationTest.moc"
+#include "document_comparison_integration_test.moc"

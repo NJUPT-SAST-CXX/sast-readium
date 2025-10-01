@@ -10,23 +10,49 @@
 #include <QList>
 #include <QStringList>
 #include <QtCore/QObject>
+#include <QMutex>
 #include <algorithm>
 
+// Private implementation class
+class RecentFilesManagerImpl {
+public:
+    RecentFilesManagerImpl()
+        : m_settings(nullptr)
+        , m_maxRecentFiles(DEFAULT_MAX_RECENT_FILES)
+    {
+    }
+
+    void loadSettings();
+    void loadSettingsWithoutCleanup();
+    void saveSettings();
+    void enforceMaxSize();
+    QVariantMap fileInfoToVariant(const RecentFileInfo& info) const;
+    RecentFileInfo variantToFileInfo(const QVariantMap& variant) const;
+
+    QSettings* m_settings;
+    QList<RecentFileInfo> m_recentFiles;
+    int m_maxRecentFiles;
+    mutable QMutex m_mutex;
+
+    static const int DEFAULT_MAX_RECENT_FILES = 10;
+};
+
+// Static constant definitions
 const QString RecentFilesManager::SETTINGS_GROUP = "recentFiles";
 const QString RecentFilesManager::SETTINGS_MAX_FILES_KEY = "maxFiles";
 const QString RecentFilesManager::SETTINGS_FILES_KEY = "files";
 
 RecentFilesManager::RecentFilesManager(QObject* parent)
-    : QObject(parent),
-      m_settings(nullptr),
-      m_maxRecentFiles(DEFAULT_MAX_RECENT_FILES) {
+    : QObject(parent)
+    , pImpl(std::make_unique<RecentFilesManagerImpl>())
+{
     // 初始化设置
-    m_settings = new QSettings("SAST", "Readium-RecentFiles", this);
+    pImpl->m_settings = new QSettings("SAST", "Readium-RecentFiles", this);
 
     // 加载配置 (不执行文件清理以避免阻塞)
-    loadSettingsWithoutCleanup();
+    pImpl->loadSettingsWithoutCleanup();
 
-    Logger::instance().debug("RecentFilesManager: Initialized with max files: {}", m_maxRecentFiles);
+    Logger::instance().debug("RecentFilesManager: Initialized with max files: {}", pImpl->m_maxRecentFiles);
 }
 
 RecentFilesManager::~RecentFilesManager() { saveSettings(); }
@@ -36,7 +62,7 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
         return;
     }
 
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&pImpl->m_mutex);
 
     // 创建文件信息
     RecentFileInfo newFile(filePath);
@@ -46,19 +72,19 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
     }
 
     // 移除已存在的相同文件
-    auto it = std::find_if(m_recentFiles.begin(), m_recentFiles.end(),
+    auto it = std::find_if(pImpl->m_recentFiles.begin(), pImpl->m_recentFiles.end(),
                            [&filePath](const RecentFileInfo& info) {
                                return info.filePath == filePath;
                            });
-    if (it != m_recentFiles.end()) {
-        m_recentFiles.erase(it);
+    if (it != pImpl->m_recentFiles.end()) {
+        pImpl->m_recentFiles.erase(it);
     }
 
     // 添加到列表开头
-    m_recentFiles.prepend(newFile);
+    pImpl->m_recentFiles.prepend(newFile);
 
     // 强制执行最大数量限制
-    enforceMaxSize();
+    pImpl->enforceMaxSize();
 
     // 保存设置
     saveSettings();
@@ -70,14 +96,14 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
 }
 
 QList<RecentFileInfo> RecentFilesManager::getRecentFiles() const {
-    QMutexLocker locker(&m_mutex);
-    return m_recentFiles;
+    QMutexLocker locker(&pImpl->m_mutex);
+    return pImpl->m_recentFiles;
 }
 
 QStringList RecentFilesManager::getRecentFilePaths() const {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&pImpl->m_mutex);
     QStringList paths;
-    for (const RecentFileInfo& info : m_recentFiles) {
+    for (const RecentFileInfo& info : pImpl->m_recentFiles) {
         if (info.isValid()) {
             paths.append(info.filePath);
         }
@@ -86,13 +112,13 @@ QStringList RecentFilesManager::getRecentFilePaths() const {
 }
 
 void RecentFilesManager::clearRecentFiles() {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&pImpl->m_mutex);
 
-    if (m_recentFiles.isEmpty()) {
+    if (pImpl->m_recentFiles.isEmpty()) {
         return;
     }
 
-    m_recentFiles.clear();
+    pImpl->m_recentFiles.clear();
     saveSettings();
 
     emit recentFilesCleared();
@@ -102,15 +128,15 @@ void RecentFilesManager::clearRecentFiles() {
 }
 
 void RecentFilesManager::removeRecentFile(const QString& filePath) {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&pImpl->m_mutex);
 
-    auto it = std::find_if(m_recentFiles.begin(), m_recentFiles.end(),
+    auto it = std::find_if(pImpl->m_recentFiles.begin(), pImpl->m_recentFiles.end(),
                            [&filePath](const RecentFileInfo& info) {
                                return info.filePath == filePath;
                            });
 
-    if (it != m_recentFiles.end()) {
-        m_recentFiles.erase(it);
+    if (it != pImpl->m_recentFiles.end()) {
+        pImpl->m_recentFiles.erase(it);
         saveSettings();
 
         emit recentFileRemoved(filePath);
@@ -126,11 +152,11 @@ void RecentFilesManager::setMaxRecentFiles(int maxFiles) {
         return;
     }
 
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&pImpl->m_mutex);
 
-    if (m_maxRecentFiles != maxFiles) {
-        m_maxRecentFiles = maxFiles;
-        enforceMaxSize();
+    if (pImpl->m_maxRecentFiles != maxFiles) {
+        pImpl->m_maxRecentFiles = maxFiles;
+        pImpl->enforceMaxSize();
         saveSettings();
 
         emit recentFilesChanged();
@@ -140,29 +166,29 @@ void RecentFilesManager::setMaxRecentFiles(int maxFiles) {
 }
 
 int RecentFilesManager::getMaxRecentFiles() const {
-    QMutexLocker locker(&m_mutex);
-    return m_maxRecentFiles;
+    QMutexLocker locker(&pImpl->m_mutex);
+    return pImpl->m_maxRecentFiles;
 }
 
 bool RecentFilesManager::hasRecentFiles() const {
-    QMutexLocker locker(&m_mutex);
-    return !m_recentFiles.isEmpty();
+    QMutexLocker locker(&pImpl->m_mutex);
+    return !pImpl->m_recentFiles.isEmpty();
 }
 
 int RecentFilesManager::getRecentFilesCount() const {
-    QMutexLocker locker(&m_mutex);
-    return m_recentFiles.size();
+    QMutexLocker locker(&pImpl->m_mutex);
+    return pImpl->m_recentFiles.size();
 }
 
 void RecentFilesManager::cleanupInvalidFiles() {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&pImpl->m_mutex);
 
     bool changed = false;
-    auto it = m_recentFiles.begin();
-    while (it != m_recentFiles.end()) {
+    auto it = pImpl->m_recentFiles.begin();
+    while (it != pImpl->m_recentFiles.end()) {
         if (!it->isValid()) {
             Logger::instance().debug("[managers] Removing invalid file: {}", it->filePath.toStdString());
-            it = m_recentFiles.erase(it);
+            it = pImpl->m_recentFiles.erase(it);
             changed = true;
         } else {
             ++it;
@@ -182,7 +208,7 @@ void RecentFilesManager::initializeAsync() {
             Logger::instance().debug("[managers] Starting async cleanup");
 
             // 检查对象是否仍然有效
-            if (!m_settings) {
+            if (!pImpl->m_settings) {
                 Logger::instance().warning("[managers] Settings object is null during async cleanup");
                 return;
             }
@@ -199,29 +225,29 @@ void RecentFilesManager::initializeAsync() {
 }
 
 void RecentFilesManager::loadSettings() {
-    loadSettingsWithoutCleanup();
+    pImpl->loadSettingsWithoutCleanup();
 
     // 清理无效文件
     cleanupInvalidFiles();
 
-    Logger::instance().info("[managers] Loaded and cleaned {} recent files", m_recentFiles.size());
+    Logger::instance().info("[managers] Loaded and cleaned {} recent files", pImpl->m_recentFiles.size());
 }
 
-void RecentFilesManager::loadSettingsWithoutCleanup() {
+void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
     if (!m_settings)
         return;
 
     QMutexLocker locker(&m_mutex);
 
-    m_settings->beginGroup(SETTINGS_GROUP);
+    m_settings->beginGroup(RecentFilesManager::SETTINGS_GROUP);
 
     // 加载最大文件数量
     m_maxRecentFiles =
-        m_settings->value(SETTINGS_MAX_FILES_KEY, DEFAULT_MAX_RECENT_FILES)
+        m_settings->value(RecentFilesManager::SETTINGS_MAX_FILES_KEY, DEFAULT_MAX_RECENT_FILES)
             .toInt();
 
     // 加载文件列表
-    int size = m_settings->beginReadArray(SETTINGS_FILES_KEY);
+    int size = m_settings->beginReadArray(RecentFilesManager::SETTINGS_FILES_KEY);
     m_recentFiles.clear();
     m_recentFiles.reserve(size);
 
@@ -249,18 +275,22 @@ void RecentFilesManager::loadSettingsWithoutCleanup() {
 }
 
 void RecentFilesManager::saveSettings() {
+    pImpl->saveSettings();
+}
+
+void RecentFilesManagerImpl::saveSettings() {
     if (!m_settings)
         return;
 
     // 注意：这里不需要加锁，因为调用此方法的地方已经加锁了
 
-    m_settings->beginGroup(SETTINGS_GROUP);
+    m_settings->beginGroup(RecentFilesManager::SETTINGS_GROUP);
 
     // 保存最大文件数量
-    m_settings->setValue(SETTINGS_MAX_FILES_KEY, m_maxRecentFiles);
+    m_settings->setValue(RecentFilesManager::SETTINGS_MAX_FILES_KEY, m_maxRecentFiles);
 
     // 保存文件列表
-    m_settings->beginWriteArray(SETTINGS_FILES_KEY);
+    m_settings->beginWriteArray(RecentFilesManager::SETTINGS_FILES_KEY);
     for (int i = 0; i < m_recentFiles.size(); ++i) {
         m_settings->setArrayIndex(i);
         QVariantMap data = fileInfoToVariant(m_recentFiles[i]);
@@ -272,14 +302,15 @@ void RecentFilesManager::saveSettings() {
     m_settings->sync();
 }
 
-void RecentFilesManager::enforceMaxSize() {
+// Implementation methods moved to RecentFilesManagerImpl class
+void RecentFilesManagerImpl::enforceMaxSize() {
     // 注意：调用此方法时应该已经加锁
     while (m_recentFiles.size() > m_maxRecentFiles) {
         m_recentFiles.removeLast();
     }
 }
 
-QVariantMap RecentFilesManager::fileInfoToVariant(
+QVariantMap RecentFilesManagerImpl::fileInfoToVariant(
     const RecentFileInfo& info) const {
     QVariantMap data;
     data["filePath"] = info.filePath;
@@ -289,7 +320,7 @@ QVariantMap RecentFilesManager::fileInfoToVariant(
     return data;
 }
 
-RecentFileInfo RecentFilesManager::variantToFileInfo(
+RecentFileInfo RecentFilesManagerImpl::variantToFileInfo(
     const QVariantMap& variant) const {
     RecentFileInfo info;
     info.filePath = variant["filePath"].toString();

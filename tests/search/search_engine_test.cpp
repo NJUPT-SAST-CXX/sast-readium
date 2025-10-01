@@ -407,4 +407,4 @@ void SearchEngineTest::testProximitySearch()
 }
 
 QTEST_MAIN(SearchEngineTest)
-#include "SearchEngineTest.moc"
+#include "search_engine_test.moc"

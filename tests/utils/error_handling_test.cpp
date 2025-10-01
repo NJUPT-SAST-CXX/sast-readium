@@ -483,4 +483,4 @@ void ErrorHandlingTest::testSafeExecuteReturnValueException() {
 }
 
 QTEST_MAIN(ErrorHandlingTest)
-#include "ErrorHandlingTest.moc"
+#include "error_handling_test.moc"

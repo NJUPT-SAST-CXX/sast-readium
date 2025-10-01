@@ -394,4 +394,4 @@ void SearchFeaturesTest::verifyHistoryEntry(const SearchFeatures::HistoryEntry& 
 }
 
 QTEST_MAIN(SearchFeaturesTest)
-#include "SearchFeaturesTest.moc"
+#include "search_features_test.moc"

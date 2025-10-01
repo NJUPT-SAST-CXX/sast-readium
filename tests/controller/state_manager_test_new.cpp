@@ -573,4 +573,4 @@ void TestStateManager::testMemoryManagement() {
 }
 
 QTEST_MAIN(TestStateManager)
-#include "StateManagerTest_new.moc"
+#include "state_manager_test_new.moc"

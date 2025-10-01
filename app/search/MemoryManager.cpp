@@ -105,8 +105,8 @@ public:
                 cacheManager.analyzeUsagePatterns();
                 cacheManager.optimizeCacheDistribution();
                 if (currentStats.pressureLevel == Critical) {
-                    requestFractionalEviction(CacheManager::SearchResultCache, 0.15);
-                    requestFractionalEviction(CacheManager::PageTextCache, 0.15);
+                    requestFractionalEviction(CacheManager::SEARCH_RESULT_CACHE, 0.15);
+                    requestFractionalEviction(CacheManager::PAGE_TEXT_CACHE, 0.15);
                 }
             }
             break;
@@ -116,9 +116,9 @@ public:
             cacheManager.analyzeUsagePatterns();
             cacheManager.optimizeCacheDistribution();
             cacheManager.handleMemoryPressure();
-            requestFractionalEviction(CacheManager::SearchResultCache, 0.25);
-            requestFractionalEviction(CacheManager::PageTextCache, 0.25);
-            requestFractionalEviction(CacheManager::SearchHighlightCache, 0.25);
+            requestFractionalEviction(CacheManager::SEARCH_RESULT_CACHE, 0.25);
+            requestFractionalEviction(CacheManager::PAGE_TEXT_CACHE, 0.25);
+            requestFractionalEviction(CacheManager::SEARCH_HIGHLIGHT_CACHE, 0.25);
             if (cacheManager.isMemoryCompressionEnabled()) {
                 cacheManager.compressInactiveCaches();
             }
@@ -223,7 +223,7 @@ qint64 MemoryManager::getAvailableMemory() const
 double MemoryManager::getMemoryEfficiency() const
 {
     CacheManager& cacheManager = CacheManager::instance();
-    CacheManager::CacheStats stats = cacheManager.getCacheStats(CacheManager::SearchResultCache);
+    CacheManager::CacheStats stats = cacheManager.getCacheStats(CacheManager::SEARCH_RESULT_CACHE);
     
     qint64 totalHits = stats.totalHits;
     qint64 totalMisses = stats.totalMisses;
@@ -252,22 +252,22 @@ void MemoryManager::optimizeMemoryUsage()
 void MemoryManager::optimizeSearchCaches()
 {
     CacheManager& cacheManager = CacheManager::instance();
-    auto stats = cacheManager.getCacheStats(CacheManager::SearchResultCache);
-    cacheManager.requestCacheEviction(CacheManager::SearchResultCache, static_cast<qint64>(stats.memoryUsage * 0.25));
+    auto stats = cacheManager.getCacheStats(CacheManager::SEARCH_RESULT_CACHE);
+    cacheManager.requestCacheEviction(CacheManager::SEARCH_RESULT_CACHE, static_cast<qint64>(stats.memoryUsage * 0.25));
 }
 
 void MemoryManager::optimizeTextCaches()
 {
     CacheManager& cacheManager = CacheManager::instance();
-    auto stats = cacheManager.getCacheStats(CacheManager::PageTextCache);
-    cacheManager.requestCacheEviction(CacheManager::PageTextCache, static_cast<qint64>(stats.memoryUsage * 0.25));
+    auto stats = cacheManager.getCacheStats(CacheManager::PAGE_TEXT_CACHE);
+    cacheManager.requestCacheEviction(CacheManager::PAGE_TEXT_CACHE, static_cast<qint64>(stats.memoryUsage * 0.25));
 }
 
 void MemoryManager::optimizeHighlightCaches()
 {
     CacheManager& cacheManager = CacheManager::instance();
-    auto stats = cacheManager.getCacheStats(CacheManager::SearchHighlightCache);
-    cacheManager.requestCacheEviction(CacheManager::SearchHighlightCache, static_cast<qint64>(stats.memoryUsage * 0.25));
+    auto stats = cacheManager.getCacheStats(CacheManager::SEARCH_HIGHLIGHT_CACHE);
+    cacheManager.requestCacheEviction(CacheManager::SEARCH_HIGHLIGHT_CACHE, static_cast<qint64>(stats.memoryUsage * 0.25));
 }
 
 void MemoryManager::performEmergencyCleanup()
@@ -282,11 +282,11 @@ void MemoryManager::performEmergencyCleanup()
         auto s = cacheManager.getCacheStats(t);
         cacheManager.requestCacheEviction(t, static_cast<qint64>(s.memoryUsage * 0.5));
     };
-    req(CacheManager::SearchResultCache);
-    req(CacheManager::PageTextCache);
-    req(CacheManager::SearchHighlightCache);
-    req(CacheManager::PDFRenderCache);
-    req(CacheManager::ThumbnailCache);
+    req(CacheManager::SEARCH_RESULT_CACHE);
+    req(CacheManager::PAGE_TEXT_CACHE);
+    req(CacheManager::SEARCH_HIGHLIGHT_CACHE);
+    req(CacheManager::PDF_RENDER_CACHE);
+    req(CacheManager::THUMBNAIL_CACHE);
     
     qint64 memoryAfter = d->calculateTotalCacheMemory();
     qint64 memoryFreed = memoryBefore - memoryAfter;
@@ -412,9 +412,9 @@ void MemoryManager::updateMemoryStats()
     d->currentStats.pressureLevel = d->calculatePressureLevel(d->currentStats.memoryPressure);
     
     // Get individual cache memory usage
-    auto searchStats = cacheManager.getCacheStats(CacheManager::SearchResultCache);
-    auto textStats = cacheManager.getCacheStats(CacheManager::PageTextCache);
-    auto highlightStats = cacheManager.getCacheStats(CacheManager::SearchHighlightCache);
+    auto searchStats = cacheManager.getCacheStats(CacheManager::SEARCH_RESULT_CACHE);
+    auto textStats = cacheManager.getCacheStats(CacheManager::PAGE_TEXT_CACHE);
+    auto highlightStats = cacheManager.getCacheStats(CacheManager::SEARCH_HIGHLIGHT_CACHE);
     
     d->currentStats.searchCacheMemory = searchStats.memoryUsage;
     d->currentStats.textCacheMemory = textStats.memoryUsage;

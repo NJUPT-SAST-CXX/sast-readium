@@ -3,6 +3,7 @@
 #include <QDateTime>
 #include <QMutexLocker>
 #include <QPixmap>
+#include <chrono>
 // #include <QtConcurrent> // Not available in this MSYS2 setup
 #include "../logging/LoggingMacros.h"
 
@@ -317,13 +318,17 @@ bool PDFCacheManager::insert(const QString& key, const QVariant& data,
 }
 
 QVariant PDFCacheManager::get(const QString& key) {
+    auto startTime = std::chrono::high_resolution_clock::now();
     QMutexLocker locker(&d->cacheMutex);
 
     auto it = d->cache.find(key);
     if (it != d->cache.end()) {
         it->updateAccess();
         d->updateStatistics(true);
-        emit cacheHit(key, 0);  // TODO: measure actual access time
+
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto accessTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+        emit cacheHit(key, accessTime);
         return it->data;
     }
 

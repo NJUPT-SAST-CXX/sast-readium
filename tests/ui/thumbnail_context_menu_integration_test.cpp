@@ -700,4 +700,4 @@ QAction* ThumbnailContextMenuIntegrationTest::findActionByText(const QString& te
 }
 
 QTEST_MAIN(ThumbnailContextMenuIntegrationTest)
-#include "ThumbnailContextMenuIntegrationTest.moc"
+#include "thumbnail_context_menu_integration_test.moc"

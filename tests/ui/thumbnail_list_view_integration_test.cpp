@@ -660,4 +660,4 @@ void ThumbnailListViewIntegrationTest::simulateKeyPress(int key)
 }
 
 QTEST_MAIN(ThumbnailListViewIntegrationTest)
-#include "ThumbnailListViewIntegrationTest.moc"
+#include "thumbnail_list_view_integration_test.moc"

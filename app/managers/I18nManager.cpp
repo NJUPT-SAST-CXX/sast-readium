@@ -3,21 +3,39 @@
 #include <QDir>
 #include <QFile>
 #include <QDebug>
+#include <QTranslator>
+#include <QLocale>
+#include <vector>
 #include "../logging/LoggingMacros.h"
+
+// Private implementation class
+class I18nManagerImpl {
+public:
+    I18nManagerImpl()
+        : m_currentLanguage(I18nManager::System)
+        , m_initialized(false)
+    {
+        // Set translation path relative to application directory
+        m_translationPath = QApplication::applicationDirPath();
+    }
+
+    bool loadTranslation(const QString& languageCode);
+    void removeTranslators();
+    QString getSystemLanguageCode() const;
+
+    I18nManager::Language m_currentLanguage;
+    std::vector<std::unique_ptr<QTranslator>> m_translators;
+    QString m_translationPath;
+    bool m_initialized;
+};
 
 I18nManager::I18nManager(QObject* parent)
     : QObject(parent)
-    , m_currentLanguage(System)
-    , m_initialized(false)
+    , pImpl(std::make_unique<I18nManagerImpl>())
 {
-    // Set translation path relative to application directory
-    m_translationPath = QApplication::applicationDirPath();
 }
 
-I18nManager::~I18nManager()
-{
-    removeTranslators();
-}
+I18nManager::~I18nManager() = default;
 
 I18nManager& I18nManager::instance()
 {
@@ -25,9 +43,14 @@ I18nManager& I18nManager::instance()
     return instance;
 }
 
+I18nManager::Language I18nManager::currentLanguage() const
+{
+    return pImpl->m_currentLanguage;
+}
+
 bool I18nManager::initialize()
 {
-    if (m_initialized) {
+    if (pImpl->m_initialized) {
         LOG_WARNING("I18nManager: Already initialized");
         return true;
     }
@@ -35,7 +58,7 @@ bool I18nManager::initialize()
     LOG_INFO("I18nManager: Initializing translation system");
 
     // Load system language by default
-    QString systemLang = getSystemLanguageCode();
+    QString systemLang = pImpl->getSystemLanguageCode();
     LOG_INFO("I18nManager: System language detected: {}", systemLang.toStdString());
 
     // Try to load system language, fall back to English if failed
@@ -47,7 +70,7 @@ bool I18nManager::initialize()
         }
     }
 
-    m_initialized = true;
+    pImpl->m_initialized = true;
     LOG_INFO("I18nManager: Initialization completed successfully");
     return true;
 }
@@ -62,32 +85,32 @@ bool I18nManager::loadLanguage(const QString& languageCode)
     LOG_INFO("I18nManager: Loading language: {}", languageCode.toStdString());
 
     // Remove existing translators
-    removeTranslators();
+    pImpl->removeTranslators();
 
     // Handle system language
     QString actualCode = languageCode;
     if (languageCode == "system") {
-        actualCode = getSystemLanguageCode();
+        actualCode = pImpl->getSystemLanguageCode();
     }
 
     // Load translation
-    if (!loadTranslation(actualCode)) {
+    if (!pImpl->loadTranslation(actualCode)) {
         LOG_ERROR("I18nManager: Failed to load translation for: {}", actualCode.toStdString());
         return false;
     }
 
     // Update current language
-    m_currentLanguage = codeToLanguage(actualCode);
+    pImpl->m_currentLanguage = codeToLanguage(actualCode);
 
     // Emit signal to notify UI components
-    emit languageChanged(m_currentLanguage);
+    emit languageChanged(pImpl->m_currentLanguage);
     emit languageChanged(actualCode);
 
     LOG_INFO("I18nManager: Language loaded successfully: {}", actualCode.toStdString());
     return true;
 }
 
-bool I18nManager::loadTranslation(const QString& languageCode)
+bool I18nManagerImpl::loadTranslation(const QString& languageCode)
 {
     // Skip loading for English (base language)
     if (languageCode == "en" || languageCode.startsWith("en_")) {
@@ -144,7 +167,7 @@ bool I18nManager::loadTranslation(const QString& languageCode)
     return true;
 }
 
-void I18nManager::removeTranslators()
+void I18nManagerImpl::removeTranslators()
 {
     for (auto& translator : m_translators) {
         if (translator) {
@@ -154,18 +177,18 @@ void I18nManager::removeTranslators()
     m_translators.clear();
 }
 
-QString I18nManager::getSystemLanguageCode() const
+QString I18nManagerImpl::getSystemLanguageCode() const
 {
     QLocale systemLocale = QLocale::system();
     QString langCode = systemLocale.name(); // Returns format like "zh_CN" or "en_US"
-    
+
     // Simplify to just language code for our purposes
     if (langCode.startsWith("zh")) {
         return "zh";
     } else if (langCode.startsWith("en")) {
         return "en";
     }
-    
+
     // Default to English for unsupported languages
     return "en";
 }
@@ -177,12 +200,12 @@ QStringList I18nManager::availableLanguages() const
 
 QString I18nManager::currentLanguageCode() const
 {
-    return languageToCode(m_currentLanguage);
+    return languageToCode(pImpl->m_currentLanguage);
 }
 
 QString I18nManager::currentLanguageName() const
 {
-    return languageToName(m_currentLanguage);
+    return languageToName(pImpl->m_currentLanguage);
 }
 
 QString I18nManager::languageToCode(Language lang)

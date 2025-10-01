@@ -364,4 +364,4 @@ void SideBarIntegrationTest::waitForThumbnailGeneration()
 }
 
 QTEST_MAIN(SideBarIntegrationTest)
-#include "SideBarIntegrationTest.moc"
+#include "side_bar_integration_test.moc"

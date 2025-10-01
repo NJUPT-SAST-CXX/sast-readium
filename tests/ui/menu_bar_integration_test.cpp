@@ -441,4 +441,4 @@ void MenuBarIntegrationTest::waitForMenuUpdate()
 }
 
 QTEST_MAIN(MenuBarIntegrationTest)
-#include "MenuBarIntegrationTest.moc"
+#include "menu_bar_integration_test.moc"

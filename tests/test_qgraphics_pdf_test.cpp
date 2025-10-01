@@ -137,4 +137,4 @@ int main(int argc, char *argv[])
     return result;
 }
 
-#include "test_qgraphics_pdf.moc"
+#include "test_qgraphics_pdf_test.moc"

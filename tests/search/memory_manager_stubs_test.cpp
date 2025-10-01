@@ -437,4 +437,4 @@ void MemoryManagerStubsTest::verifyResultsIntegrity(const QList<SearchResult>& r
 }
 
 QTEST_MAIN(MemoryManagerStubsTest)
-#include "MemoryManagerStubsTest.moc"
+#include "memory_manager_stubs_test.moc"

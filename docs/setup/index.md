@@ -29,6 +29,16 @@ Cross-platform clangd configuration for the simplified build system:
 - IDE integration (VS Code, CLion, etc.)
 - Troubleshooting clangd issues
 
+### [Build Artifact Management](build-artifact-management.md)
+
+Understanding how the build system properly manages compilation artifacts:
+
+- `compile_commands.json` location and generation
+- Automatic clangd integration with build directories
+- Why build artifacts belong in build directories (not project root)
+- Verification of correct build artifact placement
+- Explanation of auto-generated file warnings
+
 ## Simplified Build System
 
 The project now uses 6 essential CMake presets that cover all major development scenarios:

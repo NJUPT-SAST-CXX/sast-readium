@@ -4,23 +4,38 @@ A Qt6-based PDF reader application with comprehensive build support for multiple
 
 ## Features
 
+### Core Functionality
 - **PDF Viewing**: High-quality PDF rendering with zoom, rotation, and navigation
-- **Search Functionality**: Advanced text search with highlighting and navigation
+- **Search Functionality**: Advanced text search with highlighting, incremental search, and error recovery
 - **Bookmarks**: Create, manage, and navigate bookmarks
 - **Annotations**: Add and manage PDF annotations
-- **Thumbnails**: Generate and display page thumbnails with GPU fallback rendering
-- **Multi-tab Interface**: Open multiple documents simultaneously
+- **Thumbnails**: Chrome-style thumbnails with GPU fallback rendering and virtual scrolling
+- **Multi-Document Support**: Open and manage multiple PDF documents with recent files tracking
 - **Internationalization**: Support for multiple languages (English/Chinese)
-- **Theme Support**: Light and dark theme options
-- **Performance Optimizations**: Efficient rendering and memory management
-- **Advanced Logging**: Comprehensive logging system with configurable sinks and categories
-- **Memory Management**: Smart memory optimization with multiple eviction strategies
-- **Debug Tools**: Advanced debug log panel with search and filtering capabilities
-- **Cross-platform Support**: Windows, Linux, macOS
+- **Theme Support**: Light and dark theme options with modern UI design
+
+### Architecture & Design Patterns
+- **Command Pattern**: Undo/redo support with `CommandManager` for all operations
+- **Service Locator**: Dependency injection with `ServiceLocator` for loose coupling
+- **Event Bus**: Decoupled communication with publish-subscribe pattern
+- **Factory Pattern**: Standardized object creation with `ModelFactory` and `WidgetFactory`
+- **Plugin System**: Extensibility through `PluginInterface` and `PluginManager`
+
+### Performance & Quality
+- **Advanced Logging**: High-performance spdlog-based logging with Qt integration
+- **Memory Management**: Smart caching with multiple eviction strategies and memory pressure handling
+- **Performance Optimizations**: Asynchronous rendering, preloading, and virtual scrolling
+- **Comprehensive Testing**: 100+ unit and integration tests with dedicated test utilities
+
+### Developer Experience
+- **Cross-platform Support**: Windows, Linux, macOS with multiple build environments
 - **Multiple Build Environments**:
   - **System packages** for native Linux/macOS builds (recommended)
   - **vcpkg** for cross-platform dependency management
   - **MSYS2** for Windows Unix-like development
+- **Cross-Compilation**: Toolchains for macOS (Intel & ARM64), Linux (x86_64 & ARM64), Windows (MinGW)
+- **Clang Support**: Full Clang compiler support across all desktop platforms
+- **IDE Integration**: Automatic clangd configuration for enhanced development experience
 
 ## Build System
 
@@ -267,21 +282,51 @@ make dev            # Setup development environment
 
 ## Documentation
 
+### Getting Started
+- [Documentation Index](docs/index.md) - Main documentation hub
 - [MSYS2 Build Guide](docs/setup/msys2-build.md) - Comprehensive MSYS2 setup and build instructions (Recommended)
 - [Dependency Management Guide](docs/getting-started/dependency-management.md) - Detailed dependency management information
-- [Xmake Status](docs/build-systems/xmake/xmake-status.md) - Current xmake implementation status and issues
-- [Xmake Build Guide](docs/build-systems/xmake/xmake-build.md) - Modern Lua-based build system instructions (Experimental)
+- [Platform Support](docs/getting-started/platform-support.md) - Supported platforms and architectures
+
+### Build System
 - [Build System Comparison](docs/build-systems/build-system-comparison.md) - CMake vs xmake feature comparison
+- [CMake Modules Documentation](cmake/README.md) - Detailed CMake module documentation
+- [Migration Guide](docs/MIGRATION-GUIDE.md) - Guide for migrating to the new build system
 - [clangd Setup Guide](docs/setup/clangd-setup.md) - IDE integration and clangd configuration
-- [clangd Troubleshooting](docs/setup/clangd-troubleshooting.md) - Solutions for common clangd issues
-- [clangd Configuration Options](docs/setup/clangd-config-options.md) - Advanced configuration control
-- [Build Troubleshooting](docs/setup/msys2-build.md#troubleshooting) - Common build issues and solutions
+
+### Architecture & Features
+- [Architecture Guide](docs/architecture.md) - Comprehensive architecture documentation
+- [Logging System](docs/logging-system.md) - Logging system documentation and usage
+- [Thumbnail System](docs/features/thumbnail-system.md) - Chrome-style thumbnail system
+- [Thread Safety Guidelines](docs/thread-safety-guidelines.md) - Thread safety best practices
+
+### Advanced Topics
+- [API Reference](docs/api-reference.md) - API documentation for core components
+- [PDF Performance Optimizations](docs/PDF_Performance_Optimizations.md) - Performance optimization techniques
+- [QGraphics PDF Support](docs/QGraphics_PDF_Support.md) - QGraphics-based PDF rendering
 
 ## Dependencies
 
-- **Qt6** (Core, Gui, Widgets, Svg, LinguistTools)
+### Required
+- **Qt6** (Core, Gui, Widgets, Svg, LinguistTools, TextToSpeech)
 - **Poppler-Qt6** for PDF rendering
+- **spdlog** for high-performance logging
 - **CMake** 3.28+ and **Ninja** for building
+
+### Optional
+- **vcpkg** for cross-platform dependency management
+- **MSYS2** for Windows Unix-like development environment
+- **Clang** for alternative compiler support
+
+See [Dependency Management Guide](docs/getting-started/dependency-management.md) for detailed installation instructions.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes, new features, and migration notes.
+
+## Contributing
+
+We welcome contributions! Please see our contributing guidelines and code of conduct in the repository.
 
 ## License
 

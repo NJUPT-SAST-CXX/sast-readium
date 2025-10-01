@@ -392,4 +392,4 @@ private slots:
 };
 
 QTEST_MAIN(StateManagerTest)
-#include "StateManagerTest.moc"
+#include "state_manager_test.moc"

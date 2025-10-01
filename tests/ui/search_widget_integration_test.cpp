@@ -785,4 +785,4 @@ QLabel* SearchWidgetIntegrationTest::getResultsLabel()
 }
 
 QTEST_MAIN(SearchWidgetIntegrationTest)
-#include "SearchWidgetIntegrationTest.moc"
+#include "search_widget_integration_test.moc"

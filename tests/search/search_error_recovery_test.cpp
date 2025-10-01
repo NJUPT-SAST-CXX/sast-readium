@@ -613,4 +613,4 @@ bool SearchErrorRecoveryTest::successfulOperation()
 }
 
 QTEST_MAIN(SearchErrorRecoveryTest)
-#include "SearchErrorRecoveryTest.moc"
+#include "search_error_recovery_test.moc"

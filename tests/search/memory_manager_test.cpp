@@ -394,4 +394,4 @@ MemoryManager::MemoryStats MemoryManagerTest::createMockStats()
 }
 
 QTEST_MAIN(MemoryManagerTest)
-#include "MemoryManagerTest.moc"
+#include "memory_manager_test.moc"

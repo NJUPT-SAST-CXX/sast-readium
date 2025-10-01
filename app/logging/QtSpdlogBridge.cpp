@@ -1,16 +1,33 @@
 #include "QtSpdlogBridge.h"
 #include "Logger.h"
+#include <QObject>
 #include <QCoreApplication>
 #include <QThread>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QDebug>
 #include <QLoggingCategory>
+#include <QTextStream>
+#include <QRect>
+#include <QSize>
+#include <QPoint>
+
+// Note: Implementation classes are defined in the header for PIMPL pattern
 
 QtSpdlogBridge& QtSpdlogBridge::instance()
 {
     static QtSpdlogBridge instance;
     return instance;
+}
+
+// Constructor implementation for PIMPL
+QtSpdlogBridge::QtSpdlogBridge() : d(std::make_unique<Implementation>(this))
+{
+}
+
+bool QtSpdlogBridge::isMessageHandlerInstalled() const
+{
+    return d->handlerInstalled;
 }
 
 void QtSpdlogBridge::initialize()
@@ -25,23 +42,23 @@ void QtSpdlogBridge::initialize()
 
 void QtSpdlogBridge::installMessageHandler()
 {
-    if (m_handlerInstalled) {
+    if (d->handlerInstalled) {
         return;
     }
-    
-    m_previousHandler = qInstallMessageHandler(qtMessageHandler);
-    m_handlerInstalled = true;
+
+    d->previousHandler = qInstallMessageHandler(qtMessageHandler);
+    d->handlerInstalled = true;
 }
 
 void QtSpdlogBridge::restoreDefaultMessageHandler()
 {
-    if (!m_handlerInstalled) {
+    if (!d->handlerInstalled) {
         return;
     }
-    
-    qInstallMessageHandler(m_previousHandler);
-    m_handlerInstalled = false;
-    m_previousHandler = nullptr;
+
+    qInstallMessageHandler(d->previousHandler);
+    d->handlerInstalled = false;
+    d->previousHandler = nullptr;
 }
 
 void QtSpdlogBridge::qtMessageHandler(QtMsgType type, const QMessageLogContext& context, const QString& message)
@@ -51,9 +68,9 @@ void QtSpdlogBridge::qtMessageHandler(QtMsgType type, const QMessageLogContext& 
 
 void QtSpdlogBridge::handleQtMessage(QtMsgType type, const QMessageLogContext& context, const QString& message)
 {
-    Logger::LogLevel level = qtMsgTypeToLogLevel(type);
-    QString formattedMessage = formatQtMessage(type, context, message);
-    
+    Logger::LogLevel level = d->qtMsgTypeToLogLevel(type);
+    QString formattedMessage = d->formatQtMessage(type, context, message);
+
     // Get the logger instance and log the message
     Logger& logger = Logger::instance();
     
@@ -77,7 +94,7 @@ void QtSpdlogBridge::handleQtMessage(QtMsgType type, const QMessageLogContext& c
     }
 }
 
-Logger::LogLevel QtSpdlogBridge::qtMsgTypeToLogLevel(QtMsgType type) const
+Logger::LogLevel QtSpdlogBridge::Implementation::qtMsgTypeToLogLevel(QtMsgType type) const
 {
     switch (type) {
         case QtDebugMsg:
@@ -95,7 +112,7 @@ Logger::LogLevel QtSpdlogBridge::qtMsgTypeToLogLevel(QtMsgType type) const
     }
 }
 
-QString QtSpdlogBridge::formatQtMessage(QtMsgType type, const QMessageLogContext& context, const QString& message) const
+QString QtSpdlogBridge::Implementation::formatQtMessage(QtMsgType type, const QMessageLogContext& context, const QString& message) const
 {
     QString formatted = message;
     
@@ -117,54 +134,55 @@ QString QtSpdlogBridge::formatQtMessage(QtMsgType type, const QMessageLogContext
 
 void QtSpdlogBridge::setQtCategoryFilteringEnabled(bool enabled)
 {
-    m_categoryFilteringEnabled = enabled;
+    d->categoryFilteringEnabled = enabled;
 }
 
 void QtSpdlogBridge::addCategoryMapping(const QString& category, const QString& spdlogLogger)
 {
-    m_categoryMappings[category] = spdlogLogger.isEmpty() ? category : spdlogLogger;
+    d->categoryMappings[category] = spdlogLogger.isEmpty() ? category : spdlogLogger;
 }
 
 void QtSpdlogBridge::removeCategoryMapping(const QString& category)
 {
-    m_categoryMappings.remove(category);
+    d->categoryMappings.remove(category);
 }
 
 // SpdlogQDebug implementation
 SpdlogQDebug::SpdlogQDebug(Logger::LogLevel level)
-    : m_level(level), m_stream(&m_buffer)
+    : d(std::make_unique<Implementation>(level))
 {
 }
 
 SpdlogQDebug::SpdlogQDebug(const SpdlogQDebug& other)
-    : m_level(other.m_level), m_stream(&m_buffer), m_messageOutput(false)
+    : d(std::make_unique<Implementation>(other.d->level))
 {
-    m_buffer = other.m_buffer;
+    d->buffer = other.d->buffer;
+    d->messageOutput = false;
 }
 
 SpdlogQDebug::~SpdlogQDebug()
 {
-    if (m_messageOutput && !m_buffer.isEmpty()) {
+    if (d->messageOutput && !d->buffer.isEmpty()) {
         Logger& logger = Logger::instance();
-        
-        switch (m_level) {
+
+        switch (d->level) {
             case Logger::LogLevel::Debug:
-                logger.debug(m_buffer);
+                logger.debug(d->buffer);
                 break;
             case Logger::LogLevel::Info:
-                logger.info(m_buffer);
+                logger.info(d->buffer);
                 break;
             case Logger::LogLevel::Warning:
-                logger.warning(m_buffer);
+                logger.warning(d->buffer);
                 break;
             case Logger::LogLevel::Error:
-                logger.error(m_buffer);
+                logger.error(d->buffer);
                 break;
             case Logger::LogLevel::Critical:
-                logger.critical(m_buffer);
+                logger.critical(d->buffer);
                 break;
             default:
-                logger.info(m_buffer);
+                logger.info(d->buffer);
                 break;
         }
     }
@@ -172,107 +190,107 @@ SpdlogQDebug::~SpdlogQDebug()
 
 SpdlogQDebug& SpdlogQDebug::operator<<(const QString& string)
 {
-    m_stream << string;
+    d->stream << string;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(const char* string)
 {
-    m_stream << string;
+    d->stream << string;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(const QByteArray& array)
 {
-    m_stream << array;
+    d->stream << array;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(int number)
 {
-    m_stream << number;
+    d->stream << number;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(long number)
 {
-    m_stream << number;
+    d->stream << number;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(long long number)
 {
-    m_stream << number;
+    d->stream << number;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(unsigned int number)
 {
-    m_stream << number;
+    d->stream << number;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(unsigned long number)
 {
-    m_stream << number;
+    d->stream << number;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(unsigned long long number)
 {
-    m_stream << number;
+    d->stream << number;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(float number)
 {
-    m_stream << number;
+    d->stream << number;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(double number)
 {
-    m_stream << number;
+    d->stream << number;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(bool boolean)
 {
-    m_stream << (boolean ? "true" : "false");
+    d->stream << (boolean ? "true" : "false");
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(const void* pointer)
 {
-    m_stream << pointer;
+    d->stream << pointer;
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(const QObject* object)
 {
     if (object) {
-        m_stream << object->objectName() << "(" << object->metaObject()->className() << ")";
+        d->stream << object->objectName() << "(" << object->metaObject()->className() << ")";
     } else {
-        m_stream << "QObject(nullptr)";
+        d->stream << "QObject(nullptr)";
     }
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(const QRect& rect)
 {
-    m_stream << "QRect(" << rect.x() << "," << rect.y() << " " << rect.width() << "x" << rect.height() << ")";
+    d->stream << "QRect(" << rect.x() << "," << rect.y() << " " << rect.width() << "x" << rect.height() << ")";
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(const QSize& size)
 {
-    m_stream << "QSize(" << size.width() << ", " << size.height() << ")";
+    d->stream << "QSize(" << size.width() << ", " << size.height() << ")";
     return *this;
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(const QPoint& point)
 {
-    m_stream << "QPoint(" << point.x() << "," << point.y() << ")";
+    d->stream << "QPoint(" << point.x() << "," << point.y() << ")";
     return *this;
 }
 

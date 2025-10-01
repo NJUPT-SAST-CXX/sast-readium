@@ -313,4 +313,4 @@ void SearchConfigurationTest::verifySearchResult(const SearchResult& result, int
 }
 
 QTEST_MAIN(SearchConfigurationTest)
-#include "SearchConfigurationTest.moc"
+#include "search_configuration_test.moc"

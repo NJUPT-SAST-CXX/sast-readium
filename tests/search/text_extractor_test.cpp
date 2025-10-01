@@ -436,4 +436,4 @@ void TextExtractorTest::measureExtractionTime(int pageNumber)
 }
 
 QTEST_MAIN(TextExtractorTest)
-#include "TextExtractorTest.moc"
+#include "text_extractor_test.moc"

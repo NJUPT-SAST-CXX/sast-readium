@@ -1,21 +1,14 @@
 #pragma once
 
+#include <QObject>
+#include <QString>
+#include <memory>
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/fmt.h>
-#include <fmt/format.h>
-#include <string>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/rotating_file_sink.h>
-#include <spdlog/sinks/qt_sinks.h>
-#include <QObject>
-#include <QTextEdit>
-#include <QString>
-#include <QMutex>
-#include <memory>
 
-// Forward declaration to avoid circular dependency
+// Forward declarations to reduce header dependencies
 class LoggingConfig;
+class QTextEdit;
 
 /**
  * @brief Centralized logging manager that integrates spdlog with Qt
@@ -73,7 +66,7 @@ public:
     };
 
     static Logger& instance();
-    ~Logger() = default;
+    ~Logger();
 
     // Configuration
     void initialize(const LoggerConfig& config = LoggerConfig());
@@ -96,135 +89,63 @@ public:
     
     // Qt widget integration
     void setQtWidget(QTextEdit* widget);
-    QTextEdit* getQtWidget() const { return m_qtWidget; }
+    QTextEdit* getQtWidget() const;
 
-    // Logging methods
+    // Logging methods - kept inline for template instantiation
     template<typename... Args>
-    void trace(const QString& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->trace(format.toStdString(), std::forward<Args>(args)...);
-        }
-    }
+    void trace(const QString& format, Args&&... args);
 
     // String literal overloads for runtime format strings
     template<typename... Args>
-    void trace(const char* format, Args&&... args) {
-        if (m_logger) {
-            m_logger->trace(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void trace(const char* format, Args&&... args);
 
     template<typename... Args>
-    void trace(const std::string& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->trace(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void trace(const std::string& format, Args&&... args);
 
     template<typename... Args>
-    void debug(const QString& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->debug(format.toStdString(), std::forward<Args>(args)...);
-        }
-    }
+    void debug(const QString& format, Args&&... args);
 
     template<typename... Args>
-    void debug(const char* format, Args&&... args) {
-        if (m_logger) {
-            m_logger->debug(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void debug(const char* format, Args&&... args);
 
     template<typename... Args>
-    void debug(const std::string& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->debug(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void debug(const std::string& format, Args&&... args);
 
     template<typename... Args>
-    void info(const QString& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->info(format.toStdString(), std::forward<Args>(args)...);
-        }
-    }
+    void info(const QString& format, Args&&... args);
 
     template<typename... Args>
-    void info(const char* format, Args&&... args) {
-        if (m_logger) {
-            m_logger->info(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void info(const char* format, Args&&... args);
 
     template<typename... Args>
-    void info(const std::string& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->info(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void info(const std::string& format, Args&&... args);
 
     template<typename... Args>
-    void warning(const QString& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->warn(format.toStdString(), std::forward<Args>(args)...);
-        }
-    }
+    void warning(const QString& format, Args&&... args);
 
     template<typename... Args>
-    void warning(const char* format, Args&&... args) {
-        if (m_logger) {
-            m_logger->warn(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void warning(const char* format, Args&&... args);
 
     template<typename... Args>
-    void warning(const std::string& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->warn(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void warning(const std::string& format, Args&&... args);
 
     template<typename... Args>
-    void error(const QString& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->error(format.toStdString(), std::forward<Args>(args)...);
-        }
-    }
+    void error(const QString& format, Args&&... args);
 
     template<typename... Args>
-    void error(const char* format, Args&&... args) {
-        if (m_logger) {
-            m_logger->error(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void error(const char* format, Args&&... args);
 
     template<typename... Args>
-    void error(const std::string& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->error(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void error(const std::string& format, Args&&... args);
 
     template<typename... Args>
-    void critical(const QString& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->critical(format.toStdString(), std::forward<Args>(args)...);
-        }
-    }
+    void critical(const QString& format, Args&&... args);
 
     template<typename... Args>
-    void critical(const char* format, Args&&... args) {
-        if (m_logger) {
-            m_logger->critical(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void critical(const char* format, Args&&... args);
 
     template<typename... Args>
-    void critical(const std::string& format, Args&&... args) {
-        if (m_logger) {
-            m_logger->critical(fmt::runtime(format), std::forward<Args>(args)...);
-        }
-    }
+    void critical(const std::string& format, Args&&... args);
 
     // Simple string logging (Qt-style compatibility)
     void trace(const QString& message);
@@ -235,34 +156,164 @@ public:
     void critical(const QString& message);
 
     // Get underlying spdlog logger for advanced usage
-    std::shared_ptr<spdlog::logger> getSpdlogLogger() const { return m_logger; }
+    std::shared_ptr<spdlog::logger> getSpdlogLogger() const;
 
 signals:
     void logMessage(const QString& message, int level);
 
 private:
-    Logger() = default;
+    Logger();
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
 
-    void createLogger();
-    spdlog::level::level_enum toSpdlogLevel(LogLevel level) const;
-    LogLevel fromSpdlogLevel(spdlog::level::level_enum level) const;
-
-    /**
-     * @brief Convert LoggingConfig to LoggerConfig
-     * @param modernConfig LoggingConfig to convert
-     * @return LoggerConfig structure
-     */
-    LoggerConfig convertFromLoggingConfig(const LoggingConfig& modernConfig) const;
-
-    std::shared_ptr<spdlog::logger> m_logger;
-    std::vector<spdlog::sink_ptr> m_sinks;
-    LoggerConfig m_config;
-    QTextEdit* m_qtWidget = nullptr;
-    mutable QMutex m_mutex;
-    bool m_initialized = false;
+    class Implementation;
+    std::unique_ptr<Implementation> d;
 };
+
+// Template method implementations - must be in header for proper instantiation
+template<typename... Args>
+void Logger::trace(const QString& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->trace(format.toStdString(), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::trace(const char* format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->trace(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::trace(const std::string& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->trace(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::debug(const QString& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->debug(format.toStdString(), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::debug(const char* format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->debug(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::debug(const std::string& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->debug(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::info(const QString& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->info(format.toStdString(), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::info(const char* format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->info(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::info(const std::string& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->info(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::warning(const QString& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->warn(format.toStdString(), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::warning(const char* format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->warn(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::warning(const std::string& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->warn(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::error(const QString& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->error(format.toStdString(), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::error(const char* format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->error(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::error(const std::string& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->error(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::critical(const QString& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->critical(format.toStdString(), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::critical(const char* format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->critical(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void Logger::critical(const std::string& format, Args&&... args) {
+    auto logger = getSpdlogLogger();
+    if (logger) {
+        logger->critical(fmt::runtime(format), std::forward<Args>(args)...);
+    }
+}
 
 // Convenience macros for easy migration from Qt logging
 // Note: These macros are commented out to avoid conflicts with LoggingMacros.h

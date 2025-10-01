@@ -1,16 +1,18 @@
 #pragma once
 
-#include "Logger.h"
-
-#include <QFileSystemWatcher>
-#include <QHash>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QMutex>
 #include <QObject>
-#include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <QHash>
+#include <QVariant>
+#include <QDateTime>
+#include <memory>
+#include "Logger.h"
+
+// Forward declarations to reduce header dependencies
+class QFileSystemWatcher;
+class QJsonObject;
+class QSettings;
 
 /**
  * @brief Runtime configuration system for logging
@@ -88,7 +90,7 @@ public:
     };
 
     explicit LoggingConfig(QObject* parent = nullptr);
-    ~LoggingConfig() = default;
+    ~LoggingConfig();
 
     // Configuration loading and saving
     bool loadFromSettings(QSettings& settings);
@@ -100,18 +102,14 @@ public:
     bool loadFromEnvironment();
 
     // Configuration management
-    void setConfigurationSource(ConfigSource source) {
-        m_configSource = source;
-    }
-    ConfigSource getConfigurationSource() const { return m_configSource; }
+    void setConfigurationSource(ConfigSource source);
+    ConfigSource getConfigurationSource() const;
     void resetToDefaults();
     bool isValid() const;
     QStringList validate() const;
 
     // Global configuration
-    const GlobalConfiguration& getGlobalConfig() const {
-        return m_globalConfig;
-    }
+    const GlobalConfiguration& getGlobalConfig() const;
     void setGlobalConfig(const GlobalConfiguration& config);
     void setGlobalLogLevel(Logger::LogLevel level);
     void setGlobalPattern(const QString& pattern);
@@ -120,9 +118,7 @@ public:
     void setAutoFlushOnWarning(bool enabled);
 
     // Sink configuration
-    QList<SinkConfiguration> getSinkConfigurations() const {
-        return m_sinkConfigs;
-    }
+    QList<SinkConfiguration> getSinkConfigurations() const;
     void setSinkConfigurations(const QList<SinkConfiguration>& configs);
     void addSinkConfiguration(const SinkConfiguration& config);
     void removeSinkConfiguration(const QString& name);
@@ -132,9 +128,7 @@ public:
     bool hasSinkConfiguration(const QString& name) const;
 
     // Category configuration
-    QList<CategoryConfiguration> getCategoryConfigurations() const {
-        return m_categoryConfigs;
-    }
+    QList<CategoryConfiguration> getCategoryConfigurations() const;
     void setCategoryConfigurations(const QList<CategoryConfiguration>& configs);
     void addCategoryConfiguration(const CategoryConfiguration& config);
     void removeCategoryConfiguration(const QString& name);
@@ -162,7 +156,7 @@ public:
     // Runtime configuration changes
     void applyConfiguration();
     void reloadConfiguration();
-    bool isAutoReloadEnabled() const { return m_autoReload; }
+    bool isAutoReloadEnabled() const;
     void setAutoReload(bool enabled);
 
     // Configuration file watching
@@ -213,55 +207,37 @@ private slots:
     void handleFileSystemChange(const QString& path);
 
 private:
-    void initializeDefaults();
+    class Implementation;
+    std::unique_ptr<Implementation> d;
+
+    // Helper methods
+    Logger::LogLevel parseLogLevelFromString(const QString& levelStr) const;
+    QString logLevelToString(Logger::LogLevel level) const;
     void connectSignals();
     void disconnectSignals();
 
-    // JSON serialization helpers
-    QJsonObject sinkConfigToJson(const SinkConfiguration& config) const;
-    SinkConfiguration sinkConfigFromJson(const QJsonObject& json) const;
-    QJsonObject categoryConfigToJson(const CategoryConfiguration& config) const;
-    CategoryConfiguration categoryConfigFromJson(const QJsonObject& json) const;
+    // JSON conversion methods
     QJsonObject globalConfigToJson(const GlobalConfiguration& config) const;
+    QJsonObject sinkConfigToJson(const SinkConfiguration& config) const;
+    QJsonObject categoryConfigToJson(const CategoryConfiguration& config) const;
     GlobalConfiguration globalConfigFromJson(const QJsonObject& json) const;
+    SinkConfiguration sinkConfigFromJson(const QJsonObject& json) const;
+    CategoryConfiguration categoryConfigFromJson(const QJsonObject& json) const;
 
-    // Settings serialization helpers
-    void sinkConfigToSettings(QSettings& settings,
-                              const SinkConfiguration& config) const;
-    SinkConfiguration sinkConfigFromSettings(QSettings& settings) const;
-    void categoryConfigToSettings(QSettings& settings,
-                                  const CategoryConfiguration& config) const;
-    CategoryConfiguration categoryConfigFromSettings(QSettings& settings) const;
-    void globalConfigToSettings(QSettings& settings,
-                                const GlobalConfiguration& config) const;
+    // Settings conversion methods
+    void globalConfigToSettings(QSettings& settings, const GlobalConfiguration& config) const;
+    void sinkConfigToSettings(QSettings& settings, const SinkConfiguration& config) const;
+    void categoryConfigToSettings(QSettings& settings, const CategoryConfiguration& config) const;
     GlobalConfiguration globalConfigFromSettings(QSettings& settings) const;
+    SinkConfiguration sinkConfigFromSettings(QSettings& settings) const;
+    CategoryConfiguration categoryConfigFromSettings(QSettings& settings) const;
 
-    // Environment variable helpers
-    QString getEnvironmentVariable(
-        const QString& name, const QString& defaultValue = QString()) const;
-    Logger::LogLevel parseLogLevelFromString(const QString& levelStr) const;
-    QString logLevelToString(Logger::LogLevel level) const;
+    // Validation methods
+    bool validateSinkConfiguration(const SinkConfiguration& config, QStringList& errors) const;
+    bool validateCategoryConfiguration(const CategoryConfiguration& config, QStringList& errors) const;
+    bool validateGlobalConfiguration(const GlobalConfiguration& config, QStringList& errors) const;
 
-    // Validation helpers
-    bool validateSinkConfiguration(const SinkConfiguration& config,
-                                   QStringList& errors) const;
-    bool validateCategoryConfiguration(const CategoryConfiguration& config,
-                                       QStringList& errors) const;
-    bool validateGlobalConfiguration(const GlobalConfiguration& config,
-                                     QStringList& errors) const;
-
-    GlobalConfiguration m_globalConfig;
-    QList<SinkConfiguration> m_sinkConfigs;
-    QList<CategoryConfiguration> m_categoryConfigs;
-
-    ConfigSource m_configSource = ConfigSource::Default;
-    bool m_autoReload = false;
-    QString m_watchedConfigFile;
-    QFileSystemWatcher* m_fileWatcher = nullptr;
-
-    mutable QMutex m_mutex;
-
-    // Default configurations
+    // Default configurations - kept as static members
     static const GlobalConfiguration s_defaultGlobalConfig;
     static const QList<SinkConfiguration> s_defaultSinkConfigs;
     static const QHash<QString, QString> s_environmentVariableMap;

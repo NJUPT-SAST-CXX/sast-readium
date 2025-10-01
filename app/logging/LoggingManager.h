@@ -7,19 +7,18 @@
 // Note: LoggingMacros.h includes this file to access configuration management.
 // For logging macros, include LoggingMacros.h instead of this file directly.
 
-#include <QtCore/qglobal.h>
-#include <QDateTime>
-#include <QMutex>
 #include <QObject>
-#include <QSettings>
 #include <QStringList>
-#include <QTextEdit>
-#include <QTimer>
-#include <cstddef>
+#include <QDateTime>
 #include <memory>
 #include "Logger.h"
-#include "QtSpdlogBridge.h"
-#include "LoggingConfig.h"
+
+// Forward declarations to reduce header dependencies
+class LoggingConfig;
+class QtSpdlogBridge;
+class QSettings;
+class QTextEdit;
+class QTimer;
 
 /**
  * @brief Centralized logging manager for the entire application
@@ -165,11 +164,11 @@ public:
     void initialize(const LoggingConfig& config);
 
     void shutdown();
-    bool isInitialized() const { return m_initialized; }
+    bool isInitialized() const;
 
     // Configuration management
     void setConfiguration(const LoggingConfiguration& config);
-    const LoggingConfiguration& getConfiguration() const { return m_config; }
+    const LoggingConfiguration& getConfiguration() const;
     void loadConfigurationFromSettings(QSettings& settings);
     void saveConfigurationToSettings(QSettings& settings) const;
     void resetToDefaultConfiguration();
@@ -184,7 +183,7 @@ public:
      * @brief Check if using modern LoggingConfig or legacy LoggingConfiguration
      * @return True if initialized with LoggingConfig, false if with LoggingConfiguration
      */
-    bool isUsingModernConfig() const { return m_usingModernConfig; }
+    bool isUsingModernConfig() const;
 
     // Runtime configuration changes
     void setGlobalLogLevel(Logger::LogLevel level);
@@ -210,10 +209,8 @@ public:
     const Logger& getLogger() const { return Logger::instance(); }
 
     // Qt bridge access
-    QtSpdlogBridge& getQtBridge() { return QtSpdlogBridge::instance(); }
-    const QtSpdlogBridge& getQtBridge() const {
-        return QtSpdlogBridge::instance();
-    }
+    QtSpdlogBridge& getQtBridge();
+    const QtSpdlogBridge& getQtBridge() const;
 
     // Statistics and monitoring
     struct LoggingStatistics {
@@ -262,12 +259,13 @@ private slots:
     void updateStatistics();
 
 private:
-    LoggingManager() = default;
+    LoggingManager();
     LoggingManager(const LoggingManager&) = delete;
     LoggingManager& operator=(const LoggingManager&) = delete;
 
+    // Helper methods
     void initializeLogger();
-    void initializeLoggerFromModernConfig();  // New method for modern config
+    void initializeLoggerFromModernConfig();
     void initializeQtBridge();
     void setupPeriodicFlush();
     void createLogDirectory();
@@ -277,23 +275,8 @@ private:
     void connectSignals();
     void disconnectSignals();
 
-    LoggingConfiguration m_config;
-    bool m_usingModernConfig = false;  // Track which config system is active
-    bool m_initialized = false;
-    mutable QMutex m_mutex;
-
-    // Timers
-    QTimer* m_flushTimer = nullptr;
-    QTimer* m_statisticsTimer = nullptr;
-
-    // Statistics
-    mutable LoggingStatistics m_statistics;
-
-    // Category management
-    QHash<QString, Logger::LogLevel> m_categoryLevels;
-
-    // Qt widget reference
-    QTextEdit* m_qtLogWidget = nullptr;
+    class Implementation;
+    std::unique_ptr<Implementation> d;
 };
 
 // ============================================================================

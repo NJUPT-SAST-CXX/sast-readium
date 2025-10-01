@@ -694,4 +694,4 @@ void DocumentMetadataDialogIntegrationTest::waitForMetadataLoad()
 }
 
 QTEST_MAIN(DocumentMetadataDialogIntegrationTest)
-#include "DocumentMetadataDialogIntegrationTest.moc"
+#include "document_metadata_dialog_integration_test.moc"

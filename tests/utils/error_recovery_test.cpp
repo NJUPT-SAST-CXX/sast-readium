@@ -326,4 +326,4 @@ ErrorHandling::ErrorInfo ErrorRecoveryTest::createTestError() {
 }
 
 QTEST_MAIN(ErrorRecoveryTest)
-#include "ErrorRecoveryTest.moc"
+#include "error_recovery_test.moc"

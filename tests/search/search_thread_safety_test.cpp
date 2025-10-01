@@ -436,4 +436,4 @@ void SearchThreadSafetyTest::runConcurrentTest(std::function<void(int)> threadFu
 }
 
 QTEST_MAIN(SearchThreadSafetyTest)
-#include "SearchThreadSafetyTest.moc"
+#include "search_thread_safety_test.moc"

@@ -444,4 +444,4 @@ void SearchPerformanceTest::verifySearchResults(
 }
 
 QTEST_MAIN(SearchPerformanceTest)
-#include "SearchPerformanceTest.moc"
+#include "search_performance_test.moc"

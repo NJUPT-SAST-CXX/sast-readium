@@ -304,4 +304,4 @@ void RightSideBarIntegrationTest::waitForAnimation()
 }
 
 QTEST_MAIN(RightSideBarIntegrationTest)
-#include "RightSideBarIntegrationTest.moc"
+#include "right_side_bar_integration_test.moc"

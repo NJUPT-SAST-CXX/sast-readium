@@ -1,9 +1,33 @@
 #include "LoggingMacros.h"
+#include "Logger.h"
+#include "LoggingManager.h"
+#include <spdlog/fmt/fmt.h>
 #include <QProcess>
 #include <QFileInfo>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QDebug>
+#include <QHash>
+#include <QThread>
+#include <QDateTime>
+#include <QRect>
+#include <QSize>
+#include <QPoint>
+#include <QCoreApplication>
 #include <chrono>
+
+// PerformanceLogger Implementation class
+class PerformanceLogger::Implementation
+{
+public:
+    explicit Implementation(const QString& name) : name(name), startTime(std::chrono::high_resolution_clock::now()), thresholdMs(0) {}
+    ~Implementation() = default;
+
+    QString name;      ///< Performance measurement name
+    QString location;  ///< Source location
+    std::chrono::high_resolution_clock::time_point startTime;  ///< Start time
+    int thresholdMs = 0;  ///< Logging threshold in milliseconds
+};
 
 // Note: QThread is already included via LoggingMacros.h
 
@@ -20,31 +44,31 @@ QHash<QString, qint64> MemoryLogger::s_memoryBaselines;
 // ============================================================================
 
 PerformanceLogger::PerformanceLogger(const QString& name, const char* file, int line)
-    : m_name(name), m_startTime(std::chrono::high_resolution_clock::now())
+    : d(std::make_unique<Implementation>(name))
 {
     if (file && line > 0) {
         QFileInfo fileInfo(file);
-        m_location = QString("%1:%2").arg(fileInfo.fileName()).arg(line);
+        d->location = QString("%1:%2").arg(fileInfo.fileName()).arg(line);
     }
-    
-    LOG_TRACE("Performance tracking started: {}{}", 
-              m_name.toStdString(), 
-              m_location.isEmpty() ? "" : " at " + m_location.toStdString());
+
+    LOG_TRACE("Performance tracking started: {}{}",
+              d->name.toStdString(),
+              d->location.isEmpty() ? "" : " at " + d->location.toStdString());
 }
 
 PerformanceLogger::~PerformanceLogger()
 {
     auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - m_startTime).count();
-    
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - d->startTime).count();
+
     // Only log if duration exceeds threshold (if set)
-    if (m_thresholdMs == 0 || duration >= m_thresholdMs) {
-        QString message = QString("Performance [%1]: %2ms").arg(m_name).arg(duration);
-        
-        if (!m_location.isEmpty()) {
-            message += QString(" at %1").arg(m_location);
+    if (d->thresholdMs == 0 || duration >= d->thresholdMs) {
+        QString message = QString("Performance [%1]: %2ms").arg(d->name).arg(duration);
+
+        if (!d->location.isEmpty()) {
+            message += QString(" at %1").arg(d->location);
         }
-        
+
         // Use different log levels based on duration
         if (duration > 1000) { // > 1 second
             LOG_WARNING("{}", message.toStdString());
@@ -59,14 +83,19 @@ PerformanceLogger::~PerformanceLogger()
 void PerformanceLogger::checkpoint(const QString& description)
 {
     auto currentTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_startTime).count();
-    
-    QString message = QString("Performance checkpoint [%1]: %2ms").arg(m_name).arg(duration);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - d->startTime).count();
+
+    QString message = QString("Performance checkpoint [%1]: %2ms").arg(d->name).arg(duration);
     if (!description.isEmpty()) {
         message += QString(" - %1").arg(description);
     }
-    
+
     LOG_DEBUG("{}", message.toStdString());
+}
+
+void PerformanceLogger::setThreshold(int milliseconds)
+{
+    d->thresholdMs = milliseconds;
 }
 
 // ============================================================================

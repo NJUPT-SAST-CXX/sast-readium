@@ -603,4 +603,4 @@ void PDFUtilitiesTest::testFindTextDifferences() {
 }
 
 QTEST_MAIN(PDFUtilitiesTest)
-#include "PDFUtilitiesTest.moc"
+#include "pdf_utilities_test.moc"

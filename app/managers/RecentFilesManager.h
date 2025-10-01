@@ -2,10 +2,12 @@
 
 #include <QDateTime>
 #include <QFileInfo>
-#include <QMutex>
 #include <QObject>
-#include <QSettings>
 #include <QStringList>
+#include <memory>
+
+// Forward declaration
+class RecentFilesManagerImpl;
 
 /**
  * 最近文件信息结构
@@ -77,17 +79,10 @@ private slots:
 
 private:
     void loadSettings();
-    void loadSettingsWithoutCleanup();
-    void enforceMaxSize();
-    QVariantMap fileInfoToVariant(const RecentFileInfo& info) const;
-    RecentFileInfo variantToFileInfo(const QVariantMap& variant) const;
+    std::unique_ptr<RecentFilesManagerImpl> pImpl;
 
-    QSettings* m_settings;
-    QList<RecentFileInfo> m_recentFiles;
-    int m_maxRecentFiles;
-    mutable QMutex m_mutex;
-
-    static const int DEFAULT_MAX_RECENT_FILES = 10;
+public:
+    // Static constants - made public for implementation class access
     static const QString SETTINGS_GROUP;
     static const QString SETTINGS_MAX_FILES_KEY;
     static const QString SETTINGS_FILES_KEY;

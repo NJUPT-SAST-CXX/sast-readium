@@ -3,11 +3,12 @@
 #include <QObject>
 #include <QPixmap>
 #include <QIcon>
-#include <QHash>
 #include <QString>
 #include <QFileInfo>
-#include <QSvgRenderer>
-#include <QPainter>
+#include <memory>
+
+// Forward declaration
+class FileTypeIconManagerImpl;
 
 /**
  * File Type Icon Manager
@@ -36,27 +37,11 @@ public:
 
 private:
     FileTypeIconManager(QObject* parent = nullptr);
-    ~FileTypeIconManager() = default;
+    ~FileTypeIconManager();
     FileTypeIconManager(const FileTypeIconManager&) = delete;
     FileTypeIconManager& operator=(const FileTypeIconManager&) = delete;
 
-    // Helper methods
-    QString getIconPath(const QString& extension) const;
-    QPixmap loadSvgIcon(const QString& path, int size) const;
-    QPixmap createColoredIcon(const QPixmap& base, const QColor& color) const;
-    QString normalizeExtension(const QString& extension) const;
-
-    // Cache management
-    mutable QHash<QString, QPixmap> m_iconCache;
-    mutable QHash<QString, QString> m_extensionToIconMap;
-    
-    // Settings
-    int m_defaultIconSize;
-    QString m_iconBasePath;
-    
-    // Supported file types mapping
-    void initializeExtensionMapping();
-    QHash<QString, QString> m_fileTypeMapping;
+    std::unique_ptr<FileTypeIconManagerImpl> pImpl;
 };
 
 // Convenience macro

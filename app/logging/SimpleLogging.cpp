@@ -18,6 +18,27 @@
 
 namespace SastLogging {
 
+// Implementation classes for PIMPL pattern
+// Note: CategoryLogger::Implementation is now defined in the header for inline template access
+
+class ScopedLevel::Implementation
+{
+public:
+    explicit Implementation(Level originalLevel) : originalLevel(originalLevel) {}
+    ~Implementation() = default;
+
+    Level originalLevel;
+};
+
+class ScopedSilence::Implementation
+{
+public:
+    explicit Implementation(Level originalLevel) : originalLevel(originalLevel) {}
+    ~Implementation() = default;
+
+    Level originalLevel;
+};
+
 // ============================================================================
 // Internal State Management
 // ============================================================================
@@ -193,55 +214,55 @@ std::string formatString(const char* format, ...) {
 // CategoryLogger Implementation
 // ============================================================================
 
-CategoryLogger::CategoryLogger(const QString& category) 
-    : m_category(category), m_level(Level::Info) {
+CategoryLogger::CategoryLogger(const QString& category)
+    : d(std::make_unique<Implementation>(category)) {
     LoggingManager::instance().addLoggingCategory(category);
 }
 
 void CategoryLogger::trace(const QString& message) {
-    if (m_level <= Level::Trace) {
-        Logger::instance().trace("[{}] {}", m_category.toStdString(), message.toStdString());
+    if (d->level <= Level::Trace) {
+        Logger::instance().trace("[{}] {}", d->category.toStdString(), message.toStdString());
     }
 }
 
 void CategoryLogger::debug(const QString& message) {
-    if (m_level <= Level::Debug) {
-        Logger::instance().debug("[{}] {}", m_category.toStdString(), message.toStdString());
+    if (d->level <= Level::Debug) {
+        Logger::instance().debug("[{}] {}", d->category.toStdString(), message.toStdString());
     }
 }
 
 void CategoryLogger::info(const QString& message) {
-    if (m_level <= Level::Info) {
-        Logger::instance().info("[{}] {}", m_category.toStdString(), message.toStdString());
+    if (d->level <= Level::Info) {
+        Logger::instance().info("[{}] {}", d->category.toStdString(), message.toStdString());
     }
 }
 
 void CategoryLogger::warning(const QString& message) {
-    if (m_level <= Level::Warning) {
-        Logger::instance().warning("[{}] {}", m_category.toStdString(), message.toStdString());
+    if (d->level <= Level::Warning) {
+        Logger::instance().warning("[{}] {}", d->category.toStdString(), message.toStdString());
     }
 }
 
 void CategoryLogger::error(const QString& message) {
-    if (m_level <= Level::Error) {
-        Logger::instance().error("[{}] {}", m_category.toStdString(), message.toStdString());
+    if (d->level <= Level::Error) {
+        Logger::instance().error("[{}] {}", d->category.toStdString(), message.toStdString());
     }
 }
 
 void CategoryLogger::critical(const QString& message) {
-    if (m_level <= Level::Critical) {
-        Logger::instance().critical("[{}] {}", m_category.toStdString(), message.toStdString());
+    if (d->level <= Level::Critical) {
+        Logger::instance().critical("[{}] {}", d->category.toStdString(), message.toStdString());
     }
 }
 
 void CategoryLogger::setLevel(Level level) {
-    m_level = level;
+    d->level = level;
     LoggingManager::instance().setLoggingCategoryLevel(
-        m_category, convertToLoggerLevel(level));
+        d->category, convertToLoggerLevel(level));
 }
 
 Level CategoryLogger::getLevel() const {
-    return m_level;
+    return d->level;
 }
 
 // ============================================================================
@@ -298,26 +319,26 @@ void Timer::checkpoint(const QString& name) {
 // ScopedLevel Implementation
 // ============================================================================
 
-ScopedLevel::ScopedLevel(Level tempLevel) 
-    : m_originalLevel(getLevel()) {
+ScopedLevel::ScopedLevel(Level tempLevel)
+    : d(std::make_unique<Implementation>(getLevel())) {
     setLevel(tempLevel);
 }
 
 ScopedLevel::~ScopedLevel() {
-    setLevel(m_originalLevel);
+    setLevel(d->originalLevel);
 }
 
 // ============================================================================
 // ScopedSilence Implementation
 // ============================================================================
 
-ScopedSilence::ScopedSilence() 
-    : m_originalLevel(getLevel()) {
+ScopedSilence::ScopedSilence()
+    : d(std::make_unique<Implementation>(getLevel())) {
     setLevel(Level::Off);
 }
 
 ScopedSilence::~ScopedSilence() {
-    setLevel(m_originalLevel);
+    setLevel(d->originalLevel);
 }
 
 // ============================================================================

@@ -512,4 +512,4 @@ void StatusBarIntegrationTest::waitForMessageTimeout(int timeout)
 }
 
 QTEST_MAIN(StatusBarIntegrationTest)
-#include "StatusBarIntegrationTest.moc"
+#include "status_bar_integration_test.moc"

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake:*)",
+      "Bash(echo:*)",
+      "Bash(./scripts/check-msys2-deps.sh:*)",
+      "Bash(/d/msys64/usr/bin/pacman -S mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-svg mingw-w64-x86_64-qt6-tools mingw-w64-x86_64-poppler-qt6 --noconfirm)",
+      "Bash(moc:*)",
+      "Bash(uic:*)",
+      "Bash(rcc:*)",
+      "Bash(qmake6:*)",
+      "Read(//d/msys64/**)",
+      "Bash(export:*)",
+      "Bash(find:*)",
+      "Bash(powershell.exe:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,6 +1,6 @@
 # SAST Readium Documentation
 
-Welcome to the comprehensive documentation for SAST Readium, a modern Qt6-based PDF reader application.
+Welcome to the comprehensive documentation for SAST Readium, a modern Qt6-based PDF reader application with advanced architecture and extensibility.
 
 ## Quick Navigation
 
@@ -11,12 +11,21 @@ Essential information to get you up and running with SAST Readium:
 - [Dependency Management](getting-started/dependency-management.md) - Comprehensive dependency strategy
 - [Platform Support](getting-started/platform-support.md) - Supported platforms and architectures
 
+### 🏗️ [Architecture](architecture.md)
+
+Comprehensive architecture documentation:
+
+- [Architecture Overview](architecture.md) - Design patterns and component organization
+- [API Reference](api-reference.md) - Detailed API documentation for core components
+- [Thread Safety Guidelines](thread-safety-guidelines.md) - Thread safety best practices
+
 ### 🔧 [Build Systems](build-systems/)
 
-Choose your preferred build system:
+Build system documentation and guides:
 
 - [Build System Comparison](build-systems/build-system-comparison.md) - CMake vs Xmake comparison
-- [Xmake Build System](build-systems/xmake/) - Modern Lua-based build system (experimental)
+- [CMake Modules](../cmake/README.md) - Detailed CMake module documentation
+- [Migration Guide](MIGRATION-GUIDE.md) - Guide for migrating to the new build system
 
 ### ⚙️ [Setup & Configuration](setup/)
 
@@ -30,21 +39,67 @@ Development environment setup guides:
 Application features and implementation details:
 
 - [Thumbnail System](features/thumbnail-system.md) - Chrome-style PDF thumbnail system
+- [Logging System](logging-system.md) - High-performance logging with spdlog
+- [Search Engine](PDF_Performance_Optimizations.md) - Advanced search capabilities
+- [PDF Rendering](QGraphics_PDF_Support.md) - QGraphics-based PDF rendering
+
+### 📚 [Advanced Topics](/)
+
+In-depth technical documentation:
+
+- [PDF Performance Optimizations](PDF_Performance_Optimizations.md) - Performance optimization techniques
+- [Internationalization](i18n_implementation.md) - I18n implementation details
+- [Debugging Setup](debugging-setup.md) - Debugging tools and techniques
 
 ## About SAST Readium
 
 SAST Readium is a Qt6-based PDF reader application that provides:
 
-- **Modern UI**: Clean, intuitive interface built with Qt6
-- **High Performance**: Optimized rendering with Poppler-Qt6
-- **Cross-Platform**: Support for Windows, Linux, and macOS
-- **Multiple Build Systems**: Choose between CMake and Xmake
-- **Developer-Friendly**: Comprehensive documentation and IDE integration
+- **Modern Architecture**: Built with proven design patterns (Command, Service Locator, Event Bus, Factory, Plugin)
+- **High Performance**: Optimized rendering with Poppler-Qt6, smart caching, and asynchronous operations
+- **Extensibility**: Plugin system and well-defined extension points
+- **Cross-Platform**: Support for Windows, Linux, and macOS with cross-compilation toolchains
+- **Developer-Friendly**: Comprehensive documentation, IDE integration, and 100+ tests
+- **Modern UI**: Clean, intuitive interface with Chrome-style thumbnails and theme support
+
+## Key Features
+
+### Architecture Patterns
+- **Command Pattern**: Full undo/redo support with `CommandManager`
+- **Service Locator**: Dependency injection for loose coupling
+- **Event Bus**: Decoupled publish-subscribe communication
+- **Factory Pattern**: Standardized object creation with `ModelFactory` and `WidgetFactory`
+- **Plugin System**: Extensibility through `PluginInterface` and `PluginManager`
+
+### Core Functionality
+- PDF viewing with zoom, rotation, and navigation
+- Advanced search with incremental search and error recovery
+- Chrome-style thumbnails with virtual scrolling
+- Multi-document support with recent files tracking
+- Bookmarks and annotations
+- Internationalization (English/Chinese)
+- Light and dark themes
+
+### Developer Experience
+- Comprehensive test suite (100+ tests)
+- Automatic clangd configuration
+- Cross-compilation support
+- Clang compiler support
+- High-performance logging system
+- Detailed documentation
 
 ## Quick Start
 
 For the fastest way to get started, see our [Getting Started Guide](getting-started/).
 
+For architecture and design information, see the [Architecture Guide](architecture.md).
+
+For API documentation, see the [API Reference](api-reference.md).
+
 ## Contributing
 
 This documentation is part of the SAST Readium project. For contribution guidelines and development information, please refer to the main project repository.
+
+## Changelog
+
+See [CHANGELOG.md](../CHANGELOG.md) for a detailed list of changes, new features, and migration notes.

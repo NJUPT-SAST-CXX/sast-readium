@@ -1,11 +1,79 @@
 #include "LoggingConfig.h"
+#include "Logger.h"
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QJsonValue>
 #include <QStandardPaths>
 #include <QDir>
 #include <QCoreApplication>
 #include <QMutexLocker>
+#include <QMutex>
 #include <QDebug>
+#include <QFileSystemWatcher>
+#include <QHash>
+#include <QSettings>
+
+// LoggingConfig Implementation class
+class LoggingConfig::Implementation
+{
+public:
+    explicit Implementation(LoggingConfig* q) : q_ptr(q), fileWatcher(nullptr) {}
+    ~Implementation() = default;
+
+    // Private data members
+    LoggingConfig::GlobalConfiguration globalConfig;
+    QList<LoggingConfig::SinkConfiguration> sinkConfigs;
+    QList<LoggingConfig::CategoryConfiguration> categoryConfigs;
+
+    LoggingConfig::ConfigSource configSource = LoggingConfig::ConfigSource::Default;
+    bool autoReload = false;
+    QString watchedConfigFile;
+    QFileSystemWatcher* fileWatcher = nullptr;
+
+    mutable QMutex mutex;
+
+    // Private methods
+    void initializeDefaults();
+    void connectSignals();
+    void disconnectSignals();
+
+    // JSON serialization helpers
+    QJsonObject sinkConfigToJson(const LoggingConfig::SinkConfiguration& config) const;
+    LoggingConfig::SinkConfiguration sinkConfigFromJson(const QJsonObject& json) const;
+    QJsonObject categoryConfigToJson(const LoggingConfig::CategoryConfiguration& config) const;
+    LoggingConfig::CategoryConfiguration categoryConfigFromJson(const QJsonObject& json) const;
+    QJsonObject globalConfigToJson(const LoggingConfig::GlobalConfiguration& config) const;
+    LoggingConfig::GlobalConfiguration globalConfigFromJson(const QJsonObject& json) const;
+
+    // Settings serialization helpers
+    void sinkConfigToSettings(QSettings& settings,
+                              const LoggingConfig::SinkConfiguration& config) const;
+    LoggingConfig::SinkConfiguration sinkConfigFromSettings(QSettings& settings) const;
+    void categoryConfigToSettings(QSettings& settings,
+                                  const LoggingConfig::CategoryConfiguration& config) const;
+    LoggingConfig::CategoryConfiguration categoryConfigFromSettings(QSettings& settings) const;
+    void globalConfigToSettings(QSettings& settings,
+                                const LoggingConfig::GlobalConfiguration& config) const;
+    LoggingConfig::GlobalConfiguration globalConfigFromSettings(QSettings& settings) const;
+
+    // Environment variable helpers
+    QString getEnvironmentVariable(
+        const QString& name, const QString& defaultValue = QString()) const;
+    Logger::LogLevel parseLogLevelFromString(const QString& levelStr) const;
+    QString logLevelToString(Logger::LogLevel level) const;
+
+    // Validation helpers
+    bool validateSinkConfiguration(const LoggingConfig::SinkConfiguration& config,
+                                   QStringList& errors) const;
+    bool validateCategoryConfiguration(const LoggingConfig::CategoryConfiguration& config,
+                                       QStringList& errors) const;
+    bool validateGlobalConfiguration(const LoggingConfig::GlobalConfiguration& config,
+                                     QStringList& errors) const;
+
+private:
+    LoggingConfig* q_ptr;
+};
 
 // Static member definitions
 const LoggingConfig::GlobalConfiguration LoggingConfig::s_defaultGlobalConfig = {};
@@ -25,19 +93,52 @@ const QHash<QString, QString> LoggingConfig::s_environmentVariableMap = {
 };
 
 LoggingConfig::LoggingConfig(QObject* parent)
-    : QObject(parent), m_fileWatcher(nullptr)
+    : QObject(parent), d(std::make_unique<Implementation>(this))
 {
-    initializeDefaults();
-    connectSignals();
+    d->initializeDefaults();
+    d->connectSignals();
 }
 
-void LoggingConfig::initializeDefaults()
+LoggingConfig::~LoggingConfig() = default;
+
+// Getter method implementations
+void LoggingConfig::setConfigurationSource(ConfigSource source)
 {
-    m_globalConfig = s_defaultGlobalConfig;
-    m_sinkConfigs = s_defaultSinkConfigs;
-    
+    d->configSource = source;
+}
+
+LoggingConfig::ConfigSource LoggingConfig::getConfigurationSource() const
+{
+    return d->configSource;
+}
+
+const LoggingConfig::GlobalConfiguration& LoggingConfig::getGlobalConfig() const
+{
+    return d->globalConfig;
+}
+
+QList<LoggingConfig::SinkConfiguration> LoggingConfig::getSinkConfigurations() const
+{
+    return d->sinkConfigs;
+}
+
+QList<LoggingConfig::CategoryConfiguration> LoggingConfig::getCategoryConfigurations() const
+{
+    return d->categoryConfigs;
+}
+
+bool LoggingConfig::isAutoReloadEnabled() const
+{
+    return d->autoReload;
+}
+
+void LoggingConfig::Implementation::initializeDefaults()
+{
+    globalConfig = LoggingConfig::s_defaultGlobalConfig;
+    sinkConfigs = LoggingConfig::s_defaultSinkConfigs;
+
     // Set default file path for file sink
-    for (auto& sink : m_sinkConfigs) {
+    for (auto& sink : sinkConfigs) {
         if (sink.type == "rotating_file" && sink.filename.isEmpty()) {
             QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
             sink.filename = logDir + "/sast-readium.log";
@@ -47,46 +148,46 @@ void LoggingConfig::initializeDefaults()
 
 bool LoggingConfig::loadFromSettings(QSettings& settings)
 {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
     
     try {
         settings.beginGroup("Logging");
         
         // Load global configuration
         settings.beginGroup("Global");
-        m_globalConfig = globalConfigFromSettings(settings);
+        d->globalConfig = d->globalConfigFromSettings(settings);
         settings.endGroup();
-        
+
         // Load sink configurations
         settings.beginGroup("Sinks");
-        m_sinkConfigs.clear();
+        d->sinkConfigs.clear();
         QStringList sinkNames = settings.childGroups();
         for (const QString& sinkName : sinkNames) {
             settings.beginGroup(sinkName);
-            SinkConfiguration config = sinkConfigFromSettings(settings);
+            SinkConfiguration config = d->sinkConfigFromSettings(settings);
             config.name = sinkName;
-            m_sinkConfigs.append(config);
+            d->sinkConfigs.append(config);
             settings.endGroup();
         }
         settings.endGroup();
-        
+
         // Load category configurations
         settings.beginGroup("Categories");
-        m_categoryConfigs.clear();
+        d->categoryConfigs.clear();
         QStringList categoryNames = settings.childGroups();
         for (const QString& categoryName : categoryNames) {
             settings.beginGroup(categoryName);
-            CategoryConfiguration config = categoryConfigFromSettings(settings);
+            CategoryConfiguration config = d->categoryConfigFromSettings(settings);
             config.name = categoryName;
-            m_categoryConfigs.append(config);
+            d->categoryConfigs.append(config);
             settings.endGroup();
         }
         settings.endGroup();
-        
+
         settings.endGroup(); // Logging
-        
-        m_configSource = ConfigSource::SettingsFile;
-        emit configurationLoaded(m_configSource);
+
+        d->configSource = ConfigSource::SettingsFile;
+        emit configurationLoaded(d->configSource);
         return true;
         
     } catch (const std::exception& e) {
@@ -97,35 +198,35 @@ bool LoggingConfig::loadFromSettings(QSettings& settings)
 
 bool LoggingConfig::saveToSettings(QSettings& settings)
 {
-    QMutexLocker locker(&m_mutex);
-    
+    QMutexLocker locker(&d->mutex);
+
     try {
         settings.beginGroup("Logging");
         settings.remove(""); // Clear existing logging settings
-        
+
         // Save global configuration
         settings.beginGroup("Global");
-        globalConfigToSettings(settings, m_globalConfig);
+        d->globalConfigToSettings(settings, d->globalConfig);
         settings.endGroup();
-        
+
         // Save sink configurations
         settings.beginGroup("Sinks");
-        for (const auto& sink : m_sinkConfigs) {
+        for (const auto& sink : d->sinkConfigs) {
             settings.beginGroup(sink.name);
-            sinkConfigToSettings(settings, sink);
+            d->sinkConfigToSettings(settings, sink);
             settings.endGroup();
         }
         settings.endGroup();
-        
+
         // Save category configurations
         settings.beginGroup("Categories");
-        for (const auto& category : m_categoryConfigs) {
+        for (const auto& category : d->categoryConfigs) {
             settings.beginGroup(category.name);
-            categoryConfigToSettings(settings, category);
+            d->categoryConfigToSettings(settings, category);
             settings.endGroup();
         }
         settings.endGroup();
-        
+
         settings.endGroup(); // Logging
         
         emit configurationSaved(ConfigSource::SettingsFile);
@@ -154,8 +255,8 @@ bool LoggingConfig::loadFromJsonFile(const QString& filename)
     
     bool result = loadFromJsonObject(doc.object());
     if (result) {
-        m_configSource = ConfigSource::JsonFile;
-        m_watchedConfigFile = filename;
+        d->configSource = ConfigSource::JsonFile;
+        d->watchedConfigFile = filename;
     }
     return result;
 }
@@ -177,35 +278,35 @@ bool LoggingConfig::saveToJsonFile(const QString& filename)
 
 bool LoggingConfig::loadFromJsonObject(const QJsonObject& json)
 {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
     
     try {
         // Load global configuration
         if (json.contains("global")) {
-            m_globalConfig = globalConfigFromJson(json["global"].toObject());
+            d->globalConfig = d->globalConfigFromJson(json["global"].toObject());
         }
-        
+
         // Load sink configurations
         if (json.contains("sinks")) {
-            m_sinkConfigs.clear();
+            d->sinkConfigs.clear();
             QJsonArray sinksArray = json["sinks"].toArray();
             for (const auto& value : sinksArray) {
-                SinkConfiguration config = sinkConfigFromJson(value.toObject());
-                m_sinkConfigs.append(config);
+                SinkConfiguration config = d->sinkConfigFromJson(value.toObject());
+                d->sinkConfigs.append(config);
             }
         }
-        
+
         // Load category configurations
         if (json.contains("categories")) {
-            m_categoryConfigs.clear();
+            d->categoryConfigs.clear();
             QJsonArray categoriesArray = json["categories"].toArray();
             for (const auto& value : categoriesArray) {
-                CategoryConfiguration config = categoryConfigFromJson(value.toObject());
-                m_categoryConfigs.append(config);
+                CategoryConfiguration config = d->categoryConfigFromJson(value.toObject());
+                d->categoryConfigs.append(config);
             }
         }
-        
-        emit configurationLoaded(m_configSource);
+
+        emit configurationLoaded(d->configSource);
         return true;
         
     } catch (const std::exception& e) {
@@ -216,24 +317,24 @@ bool LoggingConfig::loadFromJsonObject(const QJsonObject& json)
 
 QJsonObject LoggingConfig::saveToJsonObject() const
 {
-    QMutexLocker locker(&m_mutex);
-    
+    QMutexLocker locker(&d->mutex);
+
     QJsonObject json;
-    
+
     // Save global configuration
-    json["global"] = globalConfigToJson(m_globalConfig);
-    
+    json["global"] = d->globalConfigToJson(d->globalConfig);
+
     // Save sink configurations
     QJsonArray sinksArray;
-    for (const auto& sink : m_sinkConfigs) {
-        sinksArray.append(sinkConfigToJson(sink));
+    for (const auto& sink : d->sinkConfigs) {
+        sinksArray.append(d->sinkConfigToJson(sink));
     }
     json["sinks"] = sinksArray;
-    
+
     // Save category configurations
     QJsonArray categoriesArray;
-    for (const auto& category : m_categoryConfigs) {
-        categoriesArray.append(categoryConfigToJson(category));
+    for (const auto& category : d->categoryConfigs) {
+        categoriesArray.append(d->categoryConfigToJson(category));
     }
     json["categories"] = categoriesArray;
     
@@ -242,46 +343,46 @@ QJsonObject LoggingConfig::saveToJsonObject() const
 
 void LoggingConfig::setGlobalConfig(const GlobalConfiguration& config)
 {
-    QMutexLocker locker(&m_mutex);
-    m_globalConfig = config;
+    QMutexLocker locker(&d->mutex);
+    d->globalConfig = config;
     emit globalConfigurationChanged();
     emit configurationChanged();
 }
 
 void LoggingConfig::setGlobalLogLevel(Logger::LogLevel level)
 {
-    QMutexLocker locker(&m_mutex);
-    m_globalConfig.globalLevel = level;
+    QMutexLocker locker(&d->mutex);
+    d->globalConfig.globalLevel = level;
     emit globalConfigurationChanged();
     emit configurationChanged();
 }
 
 void LoggingConfig::addSinkConfiguration(const SinkConfiguration& config)
 {
-    QMutexLocker locker(&m_mutex);
-    
+    QMutexLocker locker(&d->mutex);
+
     // Remove existing sink with same name
-    m_sinkConfigs.removeIf([&config](const SinkConfiguration& existing) {
+    d->sinkConfigs.removeIf([&config](const SinkConfiguration& existing) {
         return existing.name == config.name;
     });
-    
-    m_sinkConfigs.append(config);
+
+    d->sinkConfigs.append(config);
     emit sinkConfigurationChanged(config.name);
     emit configurationChanged();
 }
 
 void LoggingConfig::setSinkConfigurations(const QList<SinkConfiguration>& configs) {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
 
     // Clear existing sink configurations
-    m_sinkConfigs.clear();
+    d->sinkConfigs.clear();
 
     // Add all new configurations
     for (const auto& config : configs) {
         // Validate configuration before adding
         QStringList errors;
-        if (validateSinkConfiguration(config, errors)) {
-            m_sinkConfigs.append(config);
+        if (d->validateSinkConfiguration(config, errors)) {
+            d->sinkConfigs.append(config);
             emit sinkConfigurationChanged(config.name);
         } else {
             // Log validation errors
@@ -297,14 +398,14 @@ void LoggingConfig::setSinkConfigurations(const QList<SinkConfiguration>& config
 
 void LoggingConfig::addCategoryConfiguration(const CategoryConfiguration& config)
 {
-    QMutexLocker locker(&m_mutex);
+    QMutexLocker locker(&d->mutex);
 
     // Remove existing category with same name
-    m_categoryConfigs.removeIf([&config](const CategoryConfiguration& existing) {
+    d->categoryConfigs.removeIf([&config](const CategoryConfiguration& existing) {
         return existing.name == config.name;
     });
 
-    m_categoryConfigs.append(config);
+    d->categoryConfigs.append(config);
     emit categoryConfigurationChanged(config.name);
     emit configurationChanged();
 }
@@ -350,10 +451,10 @@ void LoggingConfig::loadDevelopmentPreset()
     enableFileLogging(logDir + "/sast-readium-dev.log", Logger::LogLevel::Info);
     
     // Enable performance and memory logging
-    m_globalConfig.enablePerformanceLogging = true;
-    m_globalConfig.enableMemoryLogging = true;
-    m_globalConfig.enableSourceLocation = true;
-    m_globalConfig.enableThreadId = true;
+    d->globalConfig.enablePerformanceLogging = true;
+    d->globalConfig.enableMemoryLogging = true;
+    d->globalConfig.enableSourceLocation = true;
+    d->globalConfig.enableThreadId = true;
     
     emit configurationChanged();
 }
@@ -369,17 +470,17 @@ void LoggingConfig::loadProductionPreset()
     enableFileLogging(logDir + "/sast-readium.log", Logger::LogLevel::Warning);
     
     // Production settings
-    m_globalConfig.globalLevel = Logger::LogLevel::Warning;
-    m_globalConfig.asyncLogging = true;
-    m_globalConfig.enablePerformanceLogging = false;
-    m_globalConfig.enableMemoryLogging = false;
-    m_globalConfig.enableSourceLocation = false;
-    m_globalConfig.enableThreadId = false;
+    d->globalConfig.globalLevel = Logger::LogLevel::Warning;
+    d->globalConfig.asyncLogging = true;
+    d->globalConfig.enablePerformanceLogging = false;
+    d->globalConfig.enableMemoryLogging = false;
+    d->globalConfig.enableSourceLocation = false;
+    d->globalConfig.enableThreadId = false;
     
     emit configurationChanged();
 }
 
-Logger::LogLevel LoggingConfig::parseLogLevelFromString(const QString& levelStr) const
+Logger::LogLevel LoggingConfig::Implementation::parseLogLevelFromString(const QString& levelStr) const
 {
     QString lower = levelStr.toLower();
     if (lower == "trace") return Logger::LogLevel::Trace;
@@ -392,7 +493,7 @@ Logger::LogLevel LoggingConfig::parseLogLevelFromString(const QString& levelStr)
     return Logger::LogLevel::Info; // Default
 }
 
-QString LoggingConfig::logLevelToString(Logger::LogLevel level) const
+QString LoggingConfig::Implementation::logLevelToString(Logger::LogLevel level) const
 {
     switch (level) {
         case Logger::LogLevel::Trace: return "trace";
@@ -406,20 +507,20 @@ QString LoggingConfig::logLevelToString(Logger::LogLevel level) const
     }
 }
 
-void LoggingConfig::connectSignals()
+void LoggingConfig::Implementation::connectSignals()
 {
     // Connect internal signals if needed
 }
 
-void LoggingConfig::disconnectSignals()
+void LoggingConfig::Implementation::disconnectSignals()
 {
     // Disconnect internal signals if needed
 }
 
 void LoggingConfig::resetToDefaults()
 {
-    QMutexLocker locker(&m_mutex);
-    initializeDefaults();
+    QMutexLocker locker(&d->mutex);
+    d->initializeDefaults();
     emit configurationChanged();
 }
 
@@ -444,8 +545,8 @@ void LoggingConfig::onGlobalLevelChanged(int level)
 
 void LoggingConfig::onSinkLevelChanged(const QString& sinkName, int level)
 {
-    QMutexLocker locker(&m_mutex);
-    for (auto& sink : m_sinkConfigs) {
+    QMutexLocker locker(&d->mutex);
+    for (auto& sink : d->sinkConfigs) {
         if (sink.name == sinkName) {
             sink.level = static_cast<Logger::LogLevel>(level);
             emit sinkConfigurationChanged(sinkName);
@@ -457,8 +558,8 @@ void LoggingConfig::onSinkLevelChanged(const QString& sinkName, int level)
 
 void LoggingConfig::onCategoryLevelChanged(const QString& categoryName, int level)
 {
-    QMutexLocker locker(&m_mutex);
-    for (auto& category : m_categoryConfigs) {
+    QMutexLocker locker(&d->mutex);
+    for (auto& category : d->categoryConfigs) {
         if (category.name == categoryName) {
             category.level = static_cast<Logger::LogLevel>(level);
             emit categoryConfigurationChanged(categoryName);
@@ -470,6 +571,163 @@ void LoggingConfig::onCategoryLevelChanged(const QString& categoryName, int leve
 
 // JSON conversion methods
 QJsonObject LoggingConfig::globalConfigToJson(const GlobalConfiguration& config) const
+{
+    return d->globalConfigToJson(config);
+}
+
+QJsonObject LoggingConfig::sinkConfigToJson(const SinkConfiguration& config) const
+{
+    return d->sinkConfigToJson(config);
+}
+
+QJsonObject LoggingConfig::categoryConfigToJson(const CategoryConfiguration& config) const
+{
+    return d->categoryConfigToJson(config);
+}
+
+// Settings conversion methods
+void LoggingConfig::Implementation::globalConfigToSettings(QSettings& settings, const GlobalConfiguration& config) const
+{
+    settings.setValue("globalLevel", logLevelToString(config.globalLevel));
+    settings.setValue("globalPattern", config.globalPattern);
+    settings.setValue("asyncLogging", config.asyncLogging);
+    settings.setValue("asyncQueueSize", static_cast<qint64>(config.asyncQueueSize));
+    settings.setValue("flushIntervalSeconds", config.flushIntervalSeconds);
+    settings.setValue("autoFlushOnWarning", config.autoFlushOnWarning);
+    settings.setValue("enableSourceLocation", config.enableSourceLocation);
+    settings.setValue("enableThreadId", config.enableThreadId);
+    settings.setValue("enableProcessId", config.enableProcessId);
+    settings.setValue("redirectQtMessages", config.redirectQtMessages);
+    settings.setValue("enableQtCategoryFiltering", config.enableQtCategoryFiltering);
+    settings.setValue("enablePerformanceLogging", config.enablePerformanceLogging);
+    settings.setValue("performanceThresholdMs", config.performanceThresholdMs);
+    settings.setValue("enableMemoryLogging", config.enableMemoryLogging);
+    settings.setValue("memoryLoggingIntervalSeconds", config.memoryLoggingIntervalSeconds);
+}
+
+void LoggingConfig::Implementation::sinkConfigToSettings(QSettings& settings, const SinkConfiguration& config) const
+{
+    settings.setValue("name", config.name);
+    settings.setValue("type", config.type);
+    settings.setValue("level", logLevelToString(config.level));
+    settings.setValue("pattern", config.pattern);
+    settings.setValue("enabled", config.enabled);
+    settings.setValue("filename", config.filename);
+    settings.setValue("maxFileSize", static_cast<qint64>(config.maxFileSize));
+    settings.setValue("maxFiles", static_cast<qint64>(config.maxFiles));
+    settings.setValue("rotateOnStartup", config.rotateOnStartup);
+    settings.setValue("colorEnabled", config.colorEnabled);
+    settings.setValue("widgetObjectName", config.widgetObjectName);
+}
+
+void LoggingConfig::Implementation::categoryConfigToSettings(QSettings& settings, const CategoryConfiguration& config) const
+{
+    settings.setValue("name", config.name);
+    settings.setValue("level", logLevelToString(config.level));
+    settings.setValue("enabled", config.enabled);
+    settings.setValue("pattern", config.pattern);
+}
+
+// Settings "from" conversion methods
+LoggingConfig::GlobalConfiguration LoggingConfig::Implementation::globalConfigFromSettings(QSettings& settings) const
+{
+    GlobalConfiguration config;
+    config.globalLevel = parseLogLevelFromString(settings.value("globalLevel", "info").toString());
+    config.globalPattern = settings.value("globalPattern", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v").toString();
+    config.asyncLogging = settings.value("asyncLogging", false).toBool();
+    config.asyncQueueSize = settings.value("asyncQueueSize", 8192).toULongLong();
+    config.flushIntervalSeconds = settings.value("flushIntervalSeconds", 5).toInt();
+    config.autoFlushOnWarning = settings.value("autoFlushOnWarning", true).toBool();
+    config.enableSourceLocation = settings.value("enableSourceLocation", false).toBool();
+    config.enableThreadId = settings.value("enableThreadId", false).toBool();
+    config.enableProcessId = settings.value("enableProcessId", false).toBool();
+    config.redirectQtMessages = settings.value("redirectQtMessages", true).toBool();
+    config.enableQtCategoryFiltering = settings.value("enableQtCategoryFiltering", true).toBool();
+    config.enablePerformanceLogging = settings.value("enablePerformanceLogging", false).toBool();
+    config.performanceThresholdMs = settings.value("performanceThresholdMs", 100).toInt();
+    config.enableMemoryLogging = settings.value("enableMemoryLogging", false).toBool();
+    config.memoryLoggingIntervalSeconds = settings.value("memoryLoggingIntervalSeconds", 60).toInt();
+    return config;
+}
+
+LoggingConfig::SinkConfiguration LoggingConfig::Implementation::sinkConfigFromSettings(QSettings& settings) const
+{
+    SinkConfiguration config;
+    config.name = settings.value("name").toString();
+    config.type = settings.value("type").toString();
+    config.level = parseLogLevelFromString(settings.value("level", "info").toString());
+    config.pattern = settings.value("pattern", "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v").toString();
+    config.enabled = settings.value("enabled", true).toBool();
+    config.filename = settings.value("filename").toString();
+    config.maxFileSize = settings.value("maxFileSize", 10 * 1024 * 1024).toULongLong();
+    config.maxFiles = settings.value("maxFiles", 5).toULongLong();
+    config.rotateOnStartup = settings.value("rotateOnStartup", false).toBool();
+    config.colorEnabled = settings.value("colorEnabled", true).toBool();
+    config.widgetObjectName = settings.value("widgetObjectName").toString();
+    return config;
+}
+
+LoggingConfig::CategoryConfiguration LoggingConfig::Implementation::categoryConfigFromSettings(QSettings& settings) const
+{
+    CategoryConfiguration config;
+    config.name = settings.value("name").toString();
+    config.level = parseLogLevelFromString(settings.value("level", "info").toString());
+    config.enabled = settings.value("enabled", true).toBool();
+    config.pattern = settings.value("pattern").toString();
+    return config;
+}
+
+// JSON "from" conversion methods
+LoggingConfig::GlobalConfiguration LoggingConfig::Implementation::globalConfigFromJson(const QJsonObject& json) const
+{
+    GlobalConfiguration config;
+    config.globalLevel = parseLogLevelFromString(json["globalLevel"].toString("info"));
+    config.globalPattern = json["globalPattern"].toString("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v");
+    config.asyncLogging = json["asyncLogging"].toBool(false);
+    config.asyncQueueSize = json["asyncQueueSize"].toInt(8192);
+    config.flushIntervalSeconds = json["flushIntervalSeconds"].toInt(5);
+    config.autoFlushOnWarning = json["autoFlushOnWarning"].toBool(true);
+    config.enableSourceLocation = json["enableSourceLocation"].toBool(false);
+    config.enableThreadId = json["enableThreadId"].toBool(false);
+    config.enableProcessId = json["enableProcessId"].toBool(false);
+    config.redirectQtMessages = json["redirectQtMessages"].toBool(true);
+    config.enableQtCategoryFiltering = json["enableQtCategoryFiltering"].toBool(true);
+    config.enablePerformanceLogging = json["enablePerformanceLogging"].toBool(false);
+    config.performanceThresholdMs = json["performanceThresholdMs"].toInt(100);
+    config.enableMemoryLogging = json["enableMemoryLogging"].toBool(false);
+    config.memoryLoggingIntervalSeconds = json["memoryLoggingIntervalSeconds"].toInt(60);
+    return config;
+}
+
+LoggingConfig::SinkConfiguration LoggingConfig::Implementation::sinkConfigFromJson(const QJsonObject& json) const
+{
+    SinkConfiguration config;
+    config.name = json["name"].toString();
+    config.type = json["type"].toString();
+    config.level = parseLogLevelFromString(json["level"].toString("info"));
+    config.pattern = json["pattern"].toString("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
+    config.enabled = json["enabled"].toBool(true);
+    config.filename = json["filename"].toString();
+    config.maxFileSize = json["maxFileSize"].toInt(10 * 1024 * 1024);
+    config.maxFiles = json["maxFiles"].toInt(5);
+    config.rotateOnStartup = json["rotateOnStartup"].toBool(false);
+    config.colorEnabled = json["colorEnabled"].toBool(true);
+    config.widgetObjectName = json["widgetObjectName"].toString();
+    return config;
+}
+
+LoggingConfig::CategoryConfiguration LoggingConfig::Implementation::categoryConfigFromJson(const QJsonObject& json) const
+{
+    CategoryConfiguration config;
+    config.name = json["name"].toString();
+    config.level = parseLogLevelFromString(json["level"].toString("info"));
+    config.enabled = json["enabled"].toBool(true);
+    config.pattern = json["pattern"].toString();
+    return config;
+}
+
+// JSON "to" conversion methods
+QJsonObject LoggingConfig::Implementation::globalConfigToJson(const LoggingConfig::GlobalConfiguration& config) const
 {
     QJsonObject json;
     json["globalLevel"] = logLevelToString(config.globalLevel);
@@ -490,7 +748,7 @@ QJsonObject LoggingConfig::globalConfigToJson(const GlobalConfiguration& config)
     return json;
 }
 
-QJsonObject LoggingConfig::sinkConfigToJson(const SinkConfiguration& config) const
+QJsonObject LoggingConfig::Implementation::sinkConfigToJson(const LoggingConfig::SinkConfiguration& config) const
 {
     QJsonObject json;
     json["name"] = config.name;
@@ -507,7 +765,7 @@ QJsonObject LoggingConfig::sinkConfigToJson(const SinkConfiguration& config) con
     return json;
 }
 
-QJsonObject LoggingConfig::categoryConfigToJson(const CategoryConfiguration& config) const
+QJsonObject LoggingConfig::Implementation::categoryConfigToJson(const LoggingConfig::CategoryConfiguration& config) const
 {
     QJsonObject json;
     json["name"] = config.name;
@@ -515,147 +773,6 @@ QJsonObject LoggingConfig::categoryConfigToJson(const CategoryConfiguration& con
     json["enabled"] = config.enabled;
     json["pattern"] = config.pattern;
     return json;
-}
-
-// Settings conversion methods
-void LoggingConfig::globalConfigToSettings(QSettings& settings, const GlobalConfiguration& config) const
-{
-    settings.setValue("globalLevel", logLevelToString(config.globalLevel));
-    settings.setValue("globalPattern", config.globalPattern);
-    settings.setValue("asyncLogging", config.asyncLogging);
-    settings.setValue("asyncQueueSize", static_cast<qint64>(config.asyncQueueSize));
-    settings.setValue("flushIntervalSeconds", config.flushIntervalSeconds);
-    settings.setValue("autoFlushOnWarning", config.autoFlushOnWarning);
-    settings.setValue("enableSourceLocation", config.enableSourceLocation);
-    settings.setValue("enableThreadId", config.enableThreadId);
-    settings.setValue("enableProcessId", config.enableProcessId);
-    settings.setValue("redirectQtMessages", config.redirectQtMessages);
-    settings.setValue("enableQtCategoryFiltering", config.enableQtCategoryFiltering);
-    settings.setValue("enablePerformanceLogging", config.enablePerformanceLogging);
-    settings.setValue("performanceThresholdMs", config.performanceThresholdMs);
-    settings.setValue("enableMemoryLogging", config.enableMemoryLogging);
-    settings.setValue("memoryLoggingIntervalSeconds", config.memoryLoggingIntervalSeconds);
-}
-
-void LoggingConfig::sinkConfigToSettings(QSettings& settings, const SinkConfiguration& config) const
-{
-    settings.setValue("name", config.name);
-    settings.setValue("type", config.type);
-    settings.setValue("level", logLevelToString(config.level));
-    settings.setValue("pattern", config.pattern);
-    settings.setValue("enabled", config.enabled);
-    settings.setValue("filename", config.filename);
-    settings.setValue("maxFileSize", static_cast<qint64>(config.maxFileSize));
-    settings.setValue("maxFiles", static_cast<qint64>(config.maxFiles));
-    settings.setValue("rotateOnStartup", config.rotateOnStartup);
-    settings.setValue("colorEnabled", config.colorEnabled);
-    settings.setValue("widgetObjectName", config.widgetObjectName);
-}
-
-void LoggingConfig::categoryConfigToSettings(QSettings& settings, const CategoryConfiguration& config) const
-{
-    settings.setValue("name", config.name);
-    settings.setValue("level", logLevelToString(config.level));
-    settings.setValue("enabled", config.enabled);
-    settings.setValue("pattern", config.pattern);
-}
-
-// Settings "from" conversion methods
-LoggingConfig::GlobalConfiguration LoggingConfig::globalConfigFromSettings(QSettings& settings) const
-{
-    GlobalConfiguration config;
-    config.globalLevel = stringToLogLevel(settings.value("globalLevel", "info").toString());
-    config.globalPattern = settings.value("globalPattern", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v").toString();
-    config.asyncLogging = settings.value("asyncLogging", false).toBool();
-    config.asyncQueueSize = settings.value("asyncQueueSize", 8192).toULongLong();
-    config.flushIntervalSeconds = settings.value("flushIntervalSeconds", 5).toInt();
-    config.autoFlushOnWarning = settings.value("autoFlushOnWarning", true).toBool();
-    config.enableSourceLocation = settings.value("enableSourceLocation", false).toBool();
-    config.enableThreadId = settings.value("enableThreadId", false).toBool();
-    config.enableProcessId = settings.value("enableProcessId", false).toBool();
-    config.redirectQtMessages = settings.value("redirectQtMessages", true).toBool();
-    config.enableQtCategoryFiltering = settings.value("enableQtCategoryFiltering", true).toBool();
-    config.enablePerformanceLogging = settings.value("enablePerformanceLogging", false).toBool();
-    config.performanceThresholdMs = settings.value("performanceThresholdMs", 100).toInt();
-    config.enableMemoryLogging = settings.value("enableMemoryLogging", false).toBool();
-    config.memoryLoggingIntervalSeconds = settings.value("memoryLoggingIntervalSeconds", 60).toInt();
-    return config;
-}
-
-LoggingConfig::SinkConfiguration LoggingConfig::sinkConfigFromSettings(QSettings& settings) const
-{
-    SinkConfiguration config;
-    config.name = settings.value("name").toString();
-    config.type = settings.value("type").toString();
-    config.level = stringToLogLevel(settings.value("level", "info").toString());
-    config.pattern = settings.value("pattern", "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v").toString();
-    config.enabled = settings.value("enabled", true).toBool();
-    config.filename = settings.value("filename").toString();
-    config.maxFileSize = settings.value("maxFileSize", 10 * 1024 * 1024).toULongLong();
-    config.maxFiles = settings.value("maxFiles", 5).toULongLong();
-    config.rotateOnStartup = settings.value("rotateOnStartup", false).toBool();
-    config.colorEnabled = settings.value("colorEnabled", true).toBool();
-    config.widgetObjectName = settings.value("widgetObjectName").toString();
-    return config;
-}
-
-LoggingConfig::CategoryConfiguration LoggingConfig::categoryConfigFromSettings(QSettings& settings) const
-{
-    CategoryConfiguration config;
-    config.name = settings.value("name").toString();
-    config.level = stringToLogLevel(settings.value("level", "info").toString());
-    config.enabled = settings.value("enabled", true).toBool();
-    config.pattern = settings.value("pattern").toString();
-    return config;
-}
-
-// JSON "from" conversion methods
-LoggingConfig::GlobalConfiguration LoggingConfig::globalConfigFromJson(const QJsonObject& json) const
-{
-    GlobalConfiguration config;
-    config.globalLevel = stringToLogLevel(json["globalLevel"].toString("info"));
-    config.globalPattern = json["globalPattern"].toString("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v");
-    config.asyncLogging = json["asyncLogging"].toBool(false);
-    config.asyncQueueSize = json["asyncQueueSize"].toInt(8192);
-    config.flushIntervalSeconds = json["flushIntervalSeconds"].toInt(5);
-    config.autoFlushOnWarning = json["autoFlushOnWarning"].toBool(true);
-    config.enableSourceLocation = json["enableSourceLocation"].toBool(false);
-    config.enableThreadId = json["enableThreadId"].toBool(false);
-    config.enableProcessId = json["enableProcessId"].toBool(false);
-    config.redirectQtMessages = json["redirectQtMessages"].toBool(true);
-    config.enableQtCategoryFiltering = json["enableQtCategoryFiltering"].toBool(true);
-    config.enablePerformanceLogging = json["enablePerformanceLogging"].toBool(false);
-    config.performanceThresholdMs = json["performanceThresholdMs"].toInt(100);
-    config.enableMemoryLogging = json["enableMemoryLogging"].toBool(false);
-    config.memoryLoggingIntervalSeconds = json["memoryLoggingIntervalSeconds"].toInt(60);
-    return config;
-}
-
-LoggingConfig::SinkConfiguration LoggingConfig::sinkConfigFromJson(const QJsonObject& json) const
-{
-    SinkConfiguration config;
-    config.name = json["name"].toString();
-    config.type = json["type"].toString();
-    config.level = stringToLogLevel(json["level"].toString("info"));
-    config.pattern = json["pattern"].toString("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
-    config.enabled = json["enabled"].toBool(true);
-    config.filename = json["filename"].toString();
-    config.maxFileSize = json["maxFileSize"].toInt(10 * 1024 * 1024);
-    config.maxFiles = json["maxFiles"].toInt(5);
-    config.rotateOnStartup = json["rotateOnStartup"].toBool(false);
-    config.colorEnabled = json["colorEnabled"].toBool(true);
-    config.widgetObjectName = json["widgetObjectName"].toString();
-    return config;
-}
-
-LoggingConfig::CategoryConfiguration LoggingConfig::categoryConfigFromJson(const QJsonObject& json) const
-{
-    CategoryConfiguration config;
-    config.name = json["name"].toString();
-    config.level = stringToLogLevel(json["level"].toString("info"));
-    config.enabled = json["enabled"].toBool(true);
-    config.pattern = json["pattern"].toString();
-    return config;
 }
 
 Logger::LogLevel LoggingConfig::stringToLogLevel(const QString& levelStr) const
@@ -717,7 +834,7 @@ std::unique_ptr<LoggingConfig> LoggingConfigBuilder::buildUnique()
 }
 
 // Validation helper methods implementation
-bool LoggingConfig::validateSinkConfiguration(const SinkConfiguration& config, QStringList& errors) const
+bool LoggingConfig::Implementation::validateSinkConfiguration(const LoggingConfig::SinkConfiguration& config, QStringList& errors) const
 {
     bool isValid = true;
 
@@ -781,7 +898,7 @@ bool LoggingConfig::validateCategoryConfiguration(const CategoryConfiguration& c
     // Validate enabled sinks exist
     for (const QString& sinkName : config.enabledSinks) {
         bool sinkExists = false;
-        for (const auto& sink : m_sinkConfigs) {
+        for (const auto& sink : d->sinkConfigs) {
             if (sink.name == sinkName) {
                 sinkExists = true;
                 break;

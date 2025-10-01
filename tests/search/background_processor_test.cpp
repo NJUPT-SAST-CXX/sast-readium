@@ -316,4 +316,4 @@ void BackgroundProcessorTest::waitForTaskCompletion(int expectedTasks, int timeo
 }
 
 QTEST_MAIN(BackgroundProcessorTest)
-#include "BackgroundProcessorTest.moc"
+#include "background_processor_test.moc"

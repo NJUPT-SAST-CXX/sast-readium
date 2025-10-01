@@ -173,10 +173,20 @@ public:
 
     void setLevel(Level level);
     Level getLevel() const;
-    
+
+    // Implementation class definition for inline template methods
+    class Implementation
+    {
+    public:
+        explicit Implementation(const QString& category) : category(category), level(Level::Info) {}
+        ~Implementation() = default;
+
+        QString category;
+        Level level;
+    };
+
 private:
-    QString m_category;
-    Level m_level;
+    std::unique_ptr<Implementation> d;
 };
 
 // ============================================================================
@@ -209,9 +219,10 @@ class ScopedLevel {
 public:
     explicit ScopedLevel(Level tempLevel);
     ~ScopedLevel();
-    
+
 private:
-    Level m_originalLevel;
+    class Implementation;
+    std::unique_ptr<Implementation> d;
 };
 
 /**
@@ -221,9 +232,10 @@ class ScopedSilence {
 public:
     ScopedSilence();
     ~ScopedSilence();
-    
+
 private:
-    Level m_originalLevel;
+    class Implementation;
+    std::unique_ptr<Implementation> d;
 };
 
 // ============================================================================
@@ -361,8 +373,8 @@ void debugOnly(const char* format, Args&&... args) {
 
 template<typename... Args>
 void CategoryLogger::log(Level level, const char* format, Args&&... args) {
-    if (level >= m_level) {
-        QString msg = QString("[%1] %2").arg(m_category).arg(
+    if (level >= d->level) {
+        QString msg = QString("[%1] %2").arg(d->category).arg(
             QString::fromStdString(detail::formatString(format, std::forward<Args>(args)...))
         );
         detail::logFormatted(level, msg.toStdString());

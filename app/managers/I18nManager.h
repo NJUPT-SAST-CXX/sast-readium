@@ -1,11 +1,11 @@
 #pragma once
 
 #include <QObject>
-#include <QTranslator>
 #include <QString>
-#include <QLocale>
 #include <memory>
-#include <vector>
+
+// Forward declaration
+class I18nManagerImpl;
 
 class I18nManager : public QObject {
     Q_OBJECT
@@ -28,9 +28,9 @@ public:
 
     // Get available languages
     QStringList availableLanguages() const;
-    
+
     // Get current language
-    Language currentLanguage() const { return m_currentLanguage; }
+    Language currentLanguage() const;
     QString currentLanguageCode() const;
     QString currentLanguageName() const;
 
@@ -49,13 +49,5 @@ private:
     I18nManager(const I18nManager&) = delete;
     I18nManager& operator=(const I18nManager&) = delete;
 
-    bool loadTranslation(const QString& languageCode);
-    void removeTranslators();
-    QString getSystemLanguageCode() const;
-
-private:
-    Language m_currentLanguage;
-    std::vector<std::unique_ptr<QTranslator>> m_translators;
-    QString m_translationPath;
-    bool m_initialized;
+    std::unique_ptr<I18nManagerImpl> pImpl;
 };

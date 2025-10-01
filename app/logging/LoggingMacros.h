@@ -26,14 +26,17 @@
 // Note: LoggingManager.h is included here to provide access to configuration
 // management for scoped logging classes and category-based logging.
 
-#include <spdlog/fmt/fmt.h>
-#include <QDebug>
-#include <QHash>
 #include <QString>
-#include <QThread>
 #include <chrono>
+#include <memory>
 #include "Logger.h"
 #include "LoggingManager.h"
+#include "QtSpdlogBridge.h"
+
+// Forward declarations to reduce header dependencies
+class QDebug;
+class QThread;
+template<typename Key, typename T> class QHash;
 
 // ============================================================================
 // Core Logging Macros (spdlog-style with format strings)
@@ -379,13 +382,11 @@ public:
      * threshold)
      * @param milliseconds Threshold in milliseconds
      */
-    void setThreshold(int milliseconds) { m_thresholdMs = milliseconds; }
+    void setThreshold(int milliseconds);
 
 private:
-    QString m_name;      ///< Performance measurement name
-    QString m_location;  ///< Source location
-    std::chrono::high_resolution_clock::time_point m_startTime;  ///< Start time
-    int m_thresholdMs = 0;  ///< Logging threshold in milliseconds
+    class Implementation;
+    std::unique_ptr<Implementation> d;
 };
 
 // Forward declaration for LoggingManager

@@ -440,4 +440,4 @@ void SearchValidatorTest::verifyValidationError(const SearchValidator::Validatio
 }
 
 QTEST_MAIN(SearchValidatorTest)
-#include "SearchValidatorTest.moc"
+#include "search_validator_test.moc"

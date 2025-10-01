@@ -11,6 +11,7 @@
 class QMainWindow;
 class RecentFilesManager;
 class ConfigurationManager;
+class SystemTrayManagerImpl;
 
 /**
  * @brief SystemTrayManager - Manages system tray functionality
@@ -390,53 +391,10 @@ private:
      */
     void createDefaultTrayIcon(QIcon& icon);
 
-    // Core components
-    std::unique_ptr<QSystemTrayIcon> m_trayIcon;
-    std::unique_ptr<QMenu> m_contextMenu;
-    QMainWindow* m_mainWindow;
+    std::unique_ptr<SystemTrayManagerImpl> pImpl;
 
-    // Manager references
-    RecentFilesManager* m_recentFilesManager;
-
-    // Menu actions
-    QAction* m_restoreAction;
-    QAction* m_exitAction;
-
-    // Enhanced menu components
-    std::unique_ptr<QMenu> m_recentFilesMenu;
-    std::unique_ptr<QMenu> m_quickActionsMenu;
-    std::unique_ptr<QMenu> m_settingsMenu;
-
-    // Enhanced menu actions
-    QAction* m_openFileAction;
-    QAction* m_settingsAction;
-    QAction* m_aboutAction;
-    QAction* m_statusSeparator;
-    QAction* m_statusAction;
-
-    // State
-    bool m_isInitialized;
-    bool m_isEnabled;
-    bool m_minimizeToTrayEnabled;
-    bool m_showNotifications;
-    bool m_hasShownFirstTimeNotification;
-    bool m_isMainWindowHidden;
-
-    // Enhanced feature state
-    bool m_showStatusIndicators;
-    bool m_showRecentFiles;
-    int m_recentFilesCount;
-    bool m_showQuickActions;
-    bool m_enhancedNotifications;
-    QString m_notificationTypes;
-    bool m_dynamicTooltip;
-    QString m_currentStatus;
-    QString m_currentStatusMessage;
-
-    // Logging
-    SastLogging::CategoryLogger m_logger;
-
-    // Settings keys
+public:
+    // Settings keys - made public for implementation class access
     static const QString SETTINGS_GROUP;
     static const QString SETTINGS_ENABLED_KEY;
     static const QString SETTINGS_MINIMIZE_TO_TRAY_KEY;
@@ -452,7 +410,7 @@ private:
     static const QString SETTINGS_NOTIFICATION_TYPES_KEY;
     static const QString SETTINGS_DYNAMIC_TOOLTIP_KEY;
 
-    // Default values
+    // Default values - made public for implementation class access
     static const bool DEFAULT_ENABLED;
     static const bool DEFAULT_MINIMIZE_TO_TRAY;
     static const bool DEFAULT_SHOW_NOTIFICATIONS;

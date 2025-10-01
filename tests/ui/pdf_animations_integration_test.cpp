@@ -332,4 +332,4 @@ void PDFAnimationsIntegrationTest::createTestWidget()
 }
 
 QTEST_MAIN(PDFAnimationsIntegrationTest)
-#include "PDFAnimationsIntegrationTest.moc"
+#include "pdf_animations_integration_test.moc"

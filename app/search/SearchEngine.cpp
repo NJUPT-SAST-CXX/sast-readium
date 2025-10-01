@@ -492,11 +492,11 @@ SearchEngine::SearchEngine(QObject* parent)
     CacheManager& cacheManager = CacheManager::instance();
 
     // Register SearchResultCache
-    cacheManager.registerCache(CacheManager::SearchResultCache, d->resultCache);
+    cacheManager.registerCache(CacheManager::SEARCH_RESULT_CACHE, d->resultCache);
 
     // Register TextExtractor cache through adapter
     TextExtractorCacheAdapter* textCacheAdapter = new TextExtractorCacheAdapter(d->textExtractor, this);
-    cacheManager.registerCache(CacheManager::PageTextCache, textCacheAdapter);
+    cacheManager.registerCache(CacheManager::PAGE_TEXT_CACHE, textCacheAdapter);
 
     // Register with memory optimizer
     d->memoryOptimizer->registerSearchEngine(this);

@@ -1,11 +1,18 @@
 #pragma once
 
-#include "Logger.h"
-#include <QLoggingCategory>
-#include <QDebug>
+#include <QObject>
 #include <QString>
 #include <QTextStream>
+#include <QHash>
+#include <QLoggingCategory>
 #include <functional>
+#include <memory>
+#include "Logger.h"
+
+// Forward declarations to reduce header dependencies
+class QLoggingCategory;
+class QDebug;
+class QTextStream;
 
 /**
  * @brief Bridge class that integrates Qt's logging system with spdlog
@@ -60,24 +67,40 @@ public:
     /**
      * @brief Check if Qt message handler is installed
      */
-    bool isMessageHandlerInstalled() const { return m_handlerInstalled; }
+    bool isMessageHandlerInstalled() const;
 
 private slots:
     void handleQtMessage(QtMsgType type, const QMessageLogContext& context, const QString& message);
 
 private:
-    QtSpdlogBridge() = default;
+    QtSpdlogBridge();
     QtSpdlogBridge(const QtSpdlogBridge&) = delete;
     QtSpdlogBridge& operator=(const QtSpdlogBridge&) = delete;
 
     static void qtMessageHandler(QtMsgType type, const QMessageLogContext& context, const QString& message);
-    Logger::LogLevel qtMsgTypeToLogLevel(QtMsgType type) const;
-    QString formatQtMessage(QtMsgType type, const QMessageLogContext& context, const QString& message) const;
 
-    bool m_handlerInstalled = false;
-    bool m_categoryFilteringEnabled = true;
-    QtMessageHandler m_previousHandler = nullptr;
-    QHash<QString, QString> m_categoryMappings;
+    // Implementation class definition
+    class Implementation
+    {
+    public:
+        explicit Implementation(QtSpdlogBridge* q) : q_ptr(q) {}
+        ~Implementation() = default;
+
+        // Private data members
+        bool handlerInstalled = false;
+        bool categoryFilteringEnabled = true;
+        QtMessageHandler previousHandler = nullptr;
+        QHash<QString, QString> categoryMappings;
+
+        // Private methods
+        Logger::LogLevel qtMsgTypeToLogLevel(QtMsgType type) const;
+        QString formatQtMessage(QtMsgType type, const QMessageLogContext& context, const QString& message) const;
+
+    private:
+        QtSpdlogBridge* q_ptr;
+    };
+
+    std::unique_ptr<Implementation> d;
 };
 
 /**
@@ -118,14 +141,25 @@ public:
     // Function call operator for printf-style formatting
     template<typename... Args>
     void operator()(const QString& format, Args&&... args) {
-        m_stream << QString::asprintf(format.toLocal8Bit().constData(), args...);
+        d->stream << QString::asprintf(format.toLocal8Bit().constData(), args...);
     }
 
+    // Implementation class definition for inline template methods
+    class Implementation
+    {
+    public:
+        explicit Implementation(Logger::LogLevel level) : level(level), stream(&buffer) {}
+        ~Implementation() = default;
+
+        // Private data members
+        Logger::LogLevel level;
+        QTextStream stream;
+        QString buffer;
+        bool messageOutput = true;
+    };
+
 private:
-    Logger::LogLevel m_level;
-    QTextStream m_stream;
-    QString m_buffer;
-    bool m_messageOutput = true;
+    std::unique_ptr<Implementation> d;
 };
 
 // Convenience functions that return SpdlogQDebug instances

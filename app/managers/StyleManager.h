@@ -1,12 +1,15 @@
 #pragma once
 
-#include <QApplication>
+#include <QObject>
 #include <QColor>
 #include <QFont>
-#include <QObject>
 #include <QString>
+#include <memory>
 
 enum class Theme { Light, Dark };
+
+// Forward declaration
+class StyleManagerImpl;
 
 class StyleManager : public QObject {
     Q_OBJECT
@@ -16,7 +19,7 @@ public:
 
     // 主题管理
     void setTheme(Theme theme);
-    Theme currentTheme() const { return m_currentTheme; }
+    Theme currentTheme() const;
 
     // 样式表获取
     QString getApplicationStyleSheet() const;
@@ -43,6 +46,10 @@ public:
     QFont titleFont() const;
     QFont buttonFont() const;
 
+    // 样式创建方法
+    QString createButtonStyle() const;
+    QString createScrollBarStyle() const;
+
     // 尺寸常量
     int buttonHeight() const { return 32; }
     int buttonMinWidth() const { return 80; }
@@ -56,27 +63,11 @@ signals:
 
 private:
     StyleManager();
-    ~StyleManager() = default;
+    ~StyleManager();
     StyleManager(const StyleManager&) = delete;
     StyleManager& operator=(const StyleManager&) = delete;
 
-    void updateColors();
-    QString createButtonStyle() const;
-    QString createScrollBarStyle() const;
-
-    Theme m_currentTheme;
-
-    // 颜色定义
-    QColor m_primaryColor;
-    QColor m_secondaryColor;
-    QColor m_backgroundColor;
-    QColor m_surfaceColor;
-    QColor m_textColor;
-    QColor m_textSecondaryColor;
-    QColor m_borderColor;
-    QColor m_hoverColor;
-    QColor m_pressedColor;
-    QColor m_accentColor;
+    std::unique_ptr<StyleManagerImpl> pImpl;
 };
 
 // 便捷宏

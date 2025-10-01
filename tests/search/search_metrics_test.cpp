@@ -386,4 +386,4 @@ void SearchMetricsTest::verifyStatistics(double expectedAvgTime, double expected
 }
 
 QTEST_MAIN(SearchMetricsTest)
-#include "SearchMetricsTest.moc"
+#include "search_metrics_test.moc"

@@ -525,4 +525,4 @@ void WelcomeScreenManagerIntegrationTest::clearTestSettings()
 }
 
 QTEST_MAIN(WelcomeScreenManagerIntegrationTest)
-#include "WelcomeScreenManagerIntegrationTest.moc"
+#include "welcome_screen_manager_integration_test.moc"

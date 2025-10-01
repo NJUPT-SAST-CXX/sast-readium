@@ -1,29 +1,61 @@
 #include "StyleManager.h"
 #include <QFontDatabase>
+#include <QApplication>
 #include "../logging/Logger.h"
+
+// Private implementation class
+class StyleManagerImpl {
+public:
+    StyleManagerImpl() : m_currentTheme(Theme::Light) {
+        updateColors();
+    }
+
+    void updateColors();
+    QString createButtonStyle() const;
+    QString createScrollBarStyle() const;
+
+    Theme m_currentTheme;
+
+    // 颜色定义
+    QColor m_primaryColor;
+    QColor m_secondaryColor;
+    QColor m_backgroundColor;
+    QColor m_surfaceColor;
+    QColor m_textColor;
+    QColor m_textSecondaryColor;
+    QColor m_borderColor;
+    QColor m_hoverColor;
+    QColor m_pressedColor;
+    QColor m_accentColor;
+};
 
 StyleManager& StyleManager::instance() {
     static StyleManager instance;
     return instance;
 }
 
-StyleManager::StyleManager() : m_currentTheme(Theme::Light) {
+StyleManager::StyleManager() : pImpl(std::make_unique<StyleManagerImpl>()) {
     Logger::instance().info("[managers] StyleManager initialized with Light theme");
-    updateColors();
+}
+
+StyleManager::~StyleManager() = default;
+
+Theme StyleManager::currentTheme() const {
+    return pImpl->m_currentTheme;
 }
 
 void StyleManager::setTheme(Theme theme) {
-    if (m_currentTheme != theme) {
+    if (pImpl->m_currentTheme != theme) {
         Logger::instance().info("[managers] Changing theme from {} to {}",
-                 static_cast<int>(m_currentTheme), static_cast<int>(theme));
-        m_currentTheme = theme;
-        updateColors();
+                 static_cast<int>(pImpl->m_currentTheme), static_cast<int>(theme));
+        pImpl->m_currentTheme = theme;
+        pImpl->updateColors();
         emit themeChanged(theme);
         Logger::instance().debug("[managers] Theme change completed and signal emitted");
     }
 }
 
-void StyleManager::updateColors() {
+void StyleManagerImpl::updateColors() {
     Logger::instance().debug("[managers] Updating colors for theme: {}",
               m_currentTheme == Theme::Light ? "Light" : "Dark");
     if (m_currentTheme == Theme::Light) {
@@ -146,16 +178,16 @@ QString StyleManager::createButtonStyle() const {
         .arg(textSecondaryColor().name());
 }
 
-QColor StyleManager::primaryColor() const { return m_primaryColor; }
-QColor StyleManager::secondaryColor() const { return m_secondaryColor; }
-QColor StyleManager::backgroundColor() const { return m_backgroundColor; }
-QColor StyleManager::surfaceColor() const { return m_surfaceColor; }
-QColor StyleManager::textColor() const { return m_textColor; }
-QColor StyleManager::textSecondaryColor() const { return m_textSecondaryColor; }
-QColor StyleManager::borderColor() const { return m_borderColor; }
-QColor StyleManager::hoverColor() const { return m_hoverColor; }
-QColor StyleManager::pressedColor() const { return m_pressedColor; }
-QColor StyleManager::accentColor() const { return m_accentColor; }
+QColor StyleManager::primaryColor() const { return pImpl->m_primaryColor; }
+QColor StyleManager::secondaryColor() const { return pImpl->m_secondaryColor; }
+QColor StyleManager::backgroundColor() const { return pImpl->m_backgroundColor; }
+QColor StyleManager::surfaceColor() const { return pImpl->m_surfaceColor; }
+QColor StyleManager::textColor() const { return pImpl->m_textColor; }
+QColor StyleManager::textSecondaryColor() const { return pImpl->m_textSecondaryColor; }
+QColor StyleManager::borderColor() const { return pImpl->m_borderColor; }
+QColor StyleManager::hoverColor() const { return pImpl->m_hoverColor; }
+QColor StyleManager::pressedColor() const { return pImpl->m_pressedColor; }
+QColor StyleManager::accentColor() const { return pImpl->m_accentColor; }
 
 QFont StyleManager::defaultFont() const {
     QFont font("Segoe UI", 9);
