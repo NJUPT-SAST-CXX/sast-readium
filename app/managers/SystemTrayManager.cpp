@@ -1,51 +1,51 @@
 #include "SystemTrayManager.h"
-#include <QMainWindow>
+#include <QAction>
 #include <QApplication>
-#include <QIcon>
-#include <QMessageBox>
-#include <QPixmap>
-#include <QPainter>
-#include <QStyle>
-#include <QFont>
 #include <QColor>
 #include <QFileInfo>
-#include <QTimer>
-#include <QSystemTrayIcon>
+#include <QFont>
+#include <QIcon>
+#include <QMainWindow>
 #include <QMenu>
-#include <QAction>
+#include <QMessageBox>
+#include <QPainter>
+#include <QPixmap>
+#include <QStyle>
+#include <QSystemTrayIcon>
+#include <QTimer>
 #include "../controller/ConfigurationManager.h"
 #include "../controller/EventBus.h"
-#include "RecentFilesManager.h"
 #include "../logging/SimpleLogging.h"
+#include "RecentFilesManager.h"
 
 // Private implementation class
 class SystemTrayManagerImpl {
 public:
     SystemTrayManagerImpl()
-        : m_mainWindow(nullptr)
-        , m_recentFilesManager(nullptr)
-        , m_restoreAction(nullptr)
-        , m_exitAction(nullptr)
-        , m_openFileAction(nullptr)
-        , m_settingsAction(nullptr)
-        , m_aboutAction(nullptr)
-        , m_statusSeparator(nullptr)
-        , m_statusAction(nullptr)
-        , m_isInitialized(false)
-        , m_isEnabled(SystemTrayManager::DEFAULT_ENABLED)
-        , m_minimizeToTrayEnabled(SystemTrayManager::DEFAULT_MINIMIZE_TO_TRAY)
-        , m_showNotifications(SystemTrayManager::DEFAULT_SHOW_NOTIFICATIONS)
-        , m_hasShownFirstTimeNotification(false)
-        , m_isMainWindowHidden(false)
-        , m_showStatusIndicators(SystemTrayManager::DEFAULT_SHOW_STATUS_INDICATORS)
-        , m_showRecentFiles(SystemTrayManager::DEFAULT_SHOW_RECENT_FILES)
-        , m_recentFilesCount(SystemTrayManager::DEFAULT_RECENT_FILES_COUNT)
-        , m_showQuickActions(SystemTrayManager::DEFAULT_SHOW_QUICK_ACTIONS)
-        , m_enhancedNotifications(SystemTrayManager::DEFAULT_ENHANCED_NOTIFICATIONS)
-        , m_dynamicTooltip(SystemTrayManager::DEFAULT_DYNAMIC_TOOLTIP)
-        , m_logger("SystemTrayManager")
-    {
-    }
+        : m_mainWindow(nullptr),
+          m_recentFilesManager(nullptr),
+          m_restoreAction(nullptr),
+          m_exitAction(nullptr),
+          m_openFileAction(nullptr),
+          m_settingsAction(nullptr),
+          m_aboutAction(nullptr),
+          m_statusSeparator(nullptr),
+          m_statusAction(nullptr),
+          m_isInitialized(false),
+          m_isEnabled(SystemTrayManager::DEFAULT_ENABLED),
+          m_minimizeToTrayEnabled(SystemTrayManager::DEFAULT_MINIMIZE_TO_TRAY),
+          m_showNotifications(SystemTrayManager::DEFAULT_SHOW_NOTIFICATIONS),
+          m_hasShownFirstTimeNotification(false),
+          m_isMainWindowHidden(false),
+          m_showStatusIndicators(
+              SystemTrayManager::DEFAULT_SHOW_STATUS_INDICATORS),
+          m_showRecentFiles(SystemTrayManager::DEFAULT_SHOW_RECENT_FILES),
+          m_recentFilesCount(SystemTrayManager::DEFAULT_RECENT_FILES_COUNT),
+          m_showQuickActions(SystemTrayManager::DEFAULT_SHOW_QUICK_ACTIONS),
+          m_enhancedNotifications(
+              SystemTrayManager::DEFAULT_ENHANCED_NOTIFICATIONS),
+          m_dynamicTooltip(SystemTrayManager::DEFAULT_DYNAMIC_TOOLTIP),
+          m_logger("SystemTrayManager") {}
 
     // Core components
     std::unique_ptr<QSystemTrayIcon> m_trayIcon;
@@ -97,18 +97,28 @@ public:
 // Static constants
 const QString SystemTrayManager::SETTINGS_GROUP = "UI";
 const QString SystemTrayManager::SETTINGS_ENABLED_KEY = "system_tray_enabled";
-const QString SystemTrayManager::SETTINGS_MINIMIZE_TO_TRAY_KEY = "minimize_to_tray";
-const QString SystemTrayManager::SETTINGS_SHOW_NOTIFICATIONS_KEY = "show_tray_notifications";
-const QString SystemTrayManager::SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY = "first_time_tray_notification_shown";
+const QString SystemTrayManager::SETTINGS_MINIMIZE_TO_TRAY_KEY =
+    "minimize_to_tray";
+const QString SystemTrayManager::SETTINGS_SHOW_NOTIFICATIONS_KEY =
+    "show_tray_notifications";
+const QString SystemTrayManager::SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY =
+    "first_time_tray_notification_shown";
 
 // Enhanced feature settings keys
-const QString SystemTrayManager::SETTINGS_SHOW_STATUS_INDICATORS_KEY = "show_status_indicators";
-const QString SystemTrayManager::SETTINGS_SHOW_RECENT_FILES_KEY = "show_recent_files";
-const QString SystemTrayManager::SETTINGS_RECENT_FILES_COUNT_KEY = "recent_files_count";
-const QString SystemTrayManager::SETTINGS_SHOW_QUICK_ACTIONS_KEY = "show_quick_actions";
-const QString SystemTrayManager::SETTINGS_ENHANCED_NOTIFICATIONS_KEY = "enhanced_notifications";
-const QString SystemTrayManager::SETTINGS_NOTIFICATION_TYPES_KEY = "notification_types";
-const QString SystemTrayManager::SETTINGS_DYNAMIC_TOOLTIP_KEY = "dynamic_tooltip";
+const QString SystemTrayManager::SETTINGS_SHOW_STATUS_INDICATORS_KEY =
+    "show_status_indicators";
+const QString SystemTrayManager::SETTINGS_SHOW_RECENT_FILES_KEY =
+    "show_recent_files";
+const QString SystemTrayManager::SETTINGS_RECENT_FILES_COUNT_KEY =
+    "recent_files_count";
+const QString SystemTrayManager::SETTINGS_SHOW_QUICK_ACTIONS_KEY =
+    "show_quick_actions";
+const QString SystemTrayManager::SETTINGS_ENHANCED_NOTIFICATIONS_KEY =
+    "enhanced_notifications";
+const QString SystemTrayManager::SETTINGS_NOTIFICATION_TYPES_KEY =
+    "notification_types";
+const QString SystemTrayManager::SETTINGS_DYNAMIC_TOOLTIP_KEY =
+    "dynamic_tooltip";
 
 const bool SystemTrayManager::DEFAULT_ENABLED = true;
 const bool SystemTrayManager::DEFAULT_MINIMIZE_TO_TRAY = true;
@@ -121,9 +131,7 @@ const bool SystemTrayManager::DEFAULT_ENHANCED_NOTIFICATIONS = true;
 const bool SystemTrayManager::DEFAULT_DYNAMIC_TOOLTIP = true;
 
 SystemTrayManager::SystemTrayManager(QObject* parent)
-    : QObject(parent)
-    , pImpl(std::make_unique<SystemTrayManagerImpl>())
-{
+    : QObject(parent), pImpl(std::make_unique<SystemTrayManagerImpl>()) {
     pImpl->m_logger.debug("SystemTrayManager constructor called");
 }
 
@@ -144,9 +152,11 @@ bool SystemTrayManager::isSystemTrayAvailable() {
     static bool hasLoggedAvailability = false;
     if (!hasLoggedAvailability) {
         if (available) {
-            qDebug() << "SystemTrayManager: System tray is available on this platform";
+            qDebug() << "SystemTrayManager: System tray is available on this "
+                        "platform";
         } else {
-            qDebug() << "SystemTrayManager: System tray is NOT available on this platform";
+            qDebug() << "SystemTrayManager: System tray is NOT available on "
+                        "this platform";
             qDebug() << "SystemTrayManager: This may be due to:";
             qDebug() << "  - Desktop environment without system tray support";
             qDebug() << "  - System tray disabled in desktop settings";
@@ -165,7 +175,8 @@ bool SystemTrayManager::initialize(QMainWindow* mainWindow) {
     }
 
     if (!mainWindow) {
-        pImpl->m_logger.error("Cannot initialize SystemTrayManager: mainWindow is null");
+        pImpl->m_logger.error(
+            "Cannot initialize SystemTrayManager: mainWindow is null");
         return false;
     }
 
@@ -173,7 +184,8 @@ bool SystemTrayManager::initialize(QMainWindow* mainWindow) {
 
     // Check system tray availability
     if (!isSystemTrayAvailable()) {
-        pImpl->m_logger.warning("System tray is not available on this platform");
+        pImpl->m_logger.warning(
+            "System tray is not available on this platform");
         // Don't return false - we can still function without system tray
         pImpl->m_isEnabled = false;
     }
@@ -239,7 +251,8 @@ void SystemTrayManager::setEnabled(bool enabled) {
         return;
     }
 
-    pImpl->m_logger.info(QString("Setting system tray enabled: %1").arg(enabled));
+    pImpl->m_logger.info(
+        QString("Setting system tray enabled: %1").arg(enabled));
 
     pImpl->m_isEnabled = enabled;
 
@@ -271,7 +284,8 @@ void SystemTrayManager::setMinimizeToTrayEnabled(bool enabled) {
         return;
     }
 
-    pImpl->m_logger.info(QString("Setting minimize to tray enabled: %1").arg(enabled));
+    pImpl->m_logger.info(
+        QString("Setting minimize to tray enabled: %1").arg(enabled));
     pImpl->m_minimizeToTrayEnabled = enabled;
     emit minimizeToTrayEnabledChanged(enabled);
 }
@@ -288,9 +302,11 @@ void SystemTrayManager::showMainWindow() {
     Qt::WindowStates currentState = pImpl->m_mainWindow->windowState();
 
     // Restore window visibility and state
-    if (pImpl->m_mainWindow->isMinimized() || !pImpl->m_mainWindow->isVisible()) {
+    if (pImpl->m_mainWindow->isMinimized() ||
+        !pImpl->m_mainWindow->isVisible()) {
         // If window was minimized or hidden, restore to normal state
-        pImpl->m_mainWindow->setWindowState(currentState & ~Qt::WindowMinimized);
+        pImpl->m_mainWindow->setWindowState(currentState &
+                                            ~Qt::WindowMinimized);
         pImpl->m_mainWindow->show();
         pImpl->m_mainWindow->showNormal();
     } else {
@@ -302,10 +318,12 @@ void SystemTrayManager::showMainWindow() {
     pImpl->m_mainWindow->raise();
     pImpl->m_mainWindow->activateWindow();
 
-    // On Windows, additional steps may be needed to properly bring window to front
+    // On Windows, additional steps may be needed to properly bring window to
+    // front
 #ifdef Q_OS_WIN
     // Force window to foreground on Windows
-    pImpl->m_mainWindow->setWindowState(pImpl->m_mainWindow->windowState() | Qt::WindowActive);
+    pImpl->m_mainWindow->setWindowState(pImpl->m_mainWindow->windowState() |
+                                        Qt::WindowActive);
 #endif
 
     pImpl->m_isMainWindowHidden = false;
@@ -323,14 +341,17 @@ void SystemTrayManager::hideMainWindow(bool showNotification) {
 
     // Check if system tray is available at runtime
     if (!isEnabled()) {
-        pImpl->m_logger.debug("System tray not enabled or available, performing normal minimize");
+        pImpl->m_logger.debug(
+            "System tray not enabled or available, performing normal minimize");
         pImpl->m_mainWindow->showMinimized();
         return;
     }
 
     // Double-check system tray availability at runtime
     if (!isSystemTrayAvailable()) {
-        pImpl->m_logger.warning("System tray became unavailable at runtime, falling back to normal minimize");
+        pImpl->m_logger.warning(
+            "System tray became unavailable at runtime, falling back to normal "
+            "minimize");
         pImpl->m_mainWindow->showMinimized();
         return;
     }
@@ -338,9 +359,11 @@ void SystemTrayManager::hideMainWindow(bool showNotification) {
     pImpl->m_logger.debug("Hiding main window to system tray");
 
     // Save current window geometry for restoration
-    if (pImpl->m_mainWindow->isVisible() && !pImpl->m_mainWindow->isMinimized()) {
+    if (pImpl->m_mainWindow->isVisible() &&
+        !pImpl->m_mainWindow->isMinimized()) {
         // Window geometry is automatically saved by Qt's QSettings integration
-        pImpl->m_logger.debug("Window geometry will be preserved for restoration");
+        pImpl->m_logger.debug(
+            "Window geometry will be preserved for restoration");
     }
 
     // Hide the window completely (not just minimize)
@@ -351,7 +374,8 @@ void SystemTrayManager::hideMainWindow(bool showNotification) {
     updateContextMenuState();
 
     // Show first-time notification if needed
-    if (showNotification && pImpl->m_showNotifications && !pImpl->m_hasShownFirstTimeNotification) {
+    if (showNotification && pImpl->m_showNotifications &&
+        !pImpl->m_hasShownFirstTimeNotification) {
         showFirstTimeNotification();
     }
 
@@ -371,13 +395,15 @@ void SystemTrayManager::requestApplicationExit() {
 
 bool SystemTrayManager::handleMainWindowCloseEvent() {
     if (!isMinimizeToTrayEnabled()) {
-        pImpl->m_logger.debug("Minimize to tray disabled, allowing normal close");
-        return false; // Allow normal close
+        pImpl->m_logger.debug(
+            "Minimize to tray disabled, allowing normal close");
+        return false;  // Allow normal close
     }
 
-    pImpl->m_logger.debug("Handling main window close event - minimizing to tray");
+    pImpl->m_logger.debug(
+        "Handling main window close event - minimizing to tray");
     hideMainWindow(true);
-    return true; // Ignore close event
+    return true;  // Ignore close event
 }
 
 void SystemTrayManager::createTrayIcon() {
@@ -387,7 +413,8 @@ void SystemTrayManager::createTrayIcon() {
 
     // Final check before creating tray icon
     if (!isSystemTrayAvailable()) {
-        pImpl->m_logger.error("Cannot create tray icon: system tray is not available");
+        pImpl->m_logger.error(
+            "Cannot create tray icon: system tray is not available");
         return;
     }
 
@@ -399,12 +426,14 @@ void SystemTrayManager::createTrayIcon() {
         // Set application icon with proper sizing for different platforms
         QIcon icon(":/images/icon");
         if (icon.isNull()) {
-            pImpl->m_logger.warning("Could not load application icon for system tray");
+            pImpl->m_logger.warning(
+                "Could not load application icon for system tray");
             // Use default icon as fallback
             icon = QApplication::style()->standardIcon(QStyle::SP_ComputerIcon);
 
             if (icon.isNull()) {
-                pImpl->m_logger.error("Could not load fallback icon for system tray");
+                pImpl->m_logger.error(
+                    "Could not load fallback icon for system tray");
                 // Create a simple default icon with proper sizing
                 createDefaultTrayIcon(icon);
             }
@@ -418,21 +447,24 @@ void SystemTrayManager::createTrayIcon() {
             iconSize = QSize(22, 22);
 #endif
             // Qt will automatically scale the icon as needed
-            pImpl->m_logger.debug(QString("Setting tray icon with preferred size: %1x%2")
-                          .arg(iconSize.width()).arg(iconSize.height()));
+            pImpl->m_logger.debug(
+                QString("Setting tray icon with preferred size: %1x%2")
+                    .arg(iconSize.width())
+                    .arg(iconSize.height()));
         }
 
         pImpl->m_trayIcon->setIcon(icon);
         pImpl->m_trayIcon->setToolTip("SAST Readium - PDF Reader");
 
         // Connect signals
-        connect(pImpl->m_trayIcon.get(), &QSystemTrayIcon::activated,
-                this, &SystemTrayManager::onTrayIconActivated);
+        connect(pImpl->m_trayIcon.get(), &QSystemTrayIcon::activated, this,
+                &SystemTrayManager::onTrayIconActivated);
 
         pImpl->m_logger.debug("System tray icon created successfully");
 
     } catch (const std::exception& e) {
-        pImpl->m_logger.error(QString("Failed to create system tray icon: %1").arg(e.what()));
+        pImpl->m_logger.error(
+            QString("Failed to create system tray icon: %1").arg(e.what()));
         pImpl->m_trayIcon.reset();
     }
 }
@@ -447,24 +479,30 @@ void SystemTrayManager::createContextMenu() {
     pImpl->m_contextMenu = std::make_unique<QMenu>();
 
     // Create restore action
-    pImpl->m_restoreAction = pImpl->m_contextMenu->addAction("&Show SAST Readium");
-    pImpl->m_restoreAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_TitleBarMaxButton));
+    pImpl->m_restoreAction =
+        pImpl->m_contextMenu->addAction("&Show SAST Readium");
+    pImpl->m_restoreAction->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_TitleBarMaxButton));
     pImpl->m_restoreAction->setToolTip("Restore the main application window");
-    connect(pImpl->m_restoreAction, &QAction::triggered, this, &SystemTrayManager::onRestoreAction);
+    connect(pImpl->m_restoreAction, &QAction::triggered, this,
+            &SystemTrayManager::onRestoreAction);
 
     // Add separator
     pImpl->m_contextMenu->addSeparator();
 
     // Create exit action
     pImpl->m_exitAction = pImpl->m_contextMenu->addAction("E&xit");
-    pImpl->m_exitAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_TitleBarCloseButton));
+    pImpl->m_exitAction->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_TitleBarCloseButton));
     pImpl->m_exitAction->setToolTip("Exit SAST Readium completely");
-    connect(pImpl->m_exitAction, &QAction::triggered, this, &SystemTrayManager::onExitAction);
+    connect(pImpl->m_exitAction, &QAction::triggered, this,
+            &SystemTrayManager::onExitAction);
 
     // Set context menu
     pImpl->m_trayIcon->setContextMenu(pImpl->m_contextMenu.get());
 
-    pImpl->m_logger.debug("System tray context menu created with restore and exit actions");
+    pImpl->m_logger.debug(
+        "System tray context menu created with restore and exit actions");
 
     // Update initial menu state
     updateContextMenuState();
@@ -497,22 +535,74 @@ void SystemTrayManager::loadSettings() {
     pImpl->m_logger.debug("Loading SystemTrayManager settings");
 
     // Load basic settings
-    pImpl->m_isEnabled = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_ENABLED_KEY, DEFAULT_ENABLED).toBool();
-    pImpl->m_minimizeToTrayEnabled = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_MINIMIZE_TO_TRAY_KEY, DEFAULT_MINIMIZE_TO_TRAY).toBool();
-    pImpl->m_showNotifications = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_NOTIFICATIONS_KEY, DEFAULT_SHOW_NOTIFICATIONS).toBool();
-    pImpl->m_hasShownFirstTimeNotification = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY, false).toBool();
+    pImpl->m_isEnabled =
+        config
+            .getValue(SETTINGS_GROUP + "/" + SETTINGS_ENABLED_KEY,
+                      DEFAULT_ENABLED)
+            .toBool();
+    pImpl->m_minimizeToTrayEnabled =
+        config
+            .getValue(SETTINGS_GROUP + "/" + SETTINGS_MINIMIZE_TO_TRAY_KEY,
+                      DEFAULT_MINIMIZE_TO_TRAY)
+            .toBool();
+    pImpl->m_showNotifications =
+        config
+            .getValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_NOTIFICATIONS_KEY,
+                      DEFAULT_SHOW_NOTIFICATIONS)
+            .toBool();
+    pImpl->m_hasShownFirstTimeNotification =
+        config
+            .getValue(SETTINGS_GROUP + "/" +
+                          SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY,
+                      false)
+            .toBool();
 
     // Load enhanced feature settings
-    pImpl->m_showStatusIndicators = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_STATUS_INDICATORS_KEY, DEFAULT_SHOW_STATUS_INDICATORS).toBool();
-    pImpl->m_showRecentFiles = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_RECENT_FILES_KEY, DEFAULT_SHOW_RECENT_FILES).toBool();
-    pImpl->m_recentFilesCount = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_RECENT_FILES_COUNT_KEY, DEFAULT_RECENT_FILES_COUNT).toInt();
-    pImpl->m_showQuickActions = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_QUICK_ACTIONS_KEY, DEFAULT_SHOW_QUICK_ACTIONS).toBool();
-    pImpl->m_enhancedNotifications = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_ENHANCED_NOTIFICATIONS_KEY, DEFAULT_ENHANCED_NOTIFICATIONS).toBool();
-    pImpl->m_notificationTypes = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_NOTIFICATION_TYPES_KEY, "document,status,error").toString();
-    pImpl->m_dynamicTooltip = config.getValue(SETTINGS_GROUP + "/" + SETTINGS_DYNAMIC_TOOLTIP_KEY, DEFAULT_DYNAMIC_TOOLTIP).toBool();
+    pImpl->m_showStatusIndicators =
+        config
+            .getValue(
+                SETTINGS_GROUP + "/" + SETTINGS_SHOW_STATUS_INDICATORS_KEY,
+                DEFAULT_SHOW_STATUS_INDICATORS)
+            .toBool();
+    pImpl->m_showRecentFiles =
+        config
+            .getValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_RECENT_FILES_KEY,
+                      DEFAULT_SHOW_RECENT_FILES)
+            .toBool();
+    pImpl->m_recentFilesCount =
+        config
+            .getValue(SETTINGS_GROUP + "/" + SETTINGS_RECENT_FILES_COUNT_KEY,
+                      DEFAULT_RECENT_FILES_COUNT)
+            .toInt();
+    pImpl->m_showQuickActions =
+        config
+            .getValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_QUICK_ACTIONS_KEY,
+                      DEFAULT_SHOW_QUICK_ACTIONS)
+            .toBool();
+    pImpl->m_enhancedNotifications =
+        config
+            .getValue(
+                SETTINGS_GROUP + "/" + SETTINGS_ENHANCED_NOTIFICATIONS_KEY,
+                DEFAULT_ENHANCED_NOTIFICATIONS)
+            .toBool();
+    pImpl->m_notificationTypes =
+        config
+            .getValue(SETTINGS_GROUP + "/" + SETTINGS_NOTIFICATION_TYPES_KEY,
+                      "document,status,error")
+            .toString();
+    pImpl->m_dynamicTooltip =
+        config
+            .getValue(SETTINGS_GROUP + "/" + SETTINGS_DYNAMIC_TOOLTIP_KEY,
+                      DEFAULT_DYNAMIC_TOOLTIP)
+            .toBool();
 
-    pImpl->m_logger.debug(QString("Settings loaded - enabled: %1, minimizeToTray: %2, showNotifications: %3, enhanced features: %4")
-                   .arg(pImpl->m_isEnabled).arg(pImpl->m_minimizeToTrayEnabled).arg(pImpl->m_showNotifications).arg(areEnhancedFeaturesEnabled()));
+    pImpl->m_logger.debug(
+        QString("Settings loaded - enabled: %1, minimizeToTray: %2, "
+                "showNotifications: %3, enhanced features: %4")
+            .arg(pImpl->m_isEnabled)
+            .arg(pImpl->m_minimizeToTrayEnabled)
+            .arg(pImpl->m_showNotifications)
+            .arg(areEnhancedFeaturesEnabled()));
 }
 
 void SystemTrayManager::saveSettings() {
@@ -521,29 +611,45 @@ void SystemTrayManager::saveSettings() {
     pImpl->m_logger.debug("Saving SystemTrayManager settings");
 
     // Save basic settings
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_ENABLED_KEY, pImpl->m_isEnabled);
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_MINIMIZE_TO_TRAY_KEY, pImpl->m_minimizeToTrayEnabled);
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_NOTIFICATIONS_KEY, pImpl->m_showNotifications);
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY, pImpl->m_hasShownFirstTimeNotification);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_ENABLED_KEY,
+                    pImpl->m_isEnabled);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_MINIMIZE_TO_TRAY_KEY,
+                    pImpl->m_minimizeToTrayEnabled);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_NOTIFICATIONS_KEY,
+                    pImpl->m_showNotifications);
+    config.setValue(
+        SETTINGS_GROUP + "/" + SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY,
+        pImpl->m_hasShownFirstTimeNotification);
 
     // Save enhanced feature settings
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_STATUS_INDICATORS_KEY, pImpl->m_showStatusIndicators);
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_RECENT_FILES_KEY, pImpl->m_showRecentFiles);
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_RECENT_FILES_COUNT_KEY, pImpl->m_recentFilesCount);
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_QUICK_ACTIONS_KEY, pImpl->m_showQuickActions);
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_ENHANCED_NOTIFICATIONS_KEY, pImpl->m_enhancedNotifications);
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_NOTIFICATION_TYPES_KEY, pImpl->m_notificationTypes);
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_DYNAMIC_TOOLTIP_KEY, pImpl->m_dynamicTooltip);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_STATUS_INDICATORS_KEY,
+                    pImpl->m_showStatusIndicators);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_RECENT_FILES_KEY,
+                    pImpl->m_showRecentFiles);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_RECENT_FILES_COUNT_KEY,
+                    pImpl->m_recentFilesCount);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_SHOW_QUICK_ACTIONS_KEY,
+                    pImpl->m_showQuickActions);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_ENHANCED_NOTIFICATIONS_KEY,
+                    pImpl->m_enhancedNotifications);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_NOTIFICATION_TYPES_KEY,
+                    pImpl->m_notificationTypes);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_DYNAMIC_TOOLTIP_KEY,
+                    pImpl->m_dynamicTooltip);
 }
 
-void SystemTrayManager::applySettingsChange(const QString& settingsGroup, const QString& key, const QVariant& value) {
+void SystemTrayManager::applySettingsChange(const QString& settingsGroup,
+                                            const QString& key,
+                                            const QVariant& value) {
     // Only handle our settings group
     if (settingsGroup != SETTINGS_GROUP) {
         return;
     }
 
     pImpl->m_logger.debug(QString("Applying settings change: %1/%2 = %3")
-                   .arg(settingsGroup).arg(key).arg(value.toString()));
+                              .arg(settingsGroup)
+                              .arg(key)
+                              .arg(value.toString()));
 
     bool oldEnabled = pImpl->m_isEnabled;
     bool oldMinimizeToTray = pImpl->m_minimizeToTrayEnabled;
@@ -563,13 +669,19 @@ void SystemTrayManager::applySettingsChange(const QString& settingsGroup, const 
 
     // Log changes
     if (oldEnabled != pImpl->m_isEnabled) {
-        pImpl->m_logger.info(QString("System tray enabled changed: %1 -> %2").arg(oldEnabled).arg(pImpl->m_isEnabled));
+        pImpl->m_logger.info(QString("System tray enabled changed: %1 -> %2")
+                                 .arg(oldEnabled)
+                                 .arg(pImpl->m_isEnabled));
     }
     if (oldMinimizeToTray != pImpl->m_minimizeToTrayEnabled) {
-        pImpl->m_logger.info(QString("Minimize to tray changed: %1 -> %2").arg(oldMinimizeToTray).arg(pImpl->m_minimizeToTrayEnabled));
+        pImpl->m_logger.info(QString("Minimize to tray changed: %1 -> %2")
+                                 .arg(oldMinimizeToTray)
+                                 .arg(pImpl->m_minimizeToTrayEnabled));
     }
     if (oldShowNotifications != pImpl->m_showNotifications) {
-        pImpl->m_logger.info(QString("Show notifications changed: %1 -> %2").arg(oldShowNotifications).arg(pImpl->m_showNotifications));
+        pImpl->m_logger.info(QString("Show notifications changed: %1 -> %2")
+                                 .arg(oldShowNotifications)
+                                 .arg(pImpl->m_showNotifications));
     }
 }
 
@@ -595,83 +707,90 @@ void SystemTrayManager::showFirstTimeNotification() {
     pImpl->m_logger.info("Showing first-time system tray notification");
 
     QString title = "SAST Readium - Minimized to Tray";
-    QString message = "The application is now running in the system tray.\n\n"
-                     "• Left-click the tray icon to restore the window\n"
-                     "• Double-click to always show the window\n"
-                     "• Right-click for menu options\n"
-                     "• Use the tray menu to exit the application";
+    QString message =
+        "The application is now running in the system tray.\n\n"
+        "• Left-click the tray icon to restore the window\n"
+        "• Double-click to always show the window\n"
+        "• Right-click for menu options\n"
+        "• Use the tray menu to exit the application";
 
-    // Show notification for 8 seconds to give users time to read the instructions
-    pImpl->m_trayIcon->showMessage(title, message, QSystemTrayIcon::Information, 8000);
+    // Show notification for 8 seconds to give users time to read the
+    // instructions
+    pImpl->m_trayIcon->showMessage(title, message, QSystemTrayIcon::Information,
+                                   8000);
 
     // Mark that we've shown the first-time notification
     pImpl->m_hasShownFirstTimeNotification = true;
 
     // Save this setting immediately so it persists
     ConfigurationManager& config = ConfigurationManager::instance();
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY, true);
+    config.setValue(
+        SETTINGS_GROUP + "/" + SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY,
+        true);
 }
 
-void SystemTrayManager::onTrayIconActivated(QSystemTrayIcon::ActivationReason reason) {
+void SystemTrayManager::onTrayIconActivated(
+    QSystemTrayIcon::ActivationReason reason) {
     QString reasonStr;
     switch (reason) {
-    case QSystemTrayIcon::Trigger:
-        reasonStr = "Left Click";
-        break;
-    case QSystemTrayIcon::DoubleClick:
-        reasonStr = "Double Click";
-        break;
-    case QSystemTrayIcon::MiddleClick:
-        reasonStr = "Middle Click";
-        break;
-    case QSystemTrayIcon::Context:
-        reasonStr = "Right Click (Context Menu)";
-        break;
-    default:
-        reasonStr = "Unknown";
-        break;
+        case QSystemTrayIcon::Trigger:
+            reasonStr = "Left Click";
+            break;
+        case QSystemTrayIcon::DoubleClick:
+            reasonStr = "Double Click";
+            break;
+        case QSystemTrayIcon::MiddleClick:
+            reasonStr = "Middle Click";
+            break;
+        case QSystemTrayIcon::Context:
+            reasonStr = "Right Click (Context Menu)";
+            break;
+        default:
+            reasonStr = "Unknown";
+            break;
     }
 
     pImpl->m_logger.debug(QString("Tray icon activated: %1 (reason: %2)")
-                   .arg(reasonStr).arg(static_cast<int>(reason)));
+                              .arg(reasonStr)
+                              .arg(static_cast<int>(reason)));
 
     switch (reason) {
-    case QSystemTrayIcon::Trigger:
-        // Left click - toggle window visibility
-        if (pImpl->m_isMainWindowHidden) {
-            showMainWindow();
-        } else {
-            // Only hide if minimize to tray is enabled
-            if (isMinimizeToTrayEnabled()) {
-                hideMainWindow(false);
+        case QSystemTrayIcon::Trigger:
+            // Left click - toggle window visibility
+            if (pImpl->m_isMainWindowHidden) {
+                showMainWindow();
             } else {
-                showMainWindow(); // Bring to front if already visible
+                // Only hide if minimize to tray is enabled
+                if (isMinimizeToTrayEnabled()) {
+                    hideMainWindow(false);
+                } else {
+                    showMainWindow();  // Bring to front if already visible
+                }
             }
-        }
-        break;
+            break;
 
-    case QSystemTrayIcon::DoubleClick:
-        // Double click - always show window
-        showMainWindow();
-        break;
-
-    case QSystemTrayIcon::MiddleClick:
-        // Middle click - toggle window visibility
-        if (pImpl->m_isMainWindowHidden) {
+        case QSystemTrayIcon::DoubleClick:
+            // Double click - always show window
             showMainWindow();
-        } else {
-            hideMainWindow(false);
-        }
-        break;
+            break;
 
-    case QSystemTrayIcon::Context:
-        // Right click - context menu is shown automatically
-        pImpl->m_logger.debug("Context menu will be shown automatically");
-        break;
+        case QSystemTrayIcon::MiddleClick:
+            // Middle click - toggle window visibility
+            if (pImpl->m_isMainWindowHidden) {
+                showMainWindow();
+            } else {
+                hideMainWindow(false);
+            }
+            break;
 
-    default:
-        pImpl->m_logger.debug("Unhandled tray icon activation reason");
-        break;
+        case QSystemTrayIcon::Context:
+            // Right click - context menu is shown automatically
+            pImpl->m_logger.debug("Context menu will be shown automatically");
+            break;
+
+        default:
+            pImpl->m_logger.debug("Unhandled tray icon activation reason");
+            break;
     }
 }
 
@@ -681,7 +800,7 @@ void SystemTrayManager::onRestoreAction() {
     if (pImpl->m_isMainWindowHidden) {
         showMainWindow();
     } else {
-        hideMainWindow(false); // Don't show notification when manually hiding
+        hideMainWindow(false);  // Don't show notification when manually hiding
     }
 }
 
@@ -695,7 +814,7 @@ void SystemTrayManager::createDefaultTrayIcon(QIcon& icon) {
 
     // Create a simple colored icon as fallback
     QPixmap pixmap(16, 16);
-    pixmap.fill(QColor(70, 130, 180)); // Steel blue color
+    pixmap.fill(QColor(70, 130, 180));  // Steel blue color
 
     // Add a simple "R" for Readium
     QPainter painter(&pixmap);
@@ -724,26 +843,33 @@ void SystemTrayManager::checkSystemTrayAvailability() {
 
     // Check if availability status has changed
     if (currentlyAvailable != lastKnownAvailability) {
-        pImpl->m_logger.info(QString("System tray availability changed: %1 -> %2")
-                      .arg(lastKnownAvailability ? "available" : "unavailable")
-                      .arg(currentlyAvailable ? "available" : "unavailable"));
+        pImpl->m_logger.info(
+            QString("System tray availability changed: %1 -> %2")
+                .arg(lastKnownAvailability ? "available" : "unavailable")
+                .arg(currentlyAvailable ? "available" : "unavailable"));
 
         if (currentlyAvailable && pImpl->m_isEnabled) {
-            // System tray became available - create tray icon if we don't have one
+            // System tray became available - create tray icon if we don't have
+            // one
             if (!pImpl->m_trayIcon) {
-                pImpl->m_logger.info("System tray became available - creating tray icon");
+                pImpl->m_logger.info(
+                    "System tray became available - creating tray icon");
                 createTrayIcon();
                 createContextMenu();
                 updateTrayIconVisibility();
             }
         } else if (!currentlyAvailable && pImpl->m_trayIcon) {
             // System tray became unavailable - handle gracefully
-            pImpl->m_logger.warning("System tray became unavailable - hiding tray icon");
+            pImpl->m_logger.warning(
+                "System tray became unavailable - hiding tray icon");
             pImpl->m_trayIcon->hide();
 
-            // If main window is hidden, show it since tray is no longer available
+            // If main window is hidden, show it since tray is no longer
+            // available
             if (pImpl->m_isMainWindowHidden) {
-                pImpl->m_logger.info("Restoring main window since system tray is no longer available");
+                pImpl->m_logger.info(
+                    "Restoring main window since system tray is no longer "
+                    "available");
                 showMainWindow();
             }
         }
@@ -754,12 +880,15 @@ void SystemTrayManager::checkSystemTrayAvailability() {
 
 // Enhanced functionality implementations
 
-void SystemTrayManager::setApplicationStatus(const QString& status, const QString& message) {
-    if (pImpl->m_currentStatus == status && pImpl->m_currentStatusMessage == message) {
+void SystemTrayManager::setApplicationStatus(const QString& status,
+                                             const QString& message) {
+    if (pImpl->m_currentStatus == status &&
+        pImpl->m_currentStatusMessage == message) {
         return;
     }
 
-    pImpl->m_logger.debug(QString("Setting application status: %1 - %2").arg(status, message));
+    pImpl->m_logger.debug(
+        QString("Setting application status: %1 - %2").arg(status, message));
 
     pImpl->m_currentStatus = status;
     pImpl->m_currentStatusMessage = message;
@@ -780,19 +909,22 @@ void SystemTrayManager::setApplicationStatus(const QString& status, const QStrin
     emit applicationStatusChanged(status, message);
 }
 
-void SystemTrayManager::showNotification(const QString& title, const QString& message,
-                                       const QString& type, int timeout) {
+void SystemTrayManager::showNotification(const QString& title,
+                                         const QString& message,
+                                         const QString& type, int timeout) {
     if (!pImpl->m_trayIcon || !pImpl->m_enhancedNotifications) {
         return;
     }
 
     // Check if this notification type is enabled
     if (!isNotificationTypeEnabled(type)) {
-        pImpl->m_logger.debug(QString("Notification type '%1' is disabled, skipping").arg(type));
+        pImpl->m_logger.debug(
+            QString("Notification type '%1' is disabled, skipping").arg(type));
         return;
     }
 
-    pImpl->m_logger.info(QString("Showing notification: %1 - %2 (type: %3)").arg(title, message, type));
+    pImpl->m_logger.info(QString("Showing notification: %1 - %2 (type: %3)")
+                             .arg(title, message, type));
 
     // Determine notification icon based on type
     QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information;
@@ -819,7 +951,8 @@ void SystemTrayManager::updateDynamicTooltip(const QString& tooltip) {
         newTooltip = "SAST Readium - PDF Reader";
 
         if (!pImpl->m_currentStatusMessage.isEmpty()) {
-            newTooltip += QString("\nStatus: %1").arg(pImpl->m_currentStatusMessage);
+            newTooltip +=
+                QString("\nStatus: %1").arg(pImpl->m_currentStatusMessage);
         } else if (pImpl->m_currentStatus != "idle") {
             newTooltip += QString("\nStatus: %1").arg(pImpl->m_currentStatus);
         }
@@ -830,7 +963,8 @@ void SystemTrayManager::updateDynamicTooltip(const QString& tooltip) {
     }
 
     pImpl->m_trayIcon->setToolTip(newTooltip);
-    pImpl->m_logger.debug(QString("Updated dynamic tooltip: %1").arg(newTooltip));
+    pImpl->m_logger.debug(
+        QString("Updated dynamic tooltip: %1").arg(newTooltip));
 }
 
 QString SystemTrayManager::currentApplicationStatus() const {
@@ -838,8 +972,9 @@ QString SystemTrayManager::currentApplicationStatus() const {
 }
 
 bool SystemTrayManager::areEnhancedFeaturesEnabled() const {
-    return pImpl->m_showStatusIndicators || pImpl->m_showRecentFiles || pImpl->m_showQuickActions ||
-           pImpl->m_enhancedNotifications || pImpl->m_dynamicTooltip;
+    return pImpl->m_showStatusIndicators || pImpl->m_showRecentFiles ||
+           pImpl->m_showQuickActions || pImpl->m_enhancedNotifications ||
+           pImpl->m_dynamicTooltip;
 }
 
 void SystemTrayManager::updateTrayIconForStatus(const QString& status) {
@@ -857,16 +992,18 @@ void SystemTrayManager::updateTrayIconForStatus(const QString& status) {
     QIcon statusIcon = generateStatusIcon(baseIcon, status);
     pImpl->m_trayIcon->setIcon(statusIcon);
 
-    pImpl->m_logger.debug(QString("Updated tray icon for status: %1").arg(status));
+    pImpl->m_logger.debug(
+        QString("Updated tray icon for status: %1").arg(status));
 }
 
-QIcon SystemTrayManager::generateStatusIcon(const QIcon& baseIcon, const QString& status) {
+QIcon SystemTrayManager::generateStatusIcon(const QIcon& baseIcon,
+                                            const QString& status) {
     if (status == "idle" || !pImpl->m_showStatusIndicators) {
         return baseIcon;
     }
 
     // Get base pixmap
-    QPixmap basePixmap = baseIcon.pixmap(22, 22); // Standard tray icon size
+    QPixmap basePixmap = baseIcon.pixmap(22, 22);  // Standard tray icon size
     if (basePixmap.isNull()) {
         return baseIcon;
     }
@@ -878,26 +1015,27 @@ QIcon SystemTrayManager::generateStatusIcon(const QIcon& baseIcon, const QString
 
     // Define status colors and overlay positions
     QColor overlayColor;
-    QPoint overlayPos(16, 16); // Bottom-right corner
+    QPoint overlayPos(16, 16);  // Bottom-right corner
     int overlaySize = 8;
 
     if (status == "processing") {
-        overlayColor = QColor(255, 165, 0); // Orange
+        overlayColor = QColor(255, 165, 0);  // Orange
     } else if (status == "error") {
-        overlayColor = QColor(220, 53, 69); // Red
+        overlayColor = QColor(220, 53, 69);  // Red
     } else if (status == "success") {
-        overlayColor = QColor(40, 167, 69); // Green
+        overlayColor = QColor(40, 167, 69);  // Green
     } else if (status == "warning") {
-        overlayColor = QColor(255, 193, 7); // Yellow
+        overlayColor = QColor(255, 193, 7);  // Yellow
     } else {
-        overlayColor = QColor(108, 117, 125); // Gray for unknown status
+        overlayColor = QColor(108, 117, 125);  // Gray for unknown status
     }
 
     // Draw status overlay circle
     painter.setBrush(QBrush(overlayColor));
     painter.setPen(QPen(Qt::white, 1));
-    painter.drawEllipse(overlayPos.x() - overlaySize/2, overlayPos.y() - overlaySize/2,
-                       overlaySize, overlaySize);
+    painter.drawEllipse(overlayPos.x() - overlaySize / 2,
+                        overlayPos.y() - overlaySize / 2, overlaySize,
+                        overlaySize);
 
     painter.end();
 
@@ -910,7 +1048,8 @@ bool SystemTrayManager::isNotificationTypeEnabled(const QString& type) const {
     }
 
     // Parse notification types setting
-    QStringList enabledTypes = pImpl->m_notificationTypes.split(',', Qt::SkipEmptyParts);
+    QStringList enabledTypes =
+        pImpl->m_notificationTypes.split(',', Qt::SkipEmptyParts);
     for (QString& enabledType : enabledTypes) {
         enabledType = enabledType.trimmed();
     }
@@ -920,7 +1059,8 @@ bool SystemTrayManager::isNotificationTypeEnabled(const QString& type) const {
 
 void SystemTrayManager::connectToApplicationEvents() {
     if (!pImpl->m_enhancedNotifications && !pImpl->m_showStatusIndicators) {
-        pImpl->m_logger.debug("Enhanced features disabled, skipping event connections");
+        pImpl->m_logger.debug(
+            "Enhanced features disabled, skipping event connections");
         return;
     }
 
@@ -931,47 +1071,50 @@ void SystemTrayManager::connectToApplicationEvents() {
         if (pImpl->m_showStatusIndicators) {
             setApplicationStatus("processing", "Opening document...");
         }
-        if (pImpl->m_enhancedNotifications && isNotificationTypeEnabled("document")) {
+        if (pImpl->m_enhancedNotifications &&
+            isNotificationTypeEnabled("document")) {
             QString fileName = event->data().toString();
             if (!fileName.isEmpty()) {
                 QFileInfo fileInfo(fileName);
                 showNotification("Document Opened",
-                               QString("Opened: %1").arg(fileInfo.fileName()),
-                               "info", 3000);
+                                 QString("Opened: %1").arg(fileInfo.fileName()),
+                                 "info", 3000);
             }
         }
         // Reset to idle after a short delay
-        QTimer::singleShot(2000, this, [this]() {
-            setApplicationStatus("idle");
-        });
+        QTimer::singleShot(2000, this,
+                           [this]() { setApplicationStatus("idle"); });
     });
 
-    eventBus.subscribe(AppEvents::DOCUMENT_CLOSED, this, [this](Event* /*event*/) {
-        if (pImpl->m_showStatusIndicators) {
-            setApplicationStatus("idle", "Ready");
-        }
-        if (pImpl->m_enhancedNotifications && isNotificationTypeEnabled("document")) {
-            showNotification("Document Closed", "Document has been closed", "info", 2000);
-        }
-    });
+    eventBus.subscribe(
+        AppEvents::DOCUMENT_CLOSED, this, [this](Event* /*event*/) {
+            if (pImpl->m_showStatusIndicators) {
+                setApplicationStatus("idle", "Ready");
+            }
+            if (pImpl->m_enhancedNotifications &&
+                isNotificationTypeEnabled("document")) {
+                showNotification("Document Closed", "Document has been closed",
+                                 "info", 2000);
+            }
+        });
 
     eventBus.subscribe(AppEvents::DOCUMENT_SAVED, this, [this](Event* event) {
         if (pImpl->m_showStatusIndicators) {
             setApplicationStatus("success", "Document saved");
         }
-        if (pImpl->m_enhancedNotifications && isNotificationTypeEnabled("document")) {
+        if (pImpl->m_enhancedNotifications &&
+            isNotificationTypeEnabled("document")) {
             QString fileName = event->data().toString();
             if (!fileName.isEmpty()) {
                 QFileInfo fileInfo(fileName);
                 showNotification("Document Saved",
-                               QString("Saved: %1").arg(fileInfo.fileName()),
-                               "info", 2000);
+                                 QString("Saved: %1").arg(fileInfo.fileName()),
+                                 "info", 2000);
             }
         }
         // Reset to idle after showing success
-        QTimer::singleShot(3000, this, [this]() {
-            setApplicationStatus("idle");
-        });
+        QTimer::singleShot(3000, this,
+                           [this]() { setApplicationStatus("idle"); });
     });
 
     // Connect to error events (if they exist)
@@ -979,15 +1122,17 @@ void SystemTrayManager::connectToApplicationEvents() {
         if (pImpl->m_showStatusIndicators) {
             setApplicationStatus("error", "Error occurred");
         }
-        if (pImpl->m_enhancedNotifications && isNotificationTypeEnabled("error")) {
+        if (pImpl->m_enhancedNotifications &&
+            isNotificationTypeEnabled("error")) {
             QString errorMessage = event->data().toString();
-            showNotification("Error", errorMessage.isEmpty() ? "An error occurred" : errorMessage,
-                           "error", 5000);
+            showNotification(
+                "Error",
+                errorMessage.isEmpty() ? "An error occurred" : errorMessage,
+                "error", 5000);
         }
         // Reset to idle after showing error
-        QTimer::singleShot(5000, this, [this]() {
-            setApplicationStatus("idle");
-        });
+        QTimer::singleShot(5000, this,
+                           [this]() { setApplicationStatus("idle"); });
     });
 
     // Connect to loading progress events
@@ -997,7 +1142,9 @@ void SystemTrayManager::connectToApplicationEvents() {
         }
     });
 
-    pImpl->m_logger.debug("Connected to application events for enhanced system tray functionality");
+    pImpl->m_logger.debug(
+        "Connected to application events for enhanced system tray "
+        "functionality");
 }
 
 void SystemTrayManager::createEnhancedContextMenu() {
@@ -1010,10 +1157,13 @@ void SystemTrayManager::createEnhancedContextMenu() {
     pImpl->m_contextMenu = std::make_unique<QMenu>();
 
     // Create restore action (same as basic menu)
-    pImpl->m_restoreAction = pImpl->m_contextMenu->addAction("&Show SAST Readium");
-    pImpl->m_restoreAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_TitleBarMaxButton));
+    pImpl->m_restoreAction =
+        pImpl->m_contextMenu->addAction("&Show SAST Readium");
+    pImpl->m_restoreAction->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_TitleBarMaxButton));
     pImpl->m_restoreAction->setToolTip("Restore the main application window");
-    connect(pImpl->m_restoreAction, &QAction::triggered, this, &SystemTrayManager::onRestoreAction);
+    connect(pImpl->m_restoreAction, &QAction::triggered, this,
+            &SystemTrayManager::onRestoreAction);
 
     // Add separator
     pImpl->m_contextMenu->addSeparator();
@@ -1031,8 +1181,10 @@ void SystemTrayManager::createEnhancedContextMenu() {
     // Add status information if status indicators are enabled
     if (pImpl->m_showStatusIndicators) {
         pImpl->m_statusSeparator = pImpl->m_contextMenu->addSeparator();
-        pImpl->m_statusAction = pImpl->m_contextMenu->addAction(QString("Status: %1").arg(pImpl->m_currentStatus));
-        pImpl->m_statusAction->setEnabled(false); // Make it non-clickable, just informational
+        pImpl->m_statusAction = pImpl->m_contextMenu->addAction(
+            QString("Status: %1").arg(pImpl->m_currentStatus));
+        pImpl->m_statusAction->setEnabled(
+            false);  // Make it non-clickable, just informational
         if (!pImpl->m_currentStatusMessage.isEmpty()) {
             pImpl->m_statusAction->setToolTip(pImpl->m_currentStatusMessage);
         }
@@ -1046,14 +1198,17 @@ void SystemTrayManager::createEnhancedContextMenu() {
 
     // Create exit action (same as basic menu)
     pImpl->m_exitAction = pImpl->m_contextMenu->addAction("&Exit");
-    pImpl->m_exitAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_TitleBarCloseButton));
+    pImpl->m_exitAction->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_TitleBarCloseButton));
     pImpl->m_exitAction->setToolTip("Exit the application");
-    connect(pImpl->m_exitAction, &QAction::triggered, this, &SystemTrayManager::onExitAction);
+    connect(pImpl->m_exitAction, &QAction::triggered, this,
+            &SystemTrayManager::onExitAction);
 
     // Set context menu for tray icon
     pImpl->m_trayIcon->setContextMenu(pImpl->m_contextMenu.get());
 
-    pImpl->m_logger.debug("Enhanced system tray context menu created successfully");
+    pImpl->m_logger.debug(
+        "Enhanced system tray context menu created successfully");
 }
 
 void SystemTrayManager::createRecentFilesMenu() {
@@ -1062,24 +1217,27 @@ void SystemTrayManager::createRecentFilesMenu() {
     }
 
     pImpl->m_recentFilesMenu = std::make_unique<QMenu>("Recent Files");
-    pImpl->m_recentFilesMenu->setIcon(QApplication::style()->standardIcon(QStyle::SP_FileDialogDetailedView));
+    pImpl->m_recentFilesMenu->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_FileDialogDetailedView));
 
     // Get recent files from RecentFilesManager
-    // Note: We'll need to get a reference to RecentFilesManager from ApplicationController
-    // For now, create a placeholder structure
+    // Note: We'll need to get a reference to RecentFilesManager from
+    // ApplicationController For now, create a placeholder structure
 
     // Add "Open File..." action
-    pImpl->m_openFileAction = pImpl->m_recentFilesMenu->addAction("&Open File...");
-    pImpl->m_openFileAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_DialogOpenButton));
+    pImpl->m_openFileAction =
+        pImpl->m_recentFilesMenu->addAction("&Open File...");
+    pImpl->m_openFileAction->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_DialogOpenButton));
     pImpl->m_openFileAction->setToolTip("Open a new document");
-    connect(pImpl->m_openFileAction, &QAction::triggered, this, [this]() {
-        emit quickActionTriggered("open_file");
-    });
+    connect(pImpl->m_openFileAction, &QAction::triggered, this,
+            [this]() { emit quickActionTriggered("open_file"); });
 
     pImpl->m_recentFilesMenu->addSeparator();
 
     // Add placeholder for recent files (will be populated dynamically)
-    QAction* noRecentFiles = pImpl->m_recentFilesMenu->addAction("No recent files");
+    QAction* noRecentFiles =
+        pImpl->m_recentFilesMenu->addAction("No recent files");
     noRecentFiles->setEnabled(false);
 
     // Add the submenu to main context menu
@@ -1092,26 +1250,29 @@ void SystemTrayManager::createQuickActionsMenu() {
     }
 
     pImpl->m_quickActionsMenu = std::make_unique<QMenu>("Quick Actions");
-    pImpl->m_quickActionsMenu->setIcon(QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
+    pImpl->m_quickActionsMenu->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
 
     // Add common quick actions
-    QAction* openFileAction = pImpl->m_quickActionsMenu->addAction("&Open File...");
-    openFileAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_DialogOpenButton));
-    connect(openFileAction, &QAction::triggered, this, [this]() {
-        emit quickActionTriggered("open_file");
-    });
+    QAction* openFileAction =
+        pImpl->m_quickActionsMenu->addAction("&Open File...");
+    openFileAction->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_DialogOpenButton));
+    connect(openFileAction, &QAction::triggered, this,
+            [this]() { emit quickActionTriggered("open_file"); });
 
-    QAction* settingsAction = pImpl->m_quickActionsMenu->addAction("&Settings...");
-    settingsAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
-    connect(settingsAction, &QAction::triggered, this, [this]() {
-        emit settingsDialogRequested();
-    });
+    QAction* settingsAction =
+        pImpl->m_quickActionsMenu->addAction("&Settings...");
+    settingsAction->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
+    connect(settingsAction, &QAction::triggered, this,
+            [this]() { emit settingsDialogRequested(); });
 
     QAction* aboutAction = pImpl->m_quickActionsMenu->addAction("&About...");
-    aboutAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation));
-    connect(aboutAction, &QAction::triggered, this, [this]() {
-        emit aboutDialogRequested();
-    });
+    aboutAction->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation));
+    connect(aboutAction, &QAction::triggered, this,
+            [this]() { emit aboutDialogRequested(); });
 
     // Add the submenu to main context menu
     pImpl->m_contextMenu->addMenu(pImpl->m_quickActionsMenu.get());
@@ -1123,19 +1284,23 @@ void SystemTrayManager::createSettingsMenu() {
     }
 
     pImpl->m_settingsMenu = std::make_unique<QMenu>("Settings");
-    pImpl->m_settingsMenu->setIcon(QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
+    pImpl->m_settingsMenu->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
 
     // Add tray-specific settings
-    QAction* statusIndicatorsAction = pImpl->m_settingsMenu->addAction("Show Status Indicators");
+    QAction* statusIndicatorsAction =
+        pImpl->m_settingsMenu->addAction("Show Status Indicators");
     statusIndicatorsAction->setCheckable(true);
     statusIndicatorsAction->setChecked(pImpl->m_showStatusIndicators);
-    connect(statusIndicatorsAction, &QAction::toggled, this, [this](bool checked) {
-        pImpl->m_showStatusIndicators = checked;
-        saveSettings();
-        emit enhancedFeaturesChanged(areEnhancedFeaturesEnabled());
-    });
+    connect(statusIndicatorsAction, &QAction::toggled, this,
+            [this](bool checked) {
+                pImpl->m_showStatusIndicators = checked;
+                saveSettings();
+                emit enhancedFeaturesChanged(areEnhancedFeaturesEnabled());
+            });
 
-    QAction* recentFilesAction = pImpl->m_settingsMenu->addAction("Show Recent Files");
+    QAction* recentFilesAction =
+        pImpl->m_settingsMenu->addAction("Show Recent Files");
     recentFilesAction->setCheckable(true);
     recentFilesAction->setChecked(pImpl->m_showRecentFiles);
     connect(recentFilesAction, &QAction::toggled, this, [this](bool checked) {
@@ -1144,7 +1309,8 @@ void SystemTrayManager::createSettingsMenu() {
         emit enhancedFeaturesChanged(areEnhancedFeaturesEnabled());
     });
 
-    QAction* notificationsAction = pImpl->m_settingsMenu->addAction("Enhanced Notifications");
+    QAction* notificationsAction =
+        pImpl->m_settingsMenu->addAction("Enhanced Notifications");
     notificationsAction->setCheckable(true);
     notificationsAction->setChecked(pImpl->m_enhancedNotifications);
     connect(notificationsAction, &QAction::toggled, this, [this](bool checked) {
@@ -1156,11 +1322,12 @@ void SystemTrayManager::createSettingsMenu() {
     pImpl->m_settingsMenu->addSeparator();
 
     // Add link to main settings
-    pImpl->m_settingsAction = pImpl->m_settingsMenu->addAction("&Open Settings...");
-    pImpl->m_settingsAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
-    connect(pImpl->m_settingsAction, &QAction::triggered, this, [this]() {
-        emit settingsDialogRequested();
-    });
+    pImpl->m_settingsAction =
+        pImpl->m_settingsMenu->addAction("&Open Settings...");
+    pImpl->m_settingsAction->setIcon(
+        QApplication::style()->standardIcon(QStyle::SP_ComputerIcon));
+    connect(pImpl->m_settingsAction, &QAction::triggered, this,
+            [this]() { emit settingsDialogRequested(); });
 
     // Add the submenu to main context menu
     pImpl->m_contextMenu->addMenu(pImpl->m_settingsMenu.get());
@@ -1177,9 +1344,12 @@ void SystemTrayManager::updateStatusInContextMenu() {
     }
 
     pImpl->m_statusAction->setText(statusText);
-    pImpl->m_statusAction->setToolTip(pImpl->m_currentStatusMessage.isEmpty() ? pImpl->m_currentStatus : pImpl->m_currentStatusMessage);
+    pImpl->m_statusAction->setToolTip(pImpl->m_currentStatusMessage.isEmpty()
+                                          ? pImpl->m_currentStatus
+                                          : pImpl->m_currentStatusMessage);
 
-    pImpl->m_logger.debug(QString("Updated status in context menu: %1").arg(statusText));
+    pImpl->m_logger.debug(
+        QString("Updated status in context menu: %1").arg(statusText));
 }
 
 void SystemTrayManager::setNotificationTypes(const QString& types) {
@@ -1192,7 +1362,8 @@ void SystemTrayManager::setNotificationTypes(const QString& types) {
 
     // Save to configuration
     ConfigurationManager& config = ConfigurationManager::instance();
-    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_NOTIFICATION_TYPES_KEY, types);
+    config.setValue(SETTINGS_GROUP + "/" + SETTINGS_NOTIFICATION_TYPES_KEY,
+                    types);
 
     // Emit signal if enhanced notifications are enabled
     if (pImpl->m_enhancedNotifications) {
@@ -1204,7 +1375,8 @@ QString SystemTrayManager::getNotificationTypes() const {
     return pImpl->m_notificationTypes;
 }
 
-void SystemTrayManager::connectToRecentFilesManager(RecentFilesManager* recentFilesManager) {
+void SystemTrayManager::connectToRecentFilesManager(
+    RecentFilesManager* recentFilesManager) {
     if (!recentFilesManager) {
         pImpl->m_logger.warning("Cannot connect to null RecentFilesManager");
         return;
@@ -1213,8 +1385,9 @@ void SystemTrayManager::connectToRecentFilesManager(RecentFilesManager* recentFi
     pImpl->m_recentFilesManager = recentFilesManager;
 
     // Connect to recent files changes
-    connect(pImpl->m_recentFilesManager, &RecentFilesManager::recentFilesChanged,
-            this, &SystemTrayManager::updateRecentFilesMenu);
+    connect(pImpl->m_recentFilesManager,
+            &RecentFilesManager::recentFilesChanged, this,
+            &SystemTrayManager::updateRecentFilesMenu);
 
     connect(pImpl->m_recentFilesManager, &RecentFilesManager::recentFileAdded,
             this, &SystemTrayManager::updateRecentFilesMenu);
@@ -1229,7 +1402,8 @@ void SystemTrayManager::connectToRecentFilesManager(RecentFilesManager* recentFi
 }
 
 void SystemTrayManager::updateRecentFilesMenu() {
-    if (!pImpl->m_recentFilesMenu || !pImpl->m_recentFilesManager || !pImpl->m_showRecentFiles) {
+    if (!pImpl->m_recentFilesMenu || !pImpl->m_recentFilesManager ||
+        !pImpl->m_showRecentFiles) {
         return;
     }
 
@@ -1250,7 +1424,8 @@ void SystemTrayManager::updateRecentFilesMenu() {
 
     if (recentFiles.isEmpty()) {
         // Add "No recent files" placeholder
-        QAction* noFilesAction = pImpl->m_recentFilesMenu->addAction("No recent files");
+        QAction* noFilesAction =
+            pImpl->m_recentFilesMenu->addAction("No recent files");
         noFilesAction->setEnabled(false);
     } else {
         // Add recent files (limit to configured count)
@@ -1264,16 +1439,18 @@ void SystemTrayManager::updateRecentFilesMenu() {
                 displayName = displayName.left(27) + "...";
             }
 
-            QAction* fileAction = pImpl->m_recentFilesMenu->addAction(displayName);
+            QAction* fileAction =
+                pImpl->m_recentFilesMenu->addAction(displayName);
             fileAction->setToolTip(filePath);
-            fileAction->setIcon(QApplication::style()->standardIcon(QStyle::SP_FileIcon));
+            fileAction->setIcon(
+                QApplication::style()->standardIcon(QStyle::SP_FileIcon));
 
             // Connect to signal emission
-            connect(fileAction, &QAction::triggered, this, [this, filePath]() {
-                emit recentFileRequested(filePath);
-            });
+            connect(fileAction, &QAction::triggered, this,
+                    [this, filePath]() { emit recentFileRequested(filePath); });
         }
     }
 
-    pImpl->m_logger.debug(QString("Updated recent files menu with %1 files").arg(recentFiles.size()));
+    pImpl->m_logger.debug(QString("Updated recent files menu with %1 files")
+                              .arg(recentFiles.size()));
 }

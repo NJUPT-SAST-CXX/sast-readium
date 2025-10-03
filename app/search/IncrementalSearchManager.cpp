@@ -1,17 +1,14 @@
 #include "IncrementalSearchManager.h"
 #include <QDebug>
 
-class IncrementalSearchManager::Implementation
-{
+class IncrementalSearchManager::Implementation {
 public:
     Implementation(IncrementalSearchManager* q)
-        : q_ptr(q)
-        , enabled(true)
-        , searchDelay(300)
-    {
+        : q_ptr(q), enabled(true), searchDelay(300) {
         timer = new QTimer(q_ptr);
         timer->setSingleShot(true);
-        QObject::connect(timer, &QTimer::timeout, q_ptr, &IncrementalSearchManager::onTimerTimeout);
+        QObject::connect(timer, &QTimer::timeout, q_ptr,
+                         &IncrementalSearchManager::onTimerTimeout);
     }
 
     IncrementalSearchManager* q_ptr;
@@ -23,39 +20,28 @@ public:
 };
 
 IncrementalSearchManager::IncrementalSearchManager(QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<Implementation>(this))
-{
-}
+    : QObject(parent), d(std::make_unique<Implementation>(this)) {}
 
 IncrementalSearchManager::~IncrementalSearchManager() = default;
 
-void IncrementalSearchManager::setDelay(int milliseconds)
-{
+void IncrementalSearchManager::setDelay(int milliseconds) {
     d->searchDelay = milliseconds;
     d->timer->setInterval(milliseconds);
 }
 
-int IncrementalSearchManager::delay() const
-{
-    return d->searchDelay;
-}
+int IncrementalSearchManager::delay() const { return d->searchDelay; }
 
-void IncrementalSearchManager::setEnabled(bool enabled)
-{
+void IncrementalSearchManager::setEnabled(bool enabled) {
     d->enabled = enabled;
     if (!enabled) {
         cancelScheduledSearch();
     }
 }
 
-bool IncrementalSearchManager::isEnabled() const
-{
-    return d->enabled;
-}
+bool IncrementalSearchManager::isEnabled() const { return d->enabled; }
 
-void IncrementalSearchManager::scheduleSearch(const QString& query, const SearchOptions& options)
-{
+void IncrementalSearchManager::scheduleSearch(const QString& query,
+                                              const SearchOptions& options) {
     if (!d->enabled) {
         emit searchTriggered(query, options);
         return;
@@ -63,16 +49,15 @@ void IncrementalSearchManager::scheduleSearch(const QString& query, const Search
 
     d->pendingQuery = query;
     d->pendingOptions = options;
-    
+
     d->timer->stop();
     d->timer->setInterval(d->searchDelay);
     d->timer->start();
-    
+
     emit searchScheduled();
 }
 
-void IncrementalSearchManager::cancelScheduledSearch()
-{
+void IncrementalSearchManager::cancelScheduledSearch() {
     if (d->timer->isActive()) {
         d->timer->stop();
         d->pendingQuery.clear();
@@ -80,13 +65,12 @@ void IncrementalSearchManager::cancelScheduledSearch()
     }
 }
 
-bool IncrementalSearchManager::hasScheduledSearch() const
-{
+bool IncrementalSearchManager::hasScheduledSearch() const {
     return d->timer->isActive();
 }
 
-bool IncrementalSearchManager::canRefineSearch(const QString& newQuery, const QString& previousQuery) const
-{
+bool IncrementalSearchManager::canRefineSearch(
+    const QString& newQuery, const QString& previousQuery) const {
     if (previousQuery.isEmpty() || newQuery.isEmpty()) {
         return false;
     }
@@ -105,10 +89,8 @@ bool IncrementalSearchManager::canRefineSearch(const QString& newQuery, const QS
 }
 
 QList<SearchResult> IncrementalSearchManager::refineResults(
-    const QList<SearchResult>& previousResults,
-    const QString& newQuery,
-    const QString& previousQuery) const
-{
+    const QList<SearchResult>& previousResults, const QString& newQuery,
+    const QString& previousQuery) const {
     QList<SearchResult> refinedResults;
 
     if (isQueryExtension(newQuery, previousQuery)) {
@@ -126,22 +108,20 @@ QList<SearchResult> IncrementalSearchManager::refineResults(
     return refinedResults;
 }
 
-bool IncrementalSearchManager::isQueryExtension(const QString& newQuery, const QString& previousQuery) const
-{
-    return !previousQuery.isEmpty() && 
-           !newQuery.isEmpty() && 
+bool IncrementalSearchManager::isQueryExtension(
+    const QString& newQuery, const QString& previousQuery) const {
+    return !previousQuery.isEmpty() && !newQuery.isEmpty() &&
            newQuery.startsWith(previousQuery);
 }
 
-bool IncrementalSearchManager::isQueryReduction(const QString& newQuery, const QString& previousQuery) const
-{
-    return !previousQuery.isEmpty() && 
-           !newQuery.isEmpty() && 
+bool IncrementalSearchManager::isQueryReduction(
+    const QString& newQuery, const QString& previousQuery) const {
+    return !previousQuery.isEmpty() && !newQuery.isEmpty() &&
            previousQuery.startsWith(newQuery);
 }
 
-QString IncrementalSearchManager::getCommonPrefix(const QString& query1, const QString& query2) const
-{
+QString IncrementalSearchManager::getCommonPrefix(const QString& query1,
+                                                  const QString& query2) const {
     int minLength = qMin(query1.length(), query2.length());
     int commonLength = 0;
 
@@ -156,8 +136,7 @@ QString IncrementalSearchManager::getCommonPrefix(const QString& query1, const Q
     return query1.left(commonLength);
 }
 
-void IncrementalSearchManager::onTimerTimeout()
-{
+void IncrementalSearchManager::onTimerTimeout() {
     if (!d->pendingQuery.isEmpty()) {
         emit searchTriggered(d->pendingQuery, d->pendingOptions);
         d->pendingQuery.clear();

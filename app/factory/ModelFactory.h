@@ -1,9 +1,9 @@
 #pragma once
 
-#include <QObject>
 #include <QHash>
-#include <memory>
+#include <QObject>
 #include <functional>
+#include <memory>
 #include "../logging/SimpleLogging.h"
 
 // Forward declarations
@@ -19,7 +19,7 @@ class AsyncDocumentLoader;
 
 /**
  * @brief ModelFactory - Creates and configures model objects
- * 
+ *
  * This factory follows the Factory Method and Abstract Factory patterns
  * to encapsulate model creation logic and provide proper dependency injection.
  * It ensures models are created with correct dependencies and configurations.
@@ -40,8 +40,9 @@ public:
     AnnotationModel* createAnnotationModel(DocumentModel* documentModel);
     SearchModel* createSearchModel(DocumentModel* documentModel);
     PDFOutlineModel* createPDFOutlineModel(DocumentModel* documentModel);
-    AsyncDocumentLoader* createAsyncDocumentLoader(DocumentModel* documentModel);
-    
+    AsyncDocumentLoader* createAsyncDocumentLoader(
+        DocumentModel* documentModel);
+
     // Composite factory methods
     struct ModelSet {
         RenderModel* renderModel = nullptr;
@@ -54,20 +55,20 @@ public:
         PDFOutlineModel* outlineModel = nullptr;
         AsyncDocumentLoader* documentLoader = nullptr;
     };
-    
+
     ModelSet createCompleteModelSet(int dpiX, int dpiY);
     ModelSet createMinimalModelSet(int dpiX, int dpiY);
     ModelSet createViewerModelSet(int dpiX, int dpiY);
-    
+
     // Configuration methods
     void setModelParent(QObject* parent) { m_modelParent = parent; }
     void setAutoDelete(bool autoDelete) { m_autoDelete = autoDelete; }
-    
+
     // Registration for custom model types
     using ModelCreator = std::function<QObject*(QObject*)>;
     void registerModelType(const QString& typeName, ModelCreator creator);
     QObject* createCustomModel(const QString& typeName);
-    
+
 signals:
     void modelCreated(const QString& modelType, QObject* model);
     void modelSetCreated(const ModelSet& models);
@@ -78,48 +79,48 @@ private:
     void connectModelSignals(QObject* model, const QString& modelType);
     void configureModel(QObject* model);
     bool validateDependencies(QObject* model);
-    
+
     // Configuration
     QObject* m_modelParent = nullptr;
     bool m_autoDelete = false;
-    
+
     // Custom model registry
     QHash<QString, ModelCreator> m_customCreators;
-    
+
     // Logging
     SastLogging::CategoryLogger m_logger;
 };
 
 /**
  * @brief SingletonModelFactory - Singleton factory for global model access
- * 
+ *
  * Provides a global access point for model creation while ensuring
  * single instances of critical models.
  */
 class SingletonModelFactory {
 public:
     static SingletonModelFactory& instance();
-    
+
     // Get or create singleton models
     RenderModel* getRenderModel();
     DocumentModel* getDocumentModel();
     PageModel* getPageModel();
-    
+
     // Reset singleton instances (for testing)
     void reset();
-    
+
 private:
     SingletonModelFactory();
     ~SingletonModelFactory();
     SingletonModelFactory(const SingletonModelFactory&) = delete;
     SingletonModelFactory& operator=(const SingletonModelFactory&) = delete;
-    
+
     // Singleton instances
     std::unique_ptr<RenderModel> m_renderModel;
     std::unique_ptr<DocumentModel> m_documentModel;
     std::unique_ptr<PageModel> m_pageModel;
     std::unique_ptr<ModelFactory> m_factory;
-    
+
     // Configuration
     int m_dpiX = 96;
     int m_dpiY = 96;
@@ -127,7 +128,7 @@ private:
 
 /**
  * @brief ModelBuilder - Builder pattern for complex model configuration
- * 
+ *
  * Provides a fluent interface for building and configuring models
  * with complex initialization requirements.
  */
@@ -135,7 +136,7 @@ class ModelBuilder {
 public:
     ModelBuilder();
     ~ModelBuilder();
-    
+
     // Fluent interface for configuration
     ModelBuilder& withDpi(int dpiX, int dpiY);
     ModelBuilder& withParent(QObject* parent);
@@ -147,11 +148,11 @@ public:
     ModelBuilder& withSearch(bool enable);
     ModelBuilder& withOutline(bool enable);
     ModelBuilder& withAsyncLoading(bool enable);
-    
+
     // Build methods
     ModelFactory::ModelSet build();
     std::unique_ptr<ModelFactory::ModelSet> buildUnique();
-    
+
 private:
     struct BuilderData;
     std::unique_ptr<BuilderData> m_data;

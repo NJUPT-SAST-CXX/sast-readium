@@ -38,12 +38,12 @@ LOG_DEBUG("Processing {} items in {} seconds", count, duration);
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
-    
+
     // Initialize logging system
     LoggingManager::instance().initialize();
-    
+
     // Your application code here
-    
+
     // Shutdown logging system
     LoggingManager::instance().shutdown();
     return app.exec();

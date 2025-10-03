@@ -1,9 +1,9 @@
 #include "StateManager.h"
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QFile>
-#include <QTimer>
 #include <QDateTime>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QTimer>
 
 // ============================================================================
 // State Implementation
@@ -52,7 +52,7 @@ State State::remove(const QString& path) const {
     if (parts.isEmpty()) {
         return *this;
     }
-    
+
     QJsonObject newData = m_data;
     if (parts.size() == 1) {
         newData.remove(parts[0]);
@@ -73,7 +73,7 @@ State State::remove(const QString& path) const {
         }
         current->remove(parts.last());
     }
-    
+
     return State(newData);
 }
 
@@ -86,15 +86,14 @@ bool State::operator==(const State& other) const {
     return m_data == other.m_data;
 }
 
-bool State::operator!=(const State& other) const {
-    return !(*this == other);
-}
+bool State::operator!=(const State& other) const { return !(*this == other); }
 
-QJsonValue State::getValueByPath(const QJsonObject& obj, const QStringList& path) const {
+QJsonValue State::getValueByPath(const QJsonObject& obj,
+                                 const QStringList& path) const {
     if (path.isEmpty()) {
         return QJsonValue(obj);
     }
-    
+
     QJsonValue current = obj;
     for (const QString& key : path) {
         if (!current.isObject()) {
@@ -106,32 +105,34 @@ QJsonValue State::getValueByPath(const QJsonObject& obj, const QStringList& path
         }
         current = currentObj[key];
     }
-    
+
     return current;
 }
 
-QJsonObject State::setValueByPath(const QJsonObject& obj, const QStringList& path, const QJsonValue& value) const {
+QJsonObject State::setValueByPath(const QJsonObject& obj,
+                                  const QStringList& path,
+                                  const QJsonValue& value) const {
     if (path.isEmpty()) {
         return obj;
     }
-    
+
     QJsonObject result = obj;
     if (path.size() == 1) {
         result[path[0]] = value;
         return result;
     }
-    
+
     QString firstKey = path[0];
     QStringList remainingPath = path.mid(1);
-    
+
     QJsonObject nested;
     if (result.contains(firstKey) && result[firstKey].isObject()) {
         nested = result[firstKey].toObject();
     }
-    
+
     nested = setValueByPath(nested, remainingPath, value);
     result[firstKey] = nested;
-    
+
     return result;
 }
 
@@ -139,65 +140,69 @@ QJsonObject State::setValueByPath(const QJsonObject& obj, const QStringList& pat
 // StateChange Implementation
 // ============================================================================
 
-StateChange::StateChange(const State& oldState, const State& newState, const QString& reason)
-    : m_oldState(oldState)
-    , m_newState(newState)
-    , m_reason(reason)
-    , m_timestamp(QDateTime::currentMSecsSinceEpoch())
-{}
+StateChange::StateChange(const State& oldState, const State& newState,
+                         const QString& reason)
+    : m_oldState(oldState),
+      m_newState(newState),
+      m_reason(reason),
+      m_timestamp(QDateTime::currentMSecsSinceEpoch()) {}
 
 QStringList StateChange::changedPaths() const {
     QStringList paths;
 
     // Helper function for recursive comparison
-    std::function<void(const QJsonValue&, const QJsonValue&, const QString&)> compareValues;
+    std::function<void(const QJsonValue&, const QJsonValue&, const QString&)>
+        compareValues;
 
-    compareValues = [&](const QJsonValue& value1, const QJsonValue& value2, const QString& currentPath) {
+    compareValues = [&](const QJsonValue& value1, const QJsonValue& value2,
+                        const QString& currentPath) {
         if (value1.type() != value2.type()) {
             paths.append(currentPath);
             return;
         }
 
         switch (value1.type()) {
-        case QJsonValue::Object: {
-            QJsonObject obj1 = value1.toObject();
-            QJsonObject obj2 = value2.toObject();
+            case QJsonValue::Object: {
+                QJsonObject obj1 = value1.toObject();
+                QJsonObject obj2 = value2.toObject();
 
-            // Find all keys from both objects
-            QSet<QString> allKeys;
-            for (const QString& key : obj1.keys()) {
-                allKeys.insert(key);
-            }
-            for (const QString& key : obj2.keys()) {
-                allKeys.insert(key);
-            }
-
-            for (const QString& key : allKeys) {
-                QString newPath = currentPath.isEmpty() ? key : currentPath + "." + key;
-                compareValues(obj1.value(key), obj2.value(key), newPath);
-            }
-            break;
-        }
-        case QJsonValue::Array: {
-            QJsonArray arr1 = value1.toArray();
-            QJsonArray arr2 = value2.toArray();
-
-            if (arr1.size() != arr2.size()) {
-                paths.append(currentPath);
-            } else {
-                for (int i = 0; i < arr1.size(); ++i) {
-                    QString newPath = currentPath + "[" + QString::number(i) + "]";
-                    compareValues(arr1[i], arr2[i], newPath);
+                // Find all keys from both objects
+                QSet<QString> allKeys;
+                for (const QString& key : obj1.keys()) {
+                    allKeys.insert(key);
                 }
+                for (const QString& key : obj2.keys()) {
+                    allKeys.insert(key);
+                }
+
+                for (const QString& key : allKeys) {
+                    QString newPath =
+                        currentPath.isEmpty() ? key : currentPath + "." + key;
+                    compareValues(obj1.value(key), obj2.value(key), newPath);
+                }
+                break;
             }
-            break;
-        }
-        default:
-            // For simple types, direct comparison
-            if (value1 != value2) {
-                paths.append(currentPath);
+            case QJsonValue::Array: {
+                QJsonArray arr1 = value1.toArray();
+                QJsonArray arr2 = value2.toArray();
+
+                if (arr1.size() != arr2.size()) {
+                    paths.append(currentPath);
+                } else {
+                    for (int i = 0; i < arr1.size(); ++i) {
+                        QString newPath =
+                            currentPath + "[" + QString::number(i) + "]";
+                        compareValues(arr1[i], arr2[i], newPath);
+                    }
+                }
+                break;
             }
-            break;
+            default:
+                // For simple types, direct comparison
+                if (value1 != value2) {
+                    paths.append(currentPath);
+                }
+                break;
         }
     };
 
@@ -224,9 +229,7 @@ QVariant StateChange::newValue(const QString& path) const {
 // ============================================================================
 
 StateManager::StateManager(QObject* parent)
-    : QObject(parent)
-    , m_logger("StateManager")
-{
+    : QObject(parent), m_logger("StateManager") {
     m_logger.debug("StateManager initialized");
 }
 
@@ -257,11 +260,12 @@ bool StateManager::has(const QString& path) const {
     return m_currentState.has(path);
 }
 
-void StateManager::set(const QString& path, const QVariant& value, const QString& reason) {
+void StateManager::set(const QString& path, const QVariant& value,
+                       const QString& reason) {
     QMutexLocker locker(&m_mutex);
     State newState = m_currentState.set(path, value);
     locker.unlock();
-    
+
     setState(newState, reason.isEmpty() ? QString("Set %1").arg(path) : reason);
 }
 
@@ -269,7 +273,7 @@ void StateManager::merge(const QJsonObject& data, const QString& reason) {
     QMutexLocker locker(&m_mutex);
     State newState = m_currentState.merge(data);
     locker.unlock();
-    
+
     setState(newState, reason.isEmpty() ? "Merge" : reason);
 }
 
@@ -277,27 +281,30 @@ void StateManager::remove(const QString& path, const QString& reason) {
     QMutexLocker locker(&m_mutex);
     State newState = m_currentState.remove(path);
     locker.unlock();
-    
-    setState(newState, reason.isEmpty() ? QString("Remove %1").arg(path) : reason);
+
+    setState(newState,
+             reason.isEmpty() ? QString("Remove %1").arg(path) : reason);
 }
 
 void StateManager::reset(const State& newState, const QString& reason) {
     setState(newState, reason);
 }
 
-void StateManager::subscribe(const QString& path, QObject* subscriber, StateObserver observer) {
+void StateManager::subscribe(const QString& path, QObject* subscriber,
+                             StateObserver observer) {
     QMutexLocker locker(&m_mutex);
-    
+
     Subscription sub;
     sub.path = path;
     sub.subscriber = subscriber;
     sub.observer = observer;
-    
+
     m_subscriptions.append(sub);
-    
+
     // Connect to destroyed signal to auto-cleanup
-    connect(subscriber, &QObject::destroyed, this, &StateManager::onSubscriberDestroyed, Qt::UniqueConnection);
-    
+    connect(subscriber, &QObject::destroyed, this,
+            &StateManager::onSubscriberDestroyed, Qt::UniqueConnection);
+
     m_logger.debug(QString("Subscribed to path: %1").arg(path));
 }
 
@@ -307,14 +314,14 @@ void StateManager::subscribe(QObject* subscriber, StateObserver observer) {
 
 void StateManager::unsubscribe(const QString& path, QObject* subscriber) {
     QMutexLocker locker(&m_mutex);
-    
+
     m_subscriptions.erase(
         std::remove_if(m_subscriptions.begin(), m_subscriptions.end(),
-            [&path, subscriber](const Subscription& sub) {
-                return sub.path == path && sub.subscriber == subscriber;
-            }),
-        m_subscriptions.end()
-    );
+                       [&path, subscriber](const Subscription& sub) {
+                           return sub.path == path &&
+                                  sub.subscriber == subscriber;
+                       }),
+        m_subscriptions.end());
 }
 
 void StateManager::unsubscribeAll(QObject* subscriber) {
@@ -322,11 +329,10 @@ void StateManager::unsubscribeAll(QObject* subscriber) {
 
     m_subscriptions.erase(
         std::remove_if(m_subscriptions.begin(), m_subscriptions.end(),
-            [subscriber](const Subscription& sub) {
-                return sub.subscriber == subscriber;
-            }),
-        m_subscriptions.end()
-    );
+                       [subscriber](const Subscription& sub) {
+                           return sub.subscriber == subscriber;
+                       }),
+        m_subscriptions.end());
 }
 
 void StateManager::addMiddleware(StateMiddleware middleware) {
@@ -338,7 +344,9 @@ void StateManager::addMiddleware(StateMiddleware middleware) {
 void StateManager::removeMiddleware(StateMiddleware middleware) {
     // Note: Function comparison is not straightforward in C++
     // This is a simplified implementation
-    m_logger.warning("removeMiddleware not fully implemented - function comparison limitation");
+    m_logger.warning(
+        "removeMiddleware not fully implemented - function comparison "
+        "limitation");
 }
 
 void StateManager::enableHistory(int maxSize) {
@@ -424,7 +432,8 @@ bool StateManager::saveState(const QString& filePath) {
     QFile file(filePath);
 
     if (!file.open(QIODevice::WriteOnly)) {
-        m_logger.error(QString("Failed to open file for writing: %1").arg(filePath));
+        m_logger.error(
+            QString("Failed to open file for writing: %1").arg(filePath));
         return false;
     }
 
@@ -439,7 +448,8 @@ bool StateManager::loadState(const QString& filePath) {
     QFile file(filePath);
 
     if (!file.open(QIODevice::ReadOnly)) {
-        m_logger.error(QString("Failed to open file for reading: %1").arg(filePath));
+        m_logger.error(
+            QString("Failed to open file for reading: %1").arg(filePath));
         return false;
     }
 
@@ -463,11 +473,13 @@ void StateManager::setAutoSave(bool enabled, int intervalMs) {
     if (enabled) {
         if (!m_autoSaveTimer) {
             m_autoSaveTimer = new QTimer(this);
-            connect(m_autoSaveTimer, &QTimer::timeout, this, &StateManager::onAutoSaveTimeout);
+            connect(m_autoSaveTimer, &QTimer::timeout, this,
+                    &StateManager::onAutoSaveTimeout);
         }
         m_autoSaveTimer->setInterval(intervalMs);
         m_autoSaveTimer->start();
-        m_logger.debug(QString("Auto-save enabled with interval: %1ms").arg(intervalMs));
+        m_logger.debug(
+            QString("Auto-save enabled with interval: %1ms").arg(intervalMs));
     } else {
         if (m_autoSaveTimer) {
             m_autoSaveTimer->stop();
@@ -519,10 +531,12 @@ QString StateManager::stateReport() const {
 
     QString report;
     report += "=== State Manager Report ===\n";
-    report += QString("Current State Size: %1 keys\n").arg(m_currentState.toJson().keys().size());
+    report += QString("Current State Size: %1 keys\n")
+                  .arg(m_currentState.toJson().keys().size());
     report += QString("Subscriptions: %1\n").arg(m_subscriptions.size());
     report += QString("Middleware: %1\n").arg(m_middleware.size());
-    report += QString("History Enabled: %1\n").arg(m_historyEnabled ? "Yes" : "No");
+    report +=
+        QString("History Enabled: %1\n").arg(m_historyEnabled ? "Yes" : "No");
     report += QString("History Size: %1\n").arg(m_history.size());
     report += QString("History Index: %1\n").arg(m_historyIndex);
     report += QString("Snapshots: %1\n").arg(m_snapshots.size());
@@ -531,9 +545,7 @@ QString StateManager::stateReport() const {
     return report;
 }
 
-void StateManager::onSubscriberDestroyed(QObject* obj) {
-    unsubscribeAll(obj);
-}
+void StateManager::onSubscriberDestroyed(QObject* obj) { unsubscribeAll(obj); }
 
 void StateManager::onAutoSaveTimeout() {
     if (!m_autoSavePath.isEmpty()) {
@@ -595,7 +607,7 @@ void StateManager::setState(const State& newState, const QString& reason) {
 
 void StateManager::notifyObservers(const StateChange& change) {
     QMutexLocker locker(&m_mutex);
-    QList<Subscription> subs = m_subscriptions; // Copy to avoid issues
+    QList<Subscription> subs = m_subscriptions;  // Copy to avoid issues
     locker.unlock();
 
     for (const Subscription& sub : subs) {
@@ -608,7 +620,8 @@ void StateManager::notifyObservers(const StateChange& change) {
             try {
                 sub.observer(change);
             } catch (const std::exception& e) {
-                m_logger.error(QString("Exception in state observer: %1").arg(e.what()));
+                m_logger.error(
+                    QString("Exception in state observer: %1").arg(e.what()));
             } catch (...) {
                 m_logger.error("Unknown exception in state observer");
             }
@@ -616,14 +629,16 @@ void StateManager::notifyObservers(const StateChange& change) {
     }
 }
 
-State StateManager::applyMiddleware(const State& oldState, const State& newState) {
+State StateManager::applyMiddleware(const State& oldState,
+                                    const State& newState) {
     State result = newState;
 
     for (const StateMiddleware& middleware : m_middleware) {
         try {
             result = middleware(oldState, result);
         } catch (const std::exception& e) {
-            m_logger.error(QString("Exception in middleware: %1").arg(e.what()));
+            m_logger.error(
+                QString("Exception in middleware: %1").arg(e.what()));
         } catch (...) {
             m_logger.error("Unknown exception in middleware");
         }
@@ -637,17 +652,13 @@ State StateManager::applyMiddleware(const State& oldState, const State& newState
 // ============================================================================
 
 StateStore::StateStore(const State& initialState, QObject* parent)
-    : QObject(parent)
-    , m_state(initialState)
-{}
+    : QObject(parent), m_state(initialState) {}
 
 void StateStore::addReducer(const QString& key, Reducer reducer) {
     m_reducers[key] = reducer;
 }
 
-void StateStore::removeReducer(const QString& key) {
-    m_reducers.remove(key);
-}
+void StateStore::removeReducer(const QString& key) { m_reducers.remove(key); }
 
 void StateStore::dispatch(const Action& action) {
     State newState = applyReducers(m_state, action);
@@ -688,7 +699,8 @@ State StateStore::applyReducers(const State& state, const Action& action) {
         try {
             result = it.value()(result, action);
         } catch (const std::exception& e) {
-            qWarning() << "Exception in reducer:" << it.key() << "-" << e.what();
+            qWarning() << "Exception in reducer:" << it.key() << "-"
+                       << e.what();
         } catch (...) {
             qWarning() << "Unknown exception in reducer:" << it.key();
         }
@@ -708,4 +720,3 @@ void StateStore::notifyObservers(const Action& action) {
         }
     }
 }
-

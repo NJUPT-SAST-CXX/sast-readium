@@ -1,21 +1,18 @@
 #include "FileTypeIconManager.h"
 #include <QApplication>
-#include <QDir>
 #include <QDebug>
-#include <QSvgRenderer>
-#include "../logging/Logger.h"
-#include <QPainter>
+#include <QDir>
 #include <QFileInfo>
 #include <QHash>
+#include <QPainter>
+#include <QSvgRenderer>
+#include "../logging/Logger.h"
 
 // Private implementation class
 class FileTypeIconManagerImpl {
 public:
     FileTypeIconManagerImpl()
-        : m_defaultIconSize(24)
-        , m_iconBasePath(":/images/filetypes/")
-    {
-    }
+        : m_defaultIconSize(24), m_iconBasePath(":/images/filetypes/") {}
 
     // Helper methods
     QString getIconPath(const QString& extension) const;
@@ -42,15 +39,15 @@ FileTypeIconManager& FileTypeIconManager::instance() {
 }
 
 FileTypeIconManager::FileTypeIconManager(QObject* parent)
-    : QObject(parent)
-    , pImpl(std::make_unique<FileTypeIconManagerImpl>())
-{
-    Logger::instance().info("[managers] Initializing FileTypeIconManager with base path: {}",
-             pImpl->m_iconBasePath.toStdString());
+    : QObject(parent), pImpl(std::make_unique<FileTypeIconManagerImpl>()) {
+    Logger::instance().info(
+        "[managers] Initializing FileTypeIconManager with base path: {}",
+        pImpl->m_iconBasePath.toStdString());
     pImpl->initializeExtensionMapping();
     preloadIcons();
-    Logger::instance().debug("[managers] FileTypeIconManager initialized with {} file type mappings",
-              pImpl->m_fileTypeMapping.size());
+    Logger::instance().debug(
+        "[managers] FileTypeIconManager initialized with {} file type mappings",
+        pImpl->m_fileTypeMapping.size());
 }
 
 FileTypeIconManager::~FileTypeIconManager() = default;
@@ -76,45 +73,54 @@ void FileTypeIconManagerImpl::initializeExtensionMapping() {
     m_fileTypeMapping["rtf"] = "doc";
     m_fileTypeMapping["odt"] = "doc";
 
-    Logger::instance().debug("[managers] FileTypeIconManager extension mapping initialized with {} file types",
-              m_fileTypeMapping.size());
+    Logger::instance().debug(
+        "[managers] FileTypeIconManager extension mapping initialized with {} "
+        "file types",
+        m_fileTypeMapping.size());
 }
 
-QIcon FileTypeIconManager::getFileTypeIcon(const QString& filePath, int size) const {
+QIcon FileTypeIconManager::getFileTypeIcon(const QString& filePath,
+                                           int size) const {
     QFileInfo fileInfo(filePath);
     return getFileTypeIcon(fileInfo, size);
 }
 
-QIcon FileTypeIconManager::getFileTypeIcon(const QFileInfo& fileInfo, int size) const {
+QIcon FileTypeIconManager::getFileTypeIcon(const QFileInfo& fileInfo,
+                                           int size) const {
     QPixmap pixmap = getFileTypePixmap(fileInfo, size);
     return QIcon(pixmap);
 }
 
-QPixmap FileTypeIconManager::getFileTypePixmap(const QString& filePath, int size) const {
+QPixmap FileTypeIconManager::getFileTypePixmap(const QString& filePath,
+                                               int size) const {
     QFileInfo fileInfo(filePath);
     return getFileTypePixmap(fileInfo, size);
 }
 
-QPixmap FileTypeIconManager::getFileTypePixmap(const QFileInfo& fileInfo, int size) const {
+QPixmap FileTypeIconManager::getFileTypePixmap(const QFileInfo& fileInfo,
+                                               int size) const {
     QString extension = pImpl->normalizeExtension(fileInfo.suffix());
     QString cacheKey = QString("%1_%2").arg(extension).arg(size);
 
     // Check cache first
     if (pImpl->m_iconCache.contains(cacheKey)) {
-        Logger::instance().trace("[managers] Icon cache hit for extension '{}' size {}",
-                  extension.toStdString(), size);
+        Logger::instance().trace(
+            "[managers] Icon cache hit for extension '{}' size {}",
+            extension.toStdString(), size);
         return pImpl->m_iconCache[cacheKey];
     }
 
     // Load icon
     QString iconPath = pImpl->getIconPath(extension);
-    Logger::instance().debug("[managers] Loading icon for extension '{}' from path: {}",
-              extension.toStdString(), iconPath.toStdString());
+    Logger::instance().debug(
+        "[managers] Loading icon for extension '{}' from path: {}",
+        extension.toStdString(), iconPath.toStdString());
     QPixmap pixmap = pImpl->loadSvgIcon(iconPath, size);
 
     // Cache the result
     pImpl->m_iconCache[cacheKey] = pixmap;
-    Logger::instance().trace("[managers] Cached icon for key: {}", cacheKey.toStdString());
+    Logger::instance().trace("[managers] Cached icon for key: {}",
+                             cacheKey.toStdString());
 
     return pixmap;
 }
@@ -124,12 +130,13 @@ QString FileTypeIconManagerImpl::getIconPath(const QString& extension) const {
     return QString("%1%2.svg").arg(m_iconBasePath).arg(iconName);
 }
 
-QPixmap FileTypeIconManagerImpl::loadSvgIcon(const QString& path, int size) const {
+QPixmap FileTypeIconManagerImpl::loadSvgIcon(const QString& path,
+                                             int size) const {
     QPixmap pixmap(size, size);
     pixmap.fill(Qt::transparent);
-    
+
     QSvgRenderer renderer;
-    
+
     // Try to load from resources first
     if (renderer.load(path)) {
         QPainter painter(&pixmap);
@@ -137,36 +144,38 @@ QPixmap FileTypeIconManagerImpl::loadSvgIcon(const QString& path, int size) cons
         renderer.render(&painter);
         return pixmap;
     }
-    
+
     // Try to load from file system
     QString filePath = path;
     if (filePath.startsWith(":/")) {
-        filePath = filePath.mid(2); // Remove ":/" prefix
+        filePath = filePath.mid(2);  // Remove ":/" prefix
         filePath = QApplication::applicationDirPath() + "/../" + filePath;
     }
-    
+
     if (QFile::exists(filePath) && renderer.load(filePath)) {
         QPainter painter(&pixmap);
         painter.setRenderHint(QPainter::Antialiasing);
         renderer.render(&painter);
         return pixmap;
     }
-    
+
     // Fallback: create a simple colored rectangle
-    pixmap.fill(QColor(113, 128, 150)); // Default gray color
+    pixmap.fill(QColor(113, 128, 150));  // Default gray color
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setPen(Qt::white);
     painter.drawText(pixmap.rect(), Qt::AlignCenter, "?");
-    
+
     return pixmap;
 }
 
-QString FileTypeIconManagerImpl::normalizeExtension(const QString& extension) const {
+QString FileTypeIconManagerImpl::normalizeExtension(
+    const QString& extension) const {
     return extension.toLower().trimmed();
 }
 
-QPixmap FileTypeIconManagerImpl::createColoredIcon(const QPixmap& base, const QColor& color) const {
+QPixmap FileTypeIconManagerImpl::createColoredIcon(const QPixmap& base,
+                                                   const QColor& color) const {
     QPixmap coloredPixmap = base;
     QPainter painter(&coloredPixmap);
     painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
@@ -182,26 +191,30 @@ void FileTypeIconManager::preloadIcons() {
 
     for (const QString& iconType : iconTypes) {
         for (int size : sizes) {
-            QString iconPath = QString("%1%2.svg").arg(pImpl->m_iconBasePath).arg(iconType);
+            QString iconPath =
+                QString("%1%2.svg").arg(pImpl->m_iconBasePath).arg(iconType);
             QPixmap pixmap = pImpl->loadSvgIcon(iconPath, size);
             QString cacheKey = QString("%1_%2").arg(iconType).arg(size);
             pImpl->m_iconCache[cacheKey] = pixmap;
         }
     }
 
-    Logger::instance().info("[managers] Icon preloading completed - cached {} icons", pImpl->m_iconCache.size());
+    Logger::instance().info(
+        "[managers] Icon preloading completed - cached {} icons",
+        pImpl->m_iconCache.size());
 }
 
 void FileTypeIconManager::clearCache() {
     int cacheSize = pImpl->m_iconCache.size();
     pImpl->m_iconCache.clear();
-    Logger::instance().info("[managers] Icon cache cleared - removed {} cached icons", cacheSize);
+    Logger::instance().info(
+        "[managers] Icon cache cleared - removed {} cached icons", cacheSize);
 }
 
 void FileTypeIconManager::setIconSize(int size) {
     if (pImpl->m_defaultIconSize != size) {
         pImpl->m_defaultIconSize = size;
-        clearCache(); // Clear cache to force reload with new size
+        clearCache();  // Clear cache to force reload with new size
     }
 }
 
@@ -210,5 +223,6 @@ QStringList FileTypeIconManager::getSupportedExtensions() const {
 }
 
 bool FileTypeIconManager::isSupported(const QString& extension) const {
-    return pImpl->m_fileTypeMapping.contains(pImpl->normalizeExtension(extension));
+    return pImpl->m_fileTypeMapping.contains(
+        pImpl->normalizeExtension(extension));
 }

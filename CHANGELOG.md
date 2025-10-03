@@ -226,7 +226,7 @@ If you're upgrading from an earlier version:
    ```cpp
    // Old
    #include "utils/LoggingMacros.h"
-   
+
    // New
    #include "logging/SimpleLogging.h"
    ```
@@ -243,4 +243,3 @@ See [MIGRATION-GUIDE.md](docs/MIGRATION-GUIDE.md) for detailed migration instruc
 
 [Unreleased]: https://github.com/NJUPT-SAST-CXX/sast-readium/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/NJUPT-SAST-CXX/sast-readium/releases/tag/v0.1.0
-

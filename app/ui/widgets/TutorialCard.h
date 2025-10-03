@@ -1,7 +1,7 @@
 #pragma once
 
-#include <QWidget>
 #include <QIcon>
+#include <QWidget>
 
 class QLabel;
 class QPushButton;
@@ -9,7 +9,7 @@ class QPropertyAnimation;
 
 /**
  * TutorialCard
- * 
+ *
  * An interactive card widget that displays tutorial information
  * and allows users to start guided tours of specific features.
  */
@@ -18,30 +18,29 @@ class TutorialCard : public QWidget {
     Q_PROPERTY(qreal hoverOpacity READ hoverOpacity WRITE setHoverOpacity)
 
 public:
-    explicit TutorialCard(const QString& id, 
-                         const QString& title,
-                         const QString& description,
-                         const QIcon& icon = QIcon(),
-                         QWidget* parent = nullptr);
+    explicit TutorialCard(const QString& id, const QString& title,
+                          const QString& description,
+                          const QIcon& icon = QIcon(),
+                          QWidget* parent = nullptr);
     ~TutorialCard();
 
     // Properties
     QString tutorialId() const { return m_tutorialId; }
     QString title() const { return m_title; }
     QString description() const { return m_description; }
-    
+
     void setTitle(const QString& title);
     void setDescription(const QString& description);
     void setIcon(const QIcon& icon);
     void setDuration(const QString& duration);
     void setDifficulty(const QString& difficulty);
     void setCompleted(bool completed);
-    
+
     bool isCompleted() const { return m_isCompleted; }
-    
+
     // Theme
     void applyTheme();
-    
+
     // Animation
     qreal hoverOpacity() const { return m_hoverOpacity; }
     void setHoverOpacity(qreal opacity);
@@ -62,7 +61,7 @@ private:
     void setupLayout();
     void setupAnimations();
     void updateCompletedState();
-    
+
     // Data
     QString m_tutorialId;
     QString m_title;
@@ -71,7 +70,7 @@ private:
     QString m_difficulty;
     QIcon m_icon;
     bool m_isCompleted;
-    
+
     // UI Components
     QLabel* m_iconLabel;
     QLabel* m_titleLabel;
@@ -80,13 +79,13 @@ private:
     QLabel* m_difficultyLabel;
     QLabel* m_completedLabel;
     QPushButton* m_startButton;
-    
+
     // Animation
     QPropertyAnimation* m_hoverAnimation;
     qreal m_hoverOpacity;
     bool m_isHovered;
     bool m_isPressed;
-    
+
     // Style constants
     static const int CARD_WIDTH = 280;
     static const int CARD_HEIGHT = 180;

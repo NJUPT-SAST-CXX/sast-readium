@@ -13,6 +13,7 @@ The project uses CMake 3.28+ with automatic source discovery and multiple build 
 ### Common Build Commands
 
 **Quick Setup (Recommended):**
+
 ```bash
 # Linux/macOS with system packages
 cmake --preset=Release-Unix
@@ -28,6 +29,7 @@ cmake --build --preset=Release-Windows
 ```
 
 **Development Commands:**
+
 ```bash
 # List all available presets
 cmake --list-presets=configure
@@ -46,6 +48,7 @@ ctest --test-dir build -V
 ```
 
 **Makefile Support (Linux/macOS):**
+
 ```bash
 make help        # Show available targets
 make configure   # Configure Debug build
@@ -61,10 +64,12 @@ The application follows a modular Qt6 architecture with clear separation of conc
 ### Core Components
 
 **Application Entry:**
+
 - `app/main.cpp` - Application entry point with console output and initialization
 - `MainWindow` - Main application window (UI layer)
 
 **Architecture Patterns:**
+
 - **MVC Pattern:** Models in `app/model/`, Controllers in `app/controller/`, Delegates in `app/delegate/`
 - **Command Pattern:** Commands in `app/command/` with `CommandManager` for undo/redo
 - **Factory Pattern:** `ModelFactory` and `WidgetFactory` for object creation
@@ -113,6 +118,7 @@ Tests are located in `tests/` with a dedicated `TestUtilities` library. The buil
 ### Dependency Management
 
 The project uses a tiered approach:
+
 1. **System packages** (recommended) for better performance
 2. **vcpkg** as cross-platform alternative for consistency
 3. **MSYS2** for Windows Unix-like development

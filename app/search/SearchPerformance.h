@@ -1,17 +1,17 @@
 #pragma once
 
+#include <QAtomicInt>
+#include <QElapsedTimer>
+#include <QFuture>
+#include <QHash>
+#include <QList>
+#include <QMutex>
 #include <QObject>
 #include <QString>
-#include <QList>
-#include <QHash>
-#include <QMutex>
 #include <QThread>
 #include <QThreadPool>
-#include <QFuture>
-#include <QElapsedTimer>
-#include <QAtomicInt>
-#include <memory>
 #include <functional>
+#include <memory>
 #include "SearchConfiguration.h"
 
 class QRunnable;
@@ -20,8 +20,7 @@ class QRunnable;
  * Search performance management framework
  * Provides intelligent algorithms, caching, and parallel processing
  */
-class SearchPerformance : public QObject
-{
+class SearchPerformance : public QObject {
     Q_OBJECT
 
 public:
@@ -37,16 +36,21 @@ public:
     };
 
     // Boyer-Moore algorithm implementation
-    QList<FastSearchResult> boyerMooreSearch(const QString& text, const QString& pattern, 
-                                           bool caseSensitive = false, int maxResults = -1);
-    
-    // KMP algorithm implementation  
-    QList<FastSearchResult> kmpSearch(const QString& text, const QString& pattern,
-                                    bool caseSensitive = false, int maxResults = -1);
-    
+    QList<FastSearchResult> boyerMooreSearch(const QString& text,
+                                             const QString& pattern,
+                                             bool caseSensitive = false,
+                                             int maxResults = -1);
+
+    // KMP algorithm implementation
+    QList<FastSearchResult> kmpSearch(const QString& text,
+                                      const QString& pattern,
+                                      bool caseSensitive = false,
+                                      int maxResults = -1);
+
     // Parallel search across multiple texts
-    QList<FastSearchResult> parallelSearch(const QStringList& texts, const QString& pattern,
-                                          const SearchOptions& options = SearchOptions());
+    QList<FastSearchResult> parallelSearch(
+        const QStringList& texts, const QString& pattern,
+        const SearchOptions& options = SearchOptions());
 
     // Search result ranking and relevance scoring
     struct RankingFactors {
@@ -59,9 +63,11 @@ public:
     };
 
     void setRankingFactors(const RankingFactors& factors);
-    QList<SearchResult> rankResults(const QList<SearchResult>& results, const QString& query);
-    double calculateRelevanceScore(const SearchResult& result, const QString& query, 
-                                 const QString& fullText);
+    QList<SearchResult> rankResults(const QList<SearchResult>& results,
+                                    const QString& query);
+    double calculateRelevanceScore(const SearchResult& result,
+                                   const QString& query,
+                                   const QString& fullText);
 
     // Query optimization
     struct QueryPlan {
@@ -73,9 +79,9 @@ public:
         QString algorithm;
     };
 
-    QueryPlan optimizeQuery(const QString& query, const SearchOptions& options, 
-                          int documentSize, int pageCount);
-    
+    QueryPlan optimizeQuery(const QString& query, const SearchOptions& options,
+                            int documentSize, int pageCount);
+
     // Performance monitoring
     struct PerformanceMetrics {
         qint64 searchTime;
@@ -92,19 +98,21 @@ public:
     void resetMetrics();
 
     // Memory pool management
-    void initializeMemoryPool(int poolSize = 1024 * 1024); // 1MB default
+    void initializeMemoryPool(int poolSize = 1024 * 1024);  // 1MB default
     void* allocateSearchMemory(size_t size);
     void deallocateSearchMemory(void* ptr);
     void clearMemoryPool();
 
     // Intelligent caching strategies
     void enablePredictiveCache(bool enabled);
-    void warmupCache(const QStringList& commonQueries, const QStringList& texts);
+    void warmupCache(const QStringList& commonQueries,
+                     const QStringList& texts);
     void preloadFrequentPatterns();
-    
+
     // Cache performance optimization
     void optimizeCacheAccess(const QString& query);
-    QStringList predictNextQueries(const QString& currentQuery, const QStringList& history);
+    QStringList predictNextQueries(const QString& currentQuery,
+                                   const QStringList& history);
 
     // Thread pool optimization
     void setOptimalThreadCount();
@@ -112,13 +120,7 @@ public:
     void enableWorkStealing(bool enabled);
 
     // Search algorithm selection
-    enum Algorithm {
-        AutoSelect,
-        BoyerMoore,
-        KMP,
-        Parallel,
-        Hybrid
-    };
+    enum Algorithm { AutoSelect, BoyerMoore, KMP, Parallel, Hybrid };
 
     void setPreferredAlgorithm(Algorithm algorithm);
     Algorithm selectOptimalAlgorithm(const QString& pattern, int textSize);
@@ -136,14 +138,13 @@ private:
 /**
  * Parallel search task for thread pool execution
  */
-class ParallelSearchTask : public QObject, public QRunnable
-{
+class ParallelSearchTask : public QObject, public QRunnable {
     Q_OBJECT
 
 public:
-    ParallelSearchTask(const QString& text, const QString& pattern, 
-                      const SearchOptions& options, int pageNumber);
-    
+    ParallelSearchTask(const QString& text, const QString& pattern,
+                       const SearchOptions& options, int pageNumber);
+
     void run() override;
     QList<SearchResult> getResults() const;
 
@@ -161,8 +162,7 @@ private:
 /**
  * Memory pool for efficient search operations
  */
-class SearchMemoryPool
-{
+class SearchMemoryPool {
 public:
     SearchMemoryPool(size_t poolSize);
     ~SearchMemoryPool();
@@ -170,7 +170,7 @@ public:
     void* allocate(size_t size);
     void deallocate(void* ptr);
     void clear();
-    
+
     size_t getTotalSize() const { return m_poolSize; }
     size_t getUsedSize() const { return m_usedSize; }
     size_t getAvailableSize() const { return m_poolSize - m_usedSize; }
@@ -192,17 +192,17 @@ private:
 /**
  * Intelligent cache predictor for search optimization
  */
-class SearchCachePredictor
-{
+class SearchCachePredictor {
 public:
     SearchCachePredictor();
-    
+
     void recordQuery(const QString& query);
     void recordQuerySequence(const QStringList& queries);
-    
-    QStringList predictNextQueries(const QString& currentQuery, int maxPredictions = 5);
+
+    QStringList predictNextQueries(const QString& currentQuery,
+                                   int maxPredictions = 5);
     QStringList getFrequentPatterns(int minFrequency = 3);
-    
+
     void updatePredictionModel();
     void clearHistory();
 
@@ -217,7 +217,7 @@ private:
     QHash<QString, QueryPattern> m_patterns;
     QStringList m_queryHistory;
     QMutex m_mutex;
-    
+
     void analyzePatterns();
     double calculateConfidence(const QueryPattern& pattern);
 };
@@ -225,34 +225,37 @@ private:
 /**
  * Advanced search result ranker with multiple ranking algorithms
  */
-class SearchResultRanker
-{
+class SearchResultRanker {
 public:
     SearchResultRanker();
-    
+
     enum RankingAlgorithm {
-        TfIdf,          // Term Frequency-Inverse Document Frequency
-        BM25,           // Best Matching 25
-        Cosine,         // Cosine Similarity
-        Jaccard,        // Jaccard Similarity
-        Hybrid          // Combination of multiple algorithms
+        TfIdf,    // Term Frequency-Inverse Document Frequency
+        BM25,     // Best Matching 25
+        Cosine,   // Cosine Similarity
+        Jaccard,  // Jaccard Similarity
+        Hybrid    // Combination of multiple algorithms
     };
 
     void setRankingAlgorithm(RankingAlgorithm algorithm);
-    QList<SearchResult> rankResults(const QList<SearchResult>& results, 
-                                  const QString& query, const QStringList& corpus);
-    
-    double calculateTfIdf(const QString& term, const QString& document, 
+    QList<SearchResult> rankResults(const QList<SearchResult>& results,
+                                    const QString& query,
+                                    const QStringList& corpus);
+
+    double calculateTfIdf(const QString& term, const QString& document,
+                          const QStringList& corpus);
+    double calculateBM25(const QString& query, const QString& document,
                          const QStringList& corpus);
-    double calculateBM25(const QString& query, const QString& document, 
-                        const QStringList& corpus);
-    double calculateCosineSimilarity(const QString& query, const QString& document);
+    double calculateCosineSimilarity(const QString& query,
+                                     const QString& document);
 
 private:
     RankingAlgorithm m_algorithm;
     QHash<QString, double> m_idfCache;
-    
+
     QStringList tokenize(const QString& text);
-    double calculateTermFrequency(const QString& term, const QStringList& tokens);
-    double calculateInverseDocumentFrequency(const QString& term, const QStringList& corpus);
+    double calculateTermFrequency(const QString& term,
+                                  const QStringList& tokens);
+    double calculateInverseDocumentFrequency(const QString& term,
+                                             const QStringList& corpus);
 };

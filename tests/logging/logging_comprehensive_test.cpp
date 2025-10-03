@@ -1,25 +1,25 @@
-#include <QtTest/QtTest>
 #include <QObject>
+#include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTemporaryFile>
-#include <QSettings>
-#include <QThread>
 #include <QTextEdit>
-#include "../../app/logging/LoggingConfig.h"
-#include "../../app/logging/LoggingManager.h"
+#include <QThread>
+#include <QtTest/QtTest>
 #include "../../app/logging/Logger.h"
-#include "../../app/logging/QtSpdlogBridge.h"
+#include "../../app/logging/LoggingConfig.h"
 #include "../../app/logging/LoggingMacros.h"
+#include "../../app/logging/LoggingManager.h"
+#include "../../app/logging/QtSpdlogBridge.h"
 #include "../../app/logging/SimpleLogging.h"
 #include "../TestUtilities.h"
 
 /**
  * Comprehensive tests for the logging system
- * Tests all major components: Logger, LoggingManager, QtSpdlogBridge, Macros, SimpleLogging
+ * Tests all major components: Logger, LoggingManager, QtSpdlogBridge, Macros,
+ * SimpleLogging
  */
-class LoggingComprehensiveTest : public TestBase
-{
+class LoggingComprehensiveTest : public TestBase {
     Q_OBJECT
 
 protected:
@@ -35,37 +35,37 @@ private slots:
     void testLoggerLevels();
     void testLoggerSinkManagement();
     void testLoggerThreadSafety();
-    
+
     // LoggingManager tests
     void testLoggingManagerSingleton();
     void testLoggingManagerInitialization();
     void testLoggingManagerAsyncLogging();
     void testLoggingManagerCategoryManagement();
     void testLoggingManagerShutdown();
-    
+
     // QtSpdlogBridge tests
     void testQtSpdlogBridgeSingleton();
     void testQtSpdlogBridgeMessageHandler();
     void testQtSpdlogBridgeCategoryMapping();
     void testQtSpdlogBridgeThreadSafety();
-    
+
     // LoggingConfig tests
     void testLoggingConfigDefaults();
     void testLoggingConfigSerialization();
     void testLoggingConfigValidation();
     void testLoggingConfigPresets();
-    
+
     // Macro tests
     void testLoggingMacros();
     void testPerformanceLogger();
     void testScopedLogLevel();
     void testMemoryLogger();
-    
+
     // SimpleLogging tests
     void testSimpleLoggingInterface();
     void testSimpleLoggingCategoryLogger();
     void testSimpleLoggingTimer();
-    
+
     // Integration tests
     void testEndToEndLogging();
     void testConfigurationPersistence();
@@ -74,37 +74,33 @@ private slots:
 private:
     QTemporaryDir* m_tempDir;
     QString m_logFilePath;
-    
+
     // Helper methods
     void waitForLogFlush();
     bool logFileContains(const QString& text);
     void cleanupLogFiles();
 };
 
-void LoggingComprehensiveTest::initTestCase()
-{
+void LoggingComprehensiveTest::initTestCase() {
     qDebug() << "Starting comprehensive logging tests";
     m_tempDir = new QTemporaryDir();
     QVERIFY(m_tempDir->isValid());
     m_logFilePath = m_tempDir->path() + "/test.log";
 }
 
-void LoggingComprehensiveTest::cleanupTestCase()
-{
+void LoggingComprehensiveTest::cleanupTestCase() {
     cleanupLogFiles();
     delete m_tempDir;
     qDebug() << "Comprehensive logging tests completed";
 }
 
-void LoggingComprehensiveTest::init()
-{
+void LoggingComprehensiveTest::init() {
     // Ensure clean state before each test
     LoggingManager::instance().shutdown();
     cleanupLogFiles();
 }
 
-void LoggingComprehensiveTest::cleanup()
-{
+void LoggingComprehensiveTest::cleanup() {
     // Clean up after each test
     LoggingManager::instance().shutdown();
     cleanupLogFiles();
@@ -114,38 +110,35 @@ void LoggingComprehensiveTest::cleanup()
 // Logger Tests
 // ============================================================================
 
-void LoggingComprehensiveTest::testLoggerSingleton()
-{
+void LoggingComprehensiveTest::testLoggerSingleton() {
     Logger& logger1 = Logger::instance();
     Logger& logger2 = Logger::instance();
-    
+
     QCOMPARE(&logger1, &logger2);
 }
 
-void LoggingComprehensiveTest::testLoggerInitialization()
-{
+void LoggingComprehensiveTest::testLoggerInitialization() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.pattern = "[%Y-%m-%d %H:%M:%S.%e] [%l] %v";
     config.enableConsole = true;
     config.enableFile = true;
     config.logFileName = m_logFilePath;
-    
+
     Logger::instance().initialize(config);
-    
+
     QVERIFY(Logger::instance().isInitialized());
 }
 
-void LoggingComprehensiveTest::testLoggerLevels()
-{
+void LoggingComprehensiveTest::testLoggerLevels() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Info;
     config.enableConsole = true;
     config.enableFile = true;
     config.logFileName = m_logFilePath;
-    
+
     Logger::instance().initialize(config);
-    
+
     // Test logging at different levels
     Logger::instance().trace("Trace message");
     Logger::instance().debug("Debug message");
@@ -153,9 +146,9 @@ void LoggingComprehensiveTest::testLoggerLevels()
     Logger::instance().warning("Warning message");
     Logger::instance().error("Error message");
     Logger::instance().critical("Critical message");
-    
+
     waitForLogFlush();
-    
+
     // Verify that only Info and above are logged
     QVERIFY(!logFileContains("Trace message"));
     QVERIFY(!logFileContains("Debug message"));
@@ -165,65 +158,65 @@ void LoggingComprehensiveTest::testLoggerLevels()
     QVERIFY(logFileContains("Critical message"));
 }
 
-void LoggingComprehensiveTest::testLoggerSinkManagement()
-{
+void LoggingComprehensiveTest::testLoggerSinkManagement() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.enableConsole = true;
-    
+
     Logger::instance().initialize(config);
-    
+
     // Add file sink
     Logger::instance().addFileSink(m_logFilePath);
-    
+
     Logger::instance().info("Test message");
     waitForLogFlush();
-    
+
     QVERIFY(logFileContains("Test message"));
-    
+
     // Remove file sink
     Logger::instance().removeSink(Logger::SinkType::File);
-    
+
     // Clear log file
     QFile::remove(m_logFilePath);
-    
+
     Logger::instance().info("Another message");
     waitForLogFlush();
-    
+
     // File should not exist or be empty
-    QVERIFY(!QFile::exists(m_logFilePath) || !logFileContains("Another message"));
+    QVERIFY(!QFile::exists(m_logFilePath) ||
+            !logFileContains("Another message"));
 }
 
-void LoggingComprehensiveTest::testLoggerThreadSafety()
-{
+void LoggingComprehensiveTest::testLoggerThreadSafety() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.enableConsole = true;
     config.enableFile = true;
     config.logFileName = m_logFilePath;
-    
+
     Logger::instance().initialize(config);
-    
+
     // Create multiple threads that log concurrently
     QList<QThread*> threads;
     for (int i = 0; i < 10; ++i) {
         QThread* thread = QThread::create([i]() {
             for (int j = 0; j < 100; ++j) {
-                Logger::instance().info(QString("Thread %1 message %2").arg(i).arg(j));
+                Logger::instance().info(
+                    QString("Thread %1 message %2").arg(i).arg(j));
             }
         });
         threads.append(thread);
         thread->start();
     }
-    
+
     // Wait for all threads to complete
     for (QThread* thread : threads) {
         thread->wait();
         delete thread;
     }
-    
+
     waitForLogFlush();
-    
+
     // Verify that all messages were logged
     QVERIFY(logFileContains("Thread 0 message 0"));
     QVERIFY(logFileContains("Thread 9 message 99"));
@@ -233,30 +226,27 @@ void LoggingComprehensiveTest::testLoggerThreadSafety()
 // LoggingManager Tests
 // ============================================================================
 
-void LoggingComprehensiveTest::testLoggingManagerSingleton()
-{
+void LoggingComprehensiveTest::testLoggingManagerSingleton() {
     LoggingManager& manager1 = LoggingManager::instance();
     LoggingManager& manager2 = LoggingManager::instance();
-    
+
     QCOMPARE(&manager1, &manager2);
 }
 
-void LoggingComprehensiveTest::testLoggingManagerInitialization()
-{
+void LoggingComprehensiveTest::testLoggingManagerInitialization() {
     LoggingManager::LoggingConfiguration config;
     config.globalLogLevel = Logger::LogLevel::Debug;
     config.enableConsoleLogging = true;
     config.enableFileLogging = true;
     config.logDirectory = m_tempDir->path();
     config.logFileName = "test.log";
-    
+
     LoggingManager::instance().initialize(config);
-    
+
     QVERIFY(LoggingManager::instance().isInitialized());
 }
 
-void LoggingComprehensiveTest::testLoggingManagerAsyncLogging()
-{
+void LoggingComprehensiveTest::testLoggingManagerAsyncLogging() {
     LoggingManager::LoggingConfiguration config;
     config.globalLogLevel = Logger::LogLevel::Debug;
     config.enableConsoleLogging = true;
@@ -265,53 +255,54 @@ void LoggingComprehensiveTest::testLoggingManagerAsyncLogging()
     config.logFileName = "async_test.log";
     config.enableAsyncLogging = true;
     config.asyncQueueSize = 8192;
-    
+
     LoggingManager::instance().initialize(config);
-    
+
     QVERIFY(LoggingManager::instance().isInitialized());
-    
+
     // Log many messages quickly
     for (int i = 0; i < 1000; ++i) {
         LOG_INFO("Async message {}", i);
     }
-    
+
     LoggingManager::instance().flushLogs();
     waitForLogFlush();
-    
+
     QString asyncLogPath = m_tempDir->path() + "/async_test.log";
     QFile logFile(asyncLogPath);
     QVERIFY(logFile.exists());
 }
 
-void LoggingComprehensiveTest::testLoggingManagerCategoryManagement()
-{
+void LoggingComprehensiveTest::testLoggingManagerCategoryManagement() {
     LoggingManager::LoggingConfiguration config;
     config.globalLogLevel = Logger::LogLevel::Debug;
     config.enableConsoleLogging = true;
-    
+
     LoggingManager::instance().initialize(config);
-    
+
     // Add categories
     LoggingManager::instance().addLoggingCategory("TestCategory");
-    LoggingManager::instance().setLoggingCategoryLevel("TestCategory", Logger::LogLevel::Warning);
-    
-    QCOMPARE(LoggingManager::instance().getLoggingCategoryLevel("TestCategory"), Logger::LogLevel::Warning);
-    
+    LoggingManager::instance().setLoggingCategoryLevel(
+        "TestCategory", Logger::LogLevel::Warning);
+
+    QCOMPARE(LoggingManager::instance().getLoggingCategoryLevel("TestCategory"),
+             Logger::LogLevel::Warning);
+
     // Remove category
     LoggingManager::instance().removeLoggingCategory("TestCategory");
-    
-    QCOMPARE(LoggingManager::instance().getLoggingCategoryLevel("TestCategory"), Logger::LogLevel::Info);
+
+    QCOMPARE(LoggingManager::instance().getLoggingCategoryLevel("TestCategory"),
+             Logger::LogLevel::Info);
 }
 
-void LoggingComprehensiveTest::testLoggingManagerShutdown()
-{
+void LoggingComprehensiveTest::testLoggingManagerShutdown() {
     LoggingManager::LoggingConfiguration config;
     config.globalLogLevel = Logger::LogLevel::Debug;
     config.enableConsoleLogging = true;
-    
+
     LoggingManager::instance().initialize(config);
     QVERIFY(LoggingManager::instance().isInitialized());
-    
+
     LoggingManager::instance().shutdown();
     QVERIFY(!LoggingManager::instance().isInitialized());
 }
@@ -320,16 +311,14 @@ void LoggingComprehensiveTest::testLoggingManagerShutdown()
 // QtSpdlogBridge Tests
 // ============================================================================
 
-void LoggingComprehensiveTest::testQtSpdlogBridgeSingleton()
-{
+void LoggingComprehensiveTest::testQtSpdlogBridgeSingleton() {
     QtSpdlogBridge& bridge1 = QtSpdlogBridge::instance();
     QtSpdlogBridge& bridge2 = QtSpdlogBridge::instance();
 
     QCOMPARE(&bridge1, &bridge2);
 }
 
-void LoggingComprehensiveTest::testQtSpdlogBridgeMessageHandler()
-{
+void LoggingComprehensiveTest::testQtSpdlogBridgeMessageHandler() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.enableConsole = true;
@@ -356,8 +345,7 @@ void LoggingComprehensiveTest::testQtSpdlogBridgeMessageHandler()
     QVERIFY(!QtSpdlogBridge::instance().isMessageHandlerInstalled());
 }
 
-void LoggingComprehensiveTest::testQtSpdlogBridgeCategoryMapping()
-{
+void LoggingComprehensiveTest::testQtSpdlogBridgeCategoryMapping() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.enableConsole = true;
@@ -365,7 +353,8 @@ void LoggingComprehensiveTest::testQtSpdlogBridgeCategoryMapping()
     Logger::instance().initialize(config);
 
     QtSpdlogBridge::instance().initialize();
-    QtSpdlogBridge::instance().addCategoryMapping("test.category", "test_logger");
+    QtSpdlogBridge::instance().addCategoryMapping("test.category",
+                                                  "test_logger");
 
     // Category mapping is added successfully
     QVERIFY(true);
@@ -373,8 +362,7 @@ void LoggingComprehensiveTest::testQtSpdlogBridgeCategoryMapping()
     QtSpdlogBridge::instance().removeCategoryMapping("test.category");
 }
 
-void LoggingComprehensiveTest::testQtSpdlogBridgeThreadSafety()
-{
+void LoggingComprehensiveTest::testQtSpdlogBridgeThreadSafety() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.enableConsole = true;
@@ -388,7 +376,8 @@ void LoggingComprehensiveTest::testQtSpdlogBridgeThreadSafety()
         QThread* thread = QThread::create([i]() {
             for (int j = 0; j < 50; ++j) {
                 QString category = QString("category_%1_%2").arg(i).arg(j);
-                QtSpdlogBridge::instance().addCategoryMapping(category, category);
+                QtSpdlogBridge::instance().addCategoryMapping(category,
+                                                              category);
                 QtSpdlogBridge::instance().removeCategoryMapping(category);
             }
         });
@@ -408,8 +397,7 @@ void LoggingComprehensiveTest::testQtSpdlogBridgeThreadSafety()
 // LoggingConfig Tests
 // ============================================================================
 
-void LoggingComprehensiveTest::testLoggingConfigDefaults()
-{
+void LoggingComprehensiveTest::testLoggingConfigDefaults() {
     LoggingConfig config;
 
     auto globalConfig = config.getGlobalConfig();
@@ -417,8 +405,7 @@ void LoggingComprehensiveTest::testLoggingConfigDefaults()
     QVERIFY(!globalConfig.asyncLogging);
 }
 
-void LoggingComprehensiveTest::testLoggingConfigSerialization()
-{
+void LoggingComprehensiveTest::testLoggingConfigSerialization() {
     LoggingConfig config;
 
     LoggingConfig::GlobalConfiguration globalConfig;
@@ -441,8 +428,7 @@ void LoggingComprehensiveTest::testLoggingConfigSerialization()
     QVERIFY(loadedGlobalConfig.asyncLogging);
 }
 
-void LoggingComprehensiveTest::testLoggingConfigValidation()
-{
+void LoggingComprehensiveTest::testLoggingConfigValidation() {
     LoggingConfig config;
 
     LoggingConfig::SinkConfiguration sinkConfig;
@@ -458,8 +444,7 @@ void LoggingComprehensiveTest::testLoggingConfigValidation()
     QCOMPARE(config.getSinkConfigurations().size(), 1);
 }
 
-void LoggingComprehensiveTest::testLoggingConfigPresets()
-{
+void LoggingComprehensiveTest::testLoggingConfigPresets() {
     LoggingConfig devConfig;
     devConfig.loadDevelopmentPreset();
     QVERIFY(true);
@@ -477,8 +462,7 @@ void LoggingComprehensiveTest::testLoggingConfigPresets()
 // Macro Tests
 // ============================================================================
 
-void LoggingComprehensiveTest::testLoggingMacros()
-{
+void LoggingComprehensiveTest::testLoggingMacros() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Trace;
     config.enableConsole = true;
@@ -504,8 +488,7 @@ void LoggingComprehensiveTest::testLoggingMacros()
     QVERIFY(logFileContains("Critical macro test"));
 }
 
-void LoggingComprehensiveTest::testPerformanceLogger()
-{
+void LoggingComprehensiveTest::testPerformanceLogger() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.enableConsole = true;
@@ -516,7 +499,7 @@ void LoggingComprehensiveTest::testPerformanceLogger()
 
     {
         PerformanceLogger perfLogger("TestOperation");
-        QThread::msleep(10); // Simulate work
+        QThread::msleep(10);  // Simulate work
     }
 
     waitForLogFlush();
@@ -525,8 +508,7 @@ void LoggingComprehensiveTest::testPerformanceLogger()
     QVERIFY(logFileContains("TestOperation"));
 }
 
-void LoggingComprehensiveTest::testScopedLogLevel()
-{
+void LoggingComprehensiveTest::testScopedLogLevel() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Info;
     config.enableConsole = true;
@@ -551,8 +533,7 @@ void LoggingComprehensiveTest::testScopedLogLevel()
     QVERIFY(!logFileContains("Debug after scope"));
 }
 
-void LoggingComprehensiveTest::testMemoryLogger()
-{
+void LoggingComprehensiveTest::testMemoryLogger() {
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.enableConsole = true;
@@ -571,8 +552,7 @@ void LoggingComprehensiveTest::testMemoryLogger()
 // SimpleLogging Tests
 // ============================================================================
 
-void LoggingComprehensiveTest::testSimpleLoggingInterface()
-{
+void LoggingComprehensiveTest::testSimpleLoggingInterface() {
     SastLogging::Config config;
     config.level = SastLogging::Level::Debug;
     config.console = true;
@@ -594,8 +574,7 @@ void LoggingComprehensiveTest::testSimpleLoggingInterface()
     SastLogging::shutdown();
 }
 
-void LoggingComprehensiveTest::testSimpleLoggingCategoryLogger()
-{
+void LoggingComprehensiveTest::testSimpleLoggingCategoryLogger() {
     SastLogging::Config config;
     config.level = SastLogging::Level::Debug;
     config.console = true;
@@ -611,8 +590,7 @@ void LoggingComprehensiveTest::testSimpleLoggingCategoryLogger()
     QVERIFY(true);
 }
 
-void LoggingComprehensiveTest::testSimpleLoggingTimer()
-{
+void LoggingComprehensiveTest::testSimpleLoggingTimer() {
     SastLogging::Timer timer;
     QThread::msleep(10);
     auto elapsed = timer.elapsed();
@@ -624,8 +602,7 @@ void LoggingComprehensiveTest::testSimpleLoggingTimer()
 // Integration Tests
 // ============================================================================
 
-void LoggingComprehensiveTest::testEndToEndLogging()
-{
+void LoggingComprehensiveTest::testEndToEndLogging() {
     // Initialize with LoggingManager
     LoggingManager::LoggingConfiguration config;
     config.globalLogLevel = Logger::LogLevel::Debug;
@@ -652,8 +629,7 @@ void LoggingComprehensiveTest::testEndToEndLogging()
     LoggingManager::instance().shutdown();
 }
 
-void LoggingComprehensiveTest::testConfigurationPersistence()
-{
+void LoggingComprehensiveTest::testConfigurationPersistence() {
     LoggingConfig config;
 
     LoggingConfig::GlobalConfiguration globalConfig;
@@ -676,8 +652,7 @@ void LoggingComprehensiveTest::testConfigurationPersistence()
     QVERIFY(loadedGlobalConfig.asyncLogging);
 }
 
-void LoggingComprehensiveTest::testErrorRecovery()
-{
+void LoggingComprehensiveTest::testErrorRecovery() {
     // Test initialization with invalid configuration
     LoggingManager::LoggingConfiguration config;
     config.globalLogLevel = Logger::LogLevel::Debug;
@@ -701,14 +676,12 @@ void LoggingComprehensiveTest::testErrorRecovery()
 // Helper Methods
 // ============================================================================
 
-void LoggingComprehensiveTest::waitForLogFlush()
-{
+void LoggingComprehensiveTest::waitForLogFlush() {
     LoggingManager::instance().flushLogs();
-    QThread::msleep(100); // Give time for async operations
+    QThread::msleep(100);  // Give time for async operations
 }
 
-bool LoggingComprehensiveTest::logFileContains(const QString& text)
-{
+bool LoggingComprehensiveTest::logFileContains(const QString& text) {
     QFile logFile(m_logFilePath);
     if (!logFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         return false;
@@ -721,8 +694,7 @@ bool LoggingComprehensiveTest::logFileContains(const QString& text)
     return content.contains(text);
 }
 
-void LoggingComprehensiveTest::cleanupLogFiles()
-{
+void LoggingComprehensiveTest::cleanupLogFiles() {
     QFile::remove(m_logFilePath);
     QFile::remove(m_tempDir->path() + "/async_test.log");
     QFile::remove(m_tempDir->path() + "/simple_test.log");
@@ -731,4 +703,3 @@ void LoggingComprehensiveTest::cleanupLogFiles()
 
 QTEST_MAIN(LoggingComprehensiveTest)
 #include "logging_comprehensive_test.moc"
-

@@ -1,20 +1,24 @@
 #include "PageController.h"
-#include "model/PageModel.h"
-#include "../logging/LoggingMacros.h"
 #include <algorithm>
+#include "../logging/LoggingMacros.h"
+#include "model/PageModel.h"
 
 PageController::PageController(PageModel* model, QObject* parent)
-    : QObject(parent), _model(model), _isNavigating(false),
-      _currentZoomLevel(1.0), _currentRotation(0),
+    : QObject(parent),
+      _model(model),
+      _isNavigating(false),
+      _currentZoomLevel(1.0),
+      _currentRotation(0),
       _lastError(PageError::None) {
-
     if (_model) {
         // Connect to model signals
-        connect(_model, &PageModel::pageUpdate, this, &PageController::onModelPageUpdate);
+        connect(_model, &PageModel::pageUpdate, this,
+                &PageController::onModelPageUpdate);
     }
 
     clearError();
-    LOG_DEBUG("PageController: Initialized with model: {}", _model ? "valid" : "null");
+    LOG_DEBUG("PageController: Initialized with model: {}",
+              _model ? "valid" : "null");
 }
 
 // Basic navigation methods (maintained for compatibility)
@@ -62,7 +66,8 @@ void PageController::goToPage(int pageNumber) {
 
     int currentPage = _model->currentPage();
 
-    // Record current page in history before navigation (if not already navigating)
+    // Record current page in history before navigation (if not already
+    // navigating)
     if (!_isNavigating && currentPage != pageNumber) {
         recordPageInHistory(currentPage);
     }
@@ -169,13 +174,9 @@ void PageController::clearHistory() {
     LOG_DEBUG("PageController: History cleared");
 }
 
-bool PageController::canGoBack() const {
-    return !_backHistory.isEmpty();
-}
+bool PageController::canGoBack() const { return !_backHistory.isEmpty(); }
 
-bool PageController::canGoForward() const {
-    return !_forwardHistory.isEmpty();
-}
+bool PageController::canGoForward() const { return !_forwardHistory.isEmpty(); }
 
 QList<int> PageController::getNavigationHistory() const {
     QList<int> history;
@@ -203,7 +204,8 @@ QList<int> PageController::getNavigationHistory() const {
 }
 
 // Bookmark functionality
-void PageController::addBookmark(const QString& title, const QString& description) {
+void PageController::addBookmark(const QString& title,
+                                 const QString& description) {
     if (!_model) {
         setError(PageError::ModelNotSet, "No model has been loaded!");
         return;
@@ -213,14 +215,16 @@ void PageController::addBookmark(const QString& title, const QString& descriptio
     addBookmarkAtPage(currentPage, title, description);
 }
 
-void PageController::addBookmarkAtPage(int pageNumber, const QString& title, const QString& description) {
+void PageController::addBookmarkAtPage(int pageNumber, const QString& title,
+                                       const QString& description) {
     if (!validatePageNumber(pageNumber)) {
         return;
     }
 
     // Check if bookmark already exists at this page
     if (hasBookmarkAtPage(pageNumber)) {
-        setError(PageError::BookmarkNotFound, QString("Bookmark already exists at page %1").arg(pageNumber));
+        setError(PageError::BookmarkNotFound,
+                 QString("Bookmark already exists at page %1").arg(pageNumber));
         return;
     }
 
@@ -229,7 +233,8 @@ void PageController::addBookmarkAtPage(int pageNumber, const QString& title, con
         bookmarkTitle = QString("Page %1").arg(pageNumber);
     }
 
-    PageBookmark bookmark(pageNumber, bookmarkTitle, description, _currentZoomLevel, _currentRotation);
+    PageBookmark bookmark(pageNumber, bookmarkTitle, description,
+                          _currentZoomLevel, _currentRotation);
     _bookmarks.append(bookmark);
 
     // Sort bookmarks by page number
@@ -241,12 +246,14 @@ void PageController::addBookmarkAtPage(int pageNumber, const QString& title, con
     emit bookmarkAdded(pageNumber, bookmarkTitle);
     emit bookmarksChanged();
     clearError();
-    LOG_DEBUG("PageController: Added bookmark at page {} with title '{}'", pageNumber, bookmarkTitle.toStdString());
+    LOG_DEBUG("PageController: Added bookmark at page {} with title '{}'",
+              pageNumber, bookmarkTitle.toStdString());
 }
 
 void PageController::removeBookmark(int index) {
     if (index < 0 || index >= _bookmarks.size()) {
-        setError(PageError::BookmarkNotFound, QString("Invalid bookmark index: %1").arg(index));
+        setError(PageError::BookmarkNotFound,
+                 QString("Invalid bookmark index: %1").arg(index));
         return;
     }
 
@@ -256,7 +263,8 @@ void PageController::removeBookmark(int index) {
     emit bookmarkRemoved(pageNumber);
     emit bookmarksChanged();
     clearError();
-    LOG_DEBUG("PageController: Removed bookmark at index {} (page {})", index, pageNumber);
+    LOG_DEBUG("PageController: Removed bookmark at index {} (page {})", index,
+              pageNumber);
 }
 
 void PageController::removeBookmarkAtPage(int pageNumber) {
@@ -264,13 +272,15 @@ void PageController::removeBookmarkAtPage(int pageNumber) {
     if (index >= 0) {
         removeBookmark(index);
     } else {
-        setError(PageError::BookmarkNotFound, QString("No bookmark found at page %1").arg(pageNumber));
+        setError(PageError::BookmarkNotFound,
+                 QString("No bookmark found at page %1").arg(pageNumber));
     }
 }
 
 void PageController::goToBookmark(int index) {
     if (index < 0 || index >= _bookmarks.size()) {
-        setError(PageError::BookmarkNotFound, QString("Invalid bookmark index: %1").arg(index));
+        setError(PageError::BookmarkNotFound,
+                 QString("Invalid bookmark index: %1").arg(index));
         return;
     }
 
@@ -286,7 +296,8 @@ void PageController::goToBookmark(int index) {
     }
 
     clearError();
-    LOG_DEBUG("PageController: Navigated to bookmark at page {}", bookmark.pageNumber);
+    LOG_DEBUG("PageController: Navigated to bookmark at page {}",
+              bookmark.pageNumber);
 }
 
 void PageController::goToBookmarkAtPage(int pageNumber) {
@@ -294,17 +305,14 @@ void PageController::goToBookmarkAtPage(int pageNumber) {
     if (index >= 0) {
         goToBookmark(index);
     } else {
-        setError(PageError::BookmarkNotFound, QString("No bookmark found at page %1").arg(pageNumber));
+        setError(PageError::BookmarkNotFound,
+                 QString("No bookmark found at page %1").arg(pageNumber));
     }
 }
 
-QList<PageBookmark> PageController::getBookmarks() const {
-    return _bookmarks;
-}
+QList<PageBookmark> PageController::getBookmarks() const { return _bookmarks; }
 
-int PageController::getBookmarkCount() const {
-    return _bookmarks.size();
-}
+int PageController::getBookmarkCount() const { return _bookmarks.size(); }
 
 bool PageController::hasBookmarkAtPage(int pageNumber) const {
     return findBookmarkIndex(pageNumber) >= 0;
@@ -313,7 +321,8 @@ bool PageController::hasBookmarkAtPage(int pageNumber) const {
 // Zoom and rotation control
 void PageController::setZoomLevel(double zoomLevel) {
     if (zoomLevel <= 0) {
-        setError(PageError::InvalidPageNumber, QString("Invalid zoom level: %1").arg(zoomLevel));
+        setError(PageError::InvalidPageNumber,
+                 QString("Invalid zoom level: %1").arg(zoomLevel));
         return;
     }
 
@@ -321,7 +330,8 @@ void PageController::setZoomLevel(double zoomLevel) {
         _currentZoomLevel = zoomLevel;
         emit zoomChanged(_currentZoomLevel);
         clearError();
-        LOG_DEBUG("PageController: Zoom level changed to {}", _currentZoomLevel);
+        LOG_DEBUG("PageController: Zoom level changed to {}",
+                  _currentZoomLevel);
     }
 }
 
@@ -333,7 +343,8 @@ void PageController::setRotation(int degrees) {
         _currentRotation = degrees;
         emit rotationChanged(_currentRotation);
         clearError();
-        LOG_DEBUG("PageController: Rotation changed to {} degrees", _currentRotation);
+        LOG_DEBUG("PageController: Rotation changed to {} degrees",
+                  _currentRotation);
     }
 }
 
@@ -343,18 +354,12 @@ void PageController::resetView() {
     LOG_DEBUG("PageController: View reset to default zoom and rotation");
 }
 
-double PageController::getCurrentZoomLevel() const {
-    return _currentZoomLevel;
-}
+double PageController::getCurrentZoomLevel() const { return _currentZoomLevel; }
 
-int PageController::getCurrentRotation() const {
-    return _currentRotation;
-}
+int PageController::getCurrentRotation() const { return _currentRotation; }
 
 // Error handling
-PageError PageController::getLastError() const {
-    return _lastError;
-}
+PageError PageController::getLastError() const { return _lastError; }
 
 QString PageController::getLastErrorMessage() const {
     return _lastErrorMessage;
@@ -364,14 +369,16 @@ QString PageController::getLastErrorMessage() const {
 void PageController::setModel(PageModel* model) {
     if (_model) {
         // Disconnect from old model
-        disconnect(_model, &PageModel::pageUpdate, this, &PageController::onModelPageUpdate);
+        disconnect(_model, &PageModel::pageUpdate, this,
+                   &PageController::onModelPageUpdate);
     }
 
     _model = model;
 
     if (_model) {
         // Connect to new model
-        connect(_model, &PageModel::pageUpdate, this, &PageController::onModelPageUpdate);
+        connect(_model, &PageModel::pageUpdate, this,
+                &PageController::onModelPageUpdate);
     }
 
     // Clear history and bookmarks when model changes
@@ -383,9 +390,7 @@ void PageController::setModel(PageModel* model) {
     LOG_DEBUG("PageController: Model changed to {}", _model ? "valid" : "null");
 }
 
-PageModel* PageController::getModel() const {
-    return _model;
-}
+PageModel* PageController::getModel() const { return _model; }
 
 // Helper methods
 void PageController::recordPageInHistory(int pageNumber) {
@@ -413,16 +418,15 @@ void PageController::recordPageInHistory(int pageNumber) {
     }
 }
 
-void PageController::clearForwardHistory() {
-    _forwardHistory.clear();
-}
+void PageController::clearForwardHistory() { _forwardHistory.clear(); }
 
 void PageController::setError(PageError error, const QString& message) const {
     _lastError = error;
     _lastErrorMessage = message;
 
     if (error != PageError::None) {
-        LOG_WARNING("PageController: Error occurred - {}", message.toStdString());
+        LOG_WARNING("PageController: Error occurred - {}",
+                    message.toStdString());
         emit const_cast<PageController*>(this)->errorOccurred(error, message);
     }
 }
@@ -440,13 +444,16 @@ bool PageController::validatePageNumber(int pageNumber) const {
 
     int totalPages = _model->totalPages();
     if (totalPages <= 0) {
-        setError(PageError::DocumentNotLoaded, "No document loaded or document is empty");
+        setError(PageError::DocumentNotLoaded,
+                 "No document loaded or document is empty");
         return false;
     }
 
     if (pageNumber < 1 || pageNumber > totalPages) {
         setError(PageError::InvalidPageNumber,
-                QString("Page number %1 is out of range (1-%2)").arg(pageNumber).arg(totalPages));
+                 QString("Page number %1 is out of range (1-%2)")
+                     .arg(pageNumber)
+                     .arg(totalPages));
         return false;
     }
 

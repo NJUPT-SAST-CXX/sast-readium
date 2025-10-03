@@ -21,7 +21,7 @@ Options:
 
 This function handles:
 - vcpkg vs system package detection
-- MSYS2 environment configuration  
+- MSYS2 environment configuration
 - Qt6 component finding
 - spdlog and poppler-qt6 setup
 - Caching to avoid redundant find_package calls
@@ -178,7 +178,7 @@ function(_find_logging_dependencies)
     else()
         find_package(spdlog REQUIRED)
     endif()
-    
+
     message(STATUS "spdlog found")
 endfunction()
 
@@ -249,12 +249,12 @@ Returns a list of test library targets in output_var.
 #]=======================================================================]
 function(get_test_libraries output_var)
     get_common_libraries(common_libs)
-    
+
     set(test_libs
         ${common_libs}
         Qt6::Test
         Qt6::Network
     )
-    
+
     set(${output_var} ${test_libs} PARENT_SCOPE)
 endfunction()

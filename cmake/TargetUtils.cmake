@@ -27,23 +27,23 @@ This function discovers sources in standard application components:
 #]=======================================================================]
 function(discover_app_sources output_var)
     cmake_parse_arguments(APP "" "BASE_DIR" "" ${ARGN})
-    
+
     set(base_dir ${APP_BASE_DIR})
     if(NOT base_dir)
         set(base_dir ${CMAKE_CURRENT_SOURCE_DIR})
     endif()
-    
+
     message(STATUS "Discovering application sources in: ${base_dir}")
-    
+
     # Define standard application components
     set(app_components
         ui/core ui/viewer ui/widgets ui/dialogs ui/thumbnail ui/managers
         managers model controller delegate view cache utils
         plugin factory command search logging
     )
-    
+
     set(discovered_sources)
-    
+
     # Discover sources in each component
     foreach(component ${app_components})
         set(component_dir "${base_dir}/${component}")
@@ -53,12 +53,12 @@ function(discover_app_sources output_var)
                 "${component_dir}/*.cc"
                 "${component_dir}/*.cxx"
             )
-            
+
             # Exclude test files
             list(FILTER component_sources EXCLUDE REGEX ".*_test\\.(cpp|cc|cxx)$")
             list(FILTER component_sources EXCLUDE REGEX ".*Test\\.(cpp|cc|cxx)$")
             list(FILTER component_sources EXCLUDE REGEX "^test_.*\\.(cpp|cc|cxx)$")
-            
+
             if(component_sources)
                 list(APPEND discovered_sources ${component_sources})
                 list(LENGTH component_sources source_count)
@@ -66,7 +66,7 @@ function(discover_app_sources output_var)
             endif()
         endif()
     endforeach()
-    
+
     # Also include main source files in base directory
     file(GLOB base_sources
         "${base_dir}/*.cpp"
@@ -76,16 +76,16 @@ function(discover_app_sources output_var)
     list(FILTER base_sources EXCLUDE REGEX ".*_test\\.(cpp|cc|cxx)$")
     list(FILTER base_sources EXCLUDE REGEX ".*Test\\.(cpp|cc|cxx)$")
     list(FILTER base_sources EXCLUDE REGEX "^test_.*\\.(cpp|cc|cxx)$")
-    
+
     if(base_sources)
         list(APPEND discovered_sources ${base_sources})
         list(LENGTH base_sources source_count)
         message(STATUS "  Found ${source_count} sources in base directory")
     endif()
-    
+
     list(LENGTH discovered_sources total_count)
     message(STATUS "Total application sources discovered: ${total_count}")
-    
+
     set(${output_var} ${discovered_sources} PARENT_SCOPE)
 endfunction()
 
@@ -110,7 +110,7 @@ Arguments:
 #]=======================================================================]
 function(validate_discovered_sources source_list)
     cmake_parse_arguments(VALIDATE "" "" "REQUIRED_FILES;REQUIRED_PATTERNS" ${ARGN})
-    
+
     # Check required files
     if(VALIDATE_REQUIRED_FILES)
         foreach(required_file ${VALIDATE_REQUIRED_FILES})
@@ -122,13 +122,13 @@ function(validate_discovered_sources source_list)
                     break()
                 endif()
             endforeach()
-            
+
             if(NOT found)
                 message(FATAL_ERROR "Required source file not found: ${required_file}")
             endif()
         endforeach()
     endif()
-    
+
     # Check required patterns
     if(VALIDATE_REQUIRED_PATTERNS)
         foreach(pattern ${VALIDATE_REQUIRED_PATTERNS})
@@ -139,13 +139,13 @@ function(validate_discovered_sources source_list)
                     break()
                 endif()
             endforeach()
-            
+
             if(NOT found)
                 message(FATAL_ERROR "No source file matches required pattern: ${pattern}")
             endif()
         endforeach()
     endif()
-    
+
     message(STATUS "Source validation passed")
 endfunction()
 
@@ -178,18 +178,18 @@ Arguments:
 #]=======================================================================]
 function(setup_target target_name)
     cmake_parse_arguments(TARGET "" "TYPE;CXX_STANDARD" "SOURCES;INCLUDE_DIRS;LINK_LIBRARIES;COMPILE_DEFINITIONS" ${ARGN})
-    
+
     # Set defaults
     if(NOT TARGET_TYPE)
         set(TARGET_TYPE EXECUTABLE)
     endif()
-    
+
     if(NOT TARGET_CXX_STANDARD)
         set(TARGET_CXX_STANDARD 20)
     endif()
-    
+
     message(STATUS "Setting up target: ${target_name} (${TARGET_TYPE})")
-    
+
     # Create target
     if(TARGET_TYPE STREQUAL "EXECUTABLE")
         add_executable(${target_name} ${TARGET_SOURCES})
@@ -198,33 +198,33 @@ function(setup_target target_name)
     else()
         message(FATAL_ERROR "Unknown target type: ${TARGET_TYPE}")
     endif()
-    
+
     # Set C++ standard
     set_target_properties(${target_name} PROPERTIES
         CXX_STANDARD ${TARGET_CXX_STANDARD}
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
     )
-    
+
     # Add include directories
     if(TARGET_INCLUDE_DIRS)
         target_include_directories(${target_name} PRIVATE ${TARGET_INCLUDE_DIRS})
     endif()
-    
+
     # Link libraries
     if(TARGET_LINK_LIBRARIES)
         target_link_libraries(${target_name} PRIVATE ${TARGET_LINK_LIBRARIES})
     endif()
-    
+
     # Add compile definitions
     if(TARGET_COMPILE_DEFINITIONS)
         target_compile_definitions(${target_name} PRIVATE ${TARGET_COMPILE_DEFINITIONS})
     endif()
-    
+
     # Get common libraries and link them
     get_common_libraries(common_libs)
     target_link_libraries(${target_name} PRIVATE ${common_libs})
-    
+
     message(STATUS "Target ${target_name} configured successfully")
 endfunction()
 
@@ -283,23 +283,23 @@ Arguments:
 #]=======================================================================]
 function(create_test_target test_name)
     cmake_parse_arguments(TEST "" "WORKING_DIRECTORY;TIMEOUT" "SOURCES;LINK_LIBRARIES" ${ARGN})
-    
+
     if(NOT BUILD_TESTING)
         return()
     endif()
-    
+
     message(STATUS "Creating test target: ${test_name}")
-    
+
     # Create test executable
     add_executable(${test_name} ${TEST_SOURCES})
-    
+
     # Set C++ standard
     set_target_properties(${test_name} PROPERTIES
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
     )
-    
+
     # Add include directories for tests to access app sources
     target_include_directories(${test_name} PRIVATE
         ${CMAKE_SOURCE_DIR}/app
@@ -324,30 +324,30 @@ function(create_test_target test_name)
     if(TEST_LINK_LIBRARIES)
         target_link_libraries(${test_name} PRIVATE ${TEST_LINK_LIBRARIES})
     endif()
-    
+
     # Add test to CTest
     add_test(NAME ${test_name} COMMAND ${test_name})
-    
+
     # Set test properties
     set(test_properties)
-    
+
     # Working directory
     if(TEST_WORKING_DIRECTORY)
         list(APPEND test_properties WORKING_DIRECTORY "${TEST_WORKING_DIRECTORY}")
     endif()
-    
+
     # Timeout
     set(timeout ${TEST_TIMEOUT})
     if(NOT timeout)
         set(timeout 30)
     endif()
     list(APPEND test_properties TIMEOUT ${timeout})
-    
+
     # Environment variables for headless testing
     list(APPEND test_properties ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-    
+
     # Apply properties
     set_tests_properties(${test_name} PROPERTIES ${test_properties})
-    
+
     message(STATUS "Test ${test_name} registered with CTest")
 endfunction()

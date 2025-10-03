@@ -63,7 +63,7 @@ CheckOptions:
   modernize-use-auto.MinTypeNameLength: '5'
   modernize-use-auto.RemoveStars: 'false'
   modernize-use-nullptr.NullMacros: 'NULL'
-  
+
   # Readability options
   readability-braces-around-statements.ShortStatementLines: '1'
   readability-function-size.LineThreshold: '80'
@@ -87,14 +87,14 @@ CheckOptions:
   readability-identifier-naming.PublicMemberCase: camelBack
   readability-simplify-boolean-expr.ChainedConditionalReturn: 'true'
   readability-simplify-boolean-expr.ChainedConditionalAssignment: 'true'
-  
+
   # Performance options
   performance-for-range-copy.WarnOnAllAutoCopies: 'true'
   performance-inefficient-vector-operation.EnableProto: 'false'
   performance-move-const-arg.CheckTriviallyCopyableMove: 'true'
   performance-type-promotion-in-math-fn.IncludeStyle: llvm
   performance-unnecessary-value-param.IncludeStyle: llvm
-  
+
   # Bugprone options
   bugprone-argument-comment.StrictMode: 'false'
   bugprone-assert-side-effect.AssertMacros: 'assert,Q_ASSERT'
@@ -114,18 +114,18 @@ CheckOptions:
   bugprone-suspicious-string-compare.WarnOnLogicalNotComparison: 'true'
   bugprone-swapped-arguments.QualifiersShouldBeIgnored: 'true'
   bugprone-too-small-loop-variable.MagnitudeBitsUpperLimit: '16'
-  
+
   # Misc options
   misc-definitions-in-headers.UseHeaderFileExtension: 'true'
   misc-definitions-in-headers.HeaderFileExtensions: 'h,hh,hpp,hxx'
   misc-throw-by-value-catch-by-reference.CheckThrowTemporaries: 'true'
   misc-uniqueptr-reset-release.IncludeStyle: llvm
   misc-unused-parameters.StrictMode: 'false'
-  
+
   # Cert options
   cert-dcl16-c.NewSuffixes: 'L;LL;LU;LLU'
   cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField: 'false'
-  
+
   # Core Guidelines options
   cppcoreguidelines-explicit-virtual-functions.IgnoreDestructors: 'true'
   cppcoreguidelines-macro-usage.AllowedRegexp: '^Q_.*'
@@ -135,7 +135,7 @@ CheckOptions:
   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: 'true'
   cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions: 'false'
   cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted: 'true'
-  
+
   # Google options
   google-readability-braces-around-statements.ShortStatementLines: '1'
   google-readability-function-size.StatementThreshold: '800'

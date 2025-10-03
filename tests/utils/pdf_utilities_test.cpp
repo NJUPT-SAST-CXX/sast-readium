@@ -1,15 +1,15 @@
-#include "../TestUtilities.h"
-#include "../../app/utils/PDFUtilities.h"
-#include <QTest>
-#include <QSignalSpy>
-#include <QTemporaryFile>
+#include <poppler-qt6.h>
+#include <QDir>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJsonArray>
 #include <QPixmap>
-#include <QDir>
+#include <QSignalSpy>
 #include <QStandardPaths>
-#include <poppler-qt6.h>
+#include <QTemporaryFile>
+#include <QTest>
+#include "../../app/utils/PDFUtilities.h"
+#include "../TestUtilities.h"
 
 class PDFUtilitiesTest : public TestBase {
     Q_OBJECT
@@ -124,7 +124,7 @@ private slots:
 private:
     QString m_testDataDir;
     QStringList m_testPdfFiles;
-    
+
     // Helper methods
     QString createTestPdf(const QString& content = "Test PDF Content");
     Poppler::Document* openTestDocument(const QString& filePath);
@@ -136,7 +136,9 @@ private:
 
 void PDFUtilitiesTest::initTestCase() {
     // Setup test environment
-    m_testDataDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/PDFUtilitiesTest";
+    m_testDataDir =
+        QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
+        "/PDFUtilitiesTest";
     QDir().mkpath(m_testDataDir);
 }
 
@@ -157,14 +159,14 @@ void PDFUtilitiesTest::cleanup() {
 void PDFUtilitiesTest::testAnalyzeDocument() {
     QString testFile = createTestPdf("Sample PDF content for analysis");
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document) {
         QJsonObject analysis = PDFUtilities::analyzeDocument(document.get());
-        
+
         QVERIFY(isValidJsonObject(analysis));
         QVERIFY(analysis.contains("pageCount"));
         QVERIFY(analysis["pageCount"].toInt() > 0);
-        
+
         // Check for basic document properties
         QVERIFY(analysis.contains("title"));
         QVERIFY(analysis.contains("author"));
@@ -177,19 +179,20 @@ void PDFUtilitiesTest::testAnalyzeDocument() {
 
 void PDFUtilitiesTest::testAnalyzeDocumentWithNull() {
     QJsonObject analysis = PDFUtilities::analyzeDocument(nullptr);
-    
+
     QVERIFY(isValidJsonObject(analysis));
     QVERIFY(analysis.contains("error"));
     QCOMPARE(analysis["error"].toString(), "Invalid document");
 }
 
 void PDFUtilitiesTest::testExtractAllText() {
-    QString testFile = createTestPdf("This is test content for text extraction");
+    QString testFile =
+        createTestPdf("This is test content for text extraction");
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document) {
         QStringList allText = PDFUtilities::extractAllText(document.get());
-        
+
         QVERIFY(!allText.isEmpty());
         // Should have at least one page of text
         QVERIFY(allText.size() >= 1);
@@ -201,10 +204,10 @@ void PDFUtilitiesTest::testExtractAllText() {
 void PDFUtilitiesTest::testExtractAllImages() {
     QString testFile = createTestPdf();
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document) {
         QList<QPixmap> images = PDFUtilities::extractAllImages(document.get());
-        
+
         // Even if no images, should return valid list
         QVERIFY(images.size() >= 0);
     } else {
@@ -215,10 +218,11 @@ void PDFUtilitiesTest::testExtractAllImages() {
 void PDFUtilitiesTest::testExtractDocumentStructure() {
     QString testFile = createTestPdf();
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document) {
-        QJsonArray structure = PDFUtilities::extractDocumentStructure(document.get());
-        
+        QJsonArray structure =
+            PDFUtilities::extractDocumentStructure(document.get());
+
         QVERIFY(isValidJsonArray(structure));
         // Should have at least basic structure information
         QVERIFY(structure.size() >= 0);
@@ -230,12 +234,12 @@ void PDFUtilitiesTest::testExtractDocumentStructure() {
 void PDFUtilitiesTest::testAnalyzePage() {
     QString testFile = createTestPdf("Page content for analysis");
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document && document->numPages() > 0) {
         std::unique_ptr<Poppler::Page> page(document->page(0));
         if (page) {
             QJsonObject analysis = PDFUtilities::analyzePage(page.get(), 0);
-            
+
             QVERIFY(isValidJsonObject(analysis));
             QVERIFY(analysis.contains("pageNumber"));
             QCOMPARE(analysis["pageNumber"].toInt(), 0);
@@ -247,7 +251,7 @@ void PDFUtilitiesTest::testAnalyzePage() {
 
 void PDFUtilitiesTest::testAnalyzePageWithNull() {
     QJsonObject analysis = PDFUtilities::analyzePage(nullptr, 0);
-    
+
     QVERIFY(isValidJsonObject(analysis));
     QVERIFY(analysis.contains("error") || analysis.isEmpty());
 }
@@ -255,12 +259,12 @@ void PDFUtilitiesTest::testAnalyzePageWithNull() {
 void PDFUtilitiesTest::testExtractPageText() {
     QString testFile = createTestPdf("Test page text content");
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document && document->numPages() > 0) {
         std::unique_ptr<Poppler::Page> page(document->page(0));
         if (page) {
             QString text = PDFUtilities::extractPageText(page.get());
-            
+
             // Should return some text (even if empty)
             QVERIFY(text.length() >= 0);
         }
@@ -272,12 +276,12 @@ void PDFUtilitiesTest::testExtractPageText() {
 void PDFUtilitiesTest::testExtractPageImages() {
     QString testFile = createTestPdf();
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document && document->numPages() > 0) {
         std::unique_ptr<Poppler::Page> page(document->page(0));
         if (page) {
             QList<QPixmap> images = PDFUtilities::extractPageImages(page.get());
-            
+
             // Should return valid list (even if empty)
             QVERIFY(images.size() >= 0);
         }
@@ -289,12 +293,13 @@ void PDFUtilitiesTest::testExtractPageImages() {
 void PDFUtilitiesTest::testFindTextBounds() {
     QString testFile = createTestPdf("Find this text in the document");
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document && document->numPages() > 0) {
         std::unique_ptr<Poppler::Page> page(document->page(0));
         if (page) {
-            QList<QRectF> bounds = PDFUtilities::findTextBounds(page.get(), "text");
-            
+            QList<QRectF> bounds =
+                PDFUtilities::findTextBounds(page.get(), "text");
+
             // Should return valid list
             QVERIFY(bounds.size() >= 0);
         }
@@ -306,12 +311,12 @@ void PDFUtilitiesTest::testFindTextBounds() {
 void PDFUtilitiesTest::testGetPageSize() {
     QString testFile = createTestPdf();
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document && document->numPages() > 0) {
         std::unique_ptr<Poppler::Page> page(document->page(0));
         if (page) {
             QSizeF size = PDFUtilities::getPageSize(page.get());
-            
+
             QVERIFY(size.width() > 0);
             QVERIFY(size.height() > 0);
         }
@@ -323,12 +328,12 @@ void PDFUtilitiesTest::testGetPageSize() {
 void PDFUtilitiesTest::testGetPageRotation() {
     QString testFile = createTestPdf();
     std::unique_ptr<Poppler::Document> document(openTestDocument(testFile));
-    
+
     if (document && document->numPages() > 0) {
         std::unique_ptr<Poppler::Page> page(document->page(0));
         if (page) {
             double rotation = PDFUtilities::getPageRotation(page.get());
-            
+
             // Rotation should be a valid angle (0, 90, 180, 270)
             QVERIFY(rotation >= 0 && rotation < 360);
         }
@@ -339,30 +344,34 @@ void PDFUtilitiesTest::testGetPageRotation() {
 
 // Helper method implementations
 QString PDFUtilitiesTest::createTestPdf(const QString& content) {
-    QString fileName = m_testDataDir + QString("/test_%1.pdf").arg(QRandomGenerator::global()->generate());
-    
+    QString fileName =
+        m_testDataDir +
+        QString("/test_%1.pdf").arg(QRandomGenerator::global()->generate());
+
     // Create a minimal PDF file for testing
     QFile file(fileName);
     if (file.open(QIODevice::WriteOnly)) {
         QTextStream stream(&file);
         stream << "%PDF-1.4\n";
         stream << "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n";
-        stream << "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n";
-        stream << "3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>\nendobj\n";
+        stream
+            << "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n";
+        stream << "3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R "
+                  ">>\nendobj\n";
         stream << "4 0 obj\n<< /Length " << content.length() << " >>\nstream\n";
         stream << content << "\nendstream\nendobj\n";
         stream << "xref\n0 5\n0000000000 65535 f\n";
         stream << "trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n%%EOF\n";
         file.close();
     }
-    
+
     m_testPdfFiles.append(fileName);
     return fileName;
 }
 
 Poppler::Document* PDFUtilitiesTest::openTestDocument(const QString& filePath) {
     auto doc = Poppler::Document::load(filePath);
-    return doc.release(); // Release ownership to return raw pointer
+    return doc.release();  // Release ownership to return raw pointer
 }
 
 QPixmap PDFUtilitiesTest::createTestImage(int width, int height) {
@@ -378,11 +387,12 @@ void PDFUtilitiesTest::cleanupTestFiles(const QStringList& files) {
 }
 
 bool PDFUtilitiesTest::isValidJsonObject(const QJsonObject& obj) {
-    return !obj.isEmpty() || obj.keys().isEmpty(); // Empty object is also valid
+    return !obj.isEmpty() ||
+           obj.keys().isEmpty();  // Empty object is also valid
 }
 
 bool PDFUtilitiesTest::isValidJsonArray(const QJsonArray& arr) {
-    return arr.size() >= 0; // Any size is valid for arrays
+    return arr.size() >= 0;  // Any size is valid for arrays
 }
 
 void PDFUtilitiesTest::testCountWords() {
@@ -402,7 +412,8 @@ void PDFUtilitiesTest::testCountWords() {
 }
 
 void PDFUtilitiesTest::testCountSentences() {
-    QString text = "This is sentence one. This is sentence two! Is this sentence three?";
+    QString text =
+        "This is sentence one. This is sentence two! Is this sentence three?";
     int sentenceCount = PDFUtilities::countSentences(text);
 
     QCOMPARE(sentenceCount, 3);
@@ -418,7 +429,7 @@ void PDFUtilitiesTest::testCountParagraphs() {
     QString text = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.";
     int paragraphCount = PDFUtilities::countParagraphs(text);
 
-    QVERIFY(paragraphCount >= 1); // At least one paragraph
+    QVERIFY(paragraphCount >= 1);  // At least one paragraph
 
     // Test empty text
     QCOMPARE(PDFUtilities::countParagraphs(""), 0);
@@ -428,7 +439,8 @@ void PDFUtilitiesTest::testCountParagraphs() {
 }
 
 void PDFUtilitiesTest::testExtractKeywords() {
-    QString text = "This is a test document about PDF processing and text analysis.";
+    QString text =
+        "This is a test document about PDF processing and text analysis.";
     QStringList keywords = PDFUtilities::extractKeywords(text, 5);
 
     QVERIFY(keywords.size() <= 5);
@@ -440,22 +452,27 @@ void PDFUtilitiesTest::testExtractKeywords() {
 }
 
 void PDFUtilitiesTest::testCalculateReadingTime() {
-    QString text = "This is a test text with exactly twenty words for testing reading time calculation functionality properly.";
-    double readingTime = PDFUtilities::calculateReadingTime(text, 200); // 200 words per minute
+    QString text =
+        "This is a test text with exactly twenty words for testing reading "
+        "time calculation functionality properly.";
+    double readingTime =
+        PDFUtilities::calculateReadingTime(text, 200);  // 200 words per minute
 
     QVERIFY(readingTime > 0);
-    QVERIFY(readingTime < 1); // Should be less than 1 minute for 20 words
+    QVERIFY(readingTime < 1);  // Should be less than 1 minute for 20 words
 
     // Test with empty text
     QCOMPARE(PDFUtilities::calculateReadingTime("", 200), 0.0);
 }
 
 void PDFUtilitiesTest::testDetectLanguage() {
-    QString englishText = "This is an English text sample for language detection testing.";
+    QString englishText =
+        "This is an English text sample for language detection testing.";
     QString language = PDFUtilities::detectLanguage(englishText);
 
     QVERIFY(!language.isEmpty());
-    // Language detection might return various formats, just check it's not empty
+    // Language detection might return various formats, just check it's not
+    // empty
 
     // Test with empty text
     QString emptyLanguage = PDFUtilities::detectLanguage("");
@@ -482,11 +499,11 @@ void PDFUtilitiesTest::testIsImageDuplicate() {
 
     // Same size images might be considered similar
     bool similar = PDFUtilities::isImageDuplicate(image1, image2, 0.95);
-    QVERIFY(similar == true || similar == false); // Valid boolean result
+    QVERIFY(similar == true || similar == false);  // Valid boolean result
 
     // Different size images should be different
     bool different = PDFUtilities::isImageDuplicate(image1, image3, 0.95);
-    QVERIFY(different == true || different == false); // Valid boolean result
+    QVERIFY(different == true || different == false);  // Valid boolean result
 
     // Image compared with itself should be identical
     bool identical = PDFUtilities::isImageDuplicate(image1, image1, 0.95);
@@ -497,7 +514,8 @@ void PDFUtilitiesTest::testResizeImage() {
     QPixmap originalImage = createTestImage(200, 150);
     QSize targetSize(100, 75);
 
-    QPixmap resizedImage = PDFUtilities::resizeImage(originalImage, targetSize, true);
+    QPixmap resizedImage =
+        PDFUtilities::resizeImage(originalImage, targetSize, true);
 
     QVERIFY(!resizedImage.isNull());
     // With aspect ratio maintained, one dimension should match exactly
@@ -505,7 +523,8 @@ void PDFUtilitiesTest::testResizeImage() {
     QVERIFY(resizedImage.height() <= targetSize.height());
 
     // Test without maintaining aspect ratio
-    QPixmap resizedExact = PDFUtilities::resizeImage(originalImage, targetSize, false);
+    QPixmap resizedExact =
+        PDFUtilities::resizeImage(originalImage, targetSize, false);
     QCOMPARE(resizedExact.size(), targetSize);
 }
 
@@ -538,8 +557,9 @@ void PDFUtilitiesTest::testCalculateImageSimilarity() {
     QVERIFY(similarity2 >= 0.0 && similarity2 <= 1.0);
 
     // Image compared with itself should have high similarity
-    double selfSimilarity = PDFUtilities::calculateImageSimilarity(image1, image1);
-    QVERIFY(selfSimilarity >= 0.9); // Should be very similar to itself
+    double selfSimilarity =
+        PDFUtilities::calculateImageSimilarity(image1, image1);
+    QVERIFY(selfSimilarity >= 0.9);  // Should be very similar to itself
 }
 
 void PDFUtilitiesTest::testCalculateDocumentSimilarity() {
@@ -550,7 +570,8 @@ void PDFUtilitiesTest::testCalculateDocumentSimilarity() {
     std::unique_ptr<Poppler::Document> doc2(openTestDocument(file2));
 
     if (doc1 && doc2) {
-        double similarity = PDFUtilities::calculateDocumentSimilarity(doc1.get(), doc2.get());
+        double similarity =
+            PDFUtilities::calculateDocumentSimilarity(doc1.get(), doc2.get());
 
         QVERIFY(similarity >= 0.0 && similarity <= 1.0);
     } else {
@@ -566,7 +587,8 @@ void PDFUtilitiesTest::testCompareDocumentMetadata() {
     std::unique_ptr<Poppler::Document> doc2(openTestDocument(file2));
 
     if (doc1 && doc2) {
-        QJsonObject comparison = PDFUtilities::compareDocumentMetadata(doc1.get(), doc2.get());
+        QJsonObject comparison =
+            PDFUtilities::compareDocumentMetadata(doc1.get(), doc2.get());
 
         QVERIFY(isValidJsonObject(comparison));
         // Should contain comparison information
@@ -584,7 +606,8 @@ void PDFUtilitiesTest::testFindCommonPages() {
     std::unique_ptr<Poppler::Document> doc2(openTestDocument(file2));
 
     if (doc1 && doc2) {
-        QStringList commonPages = PDFUtilities::findCommonPages(doc1.get(), doc2.get(), 0.8);
+        QStringList commonPages =
+            PDFUtilities::findCommonPages(doc1.get(), doc2.get(), 0.8);
 
         QVERIFY(commonPages.size() >= 0);
     } else {

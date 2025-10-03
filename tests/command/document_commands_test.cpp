@@ -1,5 +1,5 @@
-#include <QTest>
 #include <QSignalSpy>
+#include <QTest>
 #include <memory>
 #include "../TestUtilities.h"
 

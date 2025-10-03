@@ -1,21 +1,21 @@
-#include <QtTest/QtTest>
+#include <poppler-qt6.h>
 #include <QApplication>
-#include <QElapsedTimer>
-#include <QProcess>
-#include <QStandardPaths>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QFont>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QPdfWriter>
-#include <QPainter>
-#include <QFont>
 #include <QPageSize>
-#include <poppler-qt6.h>
+#include <QPainter>
+#include <QPdfWriter>
+#include <QProcess>
+#include <QStandardPaths>
+#include <QtTest/QtTest>
 #include "../../app/ui/viewer/PDFViewer.h"
 
 #ifdef Q_OS_WIN
-#include <windows.h>
 #include <psapi.h>
+#include <windows.h>
 #elif defined(Q_OS_LINUX)
 #include <unistd.h>
 #include <fstream>
@@ -23,14 +23,13 @@
 #include <mach/mach.h>
 #endif
 
-class TestRenderingPerformance : public QObject
-{
+class TestRenderingPerformance : public QObject {
     Q_OBJECT
 
 private slots:
     void initTestCase();
     void cleanupTestCase();
-    
+
     // Performance tests
     void testRenderingSpeed();
     void testMemoryUsage();
@@ -57,48 +56,50 @@ private:
         int operationsPerSecond;
         QString mode;
     };
-    
+
     Poppler::Document* createLargeTestDocument();
     size_t getCurrentMemoryUsage();
     PerformanceMetrics measureRenderingPerformance(bool useQGraphics);
     PerformanceMetrics measureZoomPerformance(bool useQGraphics);
     PerformanceMetrics measureNavigationPerformance(bool useQGraphics);
     void saveMetricsToFile(const QList<PerformanceMetrics>& metrics);
-    
+
     PDFViewer* m_viewer;
     Poppler::Document* m_testDocument;
     Poppler::Document* m_largeDocument;
     QList<PerformanceMetrics> m_allMetrics;
 };
 
-void TestRenderingPerformance::initTestCase()
-{
-    m_viewer = new PDFViewer(nullptr, false); // Disable styling for tests
+void TestRenderingPerformance::initTestCase() {
+    m_viewer = new PDFViewer(nullptr, false);  // Disable styling for tests
     m_testDocument = nullptr;
     m_largeDocument = nullptr;
-    
+
     // Create test documents
     m_testDocument = createLargeTestDocument();
     QVERIFY(m_testDocument != nullptr);
-    
+
     m_viewer->setDocument(m_testDocument);
-    
-    qDebug() << "Performance test initialized with document containing" << m_testDocument->numPages() << "pages";
+
+    qDebug() << "Performance test initialized with document containing"
+             << m_testDocument->numPages() << "pages";
 }
 
-void TestRenderingPerformance::cleanupTestCase()
-{
+void TestRenderingPerformance::cleanupTestCase() {
     delete m_viewer;
-    if (m_testDocument) delete m_testDocument;
-    if (m_largeDocument) delete m_largeDocument;
-    
+    if (m_testDocument)
+        delete m_testDocument;
+    if (m_largeDocument)
+        delete m_largeDocument;
+
     // Save performance report
     saveMetricsToFile(m_allMetrics);
 }
 
-Poppler::Document* TestRenderingPerformance::createLargeTestDocument()
-{
-    QString testPdfPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/performance_test.pdf";
+Poppler::Document* TestRenderingPerformance::createLargeTestDocument() {
+    QString testPdfPath =
+        QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
+        "/performance_test.pdf";
 
     // Use Qt's QPdfWriter to create a valid PDF
     QPdfWriter pdfWriter(testPdfPath);
@@ -112,7 +113,7 @@ Poppler::Document* TestRenderingPerformance::createLargeTestDocument()
     }
 
     // Create a simple multi-page document for performance testing
-    const int numPages = 5; // Reduced number of pages to avoid stress
+    const int numPages = 5;  // Reduced number of pages to avoid stress
 
     for (int page = 0; page < numPages; ++page) {
         if (page > 0) {
@@ -122,12 +123,15 @@ Poppler::Document* TestRenderingPerformance::createLargeTestDocument()
         // Draw simple content on each page
         painter.setFont(QFont("Arial", 12));
         painter.drawText(100, 100, QString("Performance Test Document"));
-        painter.drawText(100, 150, QString("Page %1 of %2").arg(page + 1).arg(numPages));
+        painter.drawText(100, 150,
+                         QString("Page %1 of %2").arg(page + 1).arg(numPages));
 
         // Add some additional content for performance testing
         for (int line = 0; line < 10; ++line) {
-            painter.drawText(100, 200 + line * 30,
-                           QString("Line %1 - Test content for performance measurement").arg(line + 1));
+            painter.drawText(
+                100, 200 + line * 30,
+                QString("Line %1 - Test content for performance measurement")
+                    .arg(line + 1));
         }
     }
 
@@ -143,7 +147,8 @@ Poppler::Document* TestRenderingPerformance::createLargeTestDocument()
                 // Try to access page size to verify it's valid
                 QSizeF size = testPage->pageSizeF();
                 if (size.isValid() && size.width() > 0 && size.height() > 0) {
-                    qDebug() << "Successfully created PDF with" << doc->numPages() << "pages";
+                    qDebug() << "Successfully created PDF with"
+                             << doc->numPages() << "pages";
                     return doc.release();
                 }
             } catch (...) {
@@ -158,8 +163,7 @@ Poppler::Document* TestRenderingPerformance::createLargeTestDocument()
     return nullptr;
 }
 
-size_t TestRenderingPerformance::getCurrentMemoryUsage()
-{
+size_t TestRenderingPerformance::getCurrentMemoryUsage() {
 #ifdef Q_OS_WIN
     PROCESS_MEMORY_COUNTERS pmc;
     if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
@@ -171,24 +175,25 @@ size_t TestRenderingPerformance::getCurrentMemoryUsage()
     while (std::getline(file, line)) {
         if (line.substr(0, 6) == "VmRSS:") {
             std::string memStr = line.substr(6);
-            return std::stoul(memStr) * 1024; // Convert KB to bytes
+            return std::stoul(memStr) * 1024;  // Convert KB to bytes
         }
     }
 #elif defined(Q_OS_MAC)
     struct task_basic_info info;
     mach_msg_type_number_t size = sizeof(info);
-    if (task_info(mach_task_self(), TASK_BASIC_INFO, (task_info_t)&info, &size) == KERN_SUCCESS) {
+    if (task_info(mach_task_self(), TASK_BASIC_INFO, (task_info_t)&info,
+                  &size) == KERN_SUCCESS) {
         return info.resident_size;
     }
 #endif
-    return 0; // Fallback
+    return 0;  // Fallback
 }
 
-TestRenderingPerformance::PerformanceMetrics TestRenderingPerformance::measureRenderingPerformance(bool useQGraphics)
-{
+TestRenderingPerformance::PerformanceMetrics
+TestRenderingPerformance::measureRenderingPerformance(bool useQGraphics) {
     PerformanceMetrics metrics;
     metrics.mode = useQGraphics ? "QGraphics" : "Traditional";
-    
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     m_viewer->setQGraphicsRenderingEnabled(useQGraphics);
 #else
@@ -200,51 +205,53 @@ TestRenderingPerformance::PerformanceMetrics TestRenderingPerformance::measureRe
         return metrics;
     }
 #endif
-    
+
     size_t initialMemory = getCurrentMemoryUsage();
-    
+
     QElapsedTimer timer;
     timer.start();
-    
+
     const int iterations = 50;
     QList<qint64> frameTimes;
-    
+
     // Render all pages multiple times
     for (int iter = 0; iter < iterations; ++iter) {
         for (int page = 0; page < m_testDocument->numPages(); ++page) {
             QElapsedTimer frameTimer;
             frameTimer.start();
-            
+
             m_viewer->goToPage(page);
             QCoreApplication::processEvents();
-            
+
             qint64 frameTime = frameTimer.elapsed();
             frameTimes.append(frameTime);
         }
     }
-    
+
     metrics.renderTime = timer.elapsed();
     metrics.memoryUsage = getCurrentMemoryUsage() - initialMemory;
-    
+
     // Calculate average frame time
     qint64 totalFrameTime = 0;
     for (qint64 frameTime : frameTimes) {
         totalFrameTime += frameTime;
     }
-    metrics.averageFrameTime = static_cast<double>(totalFrameTime) / frameTimes.size();
-    
+    metrics.averageFrameTime =
+        static_cast<double>(totalFrameTime) / frameTimes.size();
+
     // Calculate operations per second
     int totalOperations = iterations * m_testDocument->numPages();
-    metrics.operationsPerSecond = static_cast<int>((totalOperations * 1000.0) / metrics.renderTime);
-    
+    metrics.operationsPerSecond =
+        static_cast<int>((totalOperations * 1000.0) / metrics.renderTime);
+
     return metrics;
 }
 
-TestRenderingPerformance::PerformanceMetrics TestRenderingPerformance::measureZoomPerformance(bool useQGraphics)
-{
+TestRenderingPerformance::PerformanceMetrics
+TestRenderingPerformance::measureZoomPerformance(bool useQGraphics) {
     PerformanceMetrics metrics;
     metrics.mode = useQGraphics ? "QGraphics" : "Traditional";
-    
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     m_viewer->setQGraphicsRenderingEnabled(useQGraphics);
 #else
@@ -256,18 +263,19 @@ TestRenderingPerformance::PerformanceMetrics TestRenderingPerformance::measureZo
         return metrics;
     }
 #endif
-    
+
     size_t initialMemory = getCurrentMemoryUsage();
-    
+
     QElapsedTimer timer;
     timer.start();
-    
-    const int iterations = 10; // Reduced iterations to avoid stress on potentially fragile PDF
+
+    const int iterations =
+        10;  // Reduced iterations to avoid stress on potentially fragile PDF
     QList<qint64> zoomTimes;
-    
+
     // Test zoom operations with error handling
     for (int iter = 0; iter < iterations; ++iter) {
-        double zoomLevel = 0.5 + (iter % 10) * 0.2; // Zoom from 0.5 to 2.3
+        double zoomLevel = 0.5 + (iter % 10) * 0.2;  // Zoom from 0.5 to 2.3
 
         QElapsedTimer zoomTimer;
         zoomTimer.start();
@@ -284,26 +292,28 @@ TestRenderingPerformance::PerformanceMetrics TestRenderingPerformance::measureZo
             continue;
         }
     }
-    
+
     metrics.renderTime = timer.elapsed();
     metrics.memoryUsage = getCurrentMemoryUsage() - initialMemory;
-    
+
     // Calculate average zoom time
     qint64 totalZoomTime = 0;
     for (qint64 zoomTime : zoomTimes) {
         totalZoomTime += zoomTime;
     }
-    metrics.averageFrameTime = static_cast<double>(totalZoomTime) / zoomTimes.size();
-    metrics.operationsPerSecond = static_cast<int>((iterations * 1000.0) / metrics.renderTime);
-    
+    metrics.averageFrameTime =
+        static_cast<double>(totalZoomTime) / zoomTimes.size();
+    metrics.operationsPerSecond =
+        static_cast<int>((iterations * 1000.0) / metrics.renderTime);
+
     return metrics;
 }
 
-TestRenderingPerformance::PerformanceMetrics TestRenderingPerformance::measureNavigationPerformance(bool useQGraphics)
-{
+TestRenderingPerformance::PerformanceMetrics
+TestRenderingPerformance::measureNavigationPerformance(bool useQGraphics) {
     PerformanceMetrics metrics;
     metrics.mode = useQGraphics ? "QGraphics" : "Traditional";
-    
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     m_viewer->setQGraphicsRenderingEnabled(useQGraphics);
 #else
@@ -315,81 +325,92 @@ TestRenderingPerformance::PerformanceMetrics TestRenderingPerformance::measureNa
         return metrics;
     }
 #endif
-    
+
     size_t initialMemory = getCurrentMemoryUsage();
-    
+
     QElapsedTimer timer;
     timer.start();
-    
+
     const int iterations = 200;
     QList<qint64> navTimes;
-    
+
     // Test navigation operations
     for (int iter = 0; iter < iterations; ++iter) {
         QElapsedTimer navTimer;
         navTimer.start();
-        
-        if (iter % 4 == 0) m_viewer->nextPage();
-        else if (iter % 4 == 1) m_viewer->previousPage();
-        else if (iter % 4 == 2) m_viewer->firstPage();
-        else m_viewer->lastPage();
-        
+
+        if (iter % 4 == 0)
+            m_viewer->nextPage();
+        else if (iter % 4 == 1)
+            m_viewer->previousPage();
+        else if (iter % 4 == 2)
+            m_viewer->firstPage();
+        else
+            m_viewer->lastPage();
+
         QCoreApplication::processEvents();
-        
+
         qint64 navTime = navTimer.elapsed();
         navTimes.append(navTime);
     }
-    
+
     metrics.renderTime = timer.elapsed();
     metrics.memoryUsage = getCurrentMemoryUsage() - initialMemory;
-    
+
     // Calculate average navigation time
     qint64 totalNavTime = 0;
     for (qint64 navTime : navTimes) {
         totalNavTime += navTime;
     }
-    metrics.averageFrameTime = static_cast<double>(totalNavTime) / navTimes.size();
-    metrics.operationsPerSecond = static_cast<int>((iterations * 1000.0) / metrics.renderTime);
-    
+    metrics.averageFrameTime =
+        static_cast<double>(totalNavTime) / navTimes.size();
+    metrics.operationsPerSecond =
+        static_cast<int>((iterations * 1000.0) / metrics.renderTime);
+
     return metrics;
 }
 
-void TestRenderingPerformance::testRenderingSpeed()
-{
+void TestRenderingPerformance::testRenderingSpeed() {
     qDebug() << "=== Testing Rendering Speed ===";
-    
+
     PerformanceMetrics traditionalMetrics = measureRenderingPerformance(false);
     m_allMetrics.append(traditionalMetrics);
-    
+
     qDebug() << "Traditional rendering:";
     qDebug() << "  Total time:" << traditionalMetrics.renderTime << "ms";
-    qDebug() << "  Average frame time:" << traditionalMetrics.averageFrameTime << "ms";
-    qDebug() << "  Operations per second:" << traditionalMetrics.operationsPerSecond;
+    qDebug() << "  Average frame time:" << traditionalMetrics.averageFrameTime
+             << "ms";
+    qDebug() << "  Operations per second:"
+             << traditionalMetrics.operationsPerSecond;
     qDebug() << "  Memory usage:" << traditionalMetrics.memoryUsage << "bytes";
-    
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     PerformanceMetrics qgraphicsMetrics = measureRenderingPerformance(true);
     m_allMetrics.append(qgraphicsMetrics);
-    
+
     qDebug() << "QGraphics rendering:";
     qDebug() << "  Total time:" << qgraphicsMetrics.renderTime << "ms";
-    qDebug() << "  Average frame time:" << qgraphicsMetrics.averageFrameTime << "ms";
-    qDebug() << "  Operations per second:" << qgraphicsMetrics.operationsPerSecond;
+    qDebug() << "  Average frame time:" << qgraphicsMetrics.averageFrameTime
+             << "ms";
+    qDebug() << "  Operations per second:"
+             << qgraphicsMetrics.operationsPerSecond;
     qDebug() << "  Memory usage:" << qgraphicsMetrics.memoryUsage << "bytes";
-    
+
     // Performance comparison
-    double speedRatio = static_cast<double>(traditionalMetrics.renderTime) / qgraphicsMetrics.renderTime;
-    qDebug() << "QGraphics is" << speedRatio << "x the speed of traditional rendering";
+    double speedRatio = static_cast<double>(traditionalMetrics.renderTime) /
+                        qgraphicsMetrics.renderTime;
+    qDebug() << "QGraphics is" << speedRatio
+             << "x the speed of traditional rendering";
 #else
-    qDebug() << "QGraphics support not compiled in - skipping QGraphics performance test";
+    qDebug() << "QGraphics support not compiled in - skipping QGraphics "
+                "performance test";
 #endif
-    
+
     QVERIFY(traditionalMetrics.renderTime > 0);
     QVERIFY(traditionalMetrics.operationsPerSecond > 0);
 }
 
-void TestRenderingPerformance::testMemoryUsage()
-{
+void TestRenderingPerformance::testMemoryUsage() {
     qDebug() << "=== Testing Memory Usage ===";
 
     size_t baselineMemory = getCurrentMemoryUsage();
@@ -412,16 +433,17 @@ void TestRenderingPerformance::testMemoryUsage()
             QCoreApplication::processEvents();
         }
     } catch (...) {
-        qDebug() << "Error during memory usage test operations - continuing with available data";
+        qDebug() << "Error during memory usage test operations - continuing "
+                    "with available data";
     }
 
     size_t traditionalPeakMemory = getCurrentMemoryUsage();
-    
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // Test QGraphics mode memory usage
     m_viewer->setQGraphicsRenderingEnabled(true);
     size_t qgraphicsMemory = getCurrentMemoryUsage();
-    
+
     // Perform same operations with error handling
     try {
         for (int i = 0; i < m_testDocument->numPages(); ++i) {
@@ -432,68 +454,72 @@ void TestRenderingPerformance::testMemoryUsage()
             QCoreApplication::processEvents();
         }
     } catch (...) {
-        qDebug() << "Error during QGraphics memory usage test operations - continuing with available data";
+        qDebug() << "Error during QGraphics memory usage test operations - "
+                    "continuing with available data";
     }
-    
+
     size_t qgraphicsPeakMemory = getCurrentMemoryUsage();
-    
-    qDebug() << "Traditional mode - Base:" << traditionalMemory << "Peak:" << traditionalPeakMemory;
-    qDebug() << "QGraphics mode - Base:" << qgraphicsMemory << "Peak:" << qgraphicsPeakMemory;
-    
+
+    qDebug() << "Traditional mode - Base:" << traditionalMemory
+             << "Peak:" << traditionalPeakMemory;
+    qDebug() << "QGraphics mode - Base:" << qgraphicsMemory
+             << "Peak:" << qgraphicsPeakMemory;
+
     // Memory usage should be reasonable (less than 100MB increase)
     QVERIFY((traditionalPeakMemory - baselineMemory) < 100 * 1024 * 1024);
     QVERIFY((qgraphicsPeakMemory - baselineMemory) < 100 * 1024 * 1024);
 #else
-    qDebug() << "Traditional mode - Base:" << traditionalMemory << "Peak:" << traditionalPeakMemory;
+    qDebug() << "Traditional mode - Base:" << traditionalMemory
+             << "Peak:" << traditionalPeakMemory;
     QVERIFY((traditionalPeakMemory - baselineMemory) < 100 * 1024 * 1024);
 #endif
 }
 
-void TestRenderingPerformance::testZoomPerformance()
-{
+void TestRenderingPerformance::testZoomPerformance() {
     qDebug() << "=== Testing Zoom Performance ===";
-    
+
     PerformanceMetrics traditionalMetrics = measureZoomPerformance(false);
     m_allMetrics.append(traditionalMetrics);
-    
+
     qDebug() << "Traditional zoom performance:";
     qDebug() << "  Total time:" << traditionalMetrics.renderTime << "ms";
-    qDebug() << "  Average zoom time:" << traditionalMetrics.averageFrameTime << "ms";
-    
+    qDebug() << "  Average zoom time:" << traditionalMetrics.averageFrameTime
+             << "ms";
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     PerformanceMetrics qgraphicsMetrics = measureZoomPerformance(true);
     m_allMetrics.append(qgraphicsMetrics);
-    
+
     qDebug() << "QGraphics zoom performance:";
     qDebug() << "  Total time:" << qgraphicsMetrics.renderTime << "ms";
-    qDebug() << "  Average zoom time:" << qgraphicsMetrics.averageFrameTime << "ms";
+    qDebug() << "  Average zoom time:" << qgraphicsMetrics.averageFrameTime
+             << "ms";
 #endif
-    
+
     QVERIFY(traditionalMetrics.renderTime > 0);
 }
 
-void TestRenderingPerformance::testNavigationPerformance()
-{
+void TestRenderingPerformance::testNavigationPerformance() {
     qDebug() << "=== Testing Navigation Performance ===";
-    
+
     PerformanceMetrics traditionalMetrics = measureNavigationPerformance(false);
     m_allMetrics.append(traditionalMetrics);
-    
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     PerformanceMetrics qgraphicsMetrics = measureNavigationPerformance(true);
     m_allMetrics.append(qgraphicsMetrics);
 #endif
-    
+
     QVERIFY(traditionalMetrics.renderTime > 0);
 }
 
-void TestRenderingPerformance::testLargeDocumentHandling()
-{
+void TestRenderingPerformance::testLargeDocumentHandling() {
     qDebug() << "=== Testing Large Document Handling ===";
-    
-    // This test verifies that both modes can handle the test document without issues
+
+    // This test verifies that both modes can handle the test document without
+    // issues
     QVERIFY(m_testDocument->numPages() > 5);
-    
+
     // Test traditional mode
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     m_viewer->setQGraphicsRenderingEnabled(false);
@@ -502,7 +528,7 @@ void TestRenderingPerformance::testLargeDocumentHandling()
         m_viewer->goToPage(i);
         QCOMPARE(m_viewer->getCurrentPage(), i);
     }
-    
+
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // Test QGraphics mode
     m_viewer->setQGraphicsRenderingEnabled(true);
@@ -511,20 +537,19 @@ void TestRenderingPerformance::testLargeDocumentHandling()
         QCOMPARE(m_viewer->getCurrentPage(), i);
     }
 #endif
-    
+
     qDebug() << "Large document handling test passed";
 }
 
-void TestRenderingPerformance::testConcurrentRendering()
-{
+void TestRenderingPerformance::testConcurrentRendering() {
     qDebug() << "=== Testing Concurrent Rendering ===";
-    
+
     // Test that rapid operations don't cause issues
     const int rapidOperations = 100;
-    
+
     QElapsedTimer timer;
     timer.start();
-    
+
     for (int i = 0; i < rapidOperations; ++i) {
         m_viewer->goToPage(i % m_testDocument->numPages());
         m_viewer->setZoom(1.0 + (i % 10) * 0.1);
@@ -532,54 +557,53 @@ void TestRenderingPerformance::testConcurrentRendering()
             QCoreApplication::processEvents();
         }
     }
-    
+
     qint64 concurrentTime = timer.elapsed();
     qDebug() << "Concurrent operations completed in" << concurrentTime << "ms";
-    
+
     // Should complete within reasonable time
-    QVERIFY(concurrentTime < 30000); // Less than 30 seconds
+    QVERIFY(concurrentTime < 30000);  // Less than 30 seconds
 }
 
-void TestRenderingPerformance::testMemoryLeaks()
-{
+void TestRenderingPerformance::testMemoryLeaks() {
     qDebug() << "=== Testing Memory Leaks ===";
-    
+
     size_t initialMemory = getCurrentMemoryUsage();
-    
+
     // Perform many operations that could potentially leak memory
     for (int cycle = 0; cycle < 10; ++cycle) {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
         m_viewer->setQGraphicsRenderingEnabled(cycle % 2 == 0);
 #endif
-        
+
         for (int i = 0; i < m_testDocument->numPages(); ++i) {
             m_viewer->goToPage(i);
             m_viewer->setZoom(1.0 + (i % 5) * 0.2);
             m_viewer->rotateRight();
             m_viewer->rotateLeft();
         }
-        
+
         if (cycle % 3 == 0) {
             QCoreApplication::processEvents();
         }
     }
-    
+
     // Force garbage collection
     QCoreApplication::processEvents();
-    
+
     size_t finalMemory = getCurrentMemoryUsage();
     size_t memoryIncrease = finalMemory - initialMemory;
-    
-    qDebug() << "Memory increase after stress test:" << memoryIncrease << "bytes";
-    
+
+    qDebug() << "Memory increase after stress test:" << memoryIncrease
+             << "bytes";
+
     // Memory increase should be reasonable (less than 50MB)
     QVERIFY(memoryIncrease < 50 * 1024 * 1024);
 }
 
-void TestRenderingPerformance::generatePerformanceReport()
-{
+void TestRenderingPerformance::generatePerformanceReport() {
     qDebug() << "=== Performance Test Summary ===";
-    
+
     for (const auto& metrics : m_allMetrics) {
         qDebug() << "Mode:" << metrics.mode;
         qDebug() << "  Render time:" << metrics.renderTime << "ms";
@@ -590,13 +614,15 @@ void TestRenderingPerformance::generatePerformanceReport()
     }
 }
 
-void TestRenderingPerformance::saveMetricsToFile(const QList<PerformanceMetrics>& metrics)
-{
-    QString reportPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/performance_report.json";
-    
+void TestRenderingPerformance::saveMetricsToFile(
+    const QList<PerformanceMetrics>& metrics) {
+    QString reportPath =
+        QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
+        "/performance_report.json";
+
     QJsonObject report;
     QJsonArray metricsArray;
-    
+
     for (const auto& metric : metrics) {
         QJsonObject metricObj;
         metricObj["mode"] = metric.mode;
@@ -606,12 +632,12 @@ void TestRenderingPerformance::saveMetricsToFile(const QList<PerformanceMetrics>
         metricObj["operationsPerSecond"] = metric.operationsPerSecond;
         metricsArray.append(metricObj);
     }
-    
+
     report["metrics"] = metricsArray;
     report["timestamp"] = QDateTime::currentDateTime().toString(Qt::ISODate);
-    
+
     QJsonDocument doc(report);
-    
+
     QFile file(reportPath);
     if (file.open(QIODevice::WriteOnly)) {
         file.write(doc.toJson());
@@ -619,8 +645,7 @@ void TestRenderingPerformance::saveMetricsToFile(const QList<PerformanceMetrics>
     }
 }
 
-void TestRenderingPerformance::testVirtualScrollingPerformance()
-{
+void TestRenderingPerformance::testVirtualScrollingPerformance() {
     qDebug() << "=== Testing Virtual Scrolling Performance ===";
 
     // Test continuous scroll mode with virtual scrolling
@@ -644,16 +669,16 @@ void TestRenderingPerformance::testVirtualScrollingPerformance()
     qDebug() << "Virtual scrolling performance:";
     qDebug() << "  Scroll operations:" << scrollOperations;
     qDebug() << "  Total time:" << scrollTime << "ms";
-    qDebug() << "  Average time per operation:" << (double)scrollTime / scrollOperations << "ms";
+    qDebug() << "  Average time per operation:"
+             << (double)scrollTime / scrollOperations << "ms";
     qDebug() << "  Memory used:" << memoryUsed << "bytes";
 
     // Virtual scrolling should be efficient
-    QVERIFY(scrollTime < 10000); // Less than 10 seconds
-    QVERIFY(memoryUsed < 50 * 1024 * 1024); // Less than 50MB
+    QVERIFY(scrollTime < 10000);             // Less than 10 seconds
+    QVERIFY(memoryUsed < 50 * 1024 * 1024);  // Less than 50MB
 }
 
-void TestRenderingPerformance::testLazyLoadingPerformance()
-{
+void TestRenderingPerformance::testLazyLoadingPerformance() {
     qDebug() << "=== Testing Lazy Loading Performance ===";
 
     // Test that lazy loading reduces initial load time
@@ -688,12 +713,11 @@ void TestRenderingPerformance::testLazyLoadingPerformance()
 
     qDebug() << "Rapid page changes time:" << rapidChangeTime << "ms";
 
-    QVERIFY(lazyLoadTime < 5000); // Should load quickly
-    QVERIFY(rapidChangeTime < 3000); // Rapid changes should be smooth
+    QVERIFY(lazyLoadTime < 5000);     // Should load quickly
+    QVERIFY(rapidChangeTime < 3000);  // Rapid changes should be smooth
 }
 
-void TestRenderingPerformance::testCacheEfficiency()
-{
+void TestRenderingPerformance::testCacheEfficiency() {
     qDebug() << "=== Testing Cache Efficiency ===";
 
     // Test cache hit ratio by rendering same pages multiple times
@@ -730,11 +754,10 @@ void TestRenderingPerformance::testCacheEfficiency()
     qDebug() << "  Speedup ratio:" << speedupRatio;
 
     // Cache should provide some speedup
-    QVERIFY(speedupRatio > 1.1); // At least 10% improvement
+    QVERIFY(speedupRatio > 1.1);  // At least 10% improvement
 }
 
-void TestRenderingPerformance::testDPIOptimization()
-{
+void TestRenderingPerformance::testDPIOptimization() {
     qDebug() << "=== Testing DPI Optimization ===";
 
     // Test DPI calculation caching by using same zoom levels repeatedly
@@ -752,14 +775,14 @@ void TestRenderingPerformance::testDPIOptimization()
 
     qDebug() << "DPI optimization test:";
     qDebug() << "  Zoom operations time:" << optimizedTime << "ms";
-    qDebug() << "  Average time per zoom:" << (double)optimizedTime / zoomLevels.size() << "ms";
+    qDebug() << "  Average time per zoom:"
+             << (double)optimizedTime / zoomLevels.size() << "ms";
 
     // DPI optimization should make zoom operations fast
-    QVERIFY(optimizedTime < 5000); // Less than 5 seconds for all operations
+    QVERIFY(optimizedTime < 5000);  // Less than 5 seconds for all operations
 }
 
-void TestRenderingPerformance::testAsyncRenderingPerformance()
-{
+void TestRenderingPerformance::testAsyncRenderingPerformance() {
     qDebug() << "=== Testing Async Rendering Performance ===";
 
     // Test that async rendering doesn't block the UI
@@ -779,14 +802,14 @@ void TestRenderingPerformance::testAsyncRenderingPerformance()
 
     qDebug() << "Async rendering performance:";
     qDebug() << "  Total time for 20 operations:" << asyncTime << "ms";
-    qDebug() << "  Average time per operation:" << (double)asyncTime / 20 << "ms";
+    qDebug() << "  Average time per operation:" << (double)asyncTime / 20
+             << "ms";
 
     // Async rendering should be responsive
-    QVERIFY(asyncTime < 10000); // Less than 10 seconds
+    QVERIFY(asyncTime < 10000);  // Less than 10 seconds
 }
 
-void TestRenderingPerformance::testDebounceEffectiveness()
-{
+void TestRenderingPerformance::testDebounceEffectiveness() {
     qDebug() << "=== Testing Debounce Effectiveness ===";
 
     // Test that rapid zoom changes are debounced effectively
@@ -802,7 +825,7 @@ void TestRenderingPerformance::testDebounceEffectiveness()
 
     // Now process events to let debounced operations complete
     QCoreApplication::processEvents();
-    QTest::qWait(200); // Wait for debounce timer
+    QTest::qWait(200);  // Wait for debounce timer
     QCoreApplication::processEvents();
 
     qint64 debounceTime = timer.elapsed();
@@ -811,7 +834,7 @@ void TestRenderingPerformance::testDebounceEffectiveness()
     qDebug() << "  Time for 50 rapid zoom changes:" << debounceTime << "ms";
 
     // Debouncing should prevent excessive rendering
-    QVERIFY(debounceTime < 3000); // Should complete quickly due to debouncing
+    QVERIFY(debounceTime < 3000);  // Should complete quickly due to debouncing
 }
 
 QTEST_MAIN(TestRenderingPerformance)

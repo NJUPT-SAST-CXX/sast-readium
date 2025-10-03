@@ -7,33 +7,34 @@
  */
 
 #include "SimpleLogging.h"
-#include "Logger.h"
-#include "LoggingManager.h"
-#include "LoggingConfig.h"
+#include <spdlog/fmt/fmt.h>
+#include <QDateTime>
 #include <QDir>
 #include <QStandardPaths>
-#include <QDateTime>
 #include <chrono>
-#include <spdlog/fmt/fmt.h>
+#include "Logger.h"
+#include "LoggingConfig.h"
+#include "LoggingManager.h"
 
 namespace SastLogging {
 
 // Implementation classes for PIMPL pattern
-// Note: CategoryLogger::Implementation is now defined in the header for inline template access
+// Note: CategoryLogger::Implementation is now defined in the header for inline
+// template access
 
-class ScopedLevel::Implementation
-{
+class ScopedLevel::Implementation {
 public:
-    explicit Implementation(Level originalLevel) : originalLevel(originalLevel) {}
+    explicit Implementation(Level originalLevel)
+        : originalLevel(originalLevel) {}
     ~Implementation() = default;
 
     Level originalLevel;
 };
 
-class ScopedSilence::Implementation
-{
+class ScopedSilence::Implementation {
 public:
-    explicit Implementation(Level originalLevel) : originalLevel(originalLevel) {}
+    explicit Implementation(Level originalLevel)
+        : originalLevel(originalLevel) {}
     ~Implementation() = default;
 
     Level originalLevel;
@@ -44,34 +45,50 @@ public:
 // ============================================================================
 
 namespace {
-    QString g_lastError;
-    
-    Logger::LogLevel convertToLoggerLevel(Level level) {
-        switch (level) {
-            case Level::Trace: return Logger::LogLevel::Trace;
-            case Level::Debug: return Logger::LogLevel::Debug;
-            case Level::Info: return Logger::LogLevel::Info;
-            case Level::Warning: return Logger::LogLevel::Warning;
-            case Level::Error: return Logger::LogLevel::Error;
-            case Level::Critical: return Logger::LogLevel::Critical;
-            case Level::Off: return Logger::LogLevel::Off;
-            default: return Logger::LogLevel::Info;
-        }
-    }
-    
-    Level convertFromLoggerLevel(Logger::LogLevel level) {
-        switch (level) {
-            case Logger::LogLevel::Trace: return Level::Trace;
-            case Logger::LogLevel::Debug: return Level::Debug;
-            case Logger::LogLevel::Info: return Level::Info;
-            case Logger::LogLevel::Warning: return Level::Warning;
-            case Logger::LogLevel::Error: return Level::Error;
-            case Logger::LogLevel::Critical: return Level::Critical;
-            case Logger::LogLevel::Off: return Level::Off;
-            default: return Level::Info;
-        }
+QString g_lastError;
+
+Logger::LogLevel convertToLoggerLevel(Level level) {
+    switch (level) {
+        case Level::Trace:
+            return Logger::LogLevel::Trace;
+        case Level::Debug:
+            return Logger::LogLevel::Debug;
+        case Level::Info:
+            return Logger::LogLevel::Info;
+        case Level::Warning:
+            return Logger::LogLevel::Warning;
+        case Level::Error:
+            return Logger::LogLevel::Error;
+        case Level::Critical:
+            return Logger::LogLevel::Critical;
+        case Level::Off:
+            return Logger::LogLevel::Off;
+        default:
+            return Logger::LogLevel::Info;
     }
 }
+
+Level convertFromLoggerLevel(Logger::LogLevel level) {
+    switch (level) {
+        case Logger::LogLevel::Trace:
+            return Level::Trace;
+        case Logger::LogLevel::Debug:
+            return Level::Debug;
+        case Logger::LogLevel::Info:
+            return Level::Info;
+        case Logger::LogLevel::Warning:
+            return Level::Warning;
+        case Logger::LogLevel::Error:
+            return Level::Error;
+        case Logger::LogLevel::Critical:
+            return Level::Critical;
+        case Logger::LogLevel::Off:
+            return Level::Off;
+        default:
+            return Level::Info;
+    }
+}
+}  // namespace
 
 // ============================================================================
 // Core Logging Functions Implementation
@@ -95,7 +112,7 @@ bool init(const QString& logFile, bool consoleEnabled, Level level) {
         config.enableConsoleLogging = consoleEnabled;
         config.enableFileLogging = !logFile.isEmpty();
         config.logFileName = logFile.isEmpty() ? "sast-readium.log" : logFile;
-        
+
         LoggingManager::instance().initialize(config);
         g_lastError.clear();
         return true;
@@ -112,12 +129,13 @@ bool init(const Config& config) {
         mgmtConfig.logPattern = config.pattern;
         mgmtConfig.enableConsoleLogging = config.console;
         mgmtConfig.enableFileLogging = config.file;
-        mgmtConfig.logFileName = config.logFile.isEmpty() ? "sast-readium.log" : config.logFile;
+        mgmtConfig.logFileName =
+            config.logFile.isEmpty() ? "sast-readium.log" : config.logFile;
         mgmtConfig.logDirectory = config.logDir;
         mgmtConfig.maxFileSize = config.maxFileSize;
         mgmtConfig.maxFiles = config.maxFiles;
         mgmtConfig.enableAsyncLogging = config.async;
-        
+
         LoggingManager::instance().initialize(mgmtConfig);
         g_lastError.clear();
         return true;
@@ -127,49 +145,34 @@ bool init(const Config& config) {
     }
 }
 
-void shutdown() {
-    LoggingManager::instance().shutdown();
-}
+void shutdown() { LoggingManager::instance().shutdown(); }
 
 void setLevel(Level level) {
     LoggingManager::instance().setGlobalLogLevel(convertToLoggerLevel(level));
 }
 
 Level getLevel() {
-    return convertFromLoggerLevel(LoggingManager::instance().getConfiguration().globalLogLevel);
+    return convertFromLoggerLevel(
+        LoggingManager::instance().getConfiguration().globalLogLevel);
 }
 
-void flush() {
-    LoggingManager::instance().flushLogs();
-}
+void flush() { LoggingManager::instance().flushLogs(); }
 
 // ============================================================================
 // Simple Logging Functions Implementation
 // ============================================================================
 
-void trace(const QString& message) {
-    Logger::instance().trace(message);
-}
+void trace(const QString& message) { Logger::instance().trace(message); }
 
-void debug(const QString& message) {
-    Logger::instance().debug(message);
-}
+void debug(const QString& message) { Logger::instance().debug(message); }
 
-void info(const QString& message) {
-    Logger::instance().info(message);
-}
+void info(const QString& message) { Logger::instance().info(message); }
 
-void warning(const QString& message) {
-    Logger::instance().warning(message);
-}
+void warning(const QString& message) { Logger::instance().warning(message); }
 
-void error(const QString& message) {
-    Logger::instance().error(message);
-}
+void error(const QString& message) { Logger::instance().error(message); }
 
-void critical(const QString& message) {
-    Logger::instance().critical(message);
-}
+void critical(const QString& message) { Logger::instance().critical(message); }
 
 // ============================================================================
 // Detail Namespace Implementation
@@ -180,35 +183,48 @@ namespace detail {
 void logFormatted(Level level, const std::string& formatted) {
     QString message = QString::fromStdString(formatted);
     switch (level) {
-        case Level::Trace: trace(message); break;
-        case Level::Debug: debug(message); break;
-        case Level::Info: info(message); break;
-        case Level::Warning: warning(message); break;
-        case Level::Error: error(message); break;
-        case Level::Critical: critical(message); break;
-        default: break;
+        case Level::Trace:
+            trace(message);
+            break;
+        case Level::Debug:
+            debug(message);
+            break;
+        case Level::Info:
+            info(message);
+            break;
+        case Level::Warning:
+            warning(message);
+            break;
+        case Level::Error:
+            error(message);
+            break;
+        case Level::Critical:
+            critical(message);
+            break;
+        default:
+            break;
     }
 }
 
 std::string formatString(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    
+
     // Get required buffer size
     va_list args_copy;
     va_copy(args_copy, args);
     int size = vsnprintf(nullptr, 0, format, args_copy) + 1;
     va_end(args_copy);
-    
+
     // Format the string
     std::vector<char> buffer(size);
     vsnprintf(buffer.data(), size, format, args);
     va_end(args);
-    
+
     return std::string(buffer.data());
 }
 
-} // namespace detail
+}  // namespace detail
 
 // ============================================================================
 // CategoryLogger Implementation
@@ -221,37 +237,43 @@ CategoryLogger::CategoryLogger(const QString& category)
 
 void CategoryLogger::trace(const QString& message) {
     if (d->level <= Level::Trace) {
-        Logger::instance().trace("[{}] {}", d->category.toStdString(), message.toStdString());
+        Logger::instance().trace("[{}] {}", d->category.toStdString(),
+                                 message.toStdString());
     }
 }
 
 void CategoryLogger::debug(const QString& message) {
     if (d->level <= Level::Debug) {
-        Logger::instance().debug("[{}] {}", d->category.toStdString(), message.toStdString());
+        Logger::instance().debug("[{}] {}", d->category.toStdString(),
+                                 message.toStdString());
     }
 }
 
 void CategoryLogger::info(const QString& message) {
     if (d->level <= Level::Info) {
-        Logger::instance().info("[{}] {}", d->category.toStdString(), message.toStdString());
+        Logger::instance().info("[{}] {}", d->category.toStdString(),
+                                message.toStdString());
     }
 }
 
 void CategoryLogger::warning(const QString& message) {
     if (d->level <= Level::Warning) {
-        Logger::instance().warning("[{}] {}", d->category.toStdString(), message.toStdString());
+        Logger::instance().warning("[{}] {}", d->category.toStdString(),
+                                   message.toStdString());
     }
 }
 
 void CategoryLogger::error(const QString& message) {
     if (d->level <= Level::Error) {
-        Logger::instance().error("[{}] {}", d->category.toStdString(), message.toStdString());
+        Logger::instance().error("[{}] {}", d->category.toStdString(),
+                                 message.toStdString());
     }
 }
 
 void CategoryLogger::critical(const QString& message) {
     if (d->level <= Level::Critical) {
-        Logger::instance().critical("[{}] {}", d->category.toStdString(), message.toStdString());
+        Logger::instance().critical("[{}] {}", d->category.toStdString(),
+                                    message.toStdString());
     }
 }
 
@@ -261,9 +283,7 @@ void CategoryLogger::setLevel(Level level) {
         d->category, convertToLoggerLevel(level));
 }
 
-Level CategoryLogger::getLevel() const {
-    return d->level;
-}
+Level CategoryLogger::getLevel() const { return d->level; }
 
 // ============================================================================
 // Timer Implementation
@@ -271,33 +291,34 @@ Level CategoryLogger::getLevel() const {
 
 class Timer::Impl {
 public:
-    Impl(const QString& name) 
-        : m_name(name),
-          m_startTime(std::chrono::high_resolution_clock::now()) {
+    Impl(const QString& name)
+        : m_name(name), m_startTime(std::chrono::high_resolution_clock::now()) {
         SastLogging::debug("Timer [%s] started", name.toStdString().c_str());
     }
-    
+
     ~Impl() {
         auto endTime = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            endTime - m_startTime).count();
-        SastLogging::debug("Timer [%s] finished: %lld ms", 
-                          m_name.toStdString().c_str(), duration);
+                            endTime - m_startTime)
+                            .count();
+        SastLogging::debug("Timer [%s] finished: %lld ms",
+                           m_name.toStdString().c_str(), duration);
     }
-    
+
     void checkpoint(const QString& name) {
         auto now = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            now - m_lastCheckpoint).count();
-        QString checkpointName = name.isEmpty() ? 
-            QString("Checkpoint %1").arg(++m_checkpointCount) : name;
-        SastLogging::debug("Timer [%s] %s: %lld ms", 
-                          m_name.toStdString().c_str(),
-                          checkpointName.toStdString().c_str(),
-                          duration);
+                            now - m_lastCheckpoint)
+                            .count();
+        QString checkpointName =
+            name.isEmpty() ? QString("Checkpoint %1").arg(++m_checkpointCount)
+                           : name;
+        SastLogging::debug("Timer [%s] %s: %lld ms",
+                           m_name.toStdString().c_str(),
+                           checkpointName.toStdString().c_str(), duration);
         m_lastCheckpoint = now;
     }
-    
+
 private:
     QString m_name;
     std::chrono::high_resolution_clock::time_point m_startTime;
@@ -305,15 +326,11 @@ private:
     int m_checkpointCount = 0;
 };
 
-Timer::Timer(const QString& name) 
-    : m_impl(std::make_unique<Impl>(name)) {
-}
+Timer::Timer(const QString& name) : m_impl(std::make_unique<Impl>(name)) {}
 
 Timer::~Timer() = default;
 
-void Timer::checkpoint(const QString& name) {
-    m_impl->checkpoint(name);
-}
+void Timer::checkpoint(const QString& name) { m_impl->checkpoint(name); }
 
 // ============================================================================
 // ScopedLevel Implementation
@@ -324,9 +341,7 @@ ScopedLevel::ScopedLevel(Level tempLevel)
     setLevel(tempLevel);
 }
 
-ScopedLevel::~ScopedLevel() {
-    setLevel(d->originalLevel);
-}
+ScopedLevel::~ScopedLevel() { setLevel(d->originalLevel); }
 
 // ============================================================================
 // ScopedSilence Implementation
@@ -337,9 +352,7 @@ ScopedSilence::ScopedSilence()
     setLevel(Level::Off);
 }
 
-ScopedSilence::~ScopedSilence() {
-    setLevel(d->originalLevel);
-}
+ScopedSilence::~ScopedSilence() { setLevel(d->originalLevel); }
 
 // ============================================================================
 // File Operations Implementation
@@ -353,9 +366,7 @@ QStringList getLogFiles() {
     return LoggingManager::instance().getLogFileList();
 }
 
-void rotateLogFiles() {
-    LoggingManager::instance().rotateLogFiles();
-}
+void rotateLogFiles() { LoggingManager::instance().rotateLogFiles(); }
 
 qint64 getTotalLogSize() {
     return LoggingManager::instance().getTotalLogFileSize();
@@ -365,16 +376,10 @@ qint64 getTotalLogSize() {
 // Utility Functions Implementation
 // ============================================================================
 
-bool isInitialized() {
-    return LoggingManager::instance().isInitialized();
-}
+bool isInitialized() { return LoggingManager::instance().isInitialized(); }
 
-QString getLastError() {
-    return g_lastError;
-}
+QString getLastError() { return g_lastError; }
 
-void clearLastError() {
-    g_lastError.clear();
-}
+void clearLastError() { g_lastError.clear(); }
 
-} // namespace SastLogging
+}  // namespace SastLogging

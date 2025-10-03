@@ -1,24 +1,24 @@
-#include <QtTest/QtTest>
+#include <poppler-qt6.h>
 #include <QApplication>
-#include <QTemporaryFile>
+#include <QElapsedTimer>
+#include <QMutex>
 #include <QPainter>
 #include <QPdfWriter>
-#include <QElapsedTimer>
+#include <QTemporaryFile>
 #include <QThread>
-#include <QMutex>
 #include <QWaitCondition>
-#include <poppler-qt6.h>
+#include <QtTest/QtTest>
 // OptimizedSearchEngine removed - functionality integrated into SearchEngine
-#include "../../app/search/SearchEngine.h"
-#include "../../app/model/SearchModel.h"
 #include "../../app/cache/SearchResultCache.h"
+#include "../../app/model/SearchModel.h"
+#include "../../app/search/SearchEngine.h"
 
 /**
  * Performance and Caching Tests
- * Tests search result caching, incremental search, background operations, and memory usage
+ * Tests search result caching, incremental search, background operations, and
+ * memory usage
  */
-class TestSearchPerformanceCaching : public QObject
-{
+class TestSearchPerformanceCaching : public QObject {
     Q_OBJECT
 
 private slots:
@@ -26,28 +26,28 @@ private slots:
     void cleanupTestCase();
     void init();
     void cleanup();
-    
+
     // Cache mechanism tests
     void testSearchResultCaching();
     void testCacheHitMissScenarios();
     void testCacheEvictionPolicy();
     void testCacheMemoryManagement();
-    
+
     // Incremental search tests
     void testIncrementalSearchBasic();
     void testIncrementalSearchPerformance();
     void testIncrementalSearchAccuracy();
-    
+
     // Background search tests
     void testBackgroundSearchOperations();
     void testSearchCancellation();
     void testThreadSafety();
-    
+
     // Memory usage tests
     void testMemoryUsageDuringSearch();
     void testMemoryCleanupAfterSearch();
     void testLargeDocumentMemoryHandling();
-    
+
     // Performance benchmarks
     void benchmarkBasicSearch();
     void benchmarkFuzzySearch();
@@ -61,48 +61,54 @@ private:
     SearchModel* m_searchModel;
     QString m_smallPdfPath;
     QString m_largePdfPath;
-    
+
     // Test content
     QStringList m_smallTestTexts;
     QStringList m_largeTestTexts;
-    
+
     // Helper methods
     Poppler::Document* createSmallTestDocument();
     Poppler::Document* createLargeTestDocument();
     void measureMemoryUsage(const QString& operation);
     qint64 getCurrentMemoryUsage();
     void performSearchOperations(int count, const QString& query);
-    
+
     // Thread safety helpers
     class SearchWorker;
     void runConcurrentSearches(int threadCount, int searchesPerThread);
 };
 
 // Worker class for thread safety testing
-class TestSearchPerformanceCaching::SearchWorker : public QThread
-{
+class TestSearchPerformanceCaching::SearchWorker : public QThread {
     Q_OBJECT
 public:
     SearchWorker(SearchEngine* engine, Poppler::Document* doc,
-                 const QString& query, int searchCount, QObject* parent = nullptr)
-        : QThread(parent), m_engine(engine), m_document(doc), 
-          m_query(query), m_searchCount(searchCount), m_completed(false) {}
-    
+                 const QString& query, int searchCount,
+                 QObject* parent = nullptr)
+        : QThread(parent),
+          m_engine(engine),
+          m_document(doc),
+          m_query(query),
+          m_searchCount(searchCount),
+          m_completed(false) {}
+
     void run() override {
         for (int i = 0; i < m_searchCount; ++i) {
             SearchOptions options;
             m_engine->startSearch(m_document, m_query, options);
-            
+
             // Wait for search to complete
-            while (m_engine->getResults().isEmpty() && !isInterruptionRequested()) {
+            while (m_engine->getResults().isEmpty() &&
+                   !isInterruptionRequested()) {
                 msleep(10);
             }
-            
-            if (isInterruptionRequested()) break;
+
+            if (isInterruptionRequested())
+                break;
         }
         m_completed = true;
     }
-    
+
     bool isCompleted() const { return m_completed; }
 
 private:
@@ -113,49 +119,52 @@ private:
     bool m_completed;
 };
 
-void TestSearchPerformanceCaching::initTestCase()
-{
+void TestSearchPerformanceCaching::initTestCase() {
     // Initialize small test document
-    m_smallTestTexts = {
-        "Small document page 1 with basic content for testing.",
-        "Small document page 2 with different content.",
-        "Small document page 3 with final content."
-    };
-    
+    m_smallTestTexts = {"Small document page 1 with basic content for testing.",
+                        "Small document page 2 with different content.",
+                        "Small document page 3 with final content."};
+
     // Initialize large test document (more pages, more content)
     m_largeTestTexts.clear();
     for (int i = 0; i < 50; ++i) {
-        m_largeTestTexts.append(QString(
-            "Large document page %1. This page contains extensive content for performance testing. "
-            "It includes various keywords like search, test, performance, cache, memory, and optimization. "
-            "The content is designed to provide realistic search scenarios with multiple matches per page. "
-            "Additional text to increase page size and search complexity. Lorem ipsum dolor sit amet, "
-            "consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "
-            "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
-        ).arg(i + 1));
+        m_largeTestTexts.append(
+            QString("Large document page %1. This page contains extensive "
+                    "content for performance testing. "
+                    "It includes various keywords like search, test, "
+                    "performance, cache, memory, and optimization. "
+                    "The content is designed to provide realistic search "
+                    "scenarios with multiple matches per page. "
+                    "Additional text to increase page size and search "
+                    "complexity. Lorem ipsum dolor sit amet, "
+                    "consectetur adipiscing elit, sed do eiusmod tempor "
+                    "incididunt ut labore et dolore magna aliqua. "
+                    "Ut enim ad minim veniam, quis nostrud exercitation "
+                    "ullamco laboris nisi ut aliquip ex ea commodo consequat.")
+                .arg(i + 1));
     }
-    
+
     m_smallDocument = createSmallTestDocument();
     m_largeDocument = createLargeTestDocument();
-    
+
     QVERIFY(m_smallDocument != nullptr);
     QVERIFY(m_largeDocument != nullptr);
     QCOMPARE(m_smallDocument->numPages(), 3);
     QCOMPARE(m_largeDocument->numPages(), 50);
-    
+
     m_optimizedEngine = new SearchEngine(this);
     m_optimizedEngine->setDocument(m_smallDocument);
     m_optimizedEngine->setCacheEnabled(true);
-    // m_optimizedEngine->setBackgroundSearchEnabled(false); // Synchronous search for testing
-    
+    // m_optimizedEngine->setBackgroundSearchEnabled(false); // Synchronous
+    // search for testing
+
     m_searchModel = new SearchModel(this);
 }
 
-void TestSearchPerformanceCaching::cleanupTestCase()
-{
+void TestSearchPerformanceCaching::cleanupTestCase() {
     delete m_smallDocument;
     delete m_largeDocument;
-    
+
     if (!m_smallPdfPath.isEmpty()) {
         QFile::remove(m_smallPdfPath);
     }
@@ -164,19 +173,16 @@ void TestSearchPerformanceCaching::cleanupTestCase()
     }
 }
 
-void TestSearchPerformanceCaching::init()
-{
+void TestSearchPerformanceCaching::init() {
     m_optimizedEngine->clearResults();
     m_searchModel->clearResults();
 }
 
-void TestSearchPerformanceCaching::cleanup()
-{
+void TestSearchPerformanceCaching::cleanup() {
     // Cleanup after each test
 }
 
-void TestSearchPerformanceCaching::testSearchResultCaching()
-{
+void TestSearchPerformanceCaching::testSearchResultCaching() {
     SearchOptions options;
 
     // Debug: Check document content
@@ -191,7 +197,8 @@ void TestSearchPerformanceCaching::testSearchResultCaching()
     timer.start();
 
     // Debug: Test with a simpler search first
-    qDebug() << "Testing search for 'content' with options:" << "caseSensitive:" << options.caseSensitive << "wholeWords:" << options.wholeWords;
+    qDebug() << "Testing search for 'content' with options:" << "caseSensitive:"
+             << options.caseSensitive << "wholeWords:" << options.wholeWords;
 
     // Test if the OptimizedSearchEngine can extract page text
     qDebug() << "Testing direct page text extraction...";
@@ -207,7 +214,8 @@ void TestSearchPerformanceCaching::testSearchResultCaching()
     QList<SearchResult> firstResults = m_optimizedEngine->getResults();
     qint64 firstSearchTime = timer.elapsed();
 
-    qDebug() << "First search found" << firstResults.size() << "results in" << firstSearchTime << "ms";
+    qDebug() << "First search found" << firstResults.size() << "results in"
+             << firstSearchTime << "ms";
     for (const SearchResult& result : firstResults) {
         qDebug() << "Result:" << result.text << "on page" << result.pageNumber;
     }
@@ -217,196 +225,195 @@ void TestSearchPerformanceCaching::testSearchResultCaching()
         qDebug() << "No results for 'content', trying 'document'";
         m_optimizedEngine->startSearch(m_smallDocument, "document", options);
         firstResults = m_optimizedEngine->getResults();
-        qDebug() << "Search for 'document' found" << firstResults.size() << "results";
+        qDebug() << "Search for 'document' found" << firstResults.size()
+                 << "results";
     }
 
     QVERIFY(!firstResults.isEmpty());
-    
+
     // Second identical search - should use cache
     timer.restart();
     m_optimizedEngine->startSearch(m_smallDocument, "content", options);
     QList<SearchResult> secondResults = m_optimizedEngine->getResults();
     qint64 secondSearchTime = timer.elapsed();
-    
+
     // Results should be identical
     QCOMPARE(firstResults.size(), secondResults.size());
-    
+
     // Second search should be faster (cached)
     QVERIFY(secondSearchTime <= firstSearchTime);
-    
-    qDebug() << "Cache performance: First search:" << firstSearchTime 
+
+    qDebug() << "Cache performance: First search:" << firstSearchTime
              << "ms, Cached search:" << secondSearchTime << "ms";
 }
 
-void TestSearchPerformanceCaching::testCacheHitMissScenarios()
-{
+void TestSearchPerformanceCaching::testCacheHitMissScenarios() {
     SearchOptions options;
     // SearchResultCache* cache = m_optimizedEngine->getSearchResultCache();
 
     // Reset cache statistics
     // m_optimizedEngine->resetCacheStatistics();
-    
+
     // Perform searches that should hit cache
     m_optimizedEngine->startSearch(m_smallDocument, "test1", options);
     m_optimizedEngine->startSearch(m_smallDocument, "test2", options);
-    m_optimizedEngine->startSearch(m_smallDocument, "test1", options); // Cache hit
-    m_optimizedEngine->startSearch(m_smallDocument, "test2", options); // Cache hit
-    
+    m_optimizedEngine->startSearch(m_smallDocument, "test1",
+                                   options);  // Cache hit
+    m_optimizedEngine->startSearch(m_smallDocument, "test2",
+                                   options);  // Cache hit
+
     // Check cache hit ratio
     double hitRatio = m_optimizedEngine->cacheHitRatio();
     QVERIFY(hitRatio >= 0.0);
     QVERIFY(hitRatio <= 1.0);
-    
+
     qDebug() << "Cache hit ratio:" << hitRatio;
 }
 
-void TestSearchPerformanceCaching::testCacheEvictionPolicy()
-{
+void TestSearchPerformanceCaching::testCacheEvictionPolicy() {
     SearchOptions options;
-    
+
     // Fill cache with many different searches to trigger eviction
     for (int i = 0; i < 100; ++i) {
         QString query = QString("query%1").arg(i);
         m_optimizedEngine->startSearch(m_smallDocument, query, options);
     }
-    
+
     // Cache should have evicted some entries
     qint64 memoryUsage = m_optimizedEngine->cacheMemoryUsage();
     QVERIFY(memoryUsage > 0);
-    
+
     qDebug() << "Cache memory usage after eviction:" << memoryUsage << "bytes";
 }
 
-void TestSearchPerformanceCaching::testCacheMemoryManagement()
-{
+void TestSearchPerformanceCaching::testCacheMemoryManagement() {
     qint64 initialMemory = getCurrentMemoryUsage();
-    
+
     SearchOptions options;
-    
+
     // Perform many searches to build up cache
     for (int i = 0; i < 50; ++i) {
         QString query = QString("memory_test_%1").arg(i);
         m_optimizedEngine->startSearch(m_smallDocument, query, options);
     }
-    
+
     qint64 afterSearchMemory = getCurrentMemoryUsage();
-    
+
     // Clear cache - search engine doesn't expose cache directly
     // Would need to clear via some other method or let it expire
-    
+
     qint64 afterClearMemory = getCurrentMemoryUsage();
-    
+
     // Memory should be released after cache clear
     QVERIFY(afterClearMemory < afterSearchMemory);
-    
-    qDebug() << "Memory usage - Initial:" << initialMemory 
-             << "After searches:" << afterSearchMemory 
+
+    qDebug() << "Memory usage - Initial:" << initialMemory
+             << "After searches:" << afterSearchMemory
              << "After clear:" << afterClearMemory;
 }
 
-void TestSearchPerformanceCaching::testIncrementalSearchBasic()
-{
+void TestSearchPerformanceCaching::testIncrementalSearchBasic() {
     SearchOptions options;
-    
+
     // Test incremental search (searching for progressively longer queries)
     m_optimizedEngine->startSearch(m_smallDocument, "t", options);
     QList<SearchResult> results1 = m_optimizedEngine->getResults();
-    
+
     m_optimizedEngine->startSearch(m_smallDocument, "te", options);
     QList<SearchResult> results2 = m_optimizedEngine->getResults();
-    
+
     m_optimizedEngine->startSearch(m_smallDocument, "tes", options);
     QList<SearchResult> results3 = m_optimizedEngine->getResults();
-    
+
     m_optimizedEngine->startSearch(m_smallDocument, "test", options);
     QList<SearchResult> results4 = m_optimizedEngine->getResults();
-    
+
     // Results should progressively narrow down
     QVERIFY(results1.size() >= results2.size());
     QVERIFY(results2.size() >= results3.size());
     QVERIFY(results3.size() >= results4.size());
 }
 
-void TestSearchPerformanceCaching::testIncrementalSearchPerformance()
-{
+void TestSearchPerformanceCaching::testIncrementalSearchPerformance() {
     SearchOptions options;
-    
+
     QElapsedTimer timer;
     timer.start();
-    
+
     // Perform incremental search sequence
-    QStringList queries = {"p", "pe", "per", "perf", "perfo", "perfor", "perform", "performance"};
-    
+    QStringList queries = {"p",     "pe",     "per",     "perf",
+                           "perfo", "perfor", "perform", "performance"};
+
     for (const QString& query : queries) {
         m_optimizedEngine->startSearch(m_largeDocument, query, options);
         QList<SearchResult> results = m_optimizedEngine->getResults();
         // Each incremental search should complete quickly
     }
-    
+
     qint64 totalTime = timer.elapsed();
-    
+
     // Incremental search should be efficient
-    QVERIFY(totalTime < 2000); // 2 seconds for all incremental searches
-    
-    qDebug() << "Incremental search performance:" << totalTime << "ms for" << queries.size() << "queries";
+    QVERIFY(totalTime < 2000);  // 2 seconds for all incremental searches
+
+    qDebug() << "Incremental search performance:" << totalTime << "ms for"
+             << queries.size() << "queries";
 }
 
-void TestSearchPerformanceCaching::testIncrementalSearchAccuracy()
-{
+void TestSearchPerformanceCaching::testIncrementalSearchAccuracy() {
     SearchOptions options;
-    
+
     // Test that incremental search maintains accuracy
     m_optimizedEngine->startSearch(m_smallDocument, "content", options);
     QList<SearchResult> incrementalResults = m_optimizedEngine->getResults();
-    
+
     // Compare with regular search
     m_optimizedEngine->startSearch(m_smallDocument, "content", options);
     QList<SearchResult> regularResults = m_optimizedEngine->getResults();
-    
+
     // Results should be identical
     QCOMPARE(incrementalResults.size(), regularResults.size());
-    
+
     for (int i = 0; i < incrementalResults.size(); ++i) {
-        QCOMPARE(incrementalResults[i].pageNumber, regularResults[i].pageNumber);
+        QCOMPARE(incrementalResults[i].pageNumber,
+                 regularResults[i].pageNumber);
         QCOMPARE(incrementalResults[i].text, regularResults[i].text);
     }
 }
 
-Poppler::Document* TestSearchPerformanceCaching::createSmallTestDocument()
-{
+Poppler::Document* TestSearchPerformanceCaching::createSmallTestDocument() {
     QTemporaryFile tempFile;
     tempFile.setFileTemplate(QDir::tempPath() + "/test_small_perf_XXXXXX.pdf");
     if (!tempFile.open()) {
         return nullptr;
     }
-    
+
     m_smallPdfPath = tempFile.fileName();
     tempFile.close();
-    
+
     QPdfWriter pdfWriter(m_smallPdfPath);
     pdfWriter.setPageSize(QPageSize::A4);
     pdfWriter.setResolution(300);
-    
+
     QPainter painter(&pdfWriter);
     if (!painter.isActive()) {
         return nullptr;
     }
-    
+
     QFont font = painter.font();
     font.setPointSize(12);
     painter.setFont(font);
-    
+
     for (int page = 0; page < m_smallTestTexts.size(); ++page) {
         if (page > 0) {
             pdfWriter.newPage();
         }
-        
+
         QRect textRect(100, 100, 400, 600);
         painter.drawText(textRect, Qt::TextWordWrap, m_smallTestTexts[page]);
     }
-    
+
     painter.end();
-    
+
     auto doc = Poppler::Document::load(m_smallPdfPath);
     if (doc && doc->numPages() > 0) {
         return doc.release();
@@ -414,41 +421,40 @@ Poppler::Document* TestSearchPerformanceCaching::createSmallTestDocument()
     return nullptr;
 }
 
-Poppler::Document* TestSearchPerformanceCaching::createLargeTestDocument()
-{
+Poppler::Document* TestSearchPerformanceCaching::createLargeTestDocument() {
     QTemporaryFile tempFile;
     tempFile.setFileTemplate(QDir::tempPath() + "/test_large_perf_XXXXXX.pdf");
     if (!tempFile.open()) {
         return nullptr;
     }
-    
+
     m_largePdfPath = tempFile.fileName();
     tempFile.close();
-    
+
     QPdfWriter pdfWriter(m_largePdfPath);
     pdfWriter.setPageSize(QPageSize::A4);
     pdfWriter.setResolution(300);
-    
+
     QPainter painter(&pdfWriter);
     if (!painter.isActive()) {
         return nullptr;
     }
-    
+
     QFont font = painter.font();
-    font.setPointSize(10); // Smaller font for more content
+    font.setPointSize(10);  // Smaller font for more content
     painter.setFont(font);
-    
+
     for (int page = 0; page < m_largeTestTexts.size(); ++page) {
         if (page > 0) {
             pdfWriter.newPage();
         }
-        
+
         QRect textRect(50, 50, 500, 700);
         painter.drawText(textRect, Qt::TextWordWrap, m_largeTestTexts[page]);
     }
-    
+
     painter.end();
-    
+
     auto doc = Poppler::Document::load(m_largePdfPath);
     if (doc && doc->numPages() > 0) {
         return doc.release();
@@ -456,20 +462,19 @@ Poppler::Document* TestSearchPerformanceCaching::createLargeTestDocument()
     return nullptr;
 }
 
-qint64 TestSearchPerformanceCaching::getCurrentMemoryUsage()
-{
-    // Simple memory usage estimation (platform-specific implementation would be better)
+qint64 TestSearchPerformanceCaching::getCurrentMemoryUsage() {
+    // Simple memory usage estimation (platform-specific implementation would be
+    // better)
     return m_optimizedEngine->cacheMemoryUsage();
 }
 
-void TestSearchPerformanceCaching::measureMemoryUsage(const QString& operation)
-{
+void TestSearchPerformanceCaching::measureMemoryUsage(
+    const QString& operation) {
     qint64 memory = getCurrentMemoryUsage();
     qDebug() << operation << "memory usage:" << memory << "bytes";
 }
 
-void TestSearchPerformanceCaching::testBackgroundSearchOperations()
-{
+void TestSearchPerformanceCaching::testBackgroundSearchOperations() {
     SearchOptions options;
 
     // Enable background search
@@ -483,11 +488,12 @@ void TestSearchPerformanceCaching::testBackgroundSearchOperations()
 
     // Search should return quickly (background operation)
     qint64 startTime = timer.elapsed();
-    QVERIFY(startTime < 100); // Should return almost immediately
+    QVERIFY(startTime < 100);  // Should return almost immediately
 
     // Wait for background search to complete
-    int maxWait = 5000; // 5 seconds
-    while (m_optimizedEngine->getResults().isEmpty() && timer.elapsed() < maxWait) {
+    int maxWait = 5000;  // 5 seconds
+    while (m_optimizedEngine->getResults().isEmpty() &&
+           timer.elapsed() < maxWait) {
         QThread::msleep(50);
         QCoreApplication::processEvents();
     }
@@ -498,8 +504,7 @@ void TestSearchPerformanceCaching::testBackgroundSearchOperations()
     qDebug() << "Background search completed in" << timer.elapsed() << "ms";
 }
 
-void TestSearchPerformanceCaching::testSearchCancellation()
-{
+void TestSearchPerformanceCaching::testSearchCancellation() {
     SearchOptions options;
 
     // Start a search on large document
@@ -517,11 +522,11 @@ void TestSearchPerformanceCaching::testSearchCancellation()
     // Test passed if no crash occurred and operation completed
     QVERIFY(true);
 
-    qDebug() << "Search cancellation test completed, results count:" << results.size();
+    qDebug() << "Search cancellation test completed, results count:"
+             << results.size();
 }
 
-void TestSearchPerformanceCaching::testThreadSafety()
-{
+void TestSearchPerformanceCaching::testThreadSafety() {
     const int threadCount = 4;
     const int searchesPerThread = 10;
 
@@ -531,15 +536,15 @@ void TestSearchPerformanceCaching::testThreadSafety()
     QVERIFY(true);
 }
 
-void TestSearchPerformanceCaching::runConcurrentSearches(int threadCount, int searchesPerThread)
-{
+void TestSearchPerformanceCaching::runConcurrentSearches(
+    int threadCount, int searchesPerThread) {
     QList<SearchWorker*> workers;
 
     // Create worker threads
     for (int i = 0; i < threadCount; ++i) {
         QString query = QString("thread_test_%1").arg(i);
-        SearchWorker* worker = new SearchWorker(m_optimizedEngine, m_smallDocument,
-                                               query, searchesPerThread, this);
+        SearchWorker* worker = new SearchWorker(
+            m_optimizedEngine, m_smallDocument, query, searchesPerThread, this);
         workers.append(worker);
     }
 
@@ -550,7 +555,7 @@ void TestSearchPerformanceCaching::runConcurrentSearches(int threadCount, int se
 
     // Wait for all threads to complete
     for (SearchWorker* worker : workers) {
-        QVERIFY(worker->wait(10000)); // 10 second timeout
+        QVERIFY(worker->wait(10000));  // 10 second timeout
         QVERIFY(worker->isCompleted());
     }
 
@@ -558,8 +563,7 @@ void TestSearchPerformanceCaching::runConcurrentSearches(int threadCount, int se
              << searchesPerThread << "searches each";
 }
 
-void TestSearchPerformanceCaching::testMemoryUsageDuringSearch()
-{
+void TestSearchPerformanceCaching::testMemoryUsageDuringSearch() {
     measureMemoryUsage("Initial");
 
     SearchOptions options;
@@ -577,15 +581,15 @@ void TestSearchPerformanceCaching::testMemoryUsageDuringSearch()
     measureMemoryUsage("After all searches");
 }
 
-void TestSearchPerformanceCaching::testMemoryCleanupAfterSearch()
-{
+void TestSearchPerformanceCaching::testMemoryCleanupAfterSearch() {
     qint64 initialMemory = getCurrentMemoryUsage();
 
     SearchOptions options;
 
     // Perform searches
     for (int i = 0; i < 10; ++i) {
-        m_optimizedEngine->startSearch(m_largeDocument, "cleanup_test", options);
+        m_optimizedEngine->startSearch(m_largeDocument, "cleanup_test",
+                                       options);
     }
 
     qint64 afterSearchMemory = getCurrentMemoryUsage();
@@ -605,8 +609,7 @@ void TestSearchPerformanceCaching::testMemoryCleanupAfterSearch()
              << "After cleanup:" << afterCleanupMemory;
 }
 
-void TestSearchPerformanceCaching::testLargeDocumentMemoryHandling()
-{
+void TestSearchPerformanceCaching::testLargeDocumentMemoryHandling() {
     SearchOptions options;
 
     qint64 beforeMemory = getCurrentMemoryUsage();
@@ -615,7 +618,8 @@ void TestSearchPerformanceCaching::testLargeDocumentMemoryHandling()
     m_optimizedEngine->setDocument(m_largeDocument);
 
     for (int i = 0; i < 5; ++i) {
-        m_optimizedEngine->startSearch(m_largeDocument, "large_document_test", options);
+        m_optimizedEngine->startSearch(m_largeDocument, "large_document_test",
+                                       options);
         QList<SearchResult> results = m_optimizedEngine->getResults();
         QVERIFY(!results.isEmpty());
     }
@@ -625,14 +629,14 @@ void TestSearchPerformanceCaching::testLargeDocumentMemoryHandling()
     // Memory usage should be reasonable
     qint64 memoryIncrease = afterMemory - beforeMemory;
 
-    qDebug() << "Large document memory handling - Memory increase:" << memoryIncrease << "bytes";
+    qDebug() << "Large document memory handling - Memory increase:"
+             << memoryIncrease << "bytes";
 
     // Reset to small document
     m_optimizedEngine->setDocument(m_smallDocument);
 }
 
-void TestSearchPerformanceCaching::benchmarkBasicSearch()
-{
+void TestSearchPerformanceCaching::benchmarkBasicSearch() {
     SearchOptions options;
 
     QElapsedTimer timer;
@@ -647,20 +651,19 @@ void TestSearchPerformanceCaching::benchmarkBasicSearch()
     qint64 elapsed = timer.elapsed();
 
     double avgTime = static_cast<double>(elapsed) / iterations;
-    qDebug() << "Basic search benchmark:" << iterations << "searches in" << elapsed
-             << "ms, average:" << avgTime << "ms per search";
+    qDebug() << "Basic search benchmark:" << iterations << "searches in"
+             << elapsed << "ms, average:" << avgTime << "ms per search";
 
-    QVERIFY(avgTime < 50); // Should average less than 50ms per search
+    QVERIFY(avgTime < 50);  // Should average less than 50ms per search
 }
 
-void TestSearchPerformanceCaching::benchmarkFuzzySearch()
-{
+void TestSearchPerformanceCaching::benchmarkFuzzySearch() {
     SearchOptions options;
     options.fuzzySearch = true;
     options.fuzzyThreshold = 2;
 
     QElapsedTimer timer;
-    const int iterations = 50; // Fewer iterations for fuzzy search
+    const int iterations = 50;  // Fewer iterations for fuzzy search
 
     timer.start();
     for (int i = 0; i < iterations; ++i) {
@@ -670,14 +673,13 @@ void TestSearchPerformanceCaching::benchmarkFuzzySearch()
     qint64 elapsed = timer.elapsed();
 
     double avgTime = static_cast<double>(elapsed) / iterations;
-    qDebug() << "Fuzzy search benchmark:" << iterations << "searches in" << elapsed
-             << "ms, average:" << avgTime << "ms per search";
+    qDebug() << "Fuzzy search benchmark:" << iterations << "searches in"
+             << elapsed << "ms, average:" << avgTime << "ms per search";
 
-    QVERIFY(avgTime < 200); // Fuzzy search should average less than 200ms
+    QVERIFY(avgTime < 200);  // Fuzzy search should average less than 200ms
 }
 
-void TestSearchPerformanceCaching::benchmarkCachedVsUncachedSearch()
-{
+void TestSearchPerformanceCaching::benchmarkCachedVsUncachedSearch() {
     SearchOptions options;
 
     // Disable cache for uncached test
@@ -714,8 +716,7 @@ void TestSearchPerformanceCaching::benchmarkCachedVsUncachedSearch()
     QVERIFY(cachedTime < uncachedTime);
 }
 
-void TestSearchPerformanceCaching::benchmarkLargeDocumentSearch()
-{
+void TestSearchPerformanceCaching::benchmarkLargeDocumentSearch() {
     SearchOptions options;
 
     QElapsedTimer timer;
@@ -730,10 +731,11 @@ void TestSearchPerformanceCaching::benchmarkLargeDocumentSearch()
     QVERIFY(!results.isEmpty());
 
     qDebug() << "Large document search benchmark:" << elapsed << "ms for"
-             << m_largeDocument->numPages() << "pages, found" << results.size() << "results";
+             << m_largeDocument->numPages() << "pages, found" << results.size()
+             << "results";
 
     // Should complete within reasonable time
-    QVERIFY(elapsed < 10000); // 10 seconds max for large document
+    QVERIFY(elapsed < 10000);  // 10 seconds max for large document
 
     // Reset to small document
     m_optimizedEngine->setDocument(m_smallDocument);

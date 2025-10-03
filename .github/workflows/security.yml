@@ -1,0 +1,370 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  pull-requests: write
+
+env:
+  APP_NAME: sast-readium
+
+jobs:
+  # Static Code Security Analysis (SAST)
+  sast-analysis:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build build-essential \
+            qt6-base-dev qt6-svg-dev qt6-tools-dev \
+            libpoppler-qt6-dev pkg-config \
+            cppcheck
+
+      - name: Install Python security tools
+        run: |
+          pip install --upgrade pip
+          pip install bandit safety semgrep
+
+      - name: Configure CMake
+        run: |
+          cmake --preset=Debug-Unix -DUSE_VCPKG=OFF
+
+      - name: Build project for analysis
+        run: |
+          cmake --build --preset=Debug-Unix --parallel 4
+
+      - name: Run Cppcheck Static Analysis
+        run: |
+          echo "## Cppcheck Static Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run cppcheck with comprehensive checks
+          cppcheck --enable=all \
+            --xml-version=2 \
+            --std=c++20 \
+            --platform=unix64 \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --xml build/Debug/app/ 2> cppcheck-results.xml || true
+
+          # Generate human-readable report
+          cppcheck --enable=all \
+            --std=c++20 \
+            --platform=unix64 \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            build/Debug/app/ 2> cppcheck-report.txt || true
+
+          # Count issues by severity
+          HIGH_COUNT=$(grep -c "severity=\"high\"" cppcheck-results.xml 2>/dev/null || echo "0")
+          MEDIUM_COUNT=$(grep -c "severity=\"medium\"" cppcheck-results.xml 2>/dev/null || echo "0")
+          LOW_COUNT=$(grep -c "severity=\"low\"" cppcheck-results.xml 2>/dev/null || echo "0")
+
+          echo "### Issue Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **High Severity:** $HIGH_COUNT issues" >> $GITHUB_STEP_SUMMARY
+          echo "- **Medium Severity:** $MEDIUM_COUNT issues" >> $GITHUB_STEP_SUMMARY
+          echo "- **Low Severity:** $LOW_COUNT issues" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Show high and medium severity issues
+          if [ "$HIGH_COUNT" -gt 0 ] || [ "$MEDIUM_COUNT" -gt 0 ]; then
+            echo "### High and Medium Severity Issues" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+import xml.etree.ElementTree as ET
+try:
+    tree = ET.parse('cppcheck-results.xml')
+    root = tree.getroot()
+    for error in root.findall('error'):
+        severity = error.get('severity')
+        if severity in ['high', 'medium']:
+            file = error.get('file')
+            line = error.get('line')
+            msg = error.get('msg')
+            id = error.get('id')
+            print(f'- **{severity.title()}** [{id}] {file}:{line} - {msg}')
+except:
+    print('Could not parse cppcheck results')
+" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Cppcheck Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-results
+          path: |
+            cppcheck-results.xml
+            cppcheck-report.txt
+          retention-days: 30
+
+      - name: Run Clang Static Analyzer
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Clang Static Analyzer" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run clang static analyzer
+          cd build/Debug
+          scan-build cmake --preset=Debug-Unix -DUSE_VCPKG=OFF 2>/dev/null || true
+          scan-build cmake --build . --parallel 4 2> clang-scan-results.txt || true
+
+          # Check if scan-build found issues
+          if [ -f "clang-scan-results.txt" ]; then
+            BUG_COUNT=$(grep -c "bugs found" clang-scan-results.txt 2>/dev/null || echo "0")
+            echo "### Scan-build Results" >> $GITHUB_STEP_SUMMARY
+            echo "- **Bugs Found:** $BUG_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$BUG_COUNT" -gt 0 ]; then
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              cat clang-scan-results.txt >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "✅ No issues found by Clang Static Analyzer" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Run Semgrep Security Scan
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Semgrep Security Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run semgrep with security rules
+          semgrep --config=auto \
+            --severity=ERROR \
+            --severity=WARNING \
+            --json \
+            --output=semgrep-results.json \
+            app/ tests/ || true
+
+          # Generate human-readable report
+          semgrep --config=auto \
+            --severity=ERROR \
+            --severity=WARNING \
+            --output=semgrep-report.txt \
+            app/ tests/ || true
+
+          if [ -f "semgrep-results.json" ]; then
+            ERROR_COUNT=$(python3 -c "import json; data=json.load(open('semgrep-results.json')); print(len(data.get('results', [])))")
+            echo "### Security Issues Found: $ERROR_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$ERROR_COUNT" -gt 0 ]; then
+              python3 -c "
+import json
+try:
+    with open('semgrep-results.json', 'r') as f:
+        data = json.load(f)
+    for result in data.get('results', []):
+        metadata = result.get('metadata', {})
+        message = result.get('message', '')
+        file = result.get('path', '')
+        line = result.get('start', {}).get('line', '')
+        severity = metadata.get('severity', 'unknown')
+        owasp = metadata.get('owasp', [])
+        owasp_str = ', '.join(owasp) if owesp else 'N/A'
+        print(f'- **{severity.upper()}** {file}:{line} - {message}')
+        print(f'  OWASP Category: {owasp_str}')
+except Exception as e:
+    print(f'Error processing results: {e}')
+" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "✅ No security issues found by Semgrep" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Semgrep Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: |
+            semgrep-results.json
+            semgrep-report.txt
+          retention-days: 30
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: cpp
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:cpp"
+
+  # Security Audit for Dependencies
+  dependency-security:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependency scanning tools
+        run: |
+          pip install --upgrade pip
+          pip install safety requirements-parser
+
+      - name: Check for Python Dependencies
+        run: |
+          echo "## Python Dependencies Security Audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Look for requirements files
+          if find . -name "requirements*.txt" -o -name "setup.py" -o -name "pyproject.toml" | head -1; then
+            echo "### Found Python Dependencies" >> $GITHUB_STEP_SUMMARY
+            find . -name "requirements*.txt" -o -name "setup.py" -o -name "pyproject.toml" | while read file; do
+              echo "- $file" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Run safety check if requirements exist
+            if [ -f "requirements.txt" ]; then
+              echo "### Safety Check Results" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              safety check --json --output safety-report.json || true
+              safety check || true
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "✅ No Python dependencies found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check CMake/vcpkg Dependencies
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## C++ Dependencies Security Audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check vcpkg.json if it exists
+          if [ -f "vcpkg.json" ]; then
+            echo "### vcpkg Dependencies Found" >> $GITHUB_STEP_SUMMARY
+            echo "Checking for known vulnerabilities in vcpkg dependencies..." >> $GITHUB_STEP_SUMMARY
+
+            # Parse vcpkg.json and list dependencies
+            python3 -c "
+import json
+try:
+    with open('vcpkg.json', 'r') as f:
+        data = json.load(f)
+    deps = data.get('dependencies', [])
+    if deps:
+        print('**Dependencies:**')
+        for dep in deps:
+            if isinstance(dep, str):
+                print(f'- {dep}')
+            elif isinstance(dep, dict):
+                name = dep.get('name', 'unknown')
+                version = dep.get('version->=', 'latest')
+                print(f'- {name} (>={version})')
+    else:
+        print('No dependencies found in vcpkg.json')
+except Exception as e:
+    print(f'Error parsing vcpkg.json: {e}')
+" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Using system packages (no vcpkg.json found)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check System Package Dependencies
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## System Package Dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Analyze CMakeLists.txt for system dependencies
+          echo "### System Dependencies from CMakeLists.txt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "CMakeLists.txt" ]; then
+            echo "**Required System Packages:**" >> $GITHUB_STEP_SUMMARY
+            grep -i "find_package\|find_path" CMakeLists.txt | head -10 | while read line; do
+              echo "- $line" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Recommendations:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Keep system packages updated through your package manager" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor security advisories for Qt6 and Poppler libraries" >> $GITHUB_STEP_SUMMARY
+          echo "- Consider using vulnerability scanning tools for your OS distribution" >> $GITHUB_STEP_SUMMARY
+
+  # Security Scorecard
+  security-scorecard:
+    name: OSSF Scorecard
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      id-token: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run OSSF Scorecard
+        uses: ossf/scorecard-action@v2.3.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          repo_token: ${{ secrets.SCORECARD_TOKEN }}
+
+      - name: Upload Scorecard Results to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+      - name: Scorecard Summary
+        run: |
+          echo "## OSSF Scorecard Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The [Open Source Security Foundation (OSSF) Scorecard](https://securityscorecards.dev/) checks for several security best practices." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Results are uploaded to the **Security** tab of this repository." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Key Security Practices Checked:" >> $GITHUB_STEP_SUMMARY
+          echo "- Binary artifacts and build process security" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependency management and vulnerability scanning" >> $GITHUB_STEP_SUMMARY
+          echo "- Code review and testing practices" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch protection and CI/CD security" >> $GITHUB_STEP_SUMMARY
+          echo "- Token permissions and workflow security" >> $GITHUB_STEP_SUMMARY
+          echo "- Signed commits and provenance" >> $GITHUB_STEP_SUMMARY

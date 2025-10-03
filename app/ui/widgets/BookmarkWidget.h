@@ -1,20 +1,20 @@
 #pragma once
 
-#include <QWidget>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QTreeView>
-#include <QListView>
-#include <QPushButton>
-#include <QLineEdit>
-#include <QComboBox>
-#include <QLabel>
-#include <QGroupBox>
-#include <QSplitter>
-#include <QMenu>
 #include <QAction>
+#include <QComboBox>
 #include <QContextMenuEvent>
+#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QItemSelectionModel>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListView>
+#include <QMenu>
+#include <QPushButton>
+#include <QSplitter>
+#include <QTreeView>
+#include <QVBoxLayout>
+#include <QWidget>
 #include "../../model/BookmarkModel.h"
 
 class QSortFilterProxyModel;
@@ -34,7 +34,8 @@ public:
     void setCurrentDocument(const QString& documentPath);
 
     // Bookmark operations
-    bool addBookmark(const QString& documentPath, int pageNumber, const QString& title = QString());
+    bool addBookmark(const QString& documentPath, int pageNumber,
+                     const QString& title = QString());
     bool removeBookmark(const QString& bookmarkId);
     bool hasBookmarkForPage(const QString& documentPath, int pageNumber) const;
 

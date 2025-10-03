@@ -1,14 +1,14 @@
-#include "../TestUtilities.h"
-#include "../../app/utils/DocumentAnalyzer.h"
-#include <QTest>
-#include <QSignalSpy>
-#include <QTemporaryFile>
+#include <poppler-qt6.h>
+#include <QDir>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJsonArray>
-#include <QDir>
+#include <QSignalSpy>
 #include <QStandardPaths>
-#include <poppler-qt6.h>
+#include <QTemporaryFile>
+#include <QTest>
+#include "../../app/utils/DocumentAnalyzer.h"
+#include "../TestUtilities.h"
 
 class DocumentAnalyzerTest : public TestBase {
     Q_OBJECT
@@ -120,18 +120,21 @@ private:
     DocumentAnalyzer* m_analyzer;
     QString m_testDataDir;
     QStringList m_testPdfFiles;
-    
+
     // Helper methods
     QString createTestPdf(const QString& content = "Test PDF Content");
     QStringList createMultipleTestPdfs(int count);
     void cleanupTestFiles(const QStringList& files);
-    DocumentAnalyzer::AnalysisResult createMockAnalysisResult(const QString& path);
+    DocumentAnalyzer::AnalysisResult createMockAnalysisResult(
+        const QString& path);
     bool isValidAnalysisResult(const DocumentAnalyzer::AnalysisResult& result);
 };
 
 void DocumentAnalyzerTest::initTestCase() {
     // Setup test environment
-    m_testDataDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/DocumentAnalyzerTest";
+    m_testDataDir =
+        QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
+        "/DocumentAnalyzerTest";
     QDir().mkpath(m_testDataDir);
 }
 
@@ -160,7 +163,7 @@ void DocumentAnalyzerTest::cleanup() {
 
 void DocumentAnalyzerTest::testConstructor() {
     DocumentAnalyzer analyzer;
-    
+
     // Test initial state
     QCOMPARE(analyzer.getTotalDocuments(), 0);
     QCOMPARE(analyzer.getProcessedDocuments(), 0);
@@ -168,24 +171,26 @@ void DocumentAnalyzerTest::testConstructor() {
     QCOMPARE(analyzer.getProgressPercentage(), 0.0);
     QVERIFY(!analyzer.isBatchAnalysisRunning());
     QVERIFY(analyzer.isResultCachingEnabled());
-    QCOMPARE(analyzer.getMaxConcurrentJobs(), 4); // DEFAULT_MAX_CONCURRENT_JOBS
+    QCOMPARE(analyzer.getMaxConcurrentJobs(),
+             4);  // DEFAULT_MAX_CONCURRENT_JOBS
 }
 
 void DocumentAnalyzerTest::testDestructor() {
     // Test that destructor properly cleans up
     DocumentAnalyzer* analyzer = new DocumentAnalyzer();
     analyzer->startBatchAnalysis(QStringList() << "test.pdf");
-    
+
     // Destructor should stop batch analysis
     delete analyzer;
-    
+
     // If we reach here without crash, destructor worked correctly
     QVERIFY(true);
 }
 
 void DocumentAnalyzerTest::testDefaultSettings() {
-    DocumentAnalyzer::BatchAnalysisSettings settings = m_analyzer->getAnalysisSettings();
-    
+    DocumentAnalyzer::BatchAnalysisSettings settings =
+        m_analyzer->getAnalysisSettings();
+
     QCOMPARE(settings.analysisTypes, DocumentAnalyzer::FullAnalysis);
     QCOMPARE(settings.maxConcurrentJobs, 4);
     QVERIFY(settings.generateReport);
@@ -198,9 +203,10 @@ void DocumentAnalyzerTest::testDefaultSettings() {
 
 void DocumentAnalyzerTest::testAnalyzeDocumentWithValidFile() {
     QString testFile = createTestPdf();
-    
-    DocumentAnalyzer::AnalysisResult result = m_analyzer->analyzeDocument(testFile);
-    
+
+    DocumentAnalyzer::AnalysisResult result =
+        m_analyzer->analyzeDocument(testFile);
+
     QVERIFY(result.success);
     QCOMPARE(result.documentPath, testFile);
     QVERIFY(!result.analysis.isEmpty());
@@ -211,34 +217,39 @@ void DocumentAnalyzerTest::testAnalyzeDocumentWithValidFile() {
 
 void DocumentAnalyzerTest::testAnalyzeDocumentWithInvalidFile() {
     QString invalidFile = "/nonexistent/file.pdf";
-    
-    DocumentAnalyzer::AnalysisResult result = m_analyzer->analyzeDocument(invalidFile);
-    
+
+    DocumentAnalyzer::AnalysisResult result =
+        m_analyzer->analyzeDocument(invalidFile);
+
     QVERIFY(!result.success);
     QCOMPARE(result.documentPath, invalidFile);
     QVERIFY(!result.errorMessage.isEmpty());
 }
 
 void DocumentAnalyzerTest::testAnalyzeDocumentWithNullDocument() {
-    DocumentAnalyzer::AnalysisResult result = m_analyzer->analyzeDocument(static_cast<Poppler::Document*>(nullptr));
-    
+    DocumentAnalyzer::AnalysisResult result =
+        m_analyzer->analyzeDocument(static_cast<Poppler::Document*>(nullptr));
+
     QVERIFY(!result.success);
     QVERIFY(!result.errorMessage.isEmpty());
 }
 
 void DocumentAnalyzerTest::testAnalyzeDocumentWithDifferentTypes() {
     QString testFile = createTestPdf();
-    
+
     // Test different analysis types
-    DocumentAnalyzer::AnalysisResult basicResult = m_analyzer->analyzeDocument(testFile, DocumentAnalyzer::BasicAnalysis);
+    DocumentAnalyzer::AnalysisResult basicResult =
+        m_analyzer->analyzeDocument(testFile, DocumentAnalyzer::BasicAnalysis);
     QVERIFY(basicResult.success);
-    
-    DocumentAnalyzer::AnalysisResult textResult = m_analyzer->analyzeDocument(testFile, DocumentAnalyzer::TextAnalysis);
+
+    DocumentAnalyzer::AnalysisResult textResult =
+        m_analyzer->analyzeDocument(testFile, DocumentAnalyzer::TextAnalysis);
     QVERIFY(textResult.success);
-    
-    DocumentAnalyzer::AnalysisResult fullResult = m_analyzer->analyzeDocument(testFile, DocumentAnalyzer::FullAnalysis);
+
+    DocumentAnalyzer::AnalysisResult fullResult =
+        m_analyzer->analyzeDocument(testFile, DocumentAnalyzer::FullAnalysis);
     QVERIFY(fullResult.success);
-    
+
     // Full analysis should contain more data than basic
     QVERIFY(fullResult.analysis.size() >= basicResult.analysis.size());
 }
@@ -246,23 +257,27 @@ void DocumentAnalyzerTest::testAnalyzeDocumentWithDifferentTypes() {
 // Helper method implementations
 QString DocumentAnalyzerTest::createTestPdf(const QString& content) {
     // Create a simple test PDF file
-    QString fileName = m_testDataDir + QString("/test_%1.pdf").arg(QRandomGenerator::global()->generate());
-    
+    QString fileName =
+        m_testDataDir +
+        QString("/test_%1.pdf").arg(QRandomGenerator::global()->generate());
+
     // For testing purposes, create a minimal PDF-like file
     QFile file(fileName);
     if (file.open(QIODevice::WriteOnly)) {
         QTextStream stream(&file);
         stream << "%PDF-1.4\n";
         stream << "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n";
-        stream << "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n";
-        stream << "3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>\nendobj\n";
+        stream
+            << "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n";
+        stream << "3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R "
+                  ">>\nendobj\n";
         stream << "4 0 obj\n<< /Length " << content.length() << " >>\nstream\n";
         stream << content << "\nendstream\nendobj\n";
         stream << "xref\n0 5\n0000000000 65535 f\n";
         stream << "trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n%%EOF\n";
         file.close();
     }
-    
+
     m_testPdfFiles.append(fileName);
     return fileName;
 }
@@ -281,7 +296,8 @@ void DocumentAnalyzerTest::cleanupTestFiles(const QStringList& files) {
     }
 }
 
-DocumentAnalyzer::AnalysisResult DocumentAnalyzerTest::createMockAnalysisResult(const QString& path) {
+DocumentAnalyzer::AnalysisResult DocumentAnalyzerTest::createMockAnalysisResult(
+    const QString& path) {
     DocumentAnalyzer::AnalysisResult result;
     result.documentPath = path;
     result.success = true;
@@ -292,11 +308,10 @@ DocumentAnalyzer::AnalysisResult DocumentAnalyzerTest::createMockAnalysisResult(
     return result;
 }
 
-bool DocumentAnalyzerTest::isValidAnalysisResult(const DocumentAnalyzer::AnalysisResult& result) {
-    return result.success && 
-           !result.documentPath.isEmpty() && 
-           !result.analysis.isEmpty() && 
-           result.processingTime >= 0 && 
+bool DocumentAnalyzerTest::isValidAnalysisResult(
+    const DocumentAnalyzer::AnalysisResult& result) {
+    return result.success && !result.documentPath.isEmpty() &&
+           !result.analysis.isEmpty() && result.processingTime >= 0 &&
            !result.timestamp.isNull();
 }
 
@@ -314,7 +329,8 @@ void DocumentAnalyzerTest::testStartBatchAnalysis() {
 
 void DocumentAnalyzerTest::testStopBatchAnalysis() {
     QStringList testFiles = createMultipleTestPdfs(5);
-    QSignalSpy finishedSpy(m_analyzer, &DocumentAnalyzer::batchAnalysisFinished);
+    QSignalSpy finishedSpy(m_analyzer,
+                           &DocumentAnalyzer::batchAnalysisFinished);
 
     m_analyzer->startBatchAnalysis(testFiles);
     QVERIFY(m_analyzer->isBatchAnalysisRunning());
@@ -327,8 +343,10 @@ void DocumentAnalyzerTest::testStopBatchAnalysis() {
 
 void DocumentAnalyzerTest::testBatchAnalysisProgress() {
     QStringList testFiles = createMultipleTestPdfs(2);
-    QSignalSpy progressSpy(m_analyzer, &DocumentAnalyzer::batchAnalysisProgress);
-    QSignalSpy finishedSpy(m_analyzer, &DocumentAnalyzer::batchAnalysisFinished);
+    QSignalSpy progressSpy(m_analyzer,
+                           &DocumentAnalyzer::batchAnalysisProgress);
+    QSignalSpy finishedSpy(m_analyzer,
+                           &DocumentAnalyzer::batchAnalysisFinished);
 
     m_analyzer->startBatchAnalysis(testFiles);
 
@@ -355,7 +373,8 @@ void DocumentAnalyzerTest::testBatchAnalysisWithEmptyList() {
 void DocumentAnalyzerTest::testBatchAnalysisWithInvalidFiles() {
     QStringList invalidFiles = {"/nonexistent1.pdf", "/nonexistent2.pdf"};
     QSignalSpy failedSpy(m_analyzer, &DocumentAnalyzer::documentAnalysisFailed);
-    QSignalSpy finishedSpy(m_analyzer, &DocumentAnalyzer::batchAnalysisFinished);
+    QSignalSpy finishedSpy(m_analyzer,
+                           &DocumentAnalyzer::batchAnalysisFinished);
 
     m_analyzer->startBatchAnalysis(invalidFiles);
 
@@ -374,14 +393,16 @@ void DocumentAnalyzerTest::testProgressTracking() {
 
     // Test after batch analysis
     QStringList testFiles = createMultipleTestPdfs(4);
-    QSignalSpy finishedSpy(m_analyzer, &DocumentAnalyzer::batchAnalysisFinished);
+    QSignalSpy finishedSpy(m_analyzer,
+                           &DocumentAnalyzer::batchAnalysisFinished);
 
     m_analyzer->startBatchAnalysis(testFiles);
     QVERIFY_TIMEOUT(finishedSpy.count() == 1, 15000);
 
     QCOMPARE(m_analyzer->getTotalDocuments(), testFiles.size());
     QVERIFY(m_analyzer->getProcessedDocuments() <= testFiles.size());
-    QVERIFY(m_analyzer->getProgressPercentage() >= 0.0 && m_analyzer->getProgressPercentage() <= 100.0);
+    QVERIFY(m_analyzer->getProgressPercentage() >= 0.0 &&
+            m_analyzer->getProgressPercentage() <= 100.0);
 }
 
 void DocumentAnalyzerTest::testFailedDocumentTracking() {
@@ -390,7 +411,8 @@ void DocumentAnalyzerTest::testFailedDocumentTracking() {
     mixedFiles.append("/nonexistent.pdf");
     mixedFiles.append(createTestPdf());
 
-    QSignalSpy finishedSpy(m_analyzer, &DocumentAnalyzer::batchAnalysisFinished);
+    QSignalSpy finishedSpy(m_analyzer,
+                           &DocumentAnalyzer::batchAnalysisFinished);
 
     m_analyzer->startBatchAnalysis(mixedFiles);
     QVERIFY_TIMEOUT(finishedSpy.count() == 1, 10000);
@@ -401,8 +423,10 @@ void DocumentAnalyzerTest::testFailedDocumentTracking() {
 
 void DocumentAnalyzerTest::testProgressPercentageCalculation() {
     QStringList testFiles = createMultipleTestPdfs(10);
-    QSignalSpy progressSpy(m_analyzer, &DocumentAnalyzer::batchAnalysisProgress);
-    QSignalSpy finishedSpy(m_analyzer, &DocumentAnalyzer::batchAnalysisFinished);
+    QSignalSpy progressSpy(m_analyzer,
+                           &DocumentAnalyzer::batchAnalysisProgress);
+    QSignalSpy finishedSpy(m_analyzer,
+                           &DocumentAnalyzer::batchAnalysisFinished);
 
     m_analyzer->startBatchAnalysis(testFiles);
     QVERIFY_TIMEOUT(finishedSpy.count() == 1, 20000);
@@ -420,7 +444,8 @@ void DocumentAnalyzerTest::testProgressPercentageCalculation() {
         QVERIFY(percentage >= 0.0 && percentage <= 100.0);
 
         if (total > 0) {
-            double expectedPercentage = (static_cast<double>(processed) / total) * 100.0;
+            double expectedPercentage =
+                (static_cast<double>(processed) / total) * 100.0;
             QCOMPARE(percentage, expectedPercentage);
         }
     }
@@ -433,11 +458,13 @@ void DocumentAnalyzerTest::testResultStorage() {
     QVERIFY(m_analyzer->getAllResults().isEmpty());
 
     // Analyze document
-    DocumentAnalyzer::AnalysisResult result = m_analyzer->analyzeDocument(testFile);
+    DocumentAnalyzer::AnalysisResult result =
+        m_analyzer->analyzeDocument(testFile);
     QVERIFY(result.success);
 
     // Result should be stored
-    QList<DocumentAnalyzer::AnalysisResult> allResults = m_analyzer->getAllResults();
+    QList<DocumentAnalyzer::AnalysisResult> allResults =
+        m_analyzer->getAllResults();
     QCOMPARE(allResults.size(), 1);
     QCOMPARE(allResults.first().documentPath, testFile);
 }
@@ -446,17 +473,20 @@ void DocumentAnalyzerTest::testResultRetrieval() {
     QString testFile = createTestPdf();
 
     // Analyze document
-    DocumentAnalyzer::AnalysisResult originalResult = m_analyzer->analyzeDocument(testFile);
+    DocumentAnalyzer::AnalysisResult originalResult =
+        m_analyzer->analyzeDocument(testFile);
     QVERIFY(originalResult.success);
 
     // Retrieve result
-    DocumentAnalyzer::AnalysisResult retrievedResult = m_analyzer->getResult(testFile);
+    DocumentAnalyzer::AnalysisResult retrievedResult =
+        m_analyzer->getResult(testFile);
     QVERIFY(retrievedResult.success);
     QCOMPARE(retrievedResult.documentPath, originalResult.documentPath);
     QCOMPARE(retrievedResult.analysis, originalResult.analysis);
 
     // Test retrieval of non-existent result
-    DocumentAnalyzer::AnalysisResult nonExistentResult = m_analyzer->getResult("/nonexistent.pdf");
+    DocumentAnalyzer::AnalysisResult nonExistentResult =
+        m_analyzer->getResult("/nonexistent.pdf");
     QVERIFY(!nonExistentResult.success);
 }
 
@@ -482,13 +512,15 @@ void DocumentAnalyzerTest::testResultCaching() {
     QString testFile = createTestPdf();
 
     // First analysis - should be cached
-    DocumentAnalyzer::AnalysisResult result1 = m_analyzer->analyzeDocument(testFile);
+    DocumentAnalyzer::AnalysisResult result1 =
+        m_analyzer->analyzeDocument(testFile);
     QVERIFY(result1.success);
 
     // Second analysis - should use cache (faster)
     QElapsedTimer timer;
     timer.start();
-    DocumentAnalyzer::AnalysisResult result2 = m_analyzer->analyzeDocument(testFile);
+    DocumentAnalyzer::AnalysisResult result2 =
+        m_analyzer->analyzeDocument(testFile);
     qint64 cachedTime = timer.elapsed();
 
     QVERIFY(result2.success);
@@ -501,7 +533,8 @@ void DocumentAnalyzerTest::testResultCaching() {
 
 void DocumentAnalyzerTest::testExportBatchReport() {
     QStringList testFiles = createMultipleTestPdfs(2);
-    QSignalSpy finishedSpy(m_analyzer, &DocumentAnalyzer::batchAnalysisFinished);
+    QSignalSpy finishedSpy(m_analyzer,
+                           &DocumentAnalyzer::batchAnalysisFinished);
 
     m_analyzer->startBatchAnalysis(testFiles);
     QVERIFY_TIMEOUT(finishedSpy.count() == 1, 10000);
@@ -586,7 +619,7 @@ void DocumentAnalyzerTest::testGenerateSummaryReport() {
 void DocumentAnalyzerTest::testCompareDocuments() {
     QString file1 = createTestPdf("Content A");
     QString file2 = createTestPdf("Content B");
-    QString file3 = createTestPdf("Content A"); // Same as file1
+    QString file3 = createTestPdf("Content A");  // Same as file1
 
     // Compare different documents
     double similarity1 = m_analyzer->compareDocuments(file1, file2);
@@ -620,9 +653,10 @@ void DocumentAnalyzerTest::testGenerateComparisonReport() {
 void DocumentAnalyzerTest::testFindSimilarDocuments() {
     QString referenceDoc = createTestPdf("Reference content");
     QStringList otherDocs;
-    otherDocs.append(createTestPdf("Reference content")); // Similar
-    otherDocs.append(createTestPdf("Different content")); // Different
-    otherDocs.append(createTestPdf("Reference content modified")); // Somewhat similar
+    otherDocs.append(createTestPdf("Reference content"));  // Similar
+    otherDocs.append(createTestPdf("Different content"));  // Different
+    otherDocs.append(
+        createTestPdf("Reference content modified"));  // Somewhat similar
 
     // Analyze all documents first
     m_analyzer->analyzeDocument(referenceDoc);
@@ -630,10 +664,12 @@ void DocumentAnalyzerTest::testFindSimilarDocuments() {
         m_analyzer->analyzeDocument(doc);
     }
 
-    QStringList similarDocs = m_analyzer->findSimilarDocuments(referenceDoc, 0.8);
+    QStringList similarDocs =
+        m_analyzer->findSimilarDocuments(referenceDoc, 0.8);
 
     QVERIFY(!similarDocs.isEmpty());
-    QVERIFY(similarDocs.contains(otherDocs.first())); // Should find the identical one
+    QVERIFY(similarDocs.contains(
+        otherDocs.first()));  // Should find the identical one
 }
 
 QTEST_MAIN(DocumentAnalyzerTest)

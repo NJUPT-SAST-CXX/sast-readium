@@ -13,8 +13,8 @@
 #pragma once
 
 #include <QString>
-#include <string>
 #include <memory>
+#include <string>
 
 // Forward declarations to minimize dependencies
 class Logger;
@@ -29,15 +29,7 @@ namespace SastLogging {
 /**
  * @brief Simplified log level enumeration
  */
-enum class Level {
-    Trace,
-    Debug,
-    Info,
-    Warning,
-    Error,
-    Critical,
-    Off
-};
+enum class Level { Trace, Debug, Info, Warning, Error, Critical, Off };
 
 // ============================================================================
 // Core Logging Functions - Simple and Direct
@@ -56,8 +48,7 @@ bool init();
  * @param level Default log level
  * @return true if successful, false otherwise
  */
-bool init(const QString& logFile, 
-          bool consoleEnabled = true,
+bool init(const QString& logFile, bool consoleEnabled = true,
           Level level = Level::Info);
 
 /**
@@ -110,22 +101,22 @@ void error(const QString& message);
 void critical(const QString& message);
 
 // Format string logging (for convenience)
-template<typename... Args>
+template <typename... Args>
 void trace(const char* format, Args&&... args);
 
-template<typename... Args>
+template <typename... Args>
 void debug(const char* format, Args&&... args);
 
-template<typename... Args>
+template <typename... Args>
 void info(const char* format, Args&&... args);
 
-template<typename... Args>
+template <typename... Args>
 void warning(const char* format, Args&&... args);
 
-template<typename... Args>
+template <typename... Args>
 void error(const char* format, Args&&... args);
 
-template<typename... Args>
+template <typename... Args>
 void critical(const char* format, Args&&... args);
 
 // ============================================================================
@@ -135,18 +126,18 @@ void critical(const char* format, Args&&... args);
 /**
  * @brief Log only if condition is true
  */
-template<typename... Args>
+template <typename... Args>
 void logIf(bool condition, Level level, const char* format, Args&&... args);
 
 /**
  * @brief Log only in debug builds
  */
 #ifdef QT_DEBUG
-    template<typename... Args>
-    void debugOnly(const char* format, Args&&... args);
+template <typename... Args>
+void debugOnly(const char* format, Args&&... args);
 #else
-    template<typename... Args>
-    inline void debugOnly(const char*, Args&&...) {}
+template <typename... Args>
+inline void debugOnly(const char*, Args&&...) {}
 #endif
 
 // ============================================================================
@@ -168,17 +159,17 @@ public:
     void error(const QString& message);
     void critical(const QString& message);
 
-    template<typename... Args>
+    template <typename... Args>
     void log(Level level, const char* format, Args&&... args);
 
     void setLevel(Level level);
     Level getLevel() const;
 
     // Implementation class definition for inline template methods
-    class Implementation
-    {
+    class Implementation {
     public:
-        explicit Implementation(const QString& category) : category(category), level(Level::Info) {}
+        explicit Implementation(const QString& category)
+            : category(category), level(Level::Info) {}
         ~Implementation() = default;
 
         QString category;
@@ -200,9 +191,9 @@ class Timer {
 public:
     explicit Timer(const QString& name);
     ~Timer();
-    
+
     void checkpoint(const QString& name = "");
-    
+
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
@@ -281,7 +272,7 @@ QString getLastError();
  */
 void clearLastError();
 
-} // namespace SastLogging
+}  // namespace SastLogging
 
 // ============================================================================
 // Convenience Macros - Optional, for even simpler usage
@@ -305,7 +296,8 @@ void clearLastError();
 
 // Conditional logging
 #define SLOG_IF(cond, level, ...) \
-    if (cond) SastLogging::level(__VA_ARGS__)
+    if (cond)                     \
+    SastLogging::level(__VA_ARGS__)
 
 // Performance timing
 #define SLOG_TIMER(name) SastLogging::Timer _timer(name)
@@ -323,62 +315,75 @@ namespace SastLogging {
 
 // Forward declaration of internal implementation
 namespace detail {
-    void logFormatted(Level level, const std::string& formatted);
-    std::string formatString(const char* format, ...);
-}
+void logFormatted(Level level, const std::string& formatted);
+std::string formatString(const char* format, ...);
+}  // namespace detail
 
-template<typename... Args>
+template <typename... Args>
 void trace(const char* format, Args&&... args) {
-    detail::logFormatted(Level::Trace, detail::formatString(format, std::forward<Args>(args)...));
+    detail::logFormatted(
+        Level::Trace,
+        detail::formatString(format, std::forward<Args>(args)...));
 }
 
-template<typename... Args>
+template <typename... Args>
 void debug(const char* format, Args&&... args) {
-    detail::logFormatted(Level::Debug, detail::formatString(format, std::forward<Args>(args)...));
+    detail::logFormatted(
+        Level::Debug,
+        detail::formatString(format, std::forward<Args>(args)...));
 }
 
-template<typename... Args>
+template <typename... Args>
 void info(const char* format, Args&&... args) {
-    detail::logFormatted(Level::Info, detail::formatString(format, std::forward<Args>(args)...));
+    detail::logFormatted(
+        Level::Info, detail::formatString(format, std::forward<Args>(args)...));
 }
 
-template<typename... Args>
+template <typename... Args>
 void warning(const char* format, Args&&... args) {
-    detail::logFormatted(Level::Warning, detail::formatString(format, std::forward<Args>(args)...));
+    detail::logFormatted(
+        Level::Warning,
+        detail::formatString(format, std::forward<Args>(args)...));
 }
 
-template<typename... Args>
+template <typename... Args>
 void error(const char* format, Args&&... args) {
-    detail::logFormatted(Level::Error, detail::formatString(format, std::forward<Args>(args)...));
+    detail::logFormatted(
+        Level::Error,
+        detail::formatString(format, std::forward<Args>(args)...));
 }
 
-template<typename... Args>
+template <typename... Args>
 void critical(const char* format, Args&&... args) {
-    detail::logFormatted(Level::Critical, detail::formatString(format, std::forward<Args>(args)...));
+    detail::logFormatted(
+        Level::Critical,
+        detail::formatString(format, std::forward<Args>(args)...));
 }
 
-template<typename... Args>
+template <typename... Args>
 void logIf(bool condition, Level level, const char* format, Args&&... args) {
     if (condition) {
-        detail::logFormatted(level, detail::formatString(format, std::forward<Args>(args)...));
+        detail::logFormatted(
+            level, detail::formatString(format, std::forward<Args>(args)...));
     }
 }
 
 #ifdef QT_DEBUG
-template<typename... Args>
+template <typename... Args>
 void debugOnly(const char* format, Args&&... args) {
     debug(format, std::forward<Args>(args)...);
 }
 #endif
 
-template<typename... Args>
+template <typename... Args>
 void CategoryLogger::log(Level level, const char* format, Args&&... args) {
     if (level >= d->level) {
-        QString msg = QString("[%1] %2").arg(d->category).arg(
-            QString::fromStdString(detail::formatString(format, std::forward<Args>(args)...))
-        );
+        QString msg = QString("[%1] %2")
+                          .arg(d->category)
+                          .arg(QString::fromStdString(detail::formatString(
+                              format, std::forward<Args>(args)...)));
         detail::logFormatted(level, msg.toStdString());
     }
 }
 
-} // namespace SastLogging
+}  // namespace SastLogging

@@ -1,31 +1,39 @@
-#include <QTest>
-#include <QSignalSpy>
-#include <QJsonObject>
 #include <QJsonDocument>
+#include <QJsonObject>
+#include <QSignalSpy>
+#include <QTest>
 #include <memory>
-#include "../TestUtilities.h"
-#include "../../app/command/CommandManager.h"
 #include "../../app/command/CommandInterface.h"
+#include "../../app/command/CommandManager.h"
+#include "../TestUtilities.h"
 
 // Mock command for testing
 class MockCommand : public QObject, public CommandInterface {
     Q_OBJECT
 
 public:
-    Q_INVOKABLE explicit MockCommand(const QString& name = "mock", QObject* parent = nullptr)
-        : QObject(parent), m_name(name), m_executed(false), m_canExecute(true) {}
+    Q_INVOKABLE explicit MockCommand(const QString& name = "mock",
+                                     QObject* parent = nullptr)
+        : QObject(parent),
+          m_name(name),
+          m_executed(false),
+          m_canExecute(true) {}
 
     QString name() const override { return m_name; }
-    QString description() const override { return QString("Mock command: %1").arg(m_name); }
+    QString description() const override {
+        return QString("Mock command: %1").arg(m_name);
+    }
     bool canExecute() const override { return m_canExecute; }
     bool execute() override {
-        if (!canExecute()) return false;
+        if (!canExecute())
+            return false;
         m_executed = true;
         Q_EMIT executed();
         return true;
     }
     bool undo() override {
-        if (!m_executed) return false;
+        if (!m_executed)
+            return false;
         m_executed = false;
         Q_EMIT undone();
         return true;
@@ -189,9 +197,9 @@ void CommandManagerTest::testUndoRedo() {
     QVERIFY(mockCommand->wasExecuted());
 
     // Test undo/redo with no history
-    QVERIFY(manager.undo()); // Should succeed (undo the redo)
-    QVERIFY(manager.undo()); // Should fail (no more to undo)
-    QVERIFY(!manager.undo()); // Should fail
+    QVERIFY(manager.undo());   // Should succeed (undo the redo)
+    QVERIFY(manager.undo());   // Should fail (no more to undo)
+    QVERIFY(!manager.undo());  // Should fail
 }
 
 void CommandManagerTest::testCommandValidation() {
@@ -246,7 +254,7 @@ void CommandManagerTest::testSignalEmission() {
     // Failed execution
     mockCommand->setCanExecute(false);
     QVERIFY(!manager.executeCommand("signal"));
-    QCOMPARE(commandExecutedSpy.count(), 1); // No change
+    QCOMPARE(commandExecutedSpy.count(), 1);  // No change
     QCOMPARE(commandFailedSpy.count(), 1);
 }
 
@@ -285,7 +293,7 @@ void CommandManagerTest::testCommandHistory() {
     QCOMPARE(manager.historySize(), 3);
 
     // Test current index
-    QCOMPARE(manager.currentIndex(), 2); // 0-based index
+    QCOMPARE(manager.currentIndex(), 2);  // 0-based index
 
     // Clear history
     manager.clearHistory();

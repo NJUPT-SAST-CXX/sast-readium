@@ -1,8 +1,8 @@
 #pragma once
 
-#include <QStyledItemDelegate>
-#include <QSize>
 #include <QColor>
+#include <QSize>
+#include <QStyledItemDelegate>
 #include <memory>
 
 // 前向声明
@@ -15,7 +15,7 @@ enum class Theme;
 
 /**
  * @brief Chrome风格的缩略图渲染委托
- * 
+ *
  * 特性：
  * - Chrome浏览器风格的视觉设计
  * - 圆角边框和阴影效果
@@ -24,8 +24,7 @@ enum class Theme;
  * - 页码标签渲染
  * - 高DPI支持
  */
-class ThumbnailDelegate : public QStyledItemDelegate
-{
+class ThumbnailDelegate : public QStyledItemDelegate {
     Q_OBJECT
 
 public:
@@ -53,12 +52,12 @@ public:
 
     void setAnimationEnabled(bool enabled);
     bool animationEnabled() const;
-    
+
     // 颜色主题
     void setLightTheme();
     void setDarkTheme();
     void setCustomColors(const QColor& background, const QColor& border,
-                        const QColor& text, const QColor& accent);
+                         const QColor& text, const QColor& accent);
 
     // 性能优化控制
     void setRenderCacheEnabled(bool enabled);
@@ -91,6 +90,4 @@ private slots:
 private:
     class Implementation;
     std::unique_ptr<Implementation> d;
-
-
 };

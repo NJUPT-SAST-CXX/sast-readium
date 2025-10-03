@@ -86,7 +86,8 @@ class MainViewDelegate : public QObject {
     Q_OBJECT
 
 public:
-    explicit MainViewDelegate(ViewWidget* viewWidget, QObject* parent = nullptr);
+    explicit MainViewDelegate(ViewWidget* viewWidget,
+                              QObject* parent = nullptr);
     ~MainViewDelegate();
 
     // Rendering control

@@ -1,19 +1,18 @@
-#include <QtTest/QtTest>
 #include <QApplication>
-#include <QSignalSpy>
-#include <QPropertyAnimation>
-#include <QParallelAnimationGroup>
-#include <QSequentialAnimationGroup>
 #include <QEasingCurve>
-#include <QWidget>
-#include <QScrollArea>
 #include <QElapsedTimer>
-#include <QTimer>
 #include <QEventLoop>
+#include <QParallelAnimationGroup>
+#include <QPropertyAnimation>
+#include <QScrollArea>
+#include <QSequentialAnimationGroup>
+#include <QSignalSpy>
+#include <QTimer>
+#include <QWidget>
+#include <QtTest/QtTest>
 #include "../../app/ui/viewer/PDFAnimations.h"
 
-class PDFAnimationsIntegrationTest : public QObject
-{
+class PDFAnimationsIntegrationTest : public QObject {
     Q_OBJECT
 
 private slots:
@@ -57,41 +56,35 @@ private:
     void createTestWidget();
 };
 
-void PDFAnimationsIntegrationTest::initTestCase()
-{
+void PDFAnimationsIntegrationTest::initTestCase() {
     m_parentWidget = new QWidget();
     m_parentWidget->resize(800, 600);
     m_parentWidget->show();
-    
+
     createTestWidget();
 }
 
-void PDFAnimationsIntegrationTest::cleanupTestCase()
-{
+void PDFAnimationsIntegrationTest::cleanupTestCase() {
     delete m_testWidget;
     delete m_parentWidget;
 }
 
-void PDFAnimationsIntegrationTest::init()
-{
+void PDFAnimationsIntegrationTest::init() {
     m_animations = new PDFAnimationManager(this);
 }
 
-void PDFAnimationsIntegrationTest::cleanup()
-{
+void PDFAnimationsIntegrationTest::cleanup() {
     delete m_animations;
     m_animations = nullptr;
 }
 
-void PDFAnimationsIntegrationTest::testInitialization()
-{
+void PDFAnimationsIntegrationTest::testInitialization() {
     // Test basic initialization
     QVERIFY(m_animations != nullptr);
     QVERIFY(!m_animations->isAnimating());
 }
 
-void PDFAnimationsIntegrationTest::testAnimationEnabled()
-{
+void PDFAnimationsIntegrationTest::testAnimationEnabled() {
     // Test animation manager state
     QVERIFY(!m_animations->isAnimating());
 
@@ -102,8 +95,7 @@ void PDFAnimationsIntegrationTest::testAnimationEnabled()
     m_animations->setDefaultEasing(QEasingCurve::OutCubic);
 }
 
-void PDFAnimationsIntegrationTest::testAnimationDuration()
-{
+void PDFAnimationsIntegrationTest::testAnimationDuration() {
     // Test setting default duration
     m_animations->setDefaultDuration(500);
 
@@ -113,17 +105,19 @@ void PDFAnimationsIntegrationTest::testAnimationDuration()
     m_animations->setDefaultEasing(QEasingCurve::Linear);
 }
 
-void PDFAnimationsIntegrationTest::testPageTransition()
-{
+void PDFAnimationsIntegrationTest::testPageTransition() {
     // Test page transition animation using actual API
     createTestWidget();
     QWidget* fromWidget = new QWidget(m_parentWidget);
     QWidget* toWidget = new QWidget(m_parentWidget);
 
     QSignalSpy startedSpy(m_animations, &PDFAnimationManager::animationStarted);
-    QSignalSpy finishedSpy(m_animations, &PDFAnimationManager::animationFinished);
+    QSignalSpy finishedSpy(m_animations,
+                           &PDFAnimationManager::animationFinished);
 
-    m_animations->animatePageTransition(fromWidget, toWidget, PDFAnimationManager::AnimationType::SlideLeft, 200);
+    m_animations->animatePageTransition(
+        fromWidget, toWidget, PDFAnimationManager::AnimationType::SlideLeft,
+        200);
 
     waitForAnimation(300);
     QVERIFY(startedSpy.count() > 0);
@@ -132,8 +126,7 @@ void PDFAnimationsIntegrationTest::testPageTransition()
     delete toWidget;
 }
 
-void PDFAnimationsIntegrationTest::testSlideTransition()
-{
+void PDFAnimationsIntegrationTest::testSlideTransition() {
     // Test slide transition using page transition with slide type
     createTestWidget();
     QWidget* fromWidget = new QWidget(m_parentWidget);
@@ -141,25 +134,29 @@ void PDFAnimationsIntegrationTest::testSlideTransition()
 
     QSignalSpy startedSpy(m_animations, &PDFAnimationManager::animationStarted);
 
-    m_animations->animatePageTransition(fromWidget, toWidget, PDFAnimationManager::AnimationType::SlideLeft, 200);
+    m_animations->animatePageTransition(
+        fromWidget, toWidget, PDFAnimationManager::AnimationType::SlideLeft,
+        200);
     waitForAnimation(300);
     QVERIFY(startedSpy.count() > 0);
 
     // Test different slide direction
-    m_animations->animatePageTransition(toWidget, fromWidget, PDFAnimationManager::AnimationType::SlideRight, 200);
+    m_animations->animatePageTransition(
+        toWidget, fromWidget, PDFAnimationManager::AnimationType::SlideRight,
+        200);
     waitForAnimation(300);
 
     delete fromWidget;
     delete toWidget;
 }
 
-void PDFAnimationsIntegrationTest::testFadeTransition()
-{
+void PDFAnimationsIntegrationTest::testFadeTransition() {
     // Test fade in animation
     createTestWidget();
 
     QSignalSpy startedSpy(m_animations, &PDFAnimationManager::animationStarted);
-    QSignalSpy finishedSpy(m_animations, &PDFAnimationManager::animationFinished);
+    QSignalSpy finishedSpy(m_animations,
+                           &PDFAnimationManager::animationFinished);
 
     m_animations->animateFadeIn(m_testWidget, 200);
     waitForAnimation(300);
@@ -171,8 +168,7 @@ void PDFAnimationsIntegrationTest::testFadeTransition()
     waitForAnimation(300);
 }
 
-void PDFAnimationsIntegrationTest::testZoomTransition()
-{
+void PDFAnimationsIntegrationTest::testZoomTransition() {
     // Test zoom animation
     createTestWidget();
 
@@ -189,8 +185,7 @@ void PDFAnimationsIntegrationTest::testZoomTransition()
     waitForAnimation(300);
 }
 
-void PDFAnimationsIntegrationTest::testZoomInAnimation()
-{
+void PDFAnimationsIntegrationTest::testZoomInAnimation() {
     // Test zoom in animation using animateZoom
     createTestWidget();
 
@@ -201,8 +196,7 @@ void PDFAnimationsIntegrationTest::testZoomInAnimation()
     QVERIFY(startedSpy.count() > 0);
 }
 
-void PDFAnimationsIntegrationTest::testZoomOutAnimation()
-{
+void PDFAnimationsIntegrationTest::testZoomOutAnimation() {
     // Test zoom out animation using animateZoom
     createTestWidget();
 
@@ -213,8 +207,7 @@ void PDFAnimationsIntegrationTest::testZoomOutAnimation()
     QVERIFY(startedSpy.count() > 0);
 }
 
-void PDFAnimationsIntegrationTest::testSmoothZoom()
-{
+void PDFAnimationsIntegrationTest::testSmoothZoom() {
     // Test smooth zoom animation using regular zoom
     createTestWidget();
 
@@ -225,8 +218,7 @@ void PDFAnimationsIntegrationTest::testSmoothZoom()
     QVERIFY(startedSpy.count() > 0);
 }
 
-void PDFAnimationsIntegrationTest::testButtonPress()
-{
+void PDFAnimationsIntegrationTest::testButtonPress() {
     // Test button press animation
     createTestWidget();
 
@@ -238,8 +230,7 @@ void PDFAnimationsIntegrationTest::testButtonPress()
     QVERIFY(true);
 }
 
-void PDFAnimationsIntegrationTest::testHighlight()
-{
+void PDFAnimationsIntegrationTest::testHighlight() {
     // Test highlight animation
     createTestWidget();
 
@@ -251,8 +242,7 @@ void PDFAnimationsIntegrationTest::testHighlight()
     QVERIFY(true);
 }
 
-void PDFAnimationsIntegrationTest::testShake()
-{
+void PDFAnimationsIntegrationTest::testShake() {
     // Test shake animation
     createTestWidget();
 
@@ -264,8 +254,7 @@ void PDFAnimationsIntegrationTest::testShake()
     QVERIFY(true);
 }
 
-void PDFAnimationsIntegrationTest::testPulse()
-{
+void PDFAnimationsIntegrationTest::testPulse() {
     // Test pulse animation using highlight (which has pulse-like behavior)
     createTestWidget();
 
@@ -277,8 +266,7 @@ void PDFAnimationsIntegrationTest::testPulse()
     QVERIFY(true);
 }
 
-void PDFAnimationsIntegrationTest::testStopAllAnimations()
-{
+void PDFAnimationsIntegrationTest::testStopAllAnimations() {
     // Test stopping all animations
     createTestWidget();
 
@@ -295,14 +283,15 @@ void PDFAnimationsIntegrationTest::testStopAllAnimations()
     QVERIFY(!m_animations->isAnimating());
 }
 
-void PDFAnimationsIntegrationTest::testAnimationSignals()
-{
+void PDFAnimationsIntegrationTest::testAnimationSignals() {
     // Test animation signals
     createTestWidget();
 
     QSignalSpy startedSpy(m_animations, &PDFAnimationManager::animationStarted);
-    QSignalSpy finishedSpy(m_animations, &PDFAnimationManager::animationFinished);
-    QSignalSpy allFinishedSpy(m_animations, &PDFAnimationManager::allAnimationsFinished);
+    QSignalSpy finishedSpy(m_animations,
+                           &PDFAnimationManager::animationFinished);
+    QSignalSpy allFinishedSpy(m_animations,
+                              &PDFAnimationManager::allAnimationsFinished);
 
     // Start an animation
     m_animations->animateFadeIn(m_testWidget, 200);
@@ -314,20 +303,19 @@ void PDFAnimationsIntegrationTest::testAnimationSignals()
     QVERIFY(finishedSpy.count() > 0);
 }
 
-void PDFAnimationsIntegrationTest::waitForAnimation(int duration)
-{
+void PDFAnimationsIntegrationTest::waitForAnimation(int duration) {
     QTest::qWait(duration);
     QApplication::processEvents();
 }
 
-void PDFAnimationsIntegrationTest::createTestWidget()
-{
+void PDFAnimationsIntegrationTest::createTestWidget() {
     if (m_testWidget) {
         delete m_testWidget;
     }
     m_testWidget = new QWidget(m_parentWidget);
     m_testWidget->setFixedSize(200, 150);
-    m_testWidget->setStyleSheet("background-color: lightblue; border: 1px solid black;");
+    m_testWidget->setStyleSheet(
+        "background-color: lightblue; border: 1px solid black;");
     m_testWidget->show();
 }
 

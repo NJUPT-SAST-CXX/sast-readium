@@ -17,7 +17,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 # Standard library paths for x86_64 Linux
-set(CMAKE_FIND_ROOT_PATH 
+set(CMAKE_FIND_ROOT_PATH
     "/usr/lib/x86_64-linux-gnu"
     "/usr/include/x86_64-linux-gnu"
     "/lib/x86_64-linux-gnu"
@@ -130,7 +130,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
     endif()
-    
+
     # Function and data sections for better dead code elimination
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffunction-sections -fdata-sections")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffunction-sections -fdata-sections")

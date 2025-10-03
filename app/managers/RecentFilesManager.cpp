@@ -1,26 +1,23 @@
 #include "RecentFilesManager.h"
 #include <QDir>
-#include "../logging/Logger.h"
 #include <QFileInfo>
+#include <QList>
+#include <QMutex>
 #include <QMutexLocker>
-#include <QTimer>
-#include <QString>
 #include <QObject>
 #include <QSettings>
-#include <QList>
+#include <QString>
 #include <QStringList>
+#include <QTimer>
 #include <QtCore/QObject>
-#include <QMutex>
 #include <algorithm>
+#include "../logging/Logger.h"
 
 // Private implementation class
 class RecentFilesManagerImpl {
 public:
     RecentFilesManagerImpl()
-        : m_settings(nullptr)
-        , m_maxRecentFiles(DEFAULT_MAX_RECENT_FILES)
-    {
-    }
+        : m_settings(nullptr), m_maxRecentFiles(DEFAULT_MAX_RECENT_FILES) {}
 
     void loadSettings();
     void loadSettingsWithoutCleanup();
@@ -43,16 +40,16 @@ const QString RecentFilesManager::SETTINGS_MAX_FILES_KEY = "maxFiles";
 const QString RecentFilesManager::SETTINGS_FILES_KEY = "files";
 
 RecentFilesManager::RecentFilesManager(QObject* parent)
-    : QObject(parent)
-    , pImpl(std::make_unique<RecentFilesManagerImpl>())
-{
+    : QObject(parent), pImpl(std::make_unique<RecentFilesManagerImpl>()) {
     // 初始化设置
     pImpl->m_settings = new QSettings("SAST", "Readium-RecentFiles", this);
 
     // 加载配置 (不执行文件清理以避免阻塞)
     pImpl->loadSettingsWithoutCleanup();
 
-    Logger::instance().debug("RecentFilesManager: Initialized with max files: {}", pImpl->m_maxRecentFiles);
+    Logger::instance().debug(
+        "RecentFilesManager: Initialized with max files: {}",
+        pImpl->m_maxRecentFiles);
 }
 
 RecentFilesManager::~RecentFilesManager() { saveSettings(); }
@@ -67,15 +64,17 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
     // 创建文件信息
     RecentFileInfo newFile(filePath);
     if (!newFile.isValid()) {
-        Logger::instance().warning("[managers] File does not exist: {}", filePath.toStdString());
+        Logger::instance().warning("[managers] File does not exist: {}",
+                                   filePath.toStdString());
         return;
     }
 
     // 移除已存在的相同文件
-    auto it = std::find_if(pImpl->m_recentFiles.begin(), pImpl->m_recentFiles.end(),
-                           [&filePath](const RecentFileInfo& info) {
-                               return info.filePath == filePath;
-                           });
+    auto it =
+        std::find_if(pImpl->m_recentFiles.begin(), pImpl->m_recentFiles.end(),
+                     [&filePath](const RecentFileInfo& info) {
+                         return info.filePath == filePath;
+                     });
     if (it != pImpl->m_recentFiles.end()) {
         pImpl->m_recentFiles.erase(it);
     }
@@ -92,7 +91,8 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
     emit recentFileAdded(filePath);
     emit recentFilesChanged();
 
-    Logger::instance().info("[managers] Added recent file: {}", filePath.toStdString());
+    Logger::instance().info("[managers] Added recent file: {}",
+                            filePath.toStdString());
 }
 
 QList<RecentFileInfo> RecentFilesManager::getRecentFiles() const {
@@ -130,10 +130,11 @@ void RecentFilesManager::clearRecentFiles() {
 void RecentFilesManager::removeRecentFile(const QString& filePath) {
     QMutexLocker locker(&pImpl->m_mutex);
 
-    auto it = std::find_if(pImpl->m_recentFiles.begin(), pImpl->m_recentFiles.end(),
-                           [&filePath](const RecentFileInfo& info) {
-                               return info.filePath == filePath;
-                           });
+    auto it =
+        std::find_if(pImpl->m_recentFiles.begin(), pImpl->m_recentFiles.end(),
+                     [&filePath](const RecentFileInfo& info) {
+                         return info.filePath == filePath;
+                     });
 
     if (it != pImpl->m_recentFiles.end()) {
         pImpl->m_recentFiles.erase(it);
@@ -142,13 +143,15 @@ void RecentFilesManager::removeRecentFile(const QString& filePath) {
         emit recentFileRemoved(filePath);
         emit recentFilesChanged();
 
-        Logger::instance().info("[managers] Removed recent file: {}", filePath.toStdString());
+        Logger::instance().info("[managers] Removed recent file: {}",
+                                filePath.toStdString());
     }
 }
 
 void RecentFilesManager::setMaxRecentFiles(int maxFiles) {
     if (maxFiles < 1 || maxFiles > 50) {
-        Logger::instance().warning("[managers] Invalid max files count: {}", maxFiles);
+        Logger::instance().warning("[managers] Invalid max files count: {}",
+                                   maxFiles);
         return;
     }
 
@@ -161,7 +164,8 @@ void RecentFilesManager::setMaxRecentFiles(int maxFiles) {
 
         emit recentFilesChanged();
 
-        Logger::instance().info("[managers] Max recent files changed to: {}", maxFiles);
+        Logger::instance().info("[managers] Max recent files changed to: {}",
+                                maxFiles);
     }
 }
 
@@ -187,7 +191,8 @@ void RecentFilesManager::cleanupInvalidFiles() {
     auto it = pImpl->m_recentFiles.begin();
     while (it != pImpl->m_recentFiles.end()) {
         if (!it->isValid()) {
-            Logger::instance().debug("[managers] Removing invalid file: {}", it->filePath.toStdString());
+            Logger::instance().debug("[managers] Removing invalid file: {}",
+                                     it->filePath.toStdString());
             it = pImpl->m_recentFiles.erase(it);
             changed = true;
         } else {
@@ -209,17 +214,21 @@ void RecentFilesManager::initializeAsync() {
 
             // 检查对象是否仍然有效
             if (!pImpl->m_settings) {
-                Logger::instance().warning("[managers] Settings object is null during async cleanup");
+                Logger::instance().warning(
+                    "[managers] Settings object is null during async cleanup");
                 return;
             }
 
             cleanupInvalidFiles();
-            Logger::instance().debug("[managers] Async cleanup completed successfully");
+            Logger::instance().debug(
+                "[managers] Async cleanup completed successfully");
 
         } catch (const std::exception& e) {
-            Logger::instance().error("[managers] Exception during async cleanup: {}", e.what());
+            Logger::instance().error(
+                "[managers] Exception during async cleanup: {}", e.what());
         } catch (...) {
-            Logger::instance().error("[managers] Unknown exception during async cleanup");
+            Logger::instance().error(
+                "[managers] Unknown exception during async cleanup");
         }
     });
 }
@@ -230,7 +239,8 @@ void RecentFilesManager::loadSettings() {
     // 清理无效文件
     cleanupInvalidFiles();
 
-    Logger::instance().info("[managers] Loaded and cleaned {} recent files", pImpl->m_recentFiles.size());
+    Logger::instance().info("[managers] Loaded and cleaned {} recent files",
+                            pImpl->m_recentFiles.size());
 }
 
 void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
@@ -242,12 +252,14 @@ void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
     m_settings->beginGroup(RecentFilesManager::SETTINGS_GROUP);
 
     // 加载最大文件数量
-    m_maxRecentFiles =
-        m_settings->value(RecentFilesManager::SETTINGS_MAX_FILES_KEY, DEFAULT_MAX_RECENT_FILES)
-            .toInt();
+    m_maxRecentFiles = m_settings
+                           ->value(RecentFilesManager::SETTINGS_MAX_FILES_KEY,
+                                   DEFAULT_MAX_RECENT_FILES)
+                           .toInt();
 
     // 加载文件列表
-    int size = m_settings->beginReadArray(RecentFilesManager::SETTINGS_FILES_KEY);
+    int size =
+        m_settings->beginReadArray(RecentFilesManager::SETTINGS_FILES_KEY);
     m_recentFiles.clear();
     m_recentFiles.reserve(size);
 
@@ -262,7 +274,8 @@ void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
                 m_recentFiles.append(info);
                 validCount++;
             } else {
-                Logger::instance().warning("[managers] Skipping invalid file entry at index {}", i);
+                Logger::instance().warning(
+                    "[managers] Skipping invalid file entry at index {}", i);
             }
         }
     }
@@ -270,13 +283,13 @@ void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
     m_settings->endArray();
     m_settings->endGroup();
 
-    Logger::instance().debug("[managers] Loaded {} valid recent files out of {} total entries (without cleanup)",
-              validCount, size);
+    Logger::instance().debug(
+        "[managers] Loaded {} valid recent files out of {} total entries "
+        "(without cleanup)",
+        validCount, size);
 }
 
-void RecentFilesManager::saveSettings() {
-    pImpl->saveSettings();
-}
+void RecentFilesManager::saveSettings() { pImpl->saveSettings(); }
 
 void RecentFilesManagerImpl::saveSettings() {
     if (!m_settings)
@@ -287,7 +300,8 @@ void RecentFilesManagerImpl::saveSettings() {
     m_settings->beginGroup(RecentFilesManager::SETTINGS_GROUP);
 
     // 保存最大文件数量
-    m_settings->setValue(RecentFilesManager::SETTINGS_MAX_FILES_KEY, m_maxRecentFiles);
+    m_settings->setValue(RecentFilesManager::SETTINGS_MAX_FILES_KEY,
+                         m_maxRecentFiles);
 
     // 保存文件列表
     m_settings->beginWriteArray(RecentFilesManager::SETTINGS_FILES_KEY);
@@ -330,8 +344,9 @@ RecentFileInfo RecentFilesManagerImpl::variantToFileInfo(
 
     // Validate and fix corrupted data
     if (info.filePath.isEmpty() || info.fileName.isEmpty()) {
-        Logger::instance().warning("[managers] Invalid file info detected, skipping");
-        return RecentFileInfo(); // Return empty/invalid info
+        Logger::instance().warning(
+            "[managers] Invalid file info detected, skipping");
+        return RecentFileInfo();  // Return empty/invalid info
     }
 
     // Ensure fileName is properly extracted from filePath if missing

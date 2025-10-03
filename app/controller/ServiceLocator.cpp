@@ -4,9 +4,7 @@
 
 // ServiceLocator implementation
 ServiceLocator::ServiceLocator(QObject* parent)
-    : QObject(parent)
-    , m_logger("ServiceLocator")
-{
+    : QObject(parent), m_logger("ServiceLocator") {
     m_logger.debug("ServiceLocator created");
 }
 
@@ -20,18 +18,21 @@ ServiceLocator& ServiceLocator::instance() {
     return instance;
 }
 
-void ServiceLocator::registerServiceFactory(const QString& typeName, ServiceFactory factory) {
+void ServiceLocator::registerServiceFactory(const QString& typeName,
+                                            ServiceFactory factory) {
     m_factories[typeName] = factory;
     m_logger.debug(QString("Registered factory for service: %1").arg(typeName));
     emit serviceRegistered(typeName);
 }
 
-void ServiceLocator::registerServiceInstance(const QString& typeName, QObject* instance) {
+void ServiceLocator::registerServiceInstance(const QString& typeName,
+                                             QObject* instance) {
     if (!instance) {
-        m_logger.warning(QString("Attempted to register null service: %1").arg(typeName));
+        m_logger.warning(
+            QString("Attempted to register null service: %1").arg(typeName));
         return;
     }
-    
+
     // Remove old service if exists
     if (m_services.contains(typeName)) {
         QObject* oldService = m_services[typeName];
@@ -39,7 +40,7 @@ void ServiceLocator::registerServiceInstance(const QString& typeName, QObject* i
             oldService->deleteLater();
         }
     }
-    
+
     m_services[typeName] = instance;
     m_logger.info(QString("Registered service instance: %1").arg(typeName));
     emit serviceRegistered(typeName);
@@ -47,12 +48,12 @@ void ServiceLocator::registerServiceInstance(const QString& typeName, QObject* i
 
 QObject* ServiceLocator::getServiceInstance(const QString& typeName) {
     emit serviceRequested(typeName);
-    
+
     // Check if service already exists
     if (m_services.contains(typeName)) {
         return m_services[typeName];
     }
-    
+
     // Try to create service if lazy loading is enabled
     if (m_lazyLoading && m_factories.contains(typeName)) {
         QObject* service = createService(typeName);
@@ -61,35 +62,37 @@ QObject* ServiceLocator::getServiceInstance(const QString& typeName) {
             return service;
         }
     }
-    
+
     m_logger.warning(QString("Service not found: %1").arg(typeName));
     return nullptr;
 }
 
 QObject* ServiceLocator::createService(const QString& typeName) {
     if (!m_factories.contains(typeName)) {
-        m_logger.error(QString("No factory registered for service: %1").arg(typeName));
+        m_logger.error(
+            QString("No factory registered for service: %1").arg(typeName));
         return nullptr;
     }
-    
+
     try {
         ServiceFactory factory = m_factories[typeName];
         QObject* service = factory();
-        
+
         if (service) {
-            service->setParent(this); // Take ownership
+            service->setParent(this);  // Take ownership
             m_logger.info(QString("Created service: %1").arg(typeName));
             emit serviceCreated(typeName);
             return service;
         }
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to create service %1: %2")
-                      .arg(typeName)
-                      .arg(QString::fromStdString(e.what())));
+                           .arg(typeName)
+                           .arg(QString::fromStdString(e.what())));
     } catch (...) {
-        m_logger.error(QString("Unknown error creating service: %1").arg(typeName));
+        m_logger.error(
+            QString("Unknown error creating service: %1").arg(typeName));
     }
-    
+
     return nullptr;
 }
 
@@ -106,21 +109,21 @@ void ServiceLocator::removeService(const QString& typeName) {
         m_logger.info(QString("Removed service: %1").arg(typeName));
         emit serviceRemoved(typeName);
     }
-    
+
     m_factories.remove(typeName);
     m_sharedServices.remove(typeName);
 }
 
 void ServiceLocator::clearServices() {
     m_logger.info("Clearing all services...");
-    
+
     // Delete services we own
     for (auto it = m_services.begin(); it != m_services.end(); ++it) {
         if (it.value() && it.value()->parent() == this) {
             it.value()->deleteLater();
         }
     }
-    
+
     m_services.clear();
     m_factories.clear();
     m_sharedServices.clear();
@@ -129,28 +132,26 @@ void ServiceLocator::clearServices() {
 QStringList ServiceLocator::registeredServices() const {
     QStringList services;
     services.append(m_services.keys());
-    
+
     // Add factories that haven't been instantiated yet
     for (const QString& factoryType : m_factories.keys()) {
         if (!services.contains(factoryType)) {
             services.append(factoryType);
         }
     }
-    
+
     return services;
 }
 
 // ServiceRegistry implementation
 ServiceRegistry::ServiceRegistry(ServiceLocator* locator)
-    : m_locator(locator ? locator : &ServiceLocator::instance())
-{
-}
+    : m_locator(locator ? locator : &ServiceLocator::instance()) {}
 
 void ServiceRegistry::registerCoreServices() {
     // Register core application services
     // These would typically be implemented in the actual application
     // For now, we'll just log the intention
-    
+
     // Example registrations (would need actual implementations):
     // m_locator->registerService<ConfigurationManager, ConfigurationManager>();
     // m_locator->registerService<CommandManager, CommandManager>();
@@ -175,14 +176,12 @@ void ServiceRegistry::registerControllerServices() {
     // Register controller services
     // m_locator->registerService<DocumentController, DocumentController>();
     // m_locator->registerService<PageController, PageController>();
-    // m_locator->registerService<ApplicationController, ApplicationController>();
+    // m_locator->registerService<ApplicationController,
+    // ApplicationController>();
 }
 
 // ServiceProvider implementation
-ServiceProvider::ServiceProvider(QObject* parent)
-    : QObject(parent)
-{
-}
+ServiceProvider::ServiceProvider(QObject* parent) : QObject(parent) {}
 
 ServiceProvider::~ServiceProvider() {
     // Remove provided services from the locator
@@ -193,25 +192,27 @@ ServiceProvider::~ServiceProvider() {
 
 // DependencyInjector implementation
 void DependencyInjector::injectServices(QObject* object) {
-    if (!object) return;
-    
+    if (!object)
+        return;
+
     // Use Qt's meta-object system to find properties that need injection
     const QMetaObject* metaObject = object->metaObject();
-    
+
     for (int i = 0; i < metaObject->propertyCount(); ++i) {
         QMetaProperty property = metaObject->property(i);
-        
+
         // Check if property has an "inject" annotation (custom attribute)
-        // This is a simplified approach - in practice, you might use a naming convention
-        // or custom attributes
+        // This is a simplified approach - in practice, you might use a naming
+        // convention or custom attributes
         QString propertyName = property.name();
-        if (propertyName.endsWith("Service") || propertyName.endsWith("Controller") || 
+        if (propertyName.endsWith("Service") ||
+            propertyName.endsWith("Controller") ||
             propertyName.endsWith("Manager")) {
-            
             // Try to get the service type from the property type
             QString typeName = property.typeName();
-            QObject* service = ServiceLocator::instance().getServiceInstance(typeName);
-            
+            QObject* service =
+                ServiceLocator::instance().getServiceInstance(typeName);
+
             if (service && property.isWritable()) {
                 property.write(object, QVariant::fromValue(service));
             }
@@ -221,9 +222,7 @@ void DependencyInjector::injectServices(QObject* object) {
 
 // ServiceScope implementation
 ServiceScope::ServiceScope(ServiceLocator* locator)
-    : m_locator(locator ? locator : &ServiceLocator::instance())
-{
-}
+    : m_locator(locator ? locator : &ServiceLocator::instance()) {}
 
 ServiceScope::~ServiceScope() {
     // Remove all scoped services when scope ends

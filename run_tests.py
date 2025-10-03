@@ -2,9 +2,10 @@
 """
 Test runner script to identify failing tests
 """
+import os
 import subprocess
 import sys
-import os
+
 
 def run_test(test_exe, test_function=None):
     """Run a test and return success status and output"""
@@ -21,6 +22,7 @@ def run_test(test_exe, test_function=None):
     except Exception as e:
         return False, "", str(e)
 
+
 def main():
     test_dir = "build/Debug-MSYS2"
     tests = [
@@ -28,7 +30,7 @@ def main():
         "configuration_manager_test.exe",
         "event_bus_test.exe",
         "service_locator_test.exe",
-        "state_manager_test.exe"
+        "state_manager_test.exe",
     ]
 
     print("=== Running tests individually ===")
@@ -44,7 +46,7 @@ def main():
         # First try to list functions
         success, stdout, stderr = run_test(test_path, "-functions")
         if success:
-            functions = stdout.strip().split('\n')
+            functions = stdout.strip().split("\n")
             print(f"   Found {len(functions)} test functions")
 
             # Try running a simple test first
@@ -64,6 +66,7 @@ def main():
             print(f"   ✅ {test}: ALL TESTS PASSED")
         else:
             print(f"   ❌ {test}: FAILED ({stderr})")
+
 
 if __name__ == "__main__":
     main()

@@ -1,14 +1,12 @@
 #include "StyleManager.h"
-#include <QFontDatabase>
 #include <QApplication>
+#include <QFontDatabase>
 #include "../logging/Logger.h"
 
 // Private implementation class
 class StyleManagerImpl {
 public:
-    StyleManagerImpl() : m_currentTheme(Theme::Light) {
-        updateColors();
-    }
+    StyleManagerImpl() : m_currentTheme(Theme::Light) { updateColors(); }
 
     void updateColors();
     QString createButtonStyle() const;
@@ -35,29 +33,30 @@ StyleManager& StyleManager::instance() {
 }
 
 StyleManager::StyleManager() : pImpl(std::make_unique<StyleManagerImpl>()) {
-    Logger::instance().info("[managers] StyleManager initialized with Light theme");
+    Logger::instance().info(
+        "[managers] StyleManager initialized with Light theme");
 }
 
 StyleManager::~StyleManager() = default;
 
-Theme StyleManager::currentTheme() const {
-    return pImpl->m_currentTheme;
-}
+Theme StyleManager::currentTheme() const { return pImpl->m_currentTheme; }
 
 void StyleManager::setTheme(Theme theme) {
     if (pImpl->m_currentTheme != theme) {
         Logger::instance().info("[managers] Changing theme from {} to {}",
-                 static_cast<int>(pImpl->m_currentTheme), static_cast<int>(theme));
+                                static_cast<int>(pImpl->m_currentTheme),
+                                static_cast<int>(theme));
         pImpl->m_currentTheme = theme;
         pImpl->updateColors();
         emit themeChanged(theme);
-        Logger::instance().debug("[managers] Theme change completed and signal emitted");
+        Logger::instance().debug(
+            "[managers] Theme change completed and signal emitted");
     }
 }
 
 void StyleManagerImpl::updateColors() {
     Logger::instance().debug("[managers] Updating colors for theme: {}",
-              m_currentTheme == Theme::Light ? "Light" : "Dark");
+                             m_currentTheme == Theme::Light ? "Light" : "Dark");
     if (m_currentTheme == Theme::Light) {
         // 亮色主题
         m_primaryColor = QColor(0, 120, 212);       // 蓝色
@@ -180,10 +179,14 @@ QString StyleManager::createButtonStyle() const {
 
 QColor StyleManager::primaryColor() const { return pImpl->m_primaryColor; }
 QColor StyleManager::secondaryColor() const { return pImpl->m_secondaryColor; }
-QColor StyleManager::backgroundColor() const { return pImpl->m_backgroundColor; }
+QColor StyleManager::backgroundColor() const {
+    return pImpl->m_backgroundColor;
+}
 QColor StyleManager::surfaceColor() const { return pImpl->m_surfaceColor; }
 QColor StyleManager::textColor() const { return pImpl->m_textColor; }
-QColor StyleManager::textSecondaryColor() const { return pImpl->m_textSecondaryColor; }
+QColor StyleManager::textSecondaryColor() const {
+    return pImpl->m_textSecondaryColor;
+}
 QColor StyleManager::borderColor() const { return pImpl->m_borderColor; }
 QColor StyleManager::hoverColor() const { return pImpl->m_hoverColor; }
 QColor StyleManager::pressedColor() const { return pImpl->m_pressedColor; }

@@ -1,10 +1,10 @@
 #pragma once
 
+#include <QFileInfo>
+#include <QIcon>
 #include <QObject>
 #include <QPixmap>
-#include <QIcon>
 #include <QString>
-#include <QFileInfo>
 #include <memory>
 
 // Forward declaration

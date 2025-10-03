@@ -1,28 +1,28 @@
 #pragma once
 
+#include <poppler/qt6/poppler-qt6.h>
+#include <QAction>
+#include <QActionGroup>
+#include <QClipboard>
+#include <QDir>
+#include <QFileDialog>
+#include <QList>
+#include <QMenu>
+#include <QMessageBox>
+#include <QPainter>
+#include <QPixmap>
+#include <QStandardPaths>
+#include <QStringList>
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-#include <QMenu>
-#include <QAction>
-#include <QActionGroup>
-#include <QPixmap>
-#include <QList>
-#include <QStringList>
-#include <QClipboard>
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QPainter>
-#include <QStandardPaths>
-#include <QDir>
-#include <poppler/qt6/poppler-qt6.h>
 #include <memory>
 
 class ThumbnailModel;
 
 /**
  * @brief 缩略图右键菜单管理器
- * 
+ *
  * 提供Chrome风格的右键菜单功能：
  * - 复制页面图像
  * - 导出页面为图片
@@ -30,8 +30,7 @@ class ThumbnailModel;
  * - 页面信息显示
  * - 刷新缩略图
  */
-class ThumbnailContextMenu : public QMenu
-{
+class ThumbnailContextMenu : public QMenu {
     Q_OBJECT
 
 public:
@@ -42,14 +41,14 @@ public:
     void setDocument(std::shared_ptr<Poppler::Document> document);
     void setThumbnailModel(ThumbnailModel* model);
     void setCurrentPage(int pageNumber);
-    
+
     // 菜单显示
     void showForPage(int pageNumber, const QPoint& globalPos);
-    
+
     // 动作启用/禁用
     void setActionsEnabled(bool enabled);
     void updateActionStates();
-    
+
     // 自定义动作
     void addCustomAction(QAction* action);
     void removeCustomAction(QAction* action);
@@ -78,7 +77,7 @@ private:
     void createActions();
     void setupMenu();
     void updateMenuStyle();
-    
+
     void copyPageToClipboard(int pageNumber);
     void exportPageToFile(int pageNumber);
     void exportPageAsPDF(Poppler::Page* page, const QString& filePath);
@@ -93,7 +92,7 @@ private:
     std::shared_ptr<Poppler::Document> m_document;
     ThumbnailModel* m_thumbnailModel;
     int m_currentPage;
-    
+
     // 菜单动作
     QAction* m_copyPageAction;
     QAction* m_exportPageAction;
@@ -103,22 +102,22 @@ private:
     QAction* m_goToPageAction;
     QAction* m_copyPageNumberAction;
     QAction* m_setBookmarkAction;
-    
+
     // 分隔符
     QAction* m_separator1;
     QAction* m_separator2;
-    
+
     // 自定义动作
     QList<QAction*> m_customActions;
-    
+
     // 系统组件
     QClipboard* m_clipboard;
-    
+
     // 样式设置
     QString m_lightStyleSheet;
     QString m_darkStyleSheet;
     bool m_isDarkTheme;
-    
+
     // 常量
     static constexpr int EXPORT_DPI = 150;
     static constexpr int COPY_DPI = 96;

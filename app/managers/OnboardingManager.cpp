@@ -1,28 +1,27 @@
 #include "OnboardingManager.h"
-#include "../ui/widgets/OnboardingWidget.h"
-#include <QSettings>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QTimer>
-#include <QWidget>
 #include <QDateTime>
 #include <QDebug>
-#include <QString>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QList>
+#include <QSettings>
+#include <QString>
+#include <QTimer>
+#include <QWidget>
+#include "../ui/widgets/OnboardingWidget.h"
 
 // Private implementation class
 class OnboardingManagerImpl {
 public:
     OnboardingManagerImpl()
-        : m_isActive(false)
-        , m_isFirstTimeUser(true)
-        , m_currentStep(OnboardingStep::Welcome)
-        , m_onboardingWidget(nullptr)
-        , m_attachedWidget(nullptr)
-        , m_showTips(true)
-        , m_showOnStartup(true)
-    {
+        : m_isActive(false),
+          m_isFirstTimeUser(true),
+          m_currentStep(OnboardingStep::Welcome),
+          m_onboardingWidget(nullptr),
+          m_attachedWidget(nullptr),
+          m_showTips(true),
+          m_showOnStartup(true) {
         m_settings = std::make_unique<QSettings>();
     }
 
@@ -61,52 +60,43 @@ OnboardingManager* OnboardingManager::s_instance = nullptr;
 const QString OnboardingManager::SETTINGS_GROUP = "Onboarding";
 const QString OnboardingManager::SETTINGS_FIRST_TIME_KEY = "FirstTimeUser";
 const QString OnboardingManager::SETTINGS_COMPLETED_KEY = "Completed";
-const QString OnboardingManager::SETTINGS_COMPLETED_STEPS_KEY = "CompletedSteps";
+const QString OnboardingManager::SETTINGS_COMPLETED_STEPS_KEY =
+    "CompletedSteps";
 const QString OnboardingManager::SETTINGS_SHOW_TIPS_KEY = "ShowTips";
 const QString OnboardingManager::SETTINGS_SHOW_ON_STARTUP_KEY = "ShowOnStartup";
 const QString OnboardingManager::SETTINGS_ANALYTICS_KEY = "Analytics";
 
 OnboardingManager::OnboardingManager(QObject* parent)
-    : QObject(parent)
-    , pImpl(std::make_unique<OnboardingManagerImpl>())
-{
+    : QObject(parent), pImpl(std::make_unique<OnboardingManagerImpl>()) {
     pImpl->initializeSteps();
     pImpl->initializeTutorials();
     loadSettings();
     pImpl->setupConnections();
 }
 
-OnboardingManager::~OnboardingManager()
-{
-    saveSettings();
-}
+OnboardingManager::~OnboardingManager() { saveSettings(); }
 
-OnboardingManager& OnboardingManager::instance()
-{
+OnboardingManager& OnboardingManager::instance() {
     if (!s_instance) {
         s_instance = new OnboardingManager();
     }
     return *s_instance;
 }
 
-bool OnboardingManager::isFirstTimeUser() const
-{
+bool OnboardingManager::isFirstTimeUser() const {
     return pImpl->m_isFirstTimeUser;
 }
 
-bool OnboardingManager::isOnboardingCompleted() const
-{
-    return pImpl->m_completedSteps.size() >= getTotalStepsCount() - 1; // Exclude Complete step
+bool OnboardingManager::isOnboardingCompleted() const {
+    return pImpl->m_completedSteps.size() >=
+           getTotalStepsCount() - 1;  // Exclude Complete step
 }
 
-bool OnboardingManager::isOnboardingActive() const
-{
-    return pImpl->m_isActive;
-}
+bool OnboardingManager::isOnboardingActive() const { return pImpl->m_isActive; }
 
-void OnboardingManager::startOnboarding()
-{
-    if (pImpl->m_isActive) return;
+void OnboardingManager::startOnboarding() {
+    if (pImpl->m_isActive)
+        return;
 
     pImpl->m_isActive = true;
     pImpl->m_currentStep = OnboardingStep::Welcome;
@@ -120,22 +110,21 @@ void OnboardingManager::startOnboarding()
     emit stepChanged(pImpl->m_currentStep);
 }
 
-void OnboardingManager::stopOnboarding()
-{
-    if (!pImpl->m_isActive) return;
+void OnboardingManager::stopOnboarding() {
+    if (!pImpl->m_isActive)
+        return;
 
     pImpl->m_isActive = false;
 
     if (pImpl->m_onboardingWidget) {
         pImpl->m_onboardingWidget->hideStep();
     }
-    
+
     saveSettings();
     emit onboardingStopped();
 }
 
-void OnboardingManager::resetOnboarding()
-{
+void OnboardingManager::resetOnboarding() {
     pImpl->m_completedSteps.clear();
     pImpl->m_currentStep = OnboardingStep::Welcome;
     pImpl->m_isFirstTimeUser = true;
@@ -149,9 +138,9 @@ void OnboardingManager::resetOnboarding()
     }
 }
 
-void OnboardingManager::skipOnboarding()
-{
-    if (!pImpl->m_isActive) return;
+void OnboardingManager::skipOnboarding() {
+    if (!pImpl->m_isActive)
+        return;
 
     // Mark all steps as completed
     for (int i = 0; i < static_cast<int>(OnboardingStep::Complete); ++i) {
@@ -168,14 +157,13 @@ void OnboardingManager::skipOnboarding()
     emit onboardingCompleted();
 }
 
-OnboardingStep OnboardingManager::currentStep() const
-{
+OnboardingStep OnboardingManager::currentStep() const {
     return pImpl->m_currentStep;
 }
 
-void OnboardingManager::nextStep()
-{
-    if (!pImpl->m_isActive) return;
+void OnboardingManager::nextStep() {
+    if (!pImpl->m_isActive)
+        return;
 
     markStepCompleted(pImpl->m_currentStep);
 
@@ -195,13 +183,13 @@ void OnboardingManager::nextStep()
         trackStepStarted(pImpl->m_currentStep);
         emit stepChanged(pImpl->m_currentStep);
     }
-    
+
     updateProgress();
 }
 
-void OnboardingManager::previousStep()
-{
-    if (!pImpl->m_isActive) return;
+void OnboardingManager::previousStep() {
+    if (!pImpl->m_isActive)
+        return;
 
     int prevStepInt = static_cast<int>(pImpl->m_currentStep) - 1;
     if (prevStepInt < 0) {
@@ -217,9 +205,9 @@ void OnboardingManager::previousStep()
     emit stepChanged(pImpl->m_currentStep);
 }
 
-void OnboardingManager::jumpToStep(OnboardingStep step)
-{
-    if (!pImpl->m_isActive) return;
+void OnboardingManager::jumpToStep(OnboardingStep step) {
+    if (!pImpl->m_isActive)
+        return;
 
     pImpl->m_currentStep = step;
 
@@ -231,13 +219,11 @@ void OnboardingManager::jumpToStep(OnboardingStep step)
     emit stepChanged(pImpl->m_currentStep);
 }
 
-bool OnboardingManager::isStepCompleted(OnboardingStep step) const
-{
+bool OnboardingManager::isStepCompleted(OnboardingStep step) const {
     return pImpl->m_completedSteps.contains(step);
 }
 
-void OnboardingManager::markStepCompleted(OnboardingStep step)
-{
+void OnboardingManager::markStepCompleted(OnboardingStep step) {
     if (!pImpl->m_completedSteps.contains(step)) {
         pImpl->m_completedSteps.append(step);
         trackStepCompleted(step);
@@ -247,10 +233,9 @@ void OnboardingManager::markStepCompleted(OnboardingStep step)
     }
 }
 
-void OnboardingManager::startTutorial(TutorialCategory category)
-{
+void OnboardingManager::startTutorial(TutorialCategory category) {
     QString tutorialId;
-    
+
     switch (category) {
         case TutorialCategory::GettingStarted:
             tutorialId = "getting_started";
@@ -265,14 +250,13 @@ void OnboardingManager::startTutorial(TutorialCategory category)
             tutorialId = "productivity_tips";
             break;
     }
-    
+
     startSpecificTutorial(tutorialId);
 }
 
-void OnboardingManager::startSpecificTutorial(const QString& tutorialId)
-{
+void OnboardingManager::startSpecificTutorial(const QString& tutorialId) {
     trackTutorialStarted(tutorialId);
-    
+
     // Map tutorial ID to specific onboarding step
     if (tutorialId == "open_file") {
         jumpToStep(OnboardingStep::OpenFile);
@@ -289,21 +273,20 @@ void OnboardingManager::startSpecificTutorial(const QString& tutorialId)
     } else if (tutorialId == "keyboard_shortcuts") {
         jumpToStep(OnboardingStep::KeyboardShortcuts);
     }
-    
+
     if (!pImpl->m_isActive) {
         startOnboarding();
     }
-    
+
     emit tutorialStarted(tutorialId);
 }
 
-QJsonArray OnboardingManager::getAvailableTutorials() const
-{
+QJsonArray OnboardingManager::getAvailableTutorials() const {
     return pImpl->m_availableTutorials;
 }
 
-QJsonObject OnboardingManager::getTutorialInfo(const QString& tutorialId) const
-{
+QJsonObject OnboardingManager::getTutorialInfo(
+    const QString& tutorialId) const {
     for (const auto& tutorial : pImpl->m_availableTutorials) {
         QJsonObject obj = tutorial.toObject();
         if (obj["id"].toString() == tutorialId) {
@@ -313,30 +296,26 @@ QJsonObject OnboardingManager::getTutorialInfo(const QString& tutorialId) const
     return QJsonObject();
 }
 
-int OnboardingManager::getCompletedStepsCount() const
-{
+int OnboardingManager::getCompletedStepsCount() const {
     return pImpl->m_completedSteps.size();
 }
 
-int OnboardingManager::getTotalStepsCount() const
-{
+int OnboardingManager::getTotalStepsCount() const {
     return static_cast<int>(OnboardingStep::Complete);
 }
 
-float OnboardingManager::getProgressPercentage() const
-{
-    int total = getTotalStepsCount() - 1; // Exclude Complete step
-    if (total == 0) return 100.0f;
+float OnboardingManager::getProgressPercentage() const {
+    int total = getTotalStepsCount() - 1;  // Exclude Complete step
+    if (total == 0)
+        return 100.0f;
     return (static_cast<float>(getCompletedStepsCount()) / total) * 100.0f;
 }
 
-QList<OnboardingStep> OnboardingManager::getCompletedSteps() const
-{
+QList<OnboardingStep> OnboardingManager::getCompletedSteps() const {
     return pImpl->m_completedSteps;
 }
 
-QList<OnboardingStep> OnboardingManager::getRemainingSteps() const
-{
+QList<OnboardingStep> OnboardingManager::getRemainingSteps() const {
     QList<OnboardingStep> remaining;
     for (int i = 0; i < static_cast<int>(OnboardingStep::Complete); ++i) {
         OnboardingStep step = static_cast<OnboardingStep>(i);
@@ -347,29 +326,26 @@ QList<OnboardingStep> OnboardingManager::getRemainingSteps() const
     return remaining;
 }
 
-void OnboardingManager::setOnboardingWidget(OnboardingWidget* widget)
-{
+void OnboardingManager::setOnboardingWidget(OnboardingWidget* widget) {
     pImpl->m_onboardingWidget = widget;
 
     if (pImpl->m_onboardingWidget) {
-        connect(pImpl->m_onboardingWidget, &OnboardingWidget::nextClicked,
-                this, &OnboardingManager::nextStep);
+        connect(pImpl->m_onboardingWidget, &OnboardingWidget::nextClicked, this,
+                &OnboardingManager::nextStep);
         connect(pImpl->m_onboardingWidget, &OnboardingWidget::previousClicked,
                 this, &OnboardingManager::previousStep);
-        connect(pImpl->m_onboardingWidget, &OnboardingWidget::skipClicked,
-                this, &OnboardingManager::skipOnboarding);
+        connect(pImpl->m_onboardingWidget, &OnboardingWidget::skipClicked, this,
+                &OnboardingManager::skipOnboarding);
         connect(pImpl->m_onboardingWidget, &OnboardingWidget::closeClicked,
                 this, &OnboardingManager::stopOnboarding);
     }
 }
 
-OnboardingWidget* OnboardingManager::onboardingWidget() const
-{
+OnboardingWidget* OnboardingManager::onboardingWidget() const {
     return pImpl->m_onboardingWidget;
 }
 
-void OnboardingManager::attachToWidget(QWidget* widget)
-{
+void OnboardingManager::attachToWidget(QWidget* widget) {
     pImpl->m_attachedWidget = widget;
 
     if (pImpl->m_onboardingWidget && pImpl->m_attachedWidget) {
@@ -379,31 +355,34 @@ void OnboardingManager::attachToWidget(QWidget* widget)
     }
 }
 
-void OnboardingManager::detachFromWidget()
-{
+void OnboardingManager::detachFromWidget() {
     if (pImpl->m_onboardingWidget) {
         pImpl->m_onboardingWidget->setParent(nullptr);
     }
     pImpl->m_attachedWidget = nullptr;
 }
 
-void OnboardingManager::loadSettings()
-{
+void OnboardingManager::loadSettings() {
     pImpl->m_settings->beginGroup(SETTINGS_GROUP);
 
-    pImpl->m_isFirstTimeUser = pImpl->m_settings->value(SETTINGS_FIRST_TIME_KEY, true).toBool();
-    pImpl->m_showTips = pImpl->m_settings->value(SETTINGS_SHOW_TIPS_KEY, true).toBool();
-    pImpl->m_showOnStartup = pImpl->m_settings->value(SETTINGS_SHOW_ON_STARTUP_KEY, true).toBool();
+    pImpl->m_isFirstTimeUser =
+        pImpl->m_settings->value(SETTINGS_FIRST_TIME_KEY, true).toBool();
+    pImpl->m_showTips =
+        pImpl->m_settings->value(SETTINGS_SHOW_TIPS_KEY, true).toBool();
+    pImpl->m_showOnStartup =
+        pImpl->m_settings->value(SETTINGS_SHOW_ON_STARTUP_KEY, true).toBool();
 
     // Load completed steps
-    QStringList completedStepStrings = pImpl->m_settings->value(SETTINGS_COMPLETED_STEPS_KEY).toStringList();
+    QStringList completedStepStrings =
+        pImpl->m_settings->value(SETTINGS_COMPLETED_STEPS_KEY).toStringList();
     pImpl->m_completedSteps.clear();
     for (const QString& stepStr : completedStepStrings) {
         pImpl->m_completedSteps.append(pImpl->stringToStep(stepStr));
     }
 
     // Load analytics data
-    QString analyticsJson = pImpl->m_settings->value(SETTINGS_ANALYTICS_KEY).toString();
+    QString analyticsJson =
+        pImpl->m_settings->value(SETTINGS_ANALYTICS_KEY).toString();
     if (!analyticsJson.isEmpty()) {
         QJsonDocument doc = QJsonDocument::fromJson(analyticsJson.toUtf8());
         pImpl->m_analyticsData = doc.object();
@@ -412,32 +391,36 @@ void OnboardingManager::loadSettings()
     pImpl->m_settings->endGroup();
 }
 
-void OnboardingManager::saveSettings()
-{
+void OnboardingManager::saveSettings() {
     pImpl->m_settings->beginGroup(SETTINGS_GROUP);
 
-    pImpl->m_settings->setValue(SETTINGS_FIRST_TIME_KEY, pImpl->m_isFirstTimeUser);
-    pImpl->m_settings->setValue(SETTINGS_COMPLETED_KEY, isOnboardingCompleted());
+    pImpl->m_settings->setValue(SETTINGS_FIRST_TIME_KEY,
+                                pImpl->m_isFirstTimeUser);
+    pImpl->m_settings->setValue(SETTINGS_COMPLETED_KEY,
+                                isOnboardingCompleted());
     pImpl->m_settings->setValue(SETTINGS_SHOW_TIPS_KEY, pImpl->m_showTips);
-    pImpl->m_settings->setValue(SETTINGS_SHOW_ON_STARTUP_KEY, pImpl->m_showOnStartup);
+    pImpl->m_settings->setValue(SETTINGS_SHOW_ON_STARTUP_KEY,
+                                pImpl->m_showOnStartup);
 
     // Save completed steps
     QStringList completedStepStrings;
     for (OnboardingStep step : pImpl->m_completedSteps) {
         completedStepStrings.append(pImpl->stepToString(step));
     }
-    pImpl->m_settings->setValue(SETTINGS_COMPLETED_STEPS_KEY, completedStepStrings);
+    pImpl->m_settings->setValue(SETTINGS_COMPLETED_STEPS_KEY,
+                                completedStepStrings);
 
     // Save analytics data
     QJsonDocument doc(pImpl->m_analyticsData);
-    pImpl->m_settings->setValue(SETTINGS_ANALYTICS_KEY, QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
+    pImpl->m_settings->setValue(
+        SETTINGS_ANALYTICS_KEY,
+        QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
 
     pImpl->m_settings->endGroup();
     pImpl->m_settings->sync();
 }
 
-void OnboardingManager::resetSettings()
-{
+void OnboardingManager::resetSettings() {
     pImpl->m_settings->beginGroup(SETTINGS_GROUP);
     pImpl->m_settings->remove("");
     pImpl->m_settings->endGroup();
@@ -449,13 +432,9 @@ void OnboardingManager::resetSettings()
     pImpl->m_analyticsData = QJsonObject();
 }
 
-bool OnboardingManager::shouldShowTips() const
-{
-    return pImpl->m_showTips;
-}
+bool OnboardingManager::shouldShowTips() const { return pImpl->m_showTips; }
 
-void OnboardingManager::setShowTips(bool show)
-{
+void OnboardingManager::setShowTips(bool show) {
     if (pImpl->m_showTips != show) {
         pImpl->m_showTips = show;
         emit showTipsChanged(show);
@@ -463,13 +442,11 @@ void OnboardingManager::setShowTips(bool show)
     }
 }
 
-bool OnboardingManager::shouldShowOnStartup() const
-{
+bool OnboardingManager::shouldShowOnStartup() const {
     return pImpl->m_showOnStartup;
 }
 
-void OnboardingManager::setShowOnStartup(bool show)
-{
+void OnboardingManager::setShowOnStartup(bool show) {
     if (pImpl->m_showOnStartup != show) {
         pImpl->m_showOnStartup = show;
         emit showOnStartupChanged(show);
@@ -477,106 +454,103 @@ void OnboardingManager::setShowOnStartup(bool show)
     }
 }
 
-void OnboardingManager::trackStepStarted(OnboardingStep step)
-{
+void OnboardingManager::trackStepStarted(OnboardingStep step) {
     QString stepStr = pImpl->stepToString(step);
     QJsonObject stepData = pImpl->m_analyticsData[stepStr].toObject();
     stepData["started_count"] = stepData["started_count"].toInt() + 1;
-    stepData["last_started"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    stepData["last_started"] =
+        QDateTime::currentDateTime().toString(Qt::ISODate);
     pImpl->m_analyticsData[stepStr] = stepData;
 }
 
-void OnboardingManager::trackStepCompleted(OnboardingStep step)
-{
+void OnboardingManager::trackStepCompleted(OnboardingStep step) {
     QString stepStr = pImpl->stepToString(step);
     QJsonObject stepData = pImpl->m_analyticsData[stepStr].toObject();
     stepData["completed_count"] = stepData["completed_count"].toInt() + 1;
-    stepData["last_completed"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    stepData["last_completed"] =
+        QDateTime::currentDateTime().toString(Qt::ISODate);
     pImpl->m_analyticsData[stepStr] = stepData;
 }
 
-void OnboardingManager::trackStepSkipped(OnboardingStep step)
-{
+void OnboardingManager::trackStepSkipped(OnboardingStep step) {
     QString stepStr = pImpl->stepToString(step);
     QJsonObject stepData = pImpl->m_analyticsData[stepStr].toObject();
     stepData["skipped_count"] = stepData["skipped_count"].toInt() + 1;
-    stepData["last_skipped"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    stepData["last_skipped"] =
+        QDateTime::currentDateTime().toString(Qt::ISODate);
     pImpl->m_analyticsData[stepStr] = stepData;
 }
 
-void OnboardingManager::trackTutorialStarted(const QString& tutorialId)
-{
+void OnboardingManager::trackTutorialStarted(const QString& tutorialId) {
     QJsonObject tutorialData = pImpl->m_analyticsData["tutorials"].toObject();
     QJsonObject specific = tutorialData[tutorialId].toObject();
     specific["started_count"] = specific["started_count"].toInt() + 1;
-    specific["last_started"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    specific["last_started"] =
+        QDateTime::currentDateTime().toString(Qt::ISODate);
     tutorialData[tutorialId] = specific;
     pImpl->m_analyticsData["tutorials"] = tutorialData;
 }
 
-void OnboardingManager::trackTutorialCompleted(const QString& tutorialId)
-{
+void OnboardingManager::trackTutorialCompleted(const QString& tutorialId) {
     QJsonObject tutorialData = pImpl->m_analyticsData["tutorials"].toObject();
     QJsonObject specific = tutorialData[tutorialId].toObject();
     specific["completed_count"] = specific["completed_count"].toInt() + 1;
-    specific["last_completed"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    specific["last_completed"] =
+        QDateTime::currentDateTime().toString(Qt::ISODate);
     tutorialData[tutorialId] = specific;
     pImpl->m_analyticsData["tutorials"] = tutorialData;
 
     emit tutorialCompleted(tutorialId);
 }
 
-void OnboardingManager::onApplicationStarted()
-{
+void OnboardingManager::onApplicationStarted() {
     if (pImpl->m_isFirstTimeUser && pImpl->m_showOnStartup) {
         // Start onboarding after a short delay to let the UI settle
-        QTimer::singleShot(500, this, [this]() {
-            startOnboarding();
-        });
+        QTimer::singleShot(500, this, [this]() { startOnboarding(); });
     }
 }
 
-void OnboardingManager::onDocumentOpened()
-{
+void OnboardingManager::onDocumentOpened() {
     if (pImpl->m_isActive && pImpl->m_currentStep == OnboardingStep::OpenFile) {
         markStepCompleted(pImpl->m_currentStep);
         nextStep();
     }
 }
 
-void OnboardingManager::onFeatureUsed(const QString& featureName)
-{
+void OnboardingManager::onFeatureUsed(const QString& featureName) {
     // Track feature usage and potentially advance onboarding
-    if (!pImpl->m_isActive) return;
+    if (!pImpl->m_isActive)
+        return;
 
-    if (featureName == "search" && pImpl->m_currentStep == OnboardingStep::Search) {
+    if (featureName == "search" &&
+        pImpl->m_currentStep == OnboardingStep::Search) {
         markStepCompleted(pImpl->m_currentStep);
-    } else if (featureName == "bookmark" && pImpl->m_currentStep == OnboardingStep::Bookmarks) {
+    } else if (featureName == "bookmark" &&
+               pImpl->m_currentStep == OnboardingStep::Bookmarks) {
         markStepCompleted(pImpl->m_currentStep);
-    } else if (featureName == "annotation" && pImpl->m_currentStep == OnboardingStep::Annotations) {
+    } else if (featureName == "annotation" &&
+               pImpl->m_currentStep == OnboardingStep::Annotations) {
         markStepCompleted(pImpl->m_currentStep);
     }
 }
 
-void OnboardingManager::onStepTimeout()
-{
+void OnboardingManager::onStepTimeout() {
     // Handle timeout for automatic progression
     if (pImpl->m_isActive) {
         nextStep();
     }
 }
 
-void OnboardingManager::updateProgress()
-{
+void OnboardingManager::updateProgress() {
     float percentage = getProgressPercentage();
     emit progressUpdated(percentage);
 }
 
-// Note: initializeSteps, initializeTutorials, setupConnections, stepToString, and stringToStep
-// are now implemented as methods of the OnboardingManagerImpl class
+// Note: initializeSteps, initializeTutorials, setupConnections, stepToString,
+// and stringToStep are now implemented as methods of the OnboardingManagerImpl
+// class
 
-void OnboardingManagerImpl::initializeSteps()
-{
+void OnboardingManagerImpl::initializeSteps() {
     // Initialize the onboarding steps sequence
     // This method sets up the initial state for onboarding steps
 
@@ -604,101 +578,104 @@ void OnboardingManagerImpl::initializeSteps()
     }
 }
 
-void OnboardingManagerImpl::initializeTutorials()
-{
+void OnboardingManagerImpl::initializeTutorials() {
     m_availableTutorials = QJsonArray{
-        QJsonObject{
-            {"id", "open_file"},
-            {"title", "Opening Files"},
-            {"description", "Learn how to open PDF files and folders"},
-            {"category", "getting_started"},
-            {"duration", "2 min"},
-            {"difficulty", "Beginner"}
-        },
+        QJsonObject{{"id", "open_file"},
+                    {"title", "Opening Files"},
+                    {"description", "Learn how to open PDF files and folders"},
+                    {"category", "getting_started"},
+                    {"duration", "2 min"},
+                    {"difficulty", "Beginner"}},
         QJsonObject{
             {"id", "navigation"},
             {"title", "Document Navigation"},
             {"description", "Navigate through pages and sections efficiently"},
             {"category", "basic_features"},
             {"duration", "3 min"},
-            {"difficulty", "Beginner"}
-        },
-        QJsonObject{
-            {"id", "search"},
-            {"title", "Search Features"},
-            {"description", "Master the powerful search capabilities"},
-            {"category", "basic_features"},
-            {"duration", "5 min"},
-            {"difficulty", "Intermediate"}
-        },
-        QJsonObject{
-            {"id", "bookmarks"},
-            {"title", "Managing Bookmarks"},
-            {"description", "Organize your reading with bookmarks"},
-            {"category", "basic_features"},
-            {"duration", "3 min"},
-            {"difficulty", "Beginner"}
-        },
-        QJsonObject{
-            {"id", "annotations"},
-            {"title", "Annotations & Notes"},
-            {"description", "Add highlights and notes to documents"},
-            {"category", "advanced_features"},
-            {"duration", "4 min"},
-            {"difficulty", "Intermediate"}
-        },
-        QJsonObject{
-            {"id", "view_modes"},
-            {"title", "View Modes"},
-            {"description", "Customize your reading experience"},
-            {"category", "basic_features"},
-            {"duration", "2 min"},
-            {"difficulty", "Beginner"}
-        },
-        QJsonObject{
-            {"id", "keyboard_shortcuts"},
-            {"title", "Keyboard Shortcuts"},
-            {"description", "Work faster with keyboard shortcuts"},
-            {"category", "productivity_tips"},
-            {"duration", "5 min"},
-            {"difficulty", "Advanced"}
-        }
-    };
+            {"difficulty", "Beginner"}},
+        QJsonObject{{"id", "search"},
+                    {"title", "Search Features"},
+                    {"description", "Master the powerful search capabilities"},
+                    {"category", "basic_features"},
+                    {"duration", "5 min"},
+                    {"difficulty", "Intermediate"}},
+        QJsonObject{{"id", "bookmarks"},
+                    {"title", "Managing Bookmarks"},
+                    {"description", "Organize your reading with bookmarks"},
+                    {"category", "basic_features"},
+                    {"duration", "3 min"},
+                    {"difficulty", "Beginner"}},
+        QJsonObject{{"id", "annotations"},
+                    {"title", "Annotations & Notes"},
+                    {"description", "Add highlights and notes to documents"},
+                    {"category", "advanced_features"},
+                    {"duration", "4 min"},
+                    {"difficulty", "Intermediate"}},
+        QJsonObject{{"id", "view_modes"},
+                    {"title", "View Modes"},
+                    {"description", "Customize your reading experience"},
+                    {"category", "basic_features"},
+                    {"duration", "2 min"},
+                    {"difficulty", "Beginner"}},
+        QJsonObject{{"id", "keyboard_shortcuts"},
+                    {"title", "Keyboard Shortcuts"},
+                    {"description", "Work faster with keyboard shortcuts"},
+                    {"category", "productivity_tips"},
+                    {"duration", "5 min"},
+                    {"difficulty", "Advanced"}}};
 }
 
-void OnboardingManagerImpl::setupConnections()
-{
+void OnboardingManagerImpl::setupConnections() {
     // Setup internal connections if needed
 }
 
-QString OnboardingManagerImpl::stepToString(OnboardingStep step) const
-{
+QString OnboardingManagerImpl::stepToString(OnboardingStep step) const {
     switch (step) {
-        case OnboardingStep::Welcome: return "Welcome";
-        case OnboardingStep::OpenFile: return "OpenFile";
-        case OnboardingStep::Navigation: return "Navigation";
-        case OnboardingStep::Search: return "Search";
-        case OnboardingStep::Bookmarks: return "Bookmarks";
-        case OnboardingStep::Annotations: return "Annotations";
-        case OnboardingStep::ViewModes: return "ViewModes";
-        case OnboardingStep::Settings: return "Settings";
-        case OnboardingStep::KeyboardShortcuts: return "KeyboardShortcuts";
-        case OnboardingStep::Complete: return "Complete";
-        default: return "Unknown";
+        case OnboardingStep::Welcome:
+            return "Welcome";
+        case OnboardingStep::OpenFile:
+            return "OpenFile";
+        case OnboardingStep::Navigation:
+            return "Navigation";
+        case OnboardingStep::Search:
+            return "Search";
+        case OnboardingStep::Bookmarks:
+            return "Bookmarks";
+        case OnboardingStep::Annotations:
+            return "Annotations";
+        case OnboardingStep::ViewModes:
+            return "ViewModes";
+        case OnboardingStep::Settings:
+            return "Settings";
+        case OnboardingStep::KeyboardShortcuts:
+            return "KeyboardShortcuts";
+        case OnboardingStep::Complete:
+            return "Complete";
+        default:
+            return "Unknown";
     }
 }
 
-OnboardingStep OnboardingManagerImpl::stringToStep(const QString& str) const
-{
-    if (str == "Welcome") return OnboardingStep::Welcome;
-    if (str == "OpenFile") return OnboardingStep::OpenFile;
-    if (str == "Navigation") return OnboardingStep::Navigation;
-    if (str == "Search") return OnboardingStep::Search;
-    if (str == "Bookmarks") return OnboardingStep::Bookmarks;
-    if (str == "Annotations") return OnboardingStep::Annotations;
-    if (str == "ViewModes") return OnboardingStep::ViewModes;
-    if (str == "Settings") return OnboardingStep::Settings;
-    if (str == "KeyboardShortcuts") return OnboardingStep::KeyboardShortcuts;
-    if (str == "Complete") return OnboardingStep::Complete;
+OnboardingStep OnboardingManagerImpl::stringToStep(const QString& str) const {
+    if (str == "Welcome")
+        return OnboardingStep::Welcome;
+    if (str == "OpenFile")
+        return OnboardingStep::OpenFile;
+    if (str == "Navigation")
+        return OnboardingStep::Navigation;
+    if (str == "Search")
+        return OnboardingStep::Search;
+    if (str == "Bookmarks")
+        return OnboardingStep::Bookmarks;
+    if (str == "Annotations")
+        return OnboardingStep::Annotations;
+    if (str == "ViewModes")
+        return OnboardingStep::ViewModes;
+    if (str == "Settings")
+        return OnboardingStep::Settings;
+    if (str == "KeyboardShortcuts")
+        return OnboardingStep::KeyboardShortcuts;
+    if (str == "Complete")
+        return OnboardingStep::Complete;
     return OnboardingStep::Welcome;
 }

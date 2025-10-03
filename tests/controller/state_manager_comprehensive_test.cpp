@@ -1,10 +1,10 @@
-#include <QTest>
-#include <QJsonObject>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QSignalSpy>
+#include <QTest>
 #include <memory>
-#include "../TestUtilities.h"
 #include "../../app/controller/StateManager.h"
+#include "../TestUtilities.h"
 
 class StateManagerComprehensiveTest : public TestBase {
     Q_OBJECT
@@ -48,7 +48,8 @@ private slots:
 
 private:
     QJsonObject createComplexNestedState();
-    void verifyStateDiff(const QStringList& expected, const QStringList& actual);
+    void verifyStateDiff(const QStringList& expected,
+                         const QStringList& actual);
 };
 
 void StateManagerComprehensiveTest::initTestCase() {
@@ -59,13 +60,9 @@ void StateManagerComprehensiveTest::cleanupTestCase() {
     qDebug() << "Cleaning up StateManager comprehensive tests";
 }
 
-void StateManagerComprehensiveTest::init() {
-    TestBase::init();
-}
+void StateManagerComprehensiveTest::init() { TestBase::init(); }
 
-void StateManagerComprehensiveTest::cleanup() {
-    TestBase::cleanup();
-}
+void StateManagerComprehensiveTest::cleanup() { TestBase::cleanup(); }
 
 void StateManagerComprehensiveTest::testStateCreation() {
     // Test empty state
@@ -178,17 +175,18 @@ void StateManagerComprehensiveTest::testStateDiffSimple() {
     oldState.set("number", 42);
 
     State newState;
-    newState.set("key1", "value1");        // Same
-    newState.set("key2", "modified_value2"); // Changed
-    newState.set("number", 100);            // Changed
-    newState.set("key3", "new_value");      // Added
+    newState.set("key1", "value1");           // Same
+    newState.set("key2", "modified_value2");  // Changed
+    newState.set("number", 100);              // Changed
+    newState.set("key3", "new_value");        // Added
 
     StateChange change(oldState, newState, "test");
     QStringList changedPaths = change.changedPaths();
 
     // The exact paths depend on the implementation details
     // We expect at least the changed and added keys to be detected
-    QVERIFY(changedPaths.contains("key2") || changedPaths.contains("number") || changedPaths.contains("key3"));
+    QVERIFY(changedPaths.contains("key2") || changedPaths.contains("number") ||
+            changedPaths.contains("key3"));
 }
 
 void StateManagerComprehensiveTest::testStateDiffNested() {
@@ -198,7 +196,7 @@ void StateManagerComprehensiveTest::testStateDiffNested() {
     oldState.set("user.address.city", "New York");
 
     State newState;
-    newState.set("user.name", "John");           // Same
+    newState.set("user.name", "John");            // Same
     newState.set("user.age", 31);                 // Changed
     newState.set("user.address.city", "Boston");  // Changed
     newState.set("user.address.country", "USA");  // Added
@@ -250,7 +248,7 @@ void StateManagerComprehensiveTest::testStateDiffComplex() {
     newState.set("users[0].name", "Alice Johnson");
     newState.set("settings.theme", "dark");
     newState.set("settings.notifications.email", false);
-    newState.remove("tempData"); // Remove a key
+    newState.remove("tempData");  // Remove a key
 
     StateChange change(oldState, newState, "complex test");
     QStringList changedPaths = change.changedPaths();
@@ -386,7 +384,7 @@ void StateManagerComprehensiveTest::testStateChangeSignals() {
 
     QCOMPARE(changeSpy.count(), 1);
     QList<QVariant> arguments = changeSpy.takeFirst();
-    QVERIFY(arguments.at(0).canConvert<QString>()); // Reason
+    QVERIFY(arguments.at(0).canConvert<QString>());  // Reason
 }
 
 void StateManagerComprehensiveTest::testStateChangeRevert() {
@@ -421,18 +419,23 @@ void StateManagerComprehensiveTest::testLargeStatePerformance() {
     qint64 setTime = timer.elapsed();
 
     // Performance should be reasonable (< 100ms for 1000 operations)
-    QVERIFY2(setTime < 100, QString("State set took too long: %1ms").arg(setTime).toLocal8Bit());
+    QVERIFY2(
+        setTime < 100,
+        QString("State set took too long: %1ms").arg(setTime).toLocal8Bit());
 
     // Test diff performance
     State copy = manager.getCurrentState();
     timer.restart();
     for (int i = 0; i < 100; ++i) {
-        manager.set(QString("key%1").arg(i), QString("modified_value%1").arg(i));
+        manager.set(QString("key%1").arg(i),
+                    QString("modified_value%1").arg(i));
     }
     qint64 diffTime = timer.elapsed();
 
     // Diff should also be reasonable
-    QVERIFY2(diffTime < 50, QString("State diff took too long: %1ms").arg(diffTime).toLocal8Bit());
+    QVERIFY2(
+        diffTime < 50,
+        QString("State diff took too long: %1ms").arg(diffTime).toLocal8Bit());
 }
 
 void StateManagerComprehensiveTest::testDeepNestingPerformance() {
@@ -443,21 +446,24 @@ void StateManagerComprehensiveTest::testDeepNestingPerformance() {
     timer.start();
     QString basePath = "level1.level2.level3.level4.level5";
     for (int i = 0; i < 100; ++i) {
-        manager.set(QString("%1.item%2").arg(basePath).arg(i), QString("value%1").arg(i));
+        manager.set(QString("%1.item%2").arg(basePath).arg(i),
+                    QString("value%1").arg(i));
     }
     qint64 setTime = timer.elapsed();
 
     // Deep nesting should still perform reasonably
-    QVERIFY2(setTime < 50, QString("Deep nesting took too long: %1ms").arg(setTime).toLocal8Bit());
+    QVERIFY2(
+        setTime < 50,
+        QString("Deep nesting took too long: %1ms").arg(setTime).toLocal8Bit());
 }
 
 void StateManagerComprehensiveTest::testInvalidPaths() {
     State state;
 
     // Test invalid path formats
-    state.set("", "invalid");  // Empty path
-    state.set(".", "invalid"); // Single dot
-    state.set("..", "invalid"); // Double dot
+    state.set("", "invalid");    // Empty path
+    state.set(".", "invalid");   // Single dot
+    state.set("..", "invalid");  // Double dot
 
     // These should not crash and should handle gracefully
     QVERIFY(state.get("").isNull());
@@ -480,7 +486,7 @@ void StateManagerComprehensiveTest::testTypeConversions() {
 
     // Test invalid conversions
     state.set("not_a_number", "abc");
-    QCOMPARE(state.get("not_a_number").toInt(), 0); // Default conversion
+    QCOMPARE(state.get("not_a_number").toInt(), 0);  // Default conversion
 }
 
 QJsonObject StateManagerComprehensiveTest::createComplexNestedState() {
@@ -527,12 +533,15 @@ QJsonObject StateManagerComprehensiveTest::createComplexNestedState() {
     return state;
 }
 
-void StateManagerComprehensiveTest::verifyStateDiff(const QStringList& expected, const QStringList& actual) {
+void StateManagerComprehensiveTest::verifyStateDiff(const QStringList& expected,
+                                                    const QStringList& actual) {
     QCOMPARE(actual.size(), expected.size());
 
     for (const QString& path : expected) {
         QVERIFY2(actual.contains(path),
-                QString("Expected path '%1' not found in diff results").arg(path).toLocal8Bit());
+                 QString("Expected path '%1' not found in diff results")
+                     .arg(path)
+                     .toLocal8Bit());
     }
 }
 

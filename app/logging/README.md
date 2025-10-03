@@ -27,11 +27,13 @@ app/logging/
 ## 主要特性
 
 ### 1. 简洁的API设计
+
 - **SimpleLogging.h** - 提供最简单的日志接口，一行代码即可使用
 - 支持多种初始化方式：默认配置、简单配置、详细配置
 - 清晰的函数命名，易于理解和使用
 
 ### 2. 功能完整
+
 - **多级别日志**：Trace, Debug, Info, Warning, Error, Critical
 - **多种输出目标**：控制台、文件、轮转文件、Qt Widget
 - **格式化支持**：支持 printf 风格和 fmt 库格式化
@@ -40,18 +42,21 @@ app/logging/
 - **条件日志**：支持条件判断和Debug构建专用日志
 
 ### 3. 高性能
+
 - 基于 spdlog，业界领先的高性能日志库
 - 支持异步日志，避免阻塞主线程
 - 智能缓冲和批量写入
 - 自动日志轮转，防止磁盘占用过多
 
 ### 4. Qt深度集成
+
 - 完全兼容 Qt 的日志系统
 - 支持 qDebug/qWarning 等宏的重定向
 - 支持 QLoggingCategory
 - 可输出到 QTextEdit 等 Qt 控件
 
 ### 5. 配置灵活
+
 - 支持运行时配置修改
 - 支持配置文件（JSON/INI）
 - 支持环境变量配置
@@ -83,21 +88,21 @@ SastLogging::shutdown();
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
-    
+
     // 配置日志
     SastLogging::Config config;
     config.level = SastLogging::Level::Debug;
     config.logFile = "app.log";
     config.console = true;
     config.async = true;
-    
+
     if (!SastLogging::init(config)) {
         // 初始化失败，使用默认配置
         SastLogging::init();
     }
-    
+
     // 应用逻辑...
-    
+
     SastLogging::shutdown();
     return 0;
 }
@@ -179,28 +184,31 @@ SastLogging::debug("Message: " + QString::number(value));
 ### 从旧日志系统迁移
 
 1. 替换包含文件：
+
    ```cpp
    // 旧
    #include "utils/LoggingMacros.h"
-   
+
    // 新
    #include "logging/SimpleLogging.h"
    ```
 
 2. 更新初始化代码：
+
    ```cpp
    // 旧
    LoggingManager::instance().initialize(config);
-   
+
    // 新
    SastLogging::init(config);
    ```
 
 3. 更新日志调用：
+
    ```cpp
    // 旧
    LOG_INFO("Message");
-   
+
    // 新
    SLOG_INFO("Message");
    ```
@@ -292,8 +300,10 @@ SastLogging::debug("Message: " + QString::number(value));
 
 - 项目仓库：[SAST Readium](https://github.com/sast/readium)
 - Issue 追踪：GitHub Issues
-- 邮件列表：dev@sast.org
+- 邮件列表：<dev@sast.org>
 
 ---
 
-*最后更新：2025-09-12*
+## 最后更新
+
+2025-09-12

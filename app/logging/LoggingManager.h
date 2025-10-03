@@ -7,9 +7,9 @@
 // Note: LoggingMacros.h includes this file to access configuration management.
 // For logging macros, include LoggingMacros.h instead of this file directly.
 
+#include <QDateTime>
 #include <QObject>
 #include <QStringList>
-#include <QDateTime>
 #include <memory>
 #include "Logger.h"
 
@@ -122,14 +122,17 @@ public:
      * @param legacyConfig The old LoggingConfiguration to convert
      * @return Unique pointer to new LoggingConfig object
      */
-    static std::unique_ptr<LoggingConfig> convertToLoggingConfig(const LoggingConfiguration& legacyConfig);
+    static std::unique_ptr<LoggingConfig> convertToLoggingConfig(
+        const LoggingConfiguration& legacyConfig);
 
     /**
-     * @brief Convert LoggingConfig to LoggingConfiguration for backward compatibility
+     * @brief Convert LoggingConfig to LoggingConfiguration for backward
+     * compatibility
      * @param modernConfig The LoggingConfig to convert
      * @return LoggingConfiguration structure
      */
-    static LoggingConfiguration convertFromLoggingConfig(const LoggingConfig& modernConfig);
+    static LoggingConfiguration convertFromLoggingConfig(
+        const LoggingConfig& modernConfig);
 
     // ============================================================================
     // Deprecated APIs (for backward compatibility)
@@ -139,11 +142,13 @@ public:
      * @deprecated Use LoggingConfig instead of LoggingConfiguration
      * @brief Legacy configuration structure - use LoggingConfig for new code
      */
-    using LegacyLoggingConfiguration [[deprecated("Use LoggingConfig instead")]] = LoggingConfiguration;
+    using LegacyLoggingConfiguration
+        [[deprecated("Use LoggingConfig instead")]] = LoggingConfiguration;
 
     /**
      * @deprecated Use initialize(const LoggingConfig&) instead
-     * @brief Legacy initialization method - use LoggingConfig version for new code
+     * @brief Legacy initialization method - use LoggingConfig version for new
+     * code
      */
     [[deprecated("Use initialize(const LoggingConfig&) instead")]]
     void initializeLegacy(const LoggingConfiguration& config) {
@@ -174,14 +179,17 @@ public:
     void resetToDefaultConfiguration();
 
     /**
-     * @brief Create a LoggingConfig from current LoggingConfiguration (for migration)
-     * @return Unique pointer to LoggingConfig equivalent to current configuration
+     * @brief Create a LoggingConfig from current LoggingConfiguration (for
+     * migration)
+     * @return Unique pointer to LoggingConfig equivalent to current
+     * configuration
      */
     std::unique_ptr<LoggingConfig> createModernConfig() const;
 
     /**
      * @brief Check if using modern LoggingConfig or legacy LoggingConfiguration
-     * @return True if initialized with LoggingConfig, false if with LoggingConfiguration
+     * @return True if initialized with LoggingConfig, false if with
+     * LoggingConfiguration
      */
     bool isUsingModernConfig() const;
 
@@ -296,8 +304,8 @@ private:
 // ============================================================================
 // Note: Scoped logging macros are defined in LoggingMacros.h
 // ============================================================================
-// Use SCOPED_LOG_LEVEL(level) and SCOPED_LOG_CONFIG(config) from LoggingMacros.h
-// for scoped logging configuration changes.
+// Use SCOPED_LOG_LEVEL(level) and SCOPED_LOG_CONFIG(config) from
+// LoggingMacros.h for scoped logging configuration changes.
 
 // ============================================================================
 // Migration Helper Macros
@@ -307,7 +315,8 @@ private:
  * @brief Initialize logging with modern LoggingConfig (preferred)
  * @param config LoggingConfig object or LoggingConfigBuilder result
  */
-#define INIT_MODERN_LOGGING(config) LoggingManager::instance().initialize(config)
+#define INIT_MODERN_LOGGING(config) \
+    LoggingManager::instance().initialize(config)
 
 /**
  * @brief Create a modern config from current legacy configuration
@@ -317,7 +326,8 @@ private:
 /**
  * @brief Check if using modern configuration system
  */
-#define IS_USING_MODERN_CONFIG() LoggingManager::instance().isUsingModernConfig()
+#define IS_USING_MODERN_CONFIG() \
+    LoggingManager::instance().isUsingModernConfig()
 
 // ============================================================================
 // Note: Category logging macros have been consolidated in LoggingMacros.h

@@ -274,13 +274,13 @@ target("sast-readium")
     else
         print("Warning: Qt installation not found. Please specify qt_path option.")
     end
-    
+
     -- Add poppler-qt6 dependency
     add_packages("pkgconfig::poppler-qt6")
 
     -- Add spdlog dependency
     add_packages("spdlog")
-    
+
     -- Generate config.h from template
     before_build(function (target)
         local config_content = [[#pragma once
@@ -303,7 +303,7 @@ target("sast-readium")
     add_includedirs("app/managers", "app/model", "app/controller", "app/delegate")
     add_includedirs("app/cache", "app/utils", "app/plugin")
     add_includedirs("app/factory", "app/command")
-    
+
     -- Compiler settings
     set_languages("cxx20")
     set_warnings("all")

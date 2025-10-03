@@ -16,7 +16,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 # Standard library paths for x86_64
-set(CMAKE_FIND_ROOT_PATH 
+set(CMAKE_FIND_ROOT_PATH
     "/usr/lib/x86_64-linux-gnu"
     "/usr/include/x86_64-linux-gnu"
     "/lib/x86_64-linux-gnu"

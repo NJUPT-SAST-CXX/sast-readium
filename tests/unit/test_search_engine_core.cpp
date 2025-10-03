@@ -1,18 +1,17 @@
-#include <QtTest/QtTest>
+#include <poppler-qt6.h>
 #include <QApplication>
-#include <QTemporaryFile>
 #include <QPainter>
 #include <QPdfWriter>
 #include <QSignalSpy>
-#include <poppler-qt6.h>
+#include <QTemporaryFile>
+#include <QtTest/QtTest>
 #include "../../app/model/SearchModel.h"
 
 /**
  * Core Search Functionality Tests
  * Tests basic search operations using the existing SearchModel
  */
-class TestSearchEngineCore : public QObject
-{
+class TestSearchEngineCore : public QObject {
     Q_OBJECT
 
 private slots:
@@ -56,8 +55,7 @@ private:
     void waitForSearchCompletion();
 };
 
-void TestSearchEngineCore::initTestCase()
-{
+void TestSearchEngineCore::initTestCase() {
     // Initialize test texts for document creation
     m_testTexts = {
         "This is the first page with some sample text. "
@@ -73,8 +71,7 @@ void TestSearchEngineCore::initTestCase()
         "Third page for comprehensive testing. "
         "Repeated words: test test TEST Test. "
         "Punctuation tests: word, word; word: word! word? word. "
-        "Unicode characters: café, naïve, résumé, Москва."
-    };
+        "Unicode characters: café, naïve, résumé, Москва."};
 
     m_testDocument = createTestDocument();
     QVERIFY(m_testDocument != nullptr);
@@ -83,42 +80,39 @@ void TestSearchEngineCore::initTestCase()
     m_searchModel = new SearchModel(this);
 }
 
-void TestSearchEngineCore::cleanupTestCase()
-{
+void TestSearchEngineCore::cleanupTestCase() {
     delete m_testDocument;
     if (!m_testPdfPath.isEmpty()) {
         QFile::remove(m_testPdfPath);
     }
 }
 
-void TestSearchEngineCore::init()
-{
+void TestSearchEngineCore::init() {
     // Reset search model before each test
     m_searchModel->clearResults();
 }
 
-void TestSearchEngineCore::cleanup()
-{
+void TestSearchEngineCore::cleanup() {
     // Cleanup after each test if needed
 }
 
-void TestSearchEngineCore::waitForSearchCompletion()
-{
+void TestSearchEngineCore::waitForSearchCompletion() {
     // Wait for search to complete using signal spy
-    // SearchModel emits searchFinished(int) not searchFinished(QList<SearchResult>)
-    QSignalSpy spy(m_searchModel, QOverload<int>::of(&SearchModel::searchFinished));
+    // SearchModel emits searchFinished(int) not
+    // searchFinished(QList<SearchResult>)
+    QSignalSpy spy(m_searchModel,
+                   QOverload<int>::of(&SearchModel::searchFinished));
 
     // Give a small delay for immediate completions
     QTest::qWait(100);
 
     // Only wait for signal if no signal was already received
     if (spy.isEmpty()) {
-        spy.wait(2000); // 2 second timeout (reduced from 5 seconds)
+        spy.wait(2000);  // 2 second timeout (reduced from 5 seconds)
     }
 }
 
-void TestSearchEngineCore::testBasicTextSearch()
-{
+void TestSearchEngineCore::testBasicTextSearch() {
     SearchOptions options;
 
     // Test simple word search
@@ -127,7 +121,7 @@ void TestSearchEngineCore::testBasicTextSearch()
     QList<SearchResult> results = m_searchModel->getResults();
 
     QVERIFY(!results.isEmpty());
-    QVERIFY(results.size() >= 1); // Should find "test"
+    QVERIFY(results.size() >= 1);  // Should find "test"
 
     // Verify first result
     QVERIFY(results[0].pageNumber >= 0);
@@ -135,8 +129,7 @@ void TestSearchEngineCore::testBasicTextSearch()
     QVERIFY(results[0].text.contains("test", Qt::CaseInsensitive));
 }
 
-void TestSearchEngineCore::testEmptyQueryHandling()
-{
+void TestSearchEngineCore::testEmptyQueryHandling() {
     SearchOptions options;
 
     // Test empty query - should return immediately without emitting signals
@@ -149,8 +142,7 @@ void TestSearchEngineCore::testEmptyQueryHandling()
     QVERIFY(results.isEmpty());
 }
 
-void TestSearchEngineCore::testNonExistentTextSearch()
-{
+void TestSearchEngineCore::testNonExistentTextSearch() {
     SearchOptions options;
 
     // Search for text that doesn't exist
@@ -161,8 +153,7 @@ void TestSearchEngineCore::testNonExistentTextSearch()
     QVERIFY(results.isEmpty());
 }
 
-void TestSearchEngineCore::testCaseSensitiveSearch()
-{
+void TestSearchEngineCore::testCaseSensitiveSearch() {
     SearchOptions options;
     options.caseSensitive = true;
 
@@ -179,8 +170,7 @@ void TestSearchEngineCore::testCaseSensitiveSearch()
     }
 }
 
-void TestSearchEngineCore::testCaseInsensitiveSearch()
-{
+void TestSearchEngineCore::testCaseInsensitiveSearch() {
     SearchOptions options;
     options.caseSensitive = false;
 
@@ -189,7 +179,7 @@ void TestSearchEngineCore::testCaseInsensitiveSearch()
     waitForSearchCompletion();
     QList<SearchResult> results = m_searchModel->getResults();
 
-    QVERIFY(results.size() >= 1); // Should find at least one match
+    QVERIFY(results.size() >= 1);  // Should find at least one match
 
     // Verify results contain the search term (case insensitive)
     for (const SearchResult& result : results) {
@@ -197,8 +187,7 @@ void TestSearchEngineCore::testCaseInsensitiveSearch()
     }
 }
 
-void TestSearchEngineCore::testWholeWordMatching()
-{
+void TestSearchEngineCore::testWholeWordMatching() {
     SearchOptions options;
     options.wholeWords = true;
 
@@ -215,13 +204,14 @@ void TestSearchEngineCore::testWholeWordMatching()
     }
 }
 
-void TestSearchEngineCore::testBasicRegexPatterns()
-{
+void TestSearchEngineCore::testBasicRegexPatterns() {
     SearchOptions options;
     options.useRegex = true;
 
     // Test email pattern
-    m_searchModel->startSearch(m_testDocument, "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", options);
+    m_searchModel->startSearch(
+        m_testDocument, "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+        options);
     waitForSearchCompletion();
     QList<SearchResult> results = m_searchModel->getResults();
 
@@ -229,8 +219,7 @@ void TestSearchEngineCore::testBasicRegexPatterns()
     QVERIFY(results[0].text.contains("@"));
 }
 
-void TestSearchEngineCore::testFuzzySearch()
-{
+void TestSearchEngineCore::testFuzzySearch() {
     SearchOptions options;
     options.fuzzySearch = true;
     options.fuzzyThreshold = 2;
@@ -248,8 +237,7 @@ void TestSearchEngineCore::testFuzzySearch()
     }
 }
 
-void TestSearchEngineCore::testPageRangeSearch()
-{
+void TestSearchEngineCore::testPageRangeSearch() {
     SearchOptions options;
 
     // Search only on page 1 (0-based indexing)
@@ -265,8 +253,7 @@ void TestSearchEngineCore::testPageRangeSearch()
     }
 }
 
-void TestSearchEngineCore::testSearchResultAccuracy()
-{
+void TestSearchEngineCore::testSearchResultAccuracy() {
     SearchOptions options;
 
     // Search for a specific term
@@ -284,8 +271,7 @@ void TestSearchEngineCore::testSearchResultAccuracy()
     QVERIFY(result.length > 0);
 }
 
-Poppler::Document* TestSearchEngineCore::createTestDocument()
-{
+Poppler::Document* TestSearchEngineCore::createTestDocument() {
     // Create a temporary PDF file for testing
     QTemporaryFile tempFile;
     tempFile.setFileTemplate(QDir::tempPath() + "/test_search_XXXXXX.pdf");

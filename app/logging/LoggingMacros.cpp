@@ -1,26 +1,28 @@
 #include "LoggingMacros.h"
-#include "Logger.h"
-#include "LoggingManager.h"
 #include <spdlog/fmt/fmt.h>
-#include <QProcess>
+#include <QCoreApplication>
+#include <QDateTime>
+#include <QDebug>
 #include <QFileInfo>
+#include <QHash>
 #include <QMutex>
 #include <QMutexLocker>
-#include <QDebug>
-#include <QHash>
-#include <QThread>
-#include <QDateTime>
+#include <QPoint>
+#include <QProcess>
 #include <QRect>
 #include <QSize>
-#include <QPoint>
-#include <QCoreApplication>
+#include <QThread>
 #include <chrono>
+#include "Logger.h"
+#include "LoggingManager.h"
 
 // PerformanceLogger Implementation class
-class PerformanceLogger::Implementation
-{
+class PerformanceLogger::Implementation {
 public:
-    explicit Implementation(const QString& name) : name(name), startTime(std::chrono::high_resolution_clock::now()), thresholdMs(0) {}
+    explicit Implementation(const QString& name)
+        : name(name),
+          startTime(std::chrono::high_resolution_clock::now()),
+          thresholdMs(0) {}
     ~Implementation() = default;
 
     QString name;      ///< Performance measurement name
@@ -33,12 +35,12 @@ public:
 
 // Platform-specific includes for memory usage
 #ifdef Q_OS_WIN
-#include <windows.h>
 #include <psapi.h>
+#include <windows.h>
 #elif defined(Q_OS_MACOS)
 #include <mach/mach.h>
-#include <mach/task.h>
 #include <mach/mach_init.h>
+#include <mach/task.h>
 #elif defined(Q_OS_LINUX)
 #include <QRegularExpression>
 #include <QTextStream>
@@ -51,36 +53,37 @@ QHash<QString, qint64> MemoryLogger::s_memoryBaselines;
 // PerformanceLogger Implementation
 // ============================================================================
 
-PerformanceLogger::PerformanceLogger(const QString& name, const char* file, int line)
-    : d(std::make_unique<Implementation>(name))
-{
+PerformanceLogger::PerformanceLogger(const QString& name, const char* file,
+                                     int line)
+    : d(std::make_unique<Implementation>(name)) {
     if (file && line > 0) {
         QFileInfo fileInfo(file);
         d->location = QString("%1:%2").arg(fileInfo.fileName()).arg(line);
     }
 
-    LOG_TRACE("Performance tracking started: {}{}",
-              d->name.toStdString(),
+    LOG_TRACE("Performance tracking started: {}{}", d->name.toStdString(),
               d->location.isEmpty() ? "" : " at " + d->location.toStdString());
 }
 
-PerformanceLogger::~PerformanceLogger()
-{
+PerformanceLogger::~PerformanceLogger() {
     auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - d->startTime).count();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        endTime - d->startTime)
+                        .count();
 
     // Only log if duration exceeds threshold (if set)
     if (d->thresholdMs == 0 || duration >= d->thresholdMs) {
-        QString message = QString("Performance [%1]: %2ms").arg(d->name).arg(duration);
+        QString message =
+            QString("Performance [%1]: %2ms").arg(d->name).arg(duration);
 
         if (!d->location.isEmpty()) {
             message += QString(" at %1").arg(d->location);
         }
 
         // Use different log levels based on duration
-        if (duration > 1000) { // > 1 second
+        if (duration > 1000) {  // > 1 second
             LOG_WARNING("{}", message.toStdString());
-        } else if (duration > 100) { // > 100ms
+        } else if (duration > 100) {  // > 100ms
             LOG_INFO("{}", message.toStdString());
         } else {
             LOG_DEBUG("{}", message.toStdString());
@@ -88,12 +91,14 @@ PerformanceLogger::~PerformanceLogger()
     }
 }
 
-void PerformanceLogger::checkpoint(const QString& description)
-{
+void PerformanceLogger::checkpoint(const QString& description) {
     auto currentTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - d->startTime).count();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        currentTime - d->startTime)
+                        .count();
 
-    QString message = QString("Performance checkpoint [%1]: %2ms").arg(d->name).arg(duration);
+    QString message =
+        QString("Performance checkpoint [%1]: %2ms").arg(d->name).arg(duration);
     if (!description.isEmpty()) {
         message += QString(" - %1").arg(description);
     }
@@ -101,8 +106,7 @@ void PerformanceLogger::checkpoint(const QString& description)
     LOG_DEBUG("{}", message.toStdString());
 }
 
-void PerformanceLogger::setThreshold(int milliseconds)
-{
+void PerformanceLogger::setThreshold(int milliseconds) {
     d->thresholdMs = milliseconds;
 }
 
@@ -111,22 +115,23 @@ void PerformanceLogger::setThreshold(int milliseconds)
 // ============================================================================
 
 ScopedLogLevel::ScopedLogLevel(Logger::LogLevel tempLevel)
-    : m_originalConfig(LoggingManager::instance().getConfiguration()), m_levelOnly(true)
-{
+    : m_originalConfig(LoggingManager::instance().getConfiguration()),
+      m_levelOnly(true) {
     LoggingManager::instance().setGlobalLogLevel(tempLevel);
 }
 
-ScopedLogLevel::ScopedLogLevel(const LoggingManager::LoggingConfiguration& tempConfig)
-    : m_originalConfig(LoggingManager::instance().getConfiguration()), m_levelOnly(false)
-{
+ScopedLogLevel::ScopedLogLevel(
+    const LoggingManager::LoggingConfiguration& tempConfig)
+    : m_originalConfig(LoggingManager::instance().getConfiguration()),
+      m_levelOnly(false) {
     LoggingManager::instance().initialize(tempConfig);
 }
 
-ScopedLogLevel::~ScopedLogLevel()
-{
+ScopedLogLevel::~ScopedLogLevel() {
     if (m_levelOnly) {
         // Restore only the log level
-        LoggingManager::instance().setGlobalLogLevel(m_originalConfig.globalLogLevel);
+        LoggingManager::instance().setGlobalLogLevel(
+            m_originalConfig.globalLogLevel);
     } else {
         // Restore the entire configuration
         LoggingManager::instance().initialize(m_originalConfig);
@@ -137,11 +142,11 @@ ScopedLogLevel::~ScopedLogLevel()
 // MemoryLogger Implementation
 // ============================================================================
 
-void MemoryLogger::logCurrentUsage(const QString& context)
-{
+void MemoryLogger::logCurrentUsage(const QString& context) {
     qint64 currentUsage = getCurrentMemoryUsage();
     if (currentUsage > 0) {
-        QString message = QString("Memory usage: %1 MB").arg(currentUsage / (1024 * 1024));
+        QString message =
+            QString("Memory usage: %1 MB").arg(currentUsage / (1024 * 1024));
         if (!context.isEmpty()) {
             message = QString("[%1] %2").arg(context, message);
         }
@@ -151,84 +156,86 @@ void MemoryLogger::logCurrentUsage(const QString& context)
     }
 }
 
-void MemoryLogger::logMemoryDelta(const QString& context)
-{
+void MemoryLogger::logMemoryDelta(const QString& context) {
     static QMutex mutex;
     QMutexLocker locker(&mutex);
-    
+
     qint64 currentUsage = getCurrentMemoryUsage();
     if (currentUsage <= 0) {
         LOG_WARNING("Failed to retrieve memory usage for delta calculation");
         return;
     }
-    
+
     QString key = context.isEmpty() ? "default" : context;
-    
+
     if (s_memoryBaselines.contains(key)) {
         qint64 baseline = s_memoryBaselines[key];
         qint64 delta = currentUsage - baseline;
-        
-        QString message = QString("Memory delta: %1%2 MB (current: %3 MB, baseline: %4 MB)")
-                         .arg(delta >= 0 ? "+" : "")
-                         .arg(delta / (1024 * 1024))
-                         .arg(currentUsage / (1024 * 1024))
-                         .arg(baseline / (1024 * 1024));
-        
+
+        QString message =
+            QString("Memory delta: %1%2 MB (current: %3 MB, baseline: %4 MB)")
+                .arg(delta >= 0 ? "+" : "")
+                .arg(delta / (1024 * 1024))
+                .arg(currentUsage / (1024 * 1024))
+                .arg(baseline / (1024 * 1024));
+
         if (!context.isEmpty()) {
             message = QString("[%1] %2").arg(context, message);
         }
-        
-        if (delta > 10 * 1024 * 1024) { // > 10MB increase
+
+        if (delta > 10 * 1024 * 1024) {  // > 10MB increase
             LOG_WARNING("{}", message.toStdString());
-        } else if (delta > 1024 * 1024) { // > 1MB increase
+        } else if (delta > 1024 * 1024) {  // > 1MB increase
             LOG_INFO("{}", message.toStdString());
         } else {
             LOG_DEBUG("{}", message.toStdString());
         }
     } else {
-        LOG_DEBUG("No baseline found for memory delta calculation in context: {}", 
-                 context.isEmpty() ? "default" : context.toStdString());
+        LOG_DEBUG(
+            "No baseline found for memory delta calculation in context: {}",
+            context.isEmpty() ? "default" : context.toStdString());
     }
 }
 
-void MemoryLogger::startMemoryTracking(const QString& context)
-{
+void MemoryLogger::startMemoryTracking(const QString& context) {
     static QMutex mutex;
     QMutexLocker locker(&mutex);
-    
+
     qint64 currentUsage = getCurrentMemoryUsage();
     if (currentUsage > 0) {
         QString key = context.isEmpty() ? "default" : context;
         s_memoryBaselines[key] = currentUsage;
-        
-        LOG_DEBUG("Memory tracking started for context '{}': baseline {} MB", 
-                 key.toStdString(), currentUsage / (1024 * 1024));
+
+        LOG_DEBUG("Memory tracking started for context '{}': baseline {} MB",
+                  key.toStdString(), currentUsage / (1024 * 1024));
     } else {
-        LOG_WARNING("Failed to start memory tracking - could not retrieve current usage");
+        LOG_WARNING(
+            "Failed to start memory tracking - could not retrieve current "
+            "usage");
     }
 }
 
-void MemoryLogger::endMemoryTracking(const QString& context)
-{
+void MemoryLogger::endMemoryTracking(const QString& context) {
     logMemoryDelta(context);
-    
+
     static QMutex mutex;
     QMutexLocker locker(&mutex);
-    
+
     QString key = context.isEmpty() ? "default" : context;
     if (s_memoryBaselines.remove(key)) {
         LOG_DEBUG("Memory tracking ended for context '{}'", key.toStdString());
     } else {
-        LOG_WARNING("Attempted to end memory tracking for unknown context '{}'", key.toStdString());
+        LOG_WARNING("Attempted to end memory tracking for unknown context '{}'",
+                    key.toStdString());
     }
 }
 
-qint64 MemoryLogger::getCurrentMemoryUsage()
-{
+qint64 MemoryLogger::getCurrentMemoryUsage() {
 #ifdef Q_OS_WIN
-    // Windows implementation using GetProcessMemoryInfo
+    // Windows implementation using K32GetProcessMemoryInfo
     PROCESS_MEMORY_COUNTERS_EX pmc;
-    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+    if (K32GetProcessMemoryInfo(GetCurrentProcess(),
+                                (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
         return static_cast<qint64>(pmc.WorkingSetSize);
     }
 #elif defined(Q_OS_LINUX)
@@ -244,7 +251,7 @@ qint64 MemoryLogger::getCurrentMemoryUsage()
                     bool ok;
                     qint64 kb = parts[1].toLongLong(&ok);
                     if (ok) {
-                        return kb * 1024; // Convert KB to bytes
+                        return kb * 1024;  // Convert KB to bytes
                     }
                 }
                 break;
@@ -255,25 +262,28 @@ qint64 MemoryLogger::getCurrentMemoryUsage()
     // macOS implementation using task_info
     struct mach_task_basic_info info;
     mach_msg_type_number_t infoCount = MACH_TASK_BASIC_INFO_COUNT;
-    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, 
-                  (task_info_t)&info, &infoCount) == KERN_SUCCESS) {
+    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info,
+                  &infoCount) == KERN_SUCCESS) {
         return static_cast<qint64>(info.resident_size);
     }
 #endif
-    
+
     // Fallback: try to use QProcess to get memory info
     QProcess process;
-    process.start("ps", QStringList() << "-o" << "rss=" << "-p" << QString::number(QCoreApplication::applicationPid()));
+    process.start("ps",
+                  QStringList()
+                      << "-o" << "rss=" << "-p"
+                      << QString::number(QCoreApplication::applicationPid()));
     if (process.waitForFinished(1000)) {
         QString output = process.readAllStandardOutput().trimmed();
         bool ok;
         qint64 kb = output.toLongLong(&ok);
         if (ok) {
-            return kb * 1024; // Convert KB to bytes
+            return kb * 1024;  // Convert KB to bytes
         }
     }
-    
-    return -1; // Failed to get memory usage
+
+    return -1;  // Failed to get memory usage
 }
 
 // ============================================================================
@@ -285,15 +295,14 @@ namespace LoggingUtils {
 /**
  * @brief Format Qt objects for logging
  */
-QString formatQtObject(const QObject* obj)
-{
+QString formatQtObject(const QObject* obj) {
     if (!obj) {
         return "QObject(nullptr)";
     }
-    
+
     QString name = obj->objectName();
     QString className = obj->metaObject()->className();
-    
+
     if (name.isEmpty()) {
         return QString("%1(unnamed)").arg(className);
     } else {
@@ -304,41 +313,38 @@ QString formatQtObject(const QObject* obj)
 /**
  * @brief Format QRect for logging
  */
-QString formatQRect(const QRect& rect)
-{
+QString formatQRect(const QRect& rect) {
     return QString("QRect(%1,%2 %3x%4)")
-           .arg(rect.x())
-           .arg(rect.y())
-           .arg(rect.width())
-           .arg(rect.height());
+        .arg(rect.x())
+        .arg(rect.y())
+        .arg(rect.width())
+        .arg(rect.height());
 }
 
 /**
  * @brief Format QSize for logging
  */
-QString formatQSize(const QSize& size)
-{
+QString formatQSize(const QSize& size) {
     return QString("QSize(%1x%2)").arg(size.width()).arg(size.height());
 }
 
 /**
  * @brief Format QPoint for logging
  */
-QString formatQPoint(const QPoint& point)
-{
+QString formatQPoint(const QPoint& point) {
     return QString("QPoint(%1,%2)").arg(point.x()).arg(point.y());
 }
 
 /**
  * @brief Get current thread information for logging
  */
-QString getCurrentThreadInfo()
-{
+QString getCurrentThreadInfo() {
     QThread* currentThread = QThread::currentThread();
     QString threadName = currentThread->objectName();
-    
+
     if (threadName.isEmpty()) {
-        return QString("Thread(0x%1)").arg(reinterpret_cast<quintptr>(currentThread), 0, 16);
+        return QString("Thread(0x%1)")
+            .arg(reinterpret_cast<quintptr>(currentThread), 0, 16);
     } else {
         return QString("Thread(\"%1\")").arg(threadName);
     }
@@ -347,8 +353,7 @@ QString getCurrentThreadInfo()
 /**
  * @brief Create a separator line for log readability
  */
-void logSeparator(const QString& title, char separator)
-{
+void logSeparator(const QString& title, char separator) {
     QString line(60, separator);
     if (!title.isEmpty()) {
         QString centeredTitle = QString(" %1 ").arg(title);
@@ -360,4 +365,4 @@ void logSeparator(const QString& title, char separator)
     LOG_INFO("{}", line.toStdString());
 }
 
-} // namespace LoggingUtils
+}  // namespace LoggingUtils

@@ -1,15 +1,14 @@
-#include <QtTest/QtTest>
+#include <poppler-qt6.h>
 #include <QApplication>
+#include <QElapsedTimer>
 #include <QSignalSpy>
 #include <QTemporaryFile>
-#include <QElapsedTimer>
 #include <QtConcurrent>
-#include <poppler-qt6.h>
-#include "../../app/ui/thumbnail/ThumbnailGenerator.h"
+#include <QtTest/QtTest>
 #include "../../app/logging/LoggingMacros.h"
+#include "../../app/ui/thumbnail/ThumbnailGenerator.h"
 
-class ThumbnailGeneratorIntegrationTest : public QObject
-{
+class ThumbnailGeneratorIntegrationTest : public QObject {
     Q_OBJECT
 
 private slots:
@@ -23,12 +22,12 @@ private slots:
     void testGpuRenderingWithDifferentSizes();
     void testGpuRenderingWithDifferentQualities();
     void testGpuRenderingErrorHandling();
-    
+
     // Integration with thumbnail system
     void testThumbnailGenerationIntegration();
     void testPerformanceLogging();
     void testConcurrentGeneration();
-    
+
     // Quality and accuracy tests
     void testRenderingAccuracy();
     void testMemoryUsage();
@@ -37,15 +36,15 @@ private:
     ThumbnailGenerator* m_generator;
     std::shared_ptr<Poppler::Document> m_testDocument;
     QTemporaryFile* m_testPdfFile;
-    
+
     void createTestPdf();
-    bool comparePixmaps(const QPixmap& pixmap1, const QPixmap& pixmap2, double tolerance = 0.95);
+    bool comparePixmaps(const QPixmap& pixmap1, const QPixmap& pixmap2,
+                        double tolerance = 0.95);
 };
 
-void ThumbnailGeneratorIntegrationTest::initTestCase()
-{
+void ThumbnailGeneratorIntegrationTest::initTestCase() {
     createTestPdf();
-    
+
     // Load test document
     auto uniqueDoc = Poppler::Document::load(m_testPdfFile->fileName());
     m_testDocument = std::shared_ptr<Poppler::Document>(uniqueDoc.release());
@@ -53,25 +52,21 @@ void ThumbnailGeneratorIntegrationTest::initTestCase()
     QVERIFY(!m_testDocument->isLocked());
 }
 
-void ThumbnailGeneratorIntegrationTest::cleanupTestCase()
-{
+void ThumbnailGeneratorIntegrationTest::cleanupTestCase() {
     m_testDocument.reset();
     delete m_testPdfFile;
 }
 
-void ThumbnailGeneratorIntegrationTest::init()
-{
+void ThumbnailGeneratorIntegrationTest::init() {
     m_generator = new ThumbnailGenerator();
 }
 
-void ThumbnailGeneratorIntegrationTest::cleanup()
-{
+void ThumbnailGeneratorIntegrationTest::cleanup() {
     delete m_generator;
     m_generator = nullptr;
 }
 
-void ThumbnailGeneratorIntegrationTest::testGpuRenderingFallback()
-{
+void ThumbnailGeneratorIntegrationTest::testGpuRenderingFallback() {
     QVERIFY(m_testDocument != nullptr);
     QVERIFY(m_testDocument->numPages() > 0);
 
@@ -85,7 +80,8 @@ void ThumbnailGeneratorIntegrationTest::testGpuRenderingFallback()
     m_generator->setThumbnailSize(targetSize);
 
     // Test thumbnail generation (public API)
-    QSignalSpy generatedSpy(m_generator, &ThumbnailGenerator::thumbnailGenerated);
+    QSignalSpy generatedSpy(m_generator,
+                            &ThumbnailGenerator::thumbnailGenerated);
     QSignalSpy errorSpy(m_generator, &ThumbnailGenerator::thumbnailError);
 
     m_generator->generateThumbnail(0, targetSize, 1.0);
@@ -97,24 +93,20 @@ void ThumbnailGeneratorIntegrationTest::testGpuRenderingFallback()
     QVERIFY(generatedSpy.count() > 0 || errorSpy.count() > 0);
 }
 
-void ThumbnailGeneratorIntegrationTest::testGpuRenderingWithDifferentSizes()
-{
+void ThumbnailGeneratorIntegrationTest::testGpuRenderingWithDifferentSizes() {
     QVERIFY(m_testDocument != nullptr);
     auto page = m_testDocument->page(0);
     QVERIFY(page != nullptr);
 
-    QList<QSize> testSizes = {
-        QSize(100, 100),
-        QSize(200, 300),
-        QSize(400, 600),
-        QSize(50, 75)
-    };
+    QList<QSize> testSizes = {QSize(100, 100), QSize(200, 300), QSize(400, 600),
+                              QSize(50, 75)};
 
     // Set up generator with test document
     m_generator->setDocument(m_testDocument);
 
     for (const QSize& size : testSizes) {
-        QSignalSpy generatedSpy(m_generator, &ThumbnailGenerator::thumbnailGenerated);
+        QSignalSpy generatedSpy(m_generator,
+                                &ThumbnailGenerator::thumbnailGenerated);
         QSignalSpy errorSpy(m_generator, &ThumbnailGenerator::thumbnailError);
 
         m_generator->generateThumbnail(0, size, 1.0);
@@ -131,8 +123,8 @@ void ThumbnailGeneratorIntegrationTest::testGpuRenderingWithDifferentSizes()
     }
 }
 
-void ThumbnailGeneratorIntegrationTest::testGpuRenderingWithDifferentQualities()
-{
+void ThumbnailGeneratorIntegrationTest::
+    testGpuRenderingWithDifferentQualities() {
     QVERIFY(m_testDocument != nullptr);
     auto page = m_testDocument->page(0);
     QVERIFY(page != nullptr);
@@ -144,7 +136,8 @@ void ThumbnailGeneratorIntegrationTest::testGpuRenderingWithDifferentQualities()
     m_generator->setDocument(m_testDocument);
 
     for (double quality : qualities) {
-        QSignalSpy generatedSpy(m_generator, &ThumbnailGenerator::thumbnailGenerated);
+        QSignalSpy generatedSpy(m_generator,
+                                &ThumbnailGenerator::thumbnailGenerated);
         QSignalSpy errorSpy(m_generator, &ThumbnailGenerator::thumbnailError);
 
         m_generator->generateThumbnail(0, targetSize, quality);
@@ -161,8 +154,7 @@ void ThumbnailGeneratorIntegrationTest::testGpuRenderingWithDifferentQualities()
     }
 }
 
-void ThumbnailGeneratorIntegrationTest::testGpuRenderingErrorHandling()
-{
+void ThumbnailGeneratorIntegrationTest::testGpuRenderingErrorHandling() {
     QVERIFY(m_testDocument != nullptr);
     auto page = m_testDocument->page(0);
     QVERIFY(page != nullptr);
@@ -171,7 +163,8 @@ void ThumbnailGeneratorIntegrationTest::testGpuRenderingErrorHandling()
     m_generator->setDocument(m_testDocument);
 
     // Test with invalid size
-    QSignalSpy generatedSpy(m_generator, &ThumbnailGenerator::thumbnailGenerated);
+    QSignalSpy generatedSpy(m_generator,
+                            &ThumbnailGenerator::thumbnailGenerated);
     QSignalSpy errorSpy(m_generator, &ThumbnailGenerator::thumbnailError);
 
     m_generator->generateThumbnail(0, QSize(0, 0), 1.0);
@@ -193,10 +186,10 @@ void ThumbnailGeneratorIntegrationTest::testGpuRenderingErrorHandling()
     QVERIFY(generatedSpy.wait(5000) || errorSpy.count() > 0);
 }
 
-void ThumbnailGeneratorIntegrationTest::testThumbnailGenerationIntegration()
-{
+void ThumbnailGeneratorIntegrationTest::testThumbnailGenerationIntegration() {
     // Test integration with the full thumbnail generation system
-    QSignalSpy generatedSpy(m_generator, &ThumbnailGenerator::thumbnailGenerated);
+    QSignalSpy generatedSpy(m_generator,
+                            &ThumbnailGenerator::thumbnailGenerated);
     QSignalSpy errorSpy(m_generator, &ThumbnailGenerator::thumbnailError);
 
     // Set up generator with test document
@@ -218,8 +211,7 @@ void ThumbnailGeneratorIntegrationTest::testThumbnailGenerationIntegration()
     }
 }
 
-void ThumbnailGeneratorIntegrationTest::testPerformanceLogging()
-{
+void ThumbnailGeneratorIntegrationTest::testPerformanceLogging() {
     // This test verifies that performance logging works correctly
     QVERIFY(m_testDocument != nullptr);
     auto page = m_testDocument->page(0);
@@ -232,7 +224,8 @@ void ThumbnailGeneratorIntegrationTest::testPerformanceLogging()
     QElapsedTimer timer;
     timer.start();
 
-    QSignalSpy generatedSpy(m_generator, &ThumbnailGenerator::thumbnailGenerated);
+    QSignalSpy generatedSpy(m_generator,
+                            &ThumbnailGenerator::thumbnailGenerated);
     QSignalSpy errorSpy(m_generator, &ThumbnailGenerator::thumbnailError);
 
     m_generator->generateThumbnail(0, QSize(200, 300), 1.0);
@@ -245,18 +238,19 @@ void ThumbnailGeneratorIntegrationTest::testPerformanceLogging()
     QVERIFY(generatedSpy.count() > 0 || errorSpy.count() > 0);
 
     // Performance logging should handle the timing internally
-    // (We can't easily test the actual logging without accessing private members)
+    // (We can't easily test the actual logging without accessing private
+    // members)
 }
 
-void ThumbnailGeneratorIntegrationTest::testConcurrentGeneration()
-{
+void ThumbnailGeneratorIntegrationTest::testConcurrentGeneration() {
     // Test multiple concurrent generation requests
     QVERIFY(m_testDocument != nullptr);
 
     // Set up generator with test document
     m_generator->setDocument(m_testDocument);
 
-    QSignalSpy generatedSpy(m_generator, &ThumbnailGenerator::thumbnailGenerated);
+    QSignalSpy generatedSpy(m_generator,
+                            &ThumbnailGenerator::thumbnailGenerated);
     QSignalSpy errorSpy(m_generator, &ThumbnailGenerator::thumbnailError);
 
     // Generate thumbnails for multiple pages concurrently
@@ -269,7 +263,8 @@ void ThumbnailGeneratorIntegrationTest::testConcurrentGeneration()
     int totalExpected = pagesToTest;
     int totalReceived = 0;
 
-    while (totalReceived < totalExpected && (generatedSpy.count() + errorSpy.count()) < totalExpected) {
+    while (totalReceived < totalExpected &&
+           (generatedSpy.count() + errorSpy.count()) < totalExpected) {
         QTest::qWait(100);
         totalReceived = generatedSpy.count() + errorSpy.count();
     }
@@ -278,8 +273,7 @@ void ThumbnailGeneratorIntegrationTest::testConcurrentGeneration()
     QVERIFY(totalReceived >= totalExpected);
 }
 
-void ThumbnailGeneratorIntegrationTest::testRenderingAccuracy()
-{
+void ThumbnailGeneratorIntegrationTest::testRenderingAccuracy() {
     // Compare thumbnail generation with standard CPU rendering
     QVERIFY(m_testDocument != nullptr);
     auto page = m_testDocument->page(0);
@@ -292,7 +286,8 @@ void ThumbnailGeneratorIntegrationTest::testRenderingAccuracy()
     m_generator->setDocument(m_testDocument);
 
     // Generate thumbnail using public API
-    QSignalSpy generatedSpy(m_generator, &ThumbnailGenerator::thumbnailGenerated);
+    QSignalSpy generatedSpy(m_generator,
+                            &ThumbnailGenerator::thumbnailGenerated);
     QSignalSpy errorSpy(m_generator, &ThumbnailGenerator::thumbnailError);
 
     m_generator->generateThumbnail(0, targetSize, quality);
@@ -306,17 +301,18 @@ void ThumbnailGeneratorIntegrationTest::testRenderingAccuracy()
         // Direct CPU rendering for comparison
         double dpi = 72.0 * quality;
         QImage cpuImage = page->renderToImage(dpi, dpi);
-        QPixmap cpuResult = QPixmap::fromImage(cpuImage.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        QPixmap cpuResult = QPixmap::fromImage(cpuImage.scaled(
+            targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
         QVERIFY(!cpuResult.isNull());
 
-        // Results should be similar (allowing for some variation in scaling algorithms)
+        // Results should be similar (allowing for some variation in scaling
+        // algorithms)
         QVERIFY(comparePixmaps(generatedResult, cpuResult, 0.8));
     }
 }
 
-void ThumbnailGeneratorIntegrationTest::testMemoryUsage()
-{
+void ThumbnailGeneratorIntegrationTest::testMemoryUsage() {
     // Test that memory usage is reasonable
     QVERIFY(m_testDocument != nullptr);
 
@@ -324,7 +320,8 @@ void ThumbnailGeneratorIntegrationTest::testMemoryUsage()
     m_generator->setDocument(m_testDocument);
 
     QList<QPixmap> thumbnails;
-    QSignalSpy generatedSpy(m_generator, &ThumbnailGenerator::thumbnailGenerated);
+    QSignalSpy generatedSpy(m_generator,
+                            &ThumbnailGenerator::thumbnailGenerated);
     QSignalSpy errorSpy(m_generator, &ThumbnailGenerator::thumbnailError);
 
     // Generate multiple thumbnails
@@ -337,7 +334,8 @@ void ThumbnailGeneratorIntegrationTest::testMemoryUsage()
     int totalExpected = pagesToTest;
     int totalReceived = 0;
 
-    while (totalReceived < totalExpected && (generatedSpy.count() + errorSpy.count()) < totalExpected) {
+    while (totalReceived < totalExpected &&
+           (generatedSpy.count() + errorSpy.count()) < totalExpected) {
         QTest::qWait(100);
         totalReceived = generatedSpy.count() + errorSpy.count();
     }
@@ -362,15 +360,14 @@ void ThumbnailGeneratorIntegrationTest::testMemoryUsage()
     }
 }
 
-void ThumbnailGeneratorIntegrationTest::createTestPdf()
-{
+void ThumbnailGeneratorIntegrationTest::createTestPdf() {
     // Create a simple test PDF file
     m_testPdfFile = new QTemporaryFile();
     m_testPdfFile->setFileTemplate("test_pdf_XXXXXX.pdf");
     QVERIFY(m_testPdfFile->open());
-    
+
     // Write minimal PDF content
-    QByteArray pdfContent = 
+    QByteArray pdfContent =
         "%PDF-1.4\n"
         "1 0 obj\n"
         "<<\n"
@@ -420,39 +417,40 @@ void ThumbnailGeneratorIntegrationTest::createTestPdf()
         "startxref\n"
         "274\n"
         "%%EOF\n";
-    
+
     m_testPdfFile->write(pdfContent);
     m_testPdfFile->flush();
 }
 
-bool ThumbnailGeneratorIntegrationTest::comparePixmaps(const QPixmap& pixmap1, const QPixmap& pixmap2, double tolerance)
-{
+bool ThumbnailGeneratorIntegrationTest::comparePixmaps(const QPixmap& pixmap1,
+                                                       const QPixmap& pixmap2,
+                                                       double tolerance) {
     if (pixmap1.size() != pixmap2.size()) {
         return false;
     }
-    
+
     QImage image1 = pixmap1.toImage();
     QImage image2 = pixmap2.toImage();
-    
+
     int totalPixels = image1.width() * image1.height();
     int similarPixels = 0;
-    
+
     for (int y = 0; y < image1.height(); ++y) {
         for (int x = 0; x < image1.width(); ++x) {
             QRgb pixel1 = image1.pixel(x, y);
             QRgb pixel2 = image2.pixel(x, y);
-            
+
             // Simple color difference check
             int rDiff = qAbs(qRed(pixel1) - qRed(pixel2));
             int gDiff = qAbs(qGreen(pixel1) - qGreen(pixel2));
             int bDiff = qAbs(qBlue(pixel1) - qBlue(pixel2));
-            
+
             if (rDiff < 30 && gDiff < 30 && bDiff < 30) {
                 similarPixels++;
             }
         }
     }
-    
+
     double similarity = static_cast<double>(similarPixels) / totalPixels;
     return similarity >= tolerance;
 }

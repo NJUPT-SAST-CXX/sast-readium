@@ -1,31 +1,30 @@
 #pragma once
 
+#include <QDateTime>
+#include <QHash>
+#include <QMutex>
 #include <QObject>
 #include <QTimer>
-#include <QMutex>
-#include <QHash>
-#include <QDateTime>
 #include "../cache/CacheManager.h"
 
 /**
  * Memory management utility for search components
  * Provides intelligent memory management and optimization strategies
  */
-class MemoryManager : public QObject
-{
+class MemoryManager : public QObject {
     Q_OBJECT
 
 public:
     enum OptimizationLevel {
-        Conservative,   // Minimal optimization, preserve performance
-        Balanced,       // Balance between memory and performance
-        Aggressive      // Maximum memory optimization
+        Conservative,  // Minimal optimization, preserve performance
+        Balanced,      // Balance between memory and performance
+        Aggressive     // Maximum memory optimization
     };
 
     enum MemoryPressureLevel {
-        Normal,         // < 70% memory usage
-        Warning,        // 70-85% memory usage
-        Critical        // > 85% memory usage
+        Normal,   // < 70% memory usage
+        Warning,  // 70-85% memory usage
+        Critical  // > 85% memory usage
     };
 
     struct MemoryStats {
@@ -104,8 +103,7 @@ private:
  * Memory-aware search result container
  * Automatically manages memory usage based on system pressure
  */
-class MemoryAwareSearchResults : public QObject
-{
+class MemoryAwareSearchResults : public QObject {
     Q_OBJECT
 
 public:
@@ -144,16 +142,15 @@ private:
  * Smart cache eviction policy
  * Implements intelligent eviction based on usage patterns and memory pressure
  */
-class SmartEvictionPolicy : public QObject
-{
+class SmartEvictionPolicy : public QObject {
     Q_OBJECT
 
 public:
     enum EvictionStrategy {
-        LRU,            // Least Recently Used
-        LFU,            // Least Frequently Used
-        Adaptive,       // Adaptive based on access patterns
-        Predictive      // Predictive based on usage patterns
+        LRU,        // Least Recently Used
+        LFU,        // Least Frequently Used
+        Adaptive,   // Adaptive based on access patterns
+        Predictive  // Predictive based on usage patterns
     };
 
     explicit SmartEvictionPolicy(QObject* parent = nullptr);
@@ -166,8 +163,10 @@ public:
     double getAdaptiveThreshold() const;
 
     // Eviction decisions
-    QStringList selectItemsForEviction(const QStringList& candidates, int targetCount);
-    bool shouldEvictItem(const QString& itemId, qint64 lastAccess, int accessCount);
+    QStringList selectItemsForEviction(const QStringList& candidates,
+                                       int targetCount);
+    bool shouldEvictItem(const QString& itemId, qint64 lastAccess,
+                         int accessCount);
     void recordAccess(const QString& itemId);
     void recordEviction(const QString& itemId);
 

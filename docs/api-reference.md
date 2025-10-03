@@ -27,31 +27,31 @@ public:
     // Command execution
     bool executeCommand(const QString& commandId);
     bool executeCommand(QObject* command);
-    
+
     // Command registration
     void registerCommand(const QString& id, CommandFactory factory);
     void registerShortcut(const QString& commandId, const QString& shortcut);
-    
+
     // Undo/Redo
     bool canUndo() const;
     bool canRedo() const;
     void undo();
     void redo();
     void clearHistory();
-    
+
     // History management
     void setHistorySize(int size);
     int historySize() const;
     QStringList commandHistory() const;
-    
+
     // State management
     void setEnabled(bool enabled);
     bool isEnabled() const;
-    
+
     // UI integration
     QAction* undoAction() const;
     QAction* redoAction() const;
-    
+
 signals:
     void commandExecuted(const QString& commandName, bool success);
     void historyChanged();
@@ -64,7 +64,7 @@ signals:
 
 ```cpp
 // Register a command
-GlobalCommandManager::registerCommand("open_document", 
+GlobalCommandManager::registerCommand("open_document",
     []() { return new OpenDocumentCommand(); }
 );
 
@@ -95,7 +95,7 @@ public:
     virtual bool undo() = 0;
     virtual QString name() const = 0;
     virtual QString description() const;
-    
+
 signals:
     void executed(bool success);
     void undone(bool success);
@@ -111,7 +111,7 @@ class NavigationCommand : public QObject {
 public:
     virtual bool execute() = 0;
     virtual QString name() const = 0;
-    
+
 signals:
     void executed(bool success);
 };
@@ -147,30 +147,30 @@ Dependency injection and service management.
 class ServiceLocator : public QObject {
 public:
     static ServiceLocator& instance();
-    
+
     // Service registration
     template<typename T>
     void registerService(std::function<T*()> factory);
-    
+
     template<typename T>
     void registerServiceInstance(T* instance);
-    
+
     // Service retrieval
     template<typename T>
     T* getService();
-    
+
     template<typename T>
     std::shared_ptr<T> getSharedService();
-    
+
     // Service management
     bool hasService(const QString& typeName) const;
     void unregisterService(const QString& typeName);
     void clearServices();
-    
+
     // Configuration
     void setLazyLoading(bool enabled);
     bool isLazyLoading() const;
-    
+
 signals:
     void serviceRegistered(const QString& typeName);
     void serviceCreated(const QString& typeName);
@@ -213,32 +213,32 @@ Publish-subscribe event system for decoupled communication.
 class EventBus : public QObject {
 public:
     static EventBus& instance();
-    
+
     // Subscription
     void subscribe(const QString& eventType, QObject* subscriber, EventHandler handler);
     void unsubscribe(const QString& eventType, QObject* subscriber);
     void unsubscribeAll(QObject* subscriber);
-    
+
     // Publishing
     void publish(Event* event);
     void publish(const QString& eventType, const QVariant& data = QVariant());
     void publishAsync(Event* event, int delayMs = 0);
     void publishAsync(const QString& eventType, const QVariant& data, int delayMs = 0);
-    
+
     // Filtering
     void addFilter(const QString& eventType, EventFilter filter);
     void removeFilter(const QString& eventType);
-    
+
     // Configuration
     void setAsyncProcessingEnabled(bool enabled);
     bool isAsyncProcessingEnabled() const;
     void setMaxQueueSize(int size);
-    
+
     // Statistics
     int totalEventsPublished() const;
     int queueSize() const;
     void clearStatistics();
-    
+
 signals:
     void eventPublished(const QString& eventType);
     void queueSizeChanged(int size);
@@ -251,13 +251,13 @@ signals:
 class Event {
 public:
     Event(const QString& type);
-    
+
     QString type() const;
     QVariant data() const;
     void setData(const QVariant& data);
-    
+
     QDateTime timestamp() const;
-    
+
     void stopPropagation();
     bool isPropagationStopped() const;
 };
@@ -307,7 +307,7 @@ Creates and configures model objects.
 class ModelFactory : public QObject {
 public:
     explicit ModelFactory(QObject* parent = nullptr);
-    
+
     // Individual model creation
     RenderModel* createRenderModel(int dpiX, int dpiY);
     DocumentModel* createDocumentModel(RenderModel* renderModel);
@@ -318,7 +318,7 @@ public:
     SearchModel* createSearchModel(DocumentModel* documentModel);
     PDFOutlineModel* createPDFOutlineModel(DocumentModel* documentModel);
     AsyncDocumentLoader* createAsyncDocumentLoader(DocumentModel* documentModel);
-    
+
     // Model set creation
     struct ModelSet {
         RenderModel* renderModel = nullptr;
@@ -328,13 +328,13 @@ public:
         SearchModel* searchModel = nullptr;
         PDFOutlineModel* outlineModel = nullptr;
     };
-    
+
     ModelSet createViewerModelSet(int dpiX = 96, int dpiY = 96);
-    
+
     // Custom model registration
     void registerCustomModel(const QString& typeName, ModelCreator creator);
     QObject* createCustomModel(const QString& typeName);
-    
+
 signals:
     void modelCreated(const QString& typeName, QObject* model);
     void modelSetCreated(const ModelSet& models);
@@ -375,10 +375,10 @@ Creates UI widgets with proper connections.
 class WidgetFactory : public QObject {
 public:
     explicit WidgetFactory(PageController* controller, QObject* parent = nullptr);
-    
+
     // Button creation
     QPushButton* createButton(actionID id, const QString& text);
-    
+
     // Action IDs
     enum class actionID {
         next,
@@ -421,17 +421,17 @@ public:
     bool loadDocument(const QString& filePath);
     void closeDocument();
     bool isDocumentLoaded() const;
-    
+
     // Document properties
     QString filePath() const;
     QString fileName() const;
     int pageCount() const;
     QSizeF pageSize(int pageIndex) const;
-    
+
     // Document access
     std::shared_ptr<Poppler::Document> document() const;
     Poppler::Page* page(int index) const;
-    
+
 signals:
     void documentLoaded(const QString& filePath);
     void documentClosed();
@@ -454,11 +454,11 @@ public:
     // Rendering
     QImage renderPage(int pageIndex, double scaleFactor = 1.0);
     void renderPageAsync(int pageIndex, double scaleFactor = 1.0);
-    
+
     // Configuration
     void setDPI(int dpiX, int dpiY);
     void setRenderHints(Poppler::Page::RenderHints hints);
-    
+
 signals:
     void pageRendered(int pageIndex, const QImage& image);
     void renderError(int pageIndex, const QString& error);
@@ -481,17 +481,17 @@ public:
     void setThumbnailSize(const QSize& size);
     void setCacheSize(int size);
     void setMemoryLimit(qint64 bytes);
-    
+
     // Thumbnail access
     QImage thumbnail(int pageIndex) const;
     void requestThumbnail(int pageIndex);
-    
+
     // Cache management
     void clearCache();
     int cacheHitCount() const;
     int cacheMissCount() const;
     qint64 currentMemoryUsage() const;
-    
+
 signals:
     void thumbnailReady(int pageIndex, const QImage& thumbnail);
     void cacheStatisticsChanged();
@@ -514,15 +514,15 @@ public:
     // Initialization
     bool initialize();
     void shutdown();
-    
+
     // Application state
     bool isInitialized() const;
-    
+
     // Component access
     DocumentController* documentController() const;
     PageController* pageController() const;
     ConfigurationManager* configurationManager() const;
-    
+
 signals:
     void initialized();
     void shutdownRequested();
@@ -546,15 +546,15 @@ public:
     void closeDocument();
     bool saveDocument();
     bool saveDocumentAs(const QString& filePath);
-    
+
     // Document state
     bool hasDocument() const;
     QString currentFilePath() const;
     bool isModified() const;
-    
+
     // Document access
     DocumentModel* documentModel() const;
-    
+
 signals:
     void documentOpened(const QString& filePath);
     void documentClosed();
@@ -581,13 +581,13 @@ public:
     void gotoPage(int pageIndex);
     void firstPage();
     void lastPage();
-    
+
     // Page state
     int currentPage() const;
     int pageCount() const;
     bool canGoNext() const;
     bool canGoPrevious() const;
-    
+
 signals:
     void currentPageChanged(int pageIndex);
     void pageCountChanged(int count);

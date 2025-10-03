@@ -1,11 +1,11 @@
-#include <QTest>
-#include <QSignalSpy>
 #include <QJsonObject>
 #include <QMetaObject>
+#include <QSignalSpy>
+#include <QTest>
 #include <memory>
-#include "../TestUtilities.h"
 #include "../../app/factory/CommandFactory.h"
 #include "../../app/factory/CommandPrototypeRegistry.h"
+#include "../TestUtilities.h"
 
 class CommandPrototypeRegistryTest : public TestBase {
     Q_OBJECT
@@ -63,7 +63,7 @@ void CommandPrototypeRegistryTest::testRegistryCreation() {
     CommandPrototypeRegistry registry(m_factory.get());
 
     // Test initial state
-    QVERIFY(registry.prototypeCount() > 0); // Should have standard prototypes
+    QVERIFY(registry.prototypeCount() > 0);  // Should have standard prototypes
     QVERIFY(registry.availablePrototypes().contains("open"));
     QVERIFY(registry.availablePrototypes().contains("gotoPage"));
     QVERIFY(registry.availablePrototypes().contains("zoom"));
@@ -136,7 +136,8 @@ void CommandPrototypeRegistryTest::testPrototypeCloning() {
     // Test cloning cloneable prototypes
     QObject* openClone = registry.cloneCommand("open");
     QVERIFY(openClone != nullptr);
-    QVERIFY(openClone != registry.getPrototype("open")); // Should be different object
+    QVERIFY(openClone !=
+            registry.getPrototype("open"));  // Should be different object
     delete openClone;
 
     QObject* gotoPageClone = registry.cloneCommand("gotoPage");
@@ -232,10 +233,11 @@ void CommandPrototypeRegistryTest::testDuplicateRegistration() {
 
     // Try to register with same name
     QObject* prototype2 = new QObject();
-    // This might succeed and replace the existing prototype, depending on implementation
-    // The important thing is that it doesn't crash and the registry remains consistent
+    // This might succeed and replace the existing prototype, depending on
+    // implementation The important thing is that it doesn't crash and the
+    // registry remains consistent
     bool result = registry.registerCustomPrototype("duplicate", prototype2);
-    Q_UNUSED(result); // We accept either behavior
+    Q_UNUSED(result);  // We accept either behavior
     QVERIFY(registry.hasPrototype("duplicate"));
 }
 
@@ -269,8 +271,11 @@ void CommandPrototypeRegistryTest::testClonePerformance() {
     qint64 elapsed = timer.elapsed();
 
     // Cloning should be reasonably fast (< 100ms for 1000 operations)
-    QVERIFY2(elapsed < 100, QString("Cloning performance test failed: %1ms for %2 operations")
-                         .arg(elapsed).arg(iterations).toLocal8Bit());
+    QVERIFY2(elapsed < 100,
+             QString("Cloning performance test failed: %1ms for %2 operations")
+                 .arg(elapsed)
+                 .arg(iterations)
+                 .toLocal8Bit());
 }
 
 void CommandPrototypeRegistryTest::testLargeRegistryPerformance() {
@@ -282,12 +287,15 @@ void CommandPrototypeRegistryTest::testLargeRegistryPerformance() {
 
     for (int i = 0; i < prototypeCount; ++i) {
         QObject* prototype = new QObject();
-        registry.registerCustomPrototype(QString("prototype_%1").arg(i), prototype);
+        registry.registerCustomPrototype(QString("prototype_%1").arg(i),
+                                         prototype);
     }
     qint64 addTime = timer.elapsed();
 
     // Adding should be reasonably fast
-    QVERIFY2(addTime < 200, QString("Adding prototypes too slow: %1ms").arg(addTime).toLocal8Bit());
+    QVERIFY2(
+        addTime < 200,
+        QString("Adding prototypes too slow: %1ms").arg(addTime).toLocal8Bit());
 
     // Test lookup performance
     timer.start();
@@ -300,7 +308,9 @@ void CommandPrototypeRegistryTest::testLargeRegistryPerformance() {
     qint64 lookupTime = timer.elapsed();
 
     // Lookups should be very fast
-    QVERIFY2(lookupTime < 10, QString("Prototype lookup too slow: %1ms").arg(lookupTime).toLocal8Bit());
+    QVERIFY2(lookupTime < 10, QString("Prototype lookup too slow: %1ms")
+                                  .arg(lookupTime)
+                                  .toLocal8Bit());
 
     // Test enumeration performance
     timer.start();
@@ -308,7 +318,10 @@ void CommandPrototypeRegistryTest::testLargeRegistryPerformance() {
     qint64 enumerationTime = timer.elapsed();
 
     // Enumeration should be fast
-    QVERIFY2(enumerationTime < 50, QString("Prototype enumeration too slow: %1ms").arg(enumerationTime).toLocal8Bit());
+    QVERIFY2(enumerationTime < 50,
+             QString("Prototype enumeration too slow: %1ms")
+                 .arg(enumerationTime)
+                 .toLocal8Bit());
     QVERIFY(allPrototypes.size() >= prototypeCount);
 
     // Clean up

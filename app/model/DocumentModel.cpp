@@ -1,7 +1,7 @@
 #include "DocumentModel.h"
 #include <QFileInfo>
-#include "RenderModel.h"
 #include "../logging/LoggingMacros.h"
+#include "RenderModel.h"
 #include "utils/ErrorHandling.h"
 #include "utils/ErrorRecovery.h"
 
@@ -12,20 +12,19 @@ void DocumentModel::initializeErrorRecovery() {
     // Register file system recovery action
     recoveryManager.registerRecoveryAction(
         ErrorHandling::ErrorCategory::FileSystem,
-        std::make_shared<ErrorRecovery::FileSystemRecoveryAction>()
-    );
+        std::make_shared<ErrorRecovery::FileSystemRecoveryAction>());
 
     // Register document recovery action
     recoveryManager.registerRecoveryAction(
         ErrorHandling::ErrorCategory::Document,
-        std::make_shared<ErrorRecovery::DocumentRecoveryAction>()
-    );
+        std::make_shared<ErrorRecovery::DocumentRecoveryAction>());
 
     LOG_DEBUG("DocumentModel: Error recovery actions registered");
 }
 
 // 添加支持RenderModel的构造函数
-DocumentModel::DocumentModel(RenderModel* _renderModel): renderModel(_renderModel), currentDocumentIndex(-1) {
+DocumentModel::DocumentModel(RenderModel* _renderModel)
+    : renderModel(_renderModel), currentDocumentIndex(-1) {
     LOG_DEBUG("DocumentModel created with RenderModel");
 
     // Register error recovery actions
@@ -35,14 +34,14 @@ DocumentModel::DocumentModel(RenderModel* _renderModel): renderModel(_renderMode
     asyncLoader = new AsyncDocumentLoader(this);
 
     // 连接异步加载器信号
-    connect(asyncLoader, &AsyncDocumentLoader::documentLoaded,
-            this, &DocumentModel::onDocumentLoaded);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingProgressChanged,
-            this, &DocumentModel::loadingProgressChanged);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingMessageChanged,
-            this, &DocumentModel::loadingMessageChanged);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingFailed,
-            this, &DocumentModel::loadingFailed);
+    connect(asyncLoader, &AsyncDocumentLoader::documentLoaded, this,
+            &DocumentModel::onDocumentLoaded);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingProgressChanged, this,
+            &DocumentModel::loadingProgressChanged);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingMessageChanged, this,
+            &DocumentModel::loadingMessageChanged);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingFailed, this,
+            &DocumentModel::loadingFailed);
 }
 
 DocumentModel::DocumentModel() : currentDocumentIndex(-1) {
@@ -53,14 +52,14 @@ DocumentModel::DocumentModel() : currentDocumentIndex(-1) {
     asyncLoader = new AsyncDocumentLoader(this);
 
     // 连接异步加载器信号
-    connect(asyncLoader, &AsyncDocumentLoader::loadingProgressChanged,
-            this, &DocumentModel::loadingProgressChanged);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingMessageChanged,
-            this, &DocumentModel::loadingMessageChanged);
-    connect(asyncLoader, &AsyncDocumentLoader::documentLoaded,
-            this, &DocumentModel::onDocumentLoaded);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingFailed,
-            this, &DocumentModel::loadingFailed);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingProgressChanged, this,
+            &DocumentModel::loadingProgressChanged);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingMessageChanged, this,
+            &DocumentModel::loadingMessageChanged);
+    connect(asyncLoader, &AsyncDocumentLoader::documentLoaded, this,
+            &DocumentModel::onDocumentLoaded);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingFailed, this,
+            &DocumentModel::loadingFailed);
 }
 
 bool DocumentModel::openFromFile(const QString& filePath) {
@@ -70,34 +69,38 @@ bool DocumentModel::openFromFile(const QString& filePath) {
     // Use retry policy for file operations
     auto retryConfig = Utils::createStandardRetry();
 
-    auto result = RecoveryManager::instance().retryWithPolicy([&]() -> bool {
-        // Input validation with standardized error handling
-        if (filePath.isEmpty()) {
-            throw ApplicationException(createFileSystemError("open document", filePath, "File path is empty"));
-        }
-
-        if (!QFile::exists(filePath)) {
-            throw ApplicationException(createFileSystemError("open document", filePath, "File does not exist"));
-        }
-
-        // 检查文档是否已经打开
-        for (size_t i = 0; i < documents.size(); ++i) {
-            if (documents[i]->filePath == filePath) {
-                LOG_INFO("Document already open, switching to existing: {}", filePath.toStdString());
-                switchToDocument(static_cast<int>(i));
-                return true;
+    auto result = RecoveryManager::instance().retryWithPolicy(
+        [&]() -> bool {
+            // Input validation with standardized error handling
+            if (filePath.isEmpty()) {
+                throw ApplicationException(createFileSystemError(
+                    "open document", filePath, "File path is empty"));
             }
-        }
 
-        // 发送加载开始信号
-        LOG_INFO("Starting document load: {}", filePath.toStdString());
-        emit loadingStarted(filePath);
+            if (!QFile::exists(filePath)) {
+                throw ApplicationException(createFileSystemError(
+                    "open document", filePath, "File does not exist"));
+            }
 
-        // 使用异步加载器加载文档
-        asyncLoader->loadDocument(filePath);
-        return true; // 异步加载，立即返回true
+            // 检查文档是否已经打开
+            for (size_t i = 0; i < documents.size(); ++i) {
+                if (documents[i]->filePath == filePath) {
+                    LOG_INFO("Document already open, switching to existing: {}",
+                             filePath.toStdString());
+                    switchToDocument(static_cast<int>(i));
+                    return true;
+                }
+            }
 
-    }, retryConfig, QString("DocumentModel::openFromFile(%1)").arg(filePath));
+            // 发送加载开始信号
+            LOG_INFO("Starting document load: {}", filePath.toStdString());
+            emit loadingStarted(filePath);
+
+            // 使用异步加载器加载文档
+            asyncLoader->loadDocument(filePath);
+            return true;  // 异步加载，立即返回true
+        },
+        retryConfig, QString("DocumentModel::openFromFile(%1)").arg(filePath));
 
     if (isError(result)) {
         const auto& error = getError(result);
@@ -111,7 +114,9 @@ bool DocumentModel::openFromFile(const QString& filePath) {
             return openFromFile(filePath);
         } else if (recoveryResult == RecoveryResult::Fallback) {
             // Try alternative loading method or provide user feedback
-            emit loadingFailed("Document loading failed, but recovery options available", filePath);
+            emit loadingFailed(
+                "Document loading failed, but recovery options available",
+                filePath);
             return false;
         }
 
@@ -181,8 +186,8 @@ bool DocumentModel::openFromFiles(const QStringList& filePaths) {
     return true;
 }
 
-void DocumentModel::onDocumentLoaded(Poppler::Document* document, const QString& filePath)
-{
+void DocumentModel::onDocumentLoaded(Poppler::Document* document,
+                                     const QString& filePath) {
     if (!document) {
         emit loadingFailed("文档加载失败", filePath);
         return;
@@ -192,7 +197,8 @@ void DocumentModel::onDocumentLoaded(Poppler::Document* document, const QString&
     std::unique_ptr<Poppler::Document> popplerDoc(document);
 
     // 创建文档信息
-    auto docInfo = std::make_unique<DocumentInfo>(filePath, std::move(popplerDoc));
+    auto docInfo =
+        std::make_unique<DocumentInfo>(filePath, std::move(popplerDoc));
     documents.push_back(std::move(docInfo));
 
     int newIndex = static_cast<int>(documents.size() - 1);
@@ -298,14 +304,12 @@ Poppler::Document* DocumentModel::getDocument(int index) const {
     return nullptr;
 }
 
-bool DocumentModel::isEmpty() const {
-    return documents.empty();
-}
+bool DocumentModel::isEmpty() const { return documents.empty(); }
 
 bool DocumentModel::isValidIndex(int index) const {
     return index >= 0 && index < static_cast<int>(documents.size());
 }
 
 bool DocumentModel::isNULL() {
-    return false; // DocumentModel is not null when this method is called
+    return false;  // DocumentModel is not null when this method is called
 }

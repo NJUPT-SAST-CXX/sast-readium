@@ -1,19 +1,17 @@
 #include "CommandFactory.h"
+#include <QWidget>
 #include "../command/DocumentCommands.h"
 #include "../command/NavigationCommands.h"
 #include "../controller/DocumentController.h"
 #include "../controller/PageController.h"
 #include "../ui/core/ViewWidget.h"
-#include <QWidget>
 
 // ============================================================================
 // CommandFactory Implementation
 // ============================================================================
 
 CommandFactory::CommandFactory(QObject* parent)
-    : QObject(parent)
-    , m_logger("CommandFactory")
-{
+    : QObject(parent), m_logger("CommandFactory") {
     initializeActionMap();
     m_logger.debug("CommandFactory initialized");
 }
@@ -40,15 +38,17 @@ void CommandFactory::initializeActionMap() {
     m_actionMap["fitToPage"] = ActionMap::fitToPage;
 }
 
-std::unique_ptr<DocumentCommand> CommandFactory::createDocumentCommand(ActionMap action) {
+std::unique_ptr<DocumentCommand> CommandFactory::createDocumentCommand(
+    ActionMap action) {
     if (!validateDependencies()) {
         m_logger.error("Cannot create document command - dependencies not set");
-        emit commandCreationFailed(mapActionToString(action), "Dependencies not set");
+        emit commandCreationFailed(mapActionToString(action),
+                                   "Dependencies not set");
         return nullptr;
     }
-    
+
     std::unique_ptr<DocumentCommand> command;
-    
+
     switch (action) {
         case ActionMap::openFile:
             command = createOpenCommand();
@@ -69,25 +69,29 @@ std::unique_ptr<DocumentCommand> CommandFactory::createDocumentCommand(ActionMap
             command = createPropertiesCommand();
             break;
         default:
-            m_logger.warning(QString("Unknown document action: %1").arg(static_cast<int>(action)));
-            emit commandCreationFailed(mapActionToString(action), "Unknown action");
+            m_logger.warning(QString("Unknown document action: %1")
+                                 .arg(static_cast<int>(action)));
+            emit commandCreationFailed(mapActionToString(action),
+                                       "Unknown action");
             return nullptr;
     }
-    
+
     if (command) {
         emit commandCreated(mapActionToString(action), command.get());
     }
-    
+
     return command;
 }
 
-std::unique_ptr<DocumentCommand> CommandFactory::createOpenCommand(const QString& filePath) {
+std::unique_ptr<DocumentCommand> CommandFactory::createOpenCommand(
+    const QString& filePath) {
     if (!m_documentController) {
         m_logger.error("DocumentController not set");
         return nullptr;
     }
-    
-    return DocumentCommandFactory::createOpenCommand(m_documentController, filePath);
+
+    return DocumentCommandFactory::createOpenCommand(m_documentController,
+                                                     filePath);
 }
 
 std::unique_ptr<DocumentCommand> CommandFactory::createCloseCommand(int index) {
@@ -95,17 +99,20 @@ std::unique_ptr<DocumentCommand> CommandFactory::createCloseCommand(int index) {
         m_logger.error("DocumentController not set");
         return nullptr;
     }
-    
-    return DocumentCommandFactory::createCloseCommand(m_documentController, index);
+
+    return DocumentCommandFactory::createCloseCommand(m_documentController,
+                                                      index);
 }
 
-std::unique_ptr<DocumentCommand> CommandFactory::createSaveAsCommand(const QString& targetPath) {
+std::unique_ptr<DocumentCommand> CommandFactory::createSaveAsCommand(
+    const QString& targetPath) {
     if (!m_documentController) {
         m_logger.error("DocumentController not set");
         return nullptr;
     }
-    
-    return DocumentCommandFactory::createSaveAsCommand(m_documentController, targetPath);
+
+    return DocumentCommandFactory::createSaveAsCommand(m_documentController,
+                                                       targetPath);
 }
 
 std::unique_ptr<DocumentCommand> CommandFactory::createPrintCommand() {
@@ -113,7 +120,7 @@ std::unique_ptr<DocumentCommand> CommandFactory::createPrintCommand() {
         m_logger.error("DocumentController not set");
         return nullptr;
     }
-    
+
     return DocumentCommandFactory::createPrintCommand(m_documentController);
 }
 
@@ -122,7 +129,7 @@ std::unique_ptr<DocumentCommand> CommandFactory::createReloadCommand() {
         m_logger.error("DocumentController not set");
         return nullptr;
     }
-    
+
     return DocumentCommandFactory::createReloadCommand(m_documentController);
 }
 
@@ -131,20 +138,22 @@ std::unique_ptr<DocumentCommand> CommandFactory::createPropertiesCommand() {
         m_logger.error("DocumentController not set");
         return nullptr;
     }
-    
+
     // Properties command might not exist in DocumentCommandFactory
     // Return a basic implementation or nullptr
     m_logger.warning("Properties command not implemented");
     return nullptr;
 }
 
-std::unique_ptr<NavigationCommand> CommandFactory::createNavigationCommand(const QString& type) {
+std::unique_ptr<NavigationCommand> CommandFactory::createNavigationCommand(
+    const QString& type) {
     if (!m_pageController) {
         m_logger.error("PageController not set");
         return nullptr;
     }
-    
-    return NavigationCommandFactory::createPageNavigationCommand(type, m_pageController);
+
+    return NavigationCommandFactory::createPageNavigationCommand(
+        type, m_pageController);
 }
 
 std::unique_ptr<NavigationCommand> CommandFactory::createNextPageCommand() {
@@ -152,7 +161,7 @@ std::unique_ptr<NavigationCommand> CommandFactory::createNextPageCommand() {
         m_logger.error("PageController not set");
         return nullptr;
     }
-    
+
     return std::make_unique<NextPageCommand>(m_pageController);
 }
 
@@ -161,16 +170,17 @@ std::unique_ptr<NavigationCommand> CommandFactory::createPreviousPageCommand() {
         m_logger.error("PageController not set");
         return nullptr;
     }
-    
+
     return std::make_unique<PreviousPageCommand>(m_pageController);
 }
 
-std::unique_ptr<NavigationCommand> CommandFactory::createGoToPageCommand(int page) {
+std::unique_ptr<NavigationCommand> CommandFactory::createGoToPageCommand(
+    int page) {
     if (!m_pageController) {
         m_logger.error("PageController not set");
         return nullptr;
     }
-    
+
     return std::make_unique<GoToPageCommand>(m_pageController, page);
 }
 
@@ -179,7 +189,7 @@ std::unique_ptr<NavigationCommand> CommandFactory::createFirstPageCommand() {
         m_logger.error("PageController not set");
         return nullptr;
     }
-    
+
     return std::make_unique<FirstPageCommand>(m_pageController);
 }
 
@@ -188,16 +198,17 @@ std::unique_ptr<NavigationCommand> CommandFactory::createLastPageCommand() {
         m_logger.error("PageController not set");
         return nullptr;
     }
-    
+
     return std::make_unique<LastPageCommand>(m_pageController);
 }
 
-std::unique_ptr<NavigationCommand> CommandFactory::createZoomCommand(const QString& type) {
+std::unique_ptr<NavigationCommand> CommandFactory::createZoomCommand(
+    const QString& type) {
     if (!m_viewWidget) {
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
-    
+
     return NavigationCommandFactory::createZoomCommand(type, m_viewWidget);
 }
 
@@ -206,7 +217,7 @@ std::unique_ptr<NavigationCommand> CommandFactory::createZoomInCommand() {
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
-    
+
     return std::make_unique<ZoomInCommand>(m_viewWidget);
 }
 
@@ -215,7 +226,7 @@ std::unique_ptr<NavigationCommand> CommandFactory::createZoomOutCommand() {
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
-    
+
     return std::make_unique<ZoomOutCommand>(m_viewWidget);
 }
 
@@ -224,7 +235,7 @@ std::unique_ptr<NavigationCommand> CommandFactory::createFitWidthCommand() {
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
-    
+
     return std::make_unique<FitWidthCommand>(m_viewWidget);
 }
 
@@ -233,20 +244,22 @@ std::unique_ptr<NavigationCommand> CommandFactory::createFitPageCommand() {
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
-    
+
     return std::make_unique<FitPageCommand>(m_viewWidget);
 }
 
-std::unique_ptr<NavigationCommand> CommandFactory::createSetZoomCommand(double level) {
+std::unique_ptr<NavigationCommand> CommandFactory::createSetZoomCommand(
+    double level) {
     if (!m_viewWidget) {
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
-    
+
     return std::make_unique<SetZoomCommand>(m_viewWidget, level);
 }
 
-std::unique_ptr<NavigationCommand> CommandFactory::createViewModeCommand(const QString& mode) {
+std::unique_ptr<NavigationCommand> CommandFactory::createViewModeCommand(
+    const QString& mode) {
     if (!m_viewWidget) {
         m_logger.error("ViewWidget not set");
         return nullptr;
@@ -254,26 +267,32 @@ std::unique_ptr<NavigationCommand> CommandFactory::createViewModeCommand(const Q
 
     // Map mode string to ChangeViewModeCommand::ViewMode
     if (mode == "single-page") {
-        return std::make_unique<ChangeViewModeCommand>(m_viewWidget, ChangeViewModeCommand::SinglePage);
+        return std::make_unique<ChangeViewModeCommand>(
+            m_viewWidget, ChangeViewModeCommand::SinglePage);
     } else if (mode == "continuous") {
-        return std::make_unique<ChangeViewModeCommand>(m_viewWidget, ChangeViewModeCommand::Continuous);
+        return std::make_unique<ChangeViewModeCommand>(
+            m_viewWidget, ChangeViewModeCommand::Continuous);
     } else if (mode == "facing-pages") {
-        return std::make_unique<ChangeViewModeCommand>(m_viewWidget, ChangeViewModeCommand::FacingPages);
+        return std::make_unique<ChangeViewModeCommand>(
+            m_viewWidget, ChangeViewModeCommand::FacingPages);
     } else if (mode == "book-view") {
-        return std::make_unique<ChangeViewModeCommand>(m_viewWidget, ChangeViewModeCommand::BookView);
+        return std::make_unique<ChangeViewModeCommand>(
+            m_viewWidget, ChangeViewModeCommand::BookView);
     }
 
     m_logger.warning(QString("Unknown view mode: %1").arg(mode));
     return nullptr;
 }
 
-std::unique_ptr<NavigationCommand> CommandFactory::createRotateCommand(bool clockwise) {
+std::unique_ptr<NavigationCommand> CommandFactory::createRotateCommand(
+    bool clockwise) {
     if (!m_viewWidget) {
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
 
-    auto direction = clockwise ? RotateViewCommand::Clockwise : RotateViewCommand::CounterClockwise;
+    auto direction = clockwise ? RotateViewCommand::Clockwise
+                               : RotateViewCommand::CounterClockwise;
     return std::make_unique<RotateViewCommand>(m_viewWidget, direction);
 }
 
@@ -294,14 +313,16 @@ std::unique_ptr<NavigationCommand> CommandFactory::createFullscreenCommand() {
     return std::make_unique<ToggleFullscreenCommand>(mainWindow);
 }
 
-void CommandFactory::registerCommandType(const QString& typeName, CommandCreator creator) {
+void CommandFactory::registerCommandType(const QString& typeName,
+                                         CommandCreator creator) {
     m_customCreators[typeName] = creator;
     m_logger.debug(QString("Registered custom command type: %1").arg(typeName));
 }
 
 QObject* CommandFactory::createCustomCommand(const QString& typeName) {
     if (!m_customCreators.contains(typeName)) {
-        m_logger.warning(QString("Unknown custom command type: %1").arg(typeName));
+        m_logger.warning(
+            QString("Unknown custom command type: %1").arg(typeName));
         emit commandCreationFailed(typeName, "Unknown type");
         return nullptr;
     }
@@ -313,13 +334,16 @@ QObject* CommandFactory::createCustomCommand(const QString& typeName) {
         }
         return command;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Exception creating custom command %1: %2").arg(typeName).arg(e.what()));
+        m_logger.error(QString("Exception creating custom command %1: %2")
+                           .arg(typeName)
+                           .arg(e.what()));
         emit commandCreationFailed(typeName, e.what());
         return nullptr;
     }
 }
 
-QList<QObject*> CommandFactory::createCommandBatch(const QStringList& commandNames) {
+QList<QObject*> CommandFactory::createCommandBatch(
+    const QStringList& commandNames) {
     QList<QObject*> commands;
 
     for (const QString& name : commandNames) {
@@ -327,14 +351,16 @@ QList<QObject*> CommandFactory::createCommandBatch(const QStringList& commandNam
         if (command) {
             commands.append(command);
         } else {
-            m_logger.warning(QString("Failed to create command in batch: %1").arg(name));
+            m_logger.warning(
+                QString("Failed to create command in batch: %1").arg(name));
         }
     }
 
     return commands;
 }
 
-void CommandFactory::configureCommand(QObject* command, const QVariantMap& config) {
+void CommandFactory::configureCommand(QObject* command,
+                                      const QVariantMap& config) {
     if (!command) {
         m_logger.warning("Cannot configure null command");
         return;
@@ -346,7 +372,8 @@ void CommandFactory::configureCommand(QObject* command, const QVariantMap& confi
         const QVariant& value = it.value();
 
         if (!command->setProperty(propertyName.toUtf8().constData(), value)) {
-            m_logger.warning(QString("Failed to set property %1 on command").arg(propertyName));
+            m_logger.warning(QString("Failed to set property %1 on command")
+                                 .arg(propertyName));
         }
     }
 }
@@ -387,9 +414,9 @@ QObject* GlobalCommandFactory::createCommand(ActionMap action) {
 }
 
 void GlobalCommandFactory::initialize(DocumentController* docController,
-                                     PageController* pageController,
-                                     ViewWidget* viewWidget,
-                                     QWidget* mainWindow) {
+                                      PageController* pageController,
+                                      ViewWidget* viewWidget,
+                                      QWidget* mainWindow) {
     CommandFactory& factory = instance();
     factory.setDocumentController(docController);
     factory.setPageController(pageController);
@@ -411,9 +438,7 @@ struct CommandBuilder::BuilderData {
     bool undoable = false;
 };
 
-CommandBuilder::CommandBuilder()
-    : m_data(std::make_unique<BuilderData>())
-{}
+CommandBuilder::CommandBuilder() : m_data(std::make_unique<BuilderData>()) {}
 
 CommandBuilder::~CommandBuilder() = default;
 
@@ -427,7 +452,8 @@ CommandBuilder& CommandBuilder::withAction(ActionMap action) {
     return *this;
 }
 
-CommandBuilder& CommandBuilder::withParameter(const QString& key, const QVariant& value) {
+CommandBuilder& CommandBuilder::withParameter(const QString& key,
+                                              const QVariant& value) {
     m_data->parameters[key] = value;
     return *this;
 }
@@ -497,10 +523,10 @@ QObject* CommandBuilder::buildRaw() {
 // ============================================================================
 
 CommandPrototypeRegistry::CommandPrototypeRegistry(CommandFactory* factory)
-    : m_factory(factory)
-{}
+    : m_factory(factory) {}
 
-void CommandPrototypeRegistry::registerPrototype(const QString& name, QObject* prototype) {
+void CommandPrototypeRegistry::registerPrototype(const QString& name,
+                                                 QObject* prototype) {
     if (m_prototypes.contains(name)) {
         delete m_prototypes[name];
     }
@@ -531,4 +557,3 @@ QStringList CommandPrototypeRegistry::availablePrototypes() const {
 bool CommandPrototypeRegistry::hasPrototype(const QString& name) const {
     return m_prototypes.contains(name);
 }
-

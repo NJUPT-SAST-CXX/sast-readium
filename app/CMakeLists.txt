@@ -98,5 +98,3 @@ add_custom_command(TARGET app POST_BUILD
     $<TARGET_FILE_DIR:app>/styles
     COMMENT "Copying application assets"
 )
-
-

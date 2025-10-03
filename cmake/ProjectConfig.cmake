@@ -23,20 +23,20 @@ Defines standard project options:
 #]=======================================================================]
 function(setup_project_options)
     message(STATUS "Setting up project options...")
-    
+
     # MSYS2 and vcpkg configuration
     option(USE_VCPKG "Use vcpkg for dependency management" OFF)
     option(FORCE_VCPKG "Force vcpkg usage even in MSYS2" OFF)
-    
+
     # clangd configuration
     option(ENABLE_CLANGD_CONFIG "Enable automatic clangd configuration updates" ON)
-    
+
     # QGraphics PDF support
     option(ENABLE_QGRAPHICS_PDF_SUPPORT "Enable QGraphics-based PDF rendering support" OFF)
-    
+
     # Testing support
     option(BUILD_TESTING "Build tests" ON)
-    
+
     message(STATUS "Project options configured")
 endfunction()
 
@@ -95,17 +95,17 @@ Configure Qt's automatic code generation tools.
 
 Enables:
 - CMAKE_AUTOMOC for Meta-Object Compiler
-- CMAKE_AUTOUIC for User Interface Compiler  
+- CMAKE_AUTOUIC for User Interface Compiler
 - CMAKE_AUTORCC for Resource Compiler
 
 #]=======================================================================]
 function(setup_qt_automation)
     message(STATUS "Setting up Qt automation...")
-    
+
     set(CMAKE_AUTOMOC ON PARENT_SCOPE)
     set(CMAKE_AUTOUIC ON PARENT_SCOPE)
     set(CMAKE_AUTORCC ON PARENT_SCOPE)
-    
+
     message(STATUS "Qt automation enabled (MOC, UIC, RCC)")
 endfunction()
 
@@ -127,12 +127,12 @@ Sets the following variables in parent scope:
 #]=======================================================================]
 function(detect_platform_environment)
     message(STATUS "Detecting platform and build environment...")
-    
+
     # Platform detection
     if(WIN32)
         set(PLATFORM_WINDOWS TRUE PARENT_SCOPE)
         message(STATUS "Platform: Windows")
-        
+
         # MSYS2 detection
         if(DEFINED ENV{MSYSTEM})
             set(MSYS2_DETECTED TRUE PARENT_SCOPE)
@@ -147,7 +147,7 @@ function(detect_platform_environment)
         set(PLATFORM_LINUX TRUE PARENT_SCOPE)
         message(STATUS "Platform: Linux")
     endif()
-    
+
     # Compiler detection
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         set(COMPILER_MSVC TRUE PARENT_SCOPE)
@@ -159,7 +159,7 @@ function(detect_platform_environment)
         set(COMPILER_CLANG TRUE PARENT_SCOPE)
         message(STATUS "Compiler: Clang ${CMAKE_CXX_COMPILER_VERSION}")
     endif()
-    
+
     message(STATUS "Platform detection completed")
 endfunction()
 
@@ -181,7 +181,7 @@ Applies platform-specific configurations for:
 #]=======================================================================]
 function(configure_platform_specific_settings)
     message(STATUS "Configuring platform-specific settings...")
-    
+
     if(PLATFORM_WINDOWS)
         # Windows-specific settings
         if(COMPILER_MSVC)
@@ -197,7 +197,7 @@ function(configure_platform_specific_settings)
         set(CMAKE_MACOSX_RPATH ON PARENT_SCOPE)
         message(STATUS "Applied macOS-specific settings")
     endif()
-    
+
     message(STATUS "Platform-specific configuration completed")
 endfunction()
 
@@ -219,12 +219,12 @@ Checks:
 #]=======================================================================]
 function(validate_build_environment)
     message(STATUS "Validating build environment...")
-    
+
     # Check C++20 support
     if(CMAKE_CXX_STANDARD LESS 20)
         message(FATAL_ERROR "C++20 support is required")
     endif()
-    
+
     # Check compiler version
     if(COMPILER_GCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "10.0")
         message(FATAL_ERROR "GCC 10.0 or later is required for C++20 support")
@@ -233,7 +233,7 @@ function(validate_build_environment)
     elseif(COMPILER_MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "19.29")
         message(FATAL_ERROR "MSVC 19.29 (Visual Studio 2019 16.10) or later is required")
     endif()
-    
+
     message(STATUS "Build environment validation passed")
 endfunction()
 
@@ -407,14 +407,14 @@ endfunction()
 function(_setup_platform_compiler_flags)
     # Get current flags to avoid overwriting
     set(current_cxx_flags ${CMAKE_CXX_FLAGS})
-    
+
     # Windows/MSVC specific settings
     if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         # Enhanced C++ standard compliance
         string(APPEND current_cxx_flags " /Zc:__cplusplus /EHsc /utf-8")
         message(STATUS "Applied MSVC C++ compliance flags")
     endif()
-    
+
     # GCC specific settings
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         # Enable useful warnings for GCC
@@ -428,7 +428,7 @@ function(_setup_platform_compiler_flags)
         string(APPEND current_cxx_flags " -Wall -Wextra")
         message(STATUS "Applied Clang warning flags")
     endif()
-    
+
     # Update parent scope
     set(CMAKE_CXX_FLAGS ${current_cxx_flags} PARENT_SCOPE)
 endfunction()

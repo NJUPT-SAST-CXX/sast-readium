@@ -18,7 +18,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 # MinGW-specific paths
-set(CMAKE_PREFIX_PATH 
+set(CMAKE_PREFIX_PATH
     "/usr/x86_64-w64-mingw32"
     "/usr/x86_64-w64-mingw32/sys-root/mingw"
     CACHE PATH "MinGW prefix paths"

@@ -98,35 +98,36 @@ void PreloadTask::run() {
 }
 
 // PDFCacheManager Implementation class
-class PDFCacheManager::Implementation
-{
+class PDFCacheManager::Implementation {
 public:
     explicit Implementation(PDFCacheManager* q)
-        : q_ptr(q)
-        , maxMemoryUsage(256 * 1024 * 1024)  // 256MB default
-        , maxItems(1000)
-        , itemMaxAge(30 * 60 * 1000)  // 30 minutes
-        , evictionPolicy("LRU")
-        , lowPriorityWeight(0.1)
-        , normalPriorityWeight(1.0)
-        , highPriorityWeight(10.0)
-        , hitCount(0)
-        , missCount(0)
-        , totalAccessTime(0)
-        , accessCount(0)
-        , preloadingEnabled(true)
-        , preloadingStrategy("adaptive")
-        , preloadThreadPool(new QThreadPool(q))
-        , maintenanceTimer(new QTimer(q))
-        , settings(new QSettings("SAST", "Readium-Cache", q))
-    {
+        : q_ptr(q),
+          maxMemoryUsage(256 * 1024 * 1024)  // 256MB default
+          ,
+          maxItems(1000),
+          itemMaxAge(30 * 60 * 1000)  // 30 minutes
+          ,
+          evictionPolicy("LRU"),
+          lowPriorityWeight(0.1),
+          normalPriorityWeight(1.0),
+          highPriorityWeight(10.0),
+          hitCount(0),
+          missCount(0),
+          totalAccessTime(0),
+          accessCount(0),
+          preloadingEnabled(true),
+          preloadingStrategy("adaptive"),
+          preloadThreadPool(new QThreadPool(q)),
+          maintenanceTimer(new QTimer(q)),
+          settings(new QSettings("SAST", "Readium-Cache", q)) {
         // Configure thread pool
         preloadThreadPool->setMaxThreadCount(QThread::idealThreadCount());
 
         // Setup maintenance timer
         maintenanceTimer->setSingleShot(false);
-        maintenanceTimer->setInterval(60000); // 1 minute
-        QObject::connect(maintenanceTimer, &QTimer::timeout, q, &PDFCacheManager::performMaintenance);
+        maintenanceTimer->setInterval(60000);  // 1 minute
+        QObject::connect(maintenanceTimer, &QTimer::timeout, q,
+                         &PDFCacheManager::performMaintenance);
         maintenanceTimer->start();
     }
 
@@ -169,7 +170,8 @@ public:
     QSettings* settings;
 
     // Private methods
-    QString generateKey(int pageNumber, CacheItemType type, const QVariant& extra = QVariant()) const;
+    QString generateKey(int pageNumber, CacheItemType type,
+                        const QVariant& extra = QVariant()) const;
     void updateStatistics(bool hit);
     void enforceMemoryLimit();
     void enforceItemLimit();
@@ -179,7 +181,8 @@ public:
 };
 
 // Implementation method definitions
-QString PDFCacheManager::Implementation::generateKey(int pageNumber, CacheItemType type, const QVariant& extra) const {
+QString PDFCacheManager::Implementation::generateKey(
+    int pageNumber, CacheItemType type, const QVariant& extra) const {
     QString typeStr;
     switch (type) {
         case CacheItemType::RenderedPage:
@@ -219,7 +222,8 @@ void PDFCacheManager::Implementation::updateStatistics(bool hit) {
     accessCount++;
 }
 
-void PDFCacheManager::Implementation::schedulePreload(int pageNumber, CacheItemType type) {
+void PDFCacheManager::Implementation::schedulePreload(int pageNumber,
+                                                      CacheItemType type) {
     QString key = generateKey(pageNumber, type);
     if (q_ptr->contains(key) || preloadingItems.contains(key)) {
         return;  // Already cached or being preloaded
@@ -242,7 +246,8 @@ bool PDFCacheManager::Implementation::shouldEvict(const CacheItem& item) const {
     return item.isExpired(itemMaxAge);
 }
 
-double PDFCacheManager::Implementation::calculateEvictionScore(const CacheItem& item) const {
+double PDFCacheManager::Implementation::calculateEvictionScore(
+    const CacheItem& item) const {
     double score = 0.0;
 
     // Priority weight
@@ -273,10 +278,7 @@ double PDFCacheManager::Implementation::calculateEvictionScore(const CacheItem& 
 
 // PDFCacheManager Implementation
 PDFCacheManager::PDFCacheManager(QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<Implementation>(this))
-{
-
+    : QObject(parent), d(std::make_unique<Implementation>(this)) {
     // Load settings
     loadSettings();
 
@@ -327,7 +329,9 @@ QVariant PDFCacheManager::get(const QString& key) {
         d->updateStatistics(true);
 
         auto endTime = std::chrono::high_resolution_clock::now();
-        auto accessTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+        auto accessTime = std::chrono::duration_cast<std::chrono::microseconds>(
+                              endTime - startTime)
+                              .count();
         emit cacheHit(key, accessTime);
         return it->data;
     }
@@ -436,10 +440,6 @@ void PDFCacheManager::setPreloadingStrategy(const QString& strategy) {
               strategy.toStdString());
 }
 
-
-
-
-
 void PDFCacheManager::performMaintenance() {
     cleanupExpiredItems();
 
@@ -537,8 +537,6 @@ bool PDFCacheManager::evictLeastUsedItems(int count) {
     return evicted > 0;
 }
 
-
-
 qint64 PDFCacheManager::getCurrentMemoryUsage() const {
     qint64 total = 0;
     for (const auto& item : d->cache) {
@@ -588,21 +586,13 @@ void PDFCacheManager::resetStatistics() {
 }
 
 // Getter methods that were converted from inline
-qint64 PDFCacheManager::getMaxMemoryUsage() const {
-    return d->maxMemoryUsage;
-}
+qint64 PDFCacheManager::getMaxMemoryUsage() const { return d->maxMemoryUsage; }
 
-int PDFCacheManager::getMaxItems() const {
-    return d->maxItems;
-}
+int PDFCacheManager::getMaxItems() const { return d->maxItems; }
 
-qint64 PDFCacheManager::getItemMaxAge() const {
-    return d->itemMaxAge;
-}
+qint64 PDFCacheManager::getItemMaxAge() const { return d->itemMaxAge; }
 
-QString PDFCacheManager::getEvictionPolicy() const {
-    return d->evictionPolicy;
-}
+QString PDFCacheManager::getEvictionPolicy() const { return d->evictionPolicy; }
 
 bool PDFCacheManager::isPreloadingEnabled() const {
     return d->preloadingEnabled;
@@ -612,7 +602,8 @@ void PDFCacheManager::loadSettings() {
     d->maxMemoryUsage =
         d->settings->value("maxMemoryUsage", d->maxMemoryUsage).toLongLong();
     d->maxItems = d->settings->value("maxItems", d->maxItems).toInt();
-    d->itemMaxAge = d->settings->value("itemMaxAge", d->itemMaxAge).toLongLong();
+    d->itemMaxAge =
+        d->settings->value("itemMaxAge", d->itemMaxAge).toLongLong();
     d->evictionPolicy =
         d->settings->value("evictionPolicy", d->evictionPolicy).toString();
     d->preloadingEnabled =

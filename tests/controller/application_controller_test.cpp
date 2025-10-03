@@ -1,8 +1,8 @@
-#include <QTest>
-#include <QSignalSpy>
-#include <QMainWindow>
-#include <QStackedWidget>
 #include <QApplication>
+#include <QMainWindow>
+#include <QSignalSpy>
+#include <QStackedWidget>
+#include <QTest>
 #include <QTimer>
 #include "ControllerTestMocks.h"
 
@@ -32,7 +32,7 @@ private slots:
         delete m_mockMainWindow;
         m_mockMainWindow = nullptr;
     }
-    
+
     // Basic mock object tests
     void testMockMainWindowCreation() {
         QVERIFY(m_mockMainWindow != nullptr);
@@ -51,16 +51,18 @@ private slots:
         QVERIFY(window != nullptr);
         delete window;
 
-        MockDocumentModel* docModel = MockObjectFactory::createMockDocumentModel(this);
+        MockDocumentModel* docModel =
+            MockObjectFactory::createMockDocumentModel(this);
         QVERIFY(docModel != nullptr);
         QVERIFY(docModel->isEmpty());
 
-        MockPageModel* pageModel = MockObjectFactory::createMockPageModel(20, this);
+        MockPageModel* pageModel =
+            MockObjectFactory::createMockPageModel(20, this);
         QVERIFY(pageModel != nullptr);
         QCOMPARE(pageModel->totalPages(), 20);
         QCOMPARE(pageModel->currentPage(), 1);
     }
-    
+
     // Mock document model tests
     void testMockDocumentModel() {
         MockDocumentModel* docModel = new MockDocumentModel(this);
@@ -70,7 +72,8 @@ private slots:
         QCOMPARE(docModel->getDocumentCount(), 0);
         QCOMPARE(docModel->getCurrentDocumentIndex(), -1);
 
-        QSignalSpy documentOpenedSpy(docModel, &MockDocumentModel::documentOpened);
+        QSignalSpy documentOpenedSpy(docModel,
+                                     &MockDocumentModel::documentOpened);
 
         // Test opening a document
         bool result = docModel->openFromFile("test.pdf");
@@ -110,7 +113,7 @@ private slots:
         QCOMPARE(pageUpdateSpy.count(), 2);
 
         // Test invalid page
-        pageModel->setCurrentPage(15); // Should not change
+        pageModel->setCurrentPage(15);  // Should not change
         QCOMPARE(pageModel->currentPage(), 5);
 
         // Test reset
@@ -118,7 +121,7 @@ private slots:
         QCOMPARE(pageModel->currentPage(), 1);
         QCOMPARE(pageModel->totalPages(), 1);
     }
-    
+
     // Mock utilities tests
     void testControllerTestUtils() {
         // Test PDF path validation
@@ -139,7 +142,8 @@ private slots:
         MockRecentFilesManager* manager = new MockRecentFilesManager(this);
 
         QSignalSpy addedSpy(manager, &MockRecentFilesManager::recentFileAdded);
-        QSignalSpy changedSpy(manager, &MockRecentFilesManager::recentFilesChanged);
+        QSignalSpy changedSpy(manager,
+                              &MockRecentFilesManager::recentFilesChanged);
 
         // Test adding files
         manager->addRecentFile("file1.pdf");
@@ -150,7 +154,8 @@ private slots:
         QCOMPARE(changedSpy.count(), 2);
 
         // Test clearing files
-        QSignalSpy clearedSpy(manager, &MockRecentFilesManager::recentFilesCleared);
+        QSignalSpy clearedSpy(manager,
+                              &MockRecentFilesManager::recentFilesCleared);
         manager->clearRecentFiles();
 
         QCOMPARE(manager->recentFiles().size(), 0);
@@ -163,7 +168,8 @@ private slots:
         // Test initial state
         QCOMPARE(styleManager->currentTheme(), QString("light"));
 
-        QSignalSpy themeChangedSpy(styleManager, &MockStyleManager::themeChanged);
+        QSignalSpy themeChangedSpy(styleManager,
+                                   &MockStyleManager::themeChanged);
 
         // Test theme change
         styleManager->setTheme("dark");

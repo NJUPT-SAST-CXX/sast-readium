@@ -2,23 +2,16 @@
 #include <QLabel>
 
 // Implementation class definition
-class PageNavigationDelegate::Implementation
-{
+class PageNavigationDelegate::Implementation {
 public:
-    explicit Implementation(QLabel* pageLabel)
-        : pageLabel(pageLabel)
-    {
-    }
+    explicit Implementation(QLabel* pageLabel) : pageLabel(pageLabel) {}
 
     QLabel* pageLabel;
 };
 
 PageNavigationDelegate::PageNavigationDelegate(QLabel* pageLabel,
                                                QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<Implementation>(pageLabel))
-{
-}
+    : QObject(parent), d(std::make_unique<Implementation>(pageLabel)) {}
 
 PageNavigationDelegate::~PageNavigationDelegate() = default;
 

@@ -1,50 +1,46 @@
 #pragma once
 
-#include <QWidget>
-#include <QScrollArea>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QPushButton>
-#include <QSpinBox>
-#include <QSlider>
-#include <QPixmap>
-#include <QTimer>
-#include <QComboBox>
-#include <QStackedWidget>
-#include <QShortcut>
-#include <QList>
-#include <QColor>
-#include <QPainter>
-#include <QObject>
-#include <QHash>
-#include <QtGlobal>
-#include "../../model/SearchModel.h"
-#include <QPropertyAnimation>
-#include <QGraphicsOpacityEffect>
-#include <QGraphicsDropShadowEffect>
-#include <QGestureEvent>
-#include <QSwipeGesture>
-#include <QPinchGesture>
-#include <QPanGesture>
-#include <QTouchEvent>
-#include <QEasingCurve>
+#include <poppler/qt6/poppler-qt6.h>
 #include <QCache>
-#include <QMutex>
-#include <QEvent>
-#include <QMouseEvent>
-#include <QWheelEvent>
-#include <QPaintEvent>
-#include <QPoint>
-#include <QObject>
-#include <QHash>
-#include <QtGlobal>
+#include <QColor>
+#include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QEasingCurve>
+#include <QEvent>
+#include <QGestureEvent>
+#include <QGraphicsDropShadowEffect>
+#include <QGraphicsOpacityEffect>
+#include <QHBoxLayout>
+#include <QHash>
+#include <QLabel>
+#include <QList>
 #include <QMimeData>
+#include <QMouseEvent>
+#include <QMutex>
+#include <QObject>
+#include <QPaintEvent>
+#include <QPainter>
+#include <QPanGesture>
+#include <QPinchGesture>
+#include <QPixmap>
+#include <QPoint>
+#include <QPropertyAnimation>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QShortcut>
+#include <QSlider>
+#include <QSpinBox>
+#include <QStackedWidget>
+#include <QSwipeGesture>
+#include <QTimer>
+#include <QTouchEvent>
 #include <QUrl>
-#include <poppler/qt6/poppler-qt6.h>
+#include <QVBoxLayout>
+#include <QWheelEvent>
+#include <QWidget>
+#include <QtGlobal>
 #include "../../model/DocumentModel.h"
 #include "../../model/SearchModel.h"
 #include "PDFAnimations.h"
@@ -52,41 +48,37 @@
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
 #include "QGraphicsPDFViewer.h"
 #endif
-#include "PDFPrerenderer.h"
 #include "../widgets/SearchWidget.h"
+#include "PDFPrerenderer.h"
 
 // 页面查看模式枚举
 enum class PDFViewMode {
-    SinglePage,      // 单页视图
-    ContinuousScroll // 连续滚动视图
+    SinglePage,       // 单页视图
+    ContinuousScroll  // 连续滚动视图
 };
 
 // 缩放类型枚举
 enum class ZoomType {
-    FixedValue,      // 固定缩放值
-    FitWidth,        // 适应宽度
-    FitHeight,       // 适应高度
-    FitPage          // 适应整页
+    FixedValue,  // 固定缩放值
+    FitWidth,    // 适应宽度
+    FitHeight,   // 适应高度
+    FitPage      // 适应整页
 };
 
 class PDFPageWidget : public QLabel {
     Q_OBJECT
 
 public:
-    enum RenderState {
-        NotRendered,
-        Rendering,
-        Rendered,
-        RenderError
-    };
+    enum RenderState { NotRendered, Rendering, Rendered, RenderError };
 
     PDFPageWidget(QWidget* parent = nullptr);
-    void setPage(Poppler::Page* page, double scaleFactor = 1.0, int rotation = 0);
+    void setPage(Poppler::Page* page, double scaleFactor = 1.0,
+                 int rotation = 0);
     void setScaleFactor(double factor);
     void setRotation(int degrees);
     double getScaleFactor() const { return currentScaleFactor; }
     int getRotation() const { return currentRotation; }
-    void renderPage(); // Make public for refresh functionality
+    void renderPage();  // Make public for refresh functionality
 
     // Asynchronous rendering support
     void setAsyncRenderingEnabled(bool enabled);
@@ -102,7 +94,8 @@ public:
     void setSearchResults(const QList<SearchResult>& results);
     void clearSearchHighlights();
     void setCurrentSearchResult(int index);
-    void updateHighlightColors(const QColor& normalColor, const QColor& currentColor);
+    void updateHighlightColors(const QColor& normalColor,
+                               const QColor& currentColor);
     bool hasSearchResults() const { return !m_searchResults.isEmpty(); }
 
 protected:
@@ -124,11 +117,11 @@ protected:
     void dropEvent(QDropEvent* event) override;
 
 private slots:
-    void onAsyncRenderCompleted(int pageNumber, double scaleFactor, int rotation);
+    void onAsyncRenderCompleted(int pageNumber, double scaleFactor,
+                                int rotation);
     void onRenderDebounceTimeout();
 
 private:
-
     Poppler::Page* currentPage;
     double currentScaleFactor;
     int currentRotation;
@@ -158,9 +151,11 @@ private:
     QColor m_currentHighlightColor;
 
     // Optimized search highlighting
-    QPixmap m_searchHighlightLayer; // Pre-rendered search highlights
-    bool m_searchHighlightsDirty; // Flag to track if highlights need re-rendering
-    bool m_searchHighlightsEnabled; // Flag to enable/disable highlighting optimization
+    QPixmap m_searchHighlightLayer;  // Pre-rendered search highlights
+    bool m_searchHighlightsDirty;    // Flag to track if highlights need
+                                     // re-rendering
+    bool m_searchHighlightsEnabled;  // Flag to enable/disable highlighting
+                                     // optimization
 
     // Helper methods for highlighting
     void drawSearchHighlights(QPainter& painter);
@@ -180,20 +175,15 @@ class PDFViewer : public QWidget {
     Q_OBJECT
 
 public:
-    enum PageLoadState {
-        NotLoaded,
-        Loading,
-        Loaded,
-        LoadError
-    };
+    enum PageLoadState { NotLoaded, Loading, Loaded, LoadError };
 
     PDFViewer(QWidget* parent = nullptr, bool enableStyling = true);
     ~PDFViewer() = default;
-    
+
     // 文档操作
     void setDocument(Poppler::Document* document);
     void clearDocument();
-    
+
     // 页面导航
     void goToPage(int pageNumber);
     void nextPage();
@@ -201,7 +191,7 @@ public:
     void firstPage();
     void lastPage();
     bool goToPageWithValidation(int pageNumber, bool showMessage = true);
-    
+
     // 缩放操作
     void zoomIn();
     void zoomOut();
@@ -246,7 +236,7 @@ public:
     void removeBookmark();
     void toggleBookmark();
     bool hasBookmarkForCurrentPage() const;
-    
+
     // 查看模式操作
     void setViewMode(PDFViewMode mode);
     PDFViewMode getViewMode() const { return currentViewMode; }
@@ -267,14 +257,15 @@ public:
     class PDFPrerenderer* getPrerenderer() const;
 
     // Scroll direction tracking for prerendering optimization
-    void updateScrollDirection(int direction); // -1 = up, 0 = none, 1 = down
+    void updateScrollDirection(int direction);  // -1 = up, 0 = none, 1 = down
 
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // QGraphics rendering mode
     void setQGraphicsRenderingEnabled(bool enabled);
     bool isQGraphicsRenderingEnabled() const;
     void setQGraphicsHighQualityRendering(bool enabled);
-    void setQGraphicsViewMode(int mode); // 0=SinglePage, 1=ContinuousPage, etc.
+    void setQGraphicsViewMode(
+        int mode);  // 0=SinglePage, 1=ContinuousPage, etc.
 #endif
 
 protected:
@@ -314,7 +305,8 @@ protected:
     void invalidatePagePositionsCache();
     void updatePagePositionsCache();
     int findPageAtPosition(int yPosition);
-    QPair<int, int> calculateVisiblePageRange(int scrollValue, int viewportHeight);
+    QPair<int, int> calculateVisiblePageRange(int scrollValue,
+                                              int viewportHeight);
 
     // Lazy loading methods
     void setupLazyLoading();
@@ -327,7 +319,8 @@ protected:
 
     // 缓存管理方法
     QPixmap getCachedPage(int pageNumber, double zoomFactor, int rotation);
-    void setCachedPage(int pageNumber, const QPixmap& pixmap, double zoomFactor, int rotation);
+    void setCachedPage(int pageNumber, const QPixmap& pixmap, double zoomFactor,
+                       int rotation);
     void clearPageCache();
     void cleanupCache();
 
@@ -353,7 +346,8 @@ private slots:
     void onSearchRequested(const QString& query, const SearchOptions& options);
     void onSearchResultSelected(const SearchResult& result);
     void onNavigateToSearchResult(int pageNumber, const QRectF& rect);
-    void onHighlightColorsChanged(const QColor& normalColor, const QColor& currentColor);
+    void onHighlightColorsChanged(const QColor& normalColor,
+                                  const QColor& currentColor);
 
 private:
     // UI组件
@@ -369,7 +363,7 @@ private:
     QScrollArea* continuousScrollArea;
     QWidget* continuousWidget;
     QVBoxLayout* continuousLayout;
-    
+
     // 工具栏控件
     QPushButton* firstPageBtn;
     QPushButton* prevPageBtn;
@@ -377,7 +371,7 @@ private:
     QLabel* pageCountLabel;
     QPushButton* nextPageBtn;
     QPushButton* lastPageBtn;
-    
+
     QPushButton* zoomInBtn;
     QPushButton* zoomOutBtn;
     QSlider* zoomSlider;
@@ -398,14 +392,14 @@ private:
 
     // 搜索控件
     SearchWidget* searchWidget;
-    
+
     // 文档数据
     Poppler::Document* document;
     int currentPageNumber;
     double currentZoomFactor;
     PDFViewMode currentViewMode;
     ZoomType currentZoomType;
-    int currentRotation; // 当前旋转角度（0, 90, 180, 270）
+    int currentRotation;  // 当前旋转角度（0, 90, 180, 270）
 
     // 缩放控制
     QTimer* zoomTimer;
@@ -418,27 +412,30 @@ private:
     // 虚拟化渲染
     int visiblePageStart;
     int visiblePageEnd;
-    int renderBuffer; // 预渲染缓冲区大小
-    QTimer* scrollTimer; // 滚动防抖定时器
+    int renderBuffer;     // 预渲染缓冲区大小
+    QTimer* scrollTimer;  // 滚动防抖定时器
 
     // True virtual scrolling support
-    QHash<int, PDFPageWidget*> activePageWidgets; // Currently created page widgets
-    QHash<int, QWidget*> placeholderWidgets; // Placeholder widgets for non-visible pages
-    int totalDocumentHeight; // Estimated total document height
-    QHash<int, int> pageHeights; // Cache of individual page heights
-    bool isVirtualScrollingEnabled; // Flag to enable/disable virtual scrolling
+    QHash<int, PDFPageWidget*>
+        activePageWidgets;  // Currently created page widgets
+    QHash<int, QWidget*>
+        placeholderWidgets;       // Placeholder widgets for non-visible pages
+    int totalDocumentHeight;      // Estimated total document height
+    QHash<int, int> pageHeights;  // Cache of individual page heights
+    bool isVirtualScrollingEnabled;  // Flag to enable/disable virtual scrolling
 
     // Virtual scrolling optimization
-    QVector<int> pagePositions; // Cached Y positions of each page
-    bool pagePositionsCacheValid; // Flag to track if positions cache is valid
-    int lastScrollValue; // Last scroll position to detect direction
-    int scrollDirection; // -1 for up, 1 for down, 0 for no movement
+    QVector<int> pagePositions;    // Cached Y positions of each page
+    bool pagePositionsCacheValid;  // Flag to track if positions cache is valid
+    int lastScrollValue;           // Last scroll position to detect direction
+    int scrollDirection;           // -1 for up, 1 for down, 0 for no movement
 
     // Lazy loading support
-    QHash<int, PageLoadState> pageLoadStates; // Track loading state of each page
-    QTimer* lazyLoadTimer; // Timer for lazy loading
-    QSet<int> pendingLoads; // Pages pending load
-    int maxConcurrentLoads; // Maximum concurrent page loads
+    QHash<int, PageLoadState>
+        pageLoadStates;      // Track loading state of each page
+    QTimer* lazyLoadTimer;   // Timer for lazy loading
+    QSet<int> pendingLoads;  // Pages pending load
+    int maxConcurrentLoads;  // Maximum concurrent page loads
 
     // 动画效果
     QPropertyAnimation* fadeAnimation;
@@ -465,7 +462,7 @@ private:
         qint64 lastAccessed;
         qint64 memorySize;
         int accessCount;
-        double importance; // Calculated importance score
+        double importance;  // Calculated importance score
 
         // LRU list pointers for O(1) operations
         PageCacheItem* prev;
@@ -475,17 +472,18 @@ private:
     };
 
     // Optimized cache with integer keys instead of strings
-    QHash<quint64, PageCacheItem*> pageCache; // Use 64-bit integer key
+    QHash<quint64, PageCacheItem*> pageCache;  // Use 64-bit integer key
     int maxCacheSize;
-    qint64 maxCacheMemory; // Maximum memory usage in bytes
-    qint64 currentCacheMemory; // Current memory usage
+    qint64 maxCacheMemory;      // Maximum memory usage in bytes
+    qint64 currentCacheMemory;  // Current memory usage
 
     // LRU cache implementation
-    PageCacheItem* cacheHead; // Most recently used
-    PageCacheItem* cacheTail; // Least recently used
+    PageCacheItem* cacheHead;  // Most recently used
+    PageCacheItem* cacheTail;  // Least recently used
 
     // Cache key optimization
-    QHash<double, quint32> zoomFactorToInt; // Cache zoom factor to integer mapping
+    QHash<double, quint32>
+        zoomFactorToInt;  // Cache zoom factor to integer mapping
     quint32 nextZoomFactorId;
 
     // Cache management methods
@@ -493,7 +491,8 @@ private:
     quint32 getZoomFactorId(double zoomFactor);
     void evictLeastImportantItems();
     qint64 calculatePixmapMemorySize(const QPixmap& pixmap);
-    double calculateCacheItemImportance(const PageCacheItem& item, int currentPage);
+    double calculateCacheItemImportance(const PageCacheItem& item,
+                                        int currentPage);
 
     // LRU cache operations
     void moveToHead(PageCacheItem* item);
@@ -502,7 +501,7 @@ private:
     PageCacheItem* removeTail();
 
     // DPI optimization
-    QHash<double, double> dpiCache; // Cache DPI calculations for scale factors
+    QHash<double, double> dpiCache;  // Cache DPI calculations for scale factors
     void clearDPICache();
 
     // Render optimization
@@ -517,7 +516,7 @@ private:
     PDFPrerenderer* prerenderer;
 
     // Scroll direction tracking for optimized prerendering
-    int currentScrollDirection; // -1 = up, 0 = none, 1 = down
+    int currentScrollDirection;  // -1 = up, 0 = none, 1 = down
     QTime lastScrollTime;
 
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT

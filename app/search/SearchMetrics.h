@@ -1,27 +1,26 @@
 #pragma once
 
-#include <QObject>
-#include <QElapsedTimer>
 #include <QDateTime>
+#include <QElapsedTimer>
+#include <QObject>
 #include <memory>
 
 /**
  * Search performance metrics and monitoring
  */
-class SearchMetrics : public QObject
-{
+class SearchMetrics : public QObject {
     Q_OBJECT
 
 public:
     struct Metric {
         QString query;
-        qint64 duration;        // milliseconds
+        qint64 duration;  // milliseconds
         int resultCount;
         int pagesSearched;
         bool cacheHit;
         bool incremental;
         QDateTime timestamp;
-        qint64 memoryUsage;     // bytes
+        qint64 memoryUsage;  // bytes
     };
 
     explicit SearchMetrics(QObject* parent = nullptr);
@@ -44,13 +43,15 @@ public:
 
     // History
     QList<Metric> recentMetrics(int count = 100) const;
-    QList<Metric> metricsInRange(const QDateTime& start, const QDateTime& end) const;
+    QList<Metric> metricsInRange(const QDateTime& start,
+                                 const QDateTime& end) const;
     void clearHistory();
 
     // Performance analysis
     Metric fastestSearch() const;
     Metric slowestSearch() const;
-    double percentile(double p) const;  // e.g., percentile(0.95) for 95th percentile
+    double percentile(
+        double p) const;  // e.g., percentile(0.95) for 95th percentile
 
 signals:
     void metricsUpdated();

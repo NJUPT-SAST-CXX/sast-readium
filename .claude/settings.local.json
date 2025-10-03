@@ -28,7 +28,15 @@
       "Bash(python:*)",
       "Bash(make:*)",
       "Bash(./search_configuration_test.exe:*)",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "Bash(pre-commit:*)",
+      "Bash(detect-secrets scan:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(for file in .github/workflows/*.yml)",
+      "Bash(do echo:*)",
+      "Bash(head:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

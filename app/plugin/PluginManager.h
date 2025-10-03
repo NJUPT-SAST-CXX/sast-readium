@@ -1,21 +1,21 @@
 #pragma once
 
-#include <QObject>
-#include <QPluginLoader>
+#include <QAction>
 #include <QDir>
-#include <QJsonObject>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QLibrary>
-#include <QHash>
-#include <QStringList>
-#include <QSettings>
-#include <QTimer>
-#include <QAction>
+#include <QList>
 #include <QMenu>
+#include <QObject>
+#include <QPluginLoader>
+#include <QSettings>
+#include <QStringList>
+#include <QTimer>
 #include <QToolBar>
 #include <QWidget>
-#include <QList>
 
 /**
  * Plugin interface that all plugins must implement
@@ -24,19 +24,19 @@ class IPlugin : public QObject {
     Q_OBJECT
 public:
     virtual ~IPlugin() = default;
-    
+
     // Plugin identification
     virtual QString name() const = 0;
     virtual QString version() const = 0;
     virtual QString description() const = 0;
     virtual QString author() const = 0;
     virtual QStringList dependencies() const = 0;
-    
+
     // Plugin lifecycle
     virtual bool initialize() = 0;
     virtual void shutdown() = 0;
     virtual bool isInitialized() const = 0;
-    
+
     // Plugin capabilities
     virtual QStringList supportedFileTypes() const = 0;
     virtual QStringList providedFeatures() const = 0;
@@ -52,10 +52,11 @@ Q_DECLARE_INTERFACE(IPlugin, "com.sast.readium.IPlugin/1.0")
 class IDocumentPlugin : public IPlugin {
 public:
     virtual ~IDocumentPlugin() = default;
-    
+
     // Document operations
     virtual bool canProcess(const QString& filePath) const = 0;
-    virtual QVariant processDocument(const QString& filePath, const QJsonObject& options) = 0;
+    virtual QVariant processDocument(const QString& filePath,
+                                     const QJsonObject& options) = 0;
     virtual bool supportsFeature(const QString& feature) const = 0;
 };
 
@@ -67,7 +68,7 @@ Q_DECLARE_INTERFACE(IDocumentPlugin, "com.sast.readium.IDocumentPlugin/1.0")
 class IUIPlugin : public IPlugin {
 public:
     virtual ~IUIPlugin() = default;
-    
+
     // UI operations
     virtual QWidget* createWidget(QWidget* parent = nullptr) = 0;
     virtual QList<QAction*> getActions() const = 0;
@@ -93,7 +94,7 @@ struct PluginMetadata {
     bool isLoaded;
     bool isEnabled;
     qint64 loadTime;
-    
+
     PluginMetadata() : isLoaded(false), isEnabled(true), loadTime(0) {}
 };
 
@@ -102,15 +103,17 @@ struct PluginMetadata {
  */
 class PluginDependencyResolver {
 public:
-    static QStringList resolveDependencies(const QHash<QString, PluginMetadata>& plugins);
-    static bool hasCyclicDependencies(const QHash<QString, PluginMetadata>& plugins);
-    static QStringList getLoadOrder(const QHash<QString, PluginMetadata>& plugins);
+    static QStringList resolveDependencies(
+        const QHash<QString, PluginMetadata>& plugins);
+    static bool hasCyclicDependencies(
+        const QHash<QString, PluginMetadata>& plugins);
+    static QStringList getLoadOrder(
+        const QHash<QString, PluginMetadata>& plugins);
 
 private:
-    static void visitPlugin(const QString& pluginName, 
-                           const QHash<QString, PluginMetadata>& plugins,
-                           QHash<QString, int>& visited,
-                           QStringList& result);
+    static void visitPlugin(const QString& pluginName,
+                            const QHash<QString, PluginMetadata>& plugins,
+                            QHash<QString, int>& visited, QStringList& result);
 };
 
 /**
@@ -126,54 +129,55 @@ public:
     // Plugin discovery and loading
     void setPluginDirectories(const QStringList& directories);
     QStringList getPluginDirectories() const { return m_pluginDirectories; }
-    
+
     void scanForPlugins();
     bool loadPlugin(const QString& pluginName);
     bool unloadPlugin(const QString& pluginName);
     void loadAllPlugins();
     void unloadAllPlugins();
-    
+
     // Plugin management
     QStringList getAvailablePlugins() const;
     QStringList getLoadedPlugins() const;
     QStringList getEnabledPlugins() const;
-    
+
     bool isPluginLoaded(const QString& pluginName) const;
     bool isPluginEnabled(const QString& pluginName) const;
     void setPluginEnabled(const QString& pluginName, bool enabled);
-    
+
     // Plugin access
     IPlugin* getPlugin(const QString& pluginName) const;
-    template<typename T>
+    template <typename T>
     T* getPlugin(const QString& pluginName) const {
         return qobject_cast<T*>(getPlugin(pluginName));
     }
-    
+
     QList<IPlugin*> getPluginsByType(const QString& interfaceId) const;
     QList<IDocumentPlugin*> getDocumentPlugins() const;
     QList<IUIPlugin*> getUIPlugins() const;
-    
+
     // Plugin metadata
     PluginMetadata getPluginMetadata(const QString& pluginName) const;
     QHash<QString, PluginMetadata> getAllPluginMetadata() const;
-    
+
     // Plugin configuration
     QJsonObject getPluginConfiguration(const QString& pluginName) const;
-    void setPluginConfiguration(const QString& pluginName, const QJsonObject& config);
-    
+    void setPluginConfiguration(const QString& pluginName,
+                                const QJsonObject& config);
+
     // Feature queries
     QStringList getPluginsWithFeature(const QString& feature) const;
     QStringList getPluginsForFileType(const QString& fileType) const;
     bool isFeatureAvailable(const QString& feature) const;
-    
+
     // Plugin validation
     bool validatePlugin(const QString& filePath) const;
     QStringList getPluginErrors(const QString& pluginName) const;
-    
+
     // Settings persistence
     void loadSettings();
     void saveSettings();
-    
+
     // Hot reloading
     void enableHotReloading(bool enabled);
     bool isHotReloadingEnabled() const { return m_hotReloadingEnabled; }
@@ -222,27 +226,27 @@ private slots:
 private:
     explicit PluginManager(QObject* parent = nullptr);
     Q_DISABLE_COPY(PluginManager)
-    
+
     bool loadPluginFromFile(const QString& filePath);
     void unloadPluginInternal(const QString& pluginName);
     PluginMetadata extractMetadata(QPluginLoader* loader) const;
     bool checkDependencies(const QString& pluginName) const;
     void resolveAndLoadPlugins();
-    
+
     // Plugin storage
     QHash<QString, QPluginLoader*> m_pluginLoaders;
     QHash<QString, IPlugin*> m_loadedPlugins;
     QHash<QString, PluginMetadata> m_pluginMetadata;
     QHash<QString, QStringList> m_pluginErrors;
-    
+
     // Configuration
     QStringList m_pluginDirectories;
     QSettings* m_settings;
-    
+
     // Hot reloading
     bool m_hotReloadingEnabled;
     QTimer* m_hotReloadTimer;
     QHash<QString, qint64> m_pluginModificationTimes;
-    
+
     static PluginManager* s_instance;
 };

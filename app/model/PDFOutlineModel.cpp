@@ -3,8 +3,7 @@
 #include <QStringList>
 
 PDFOutlineModel::PDFOutlineModel(QObject* parent)
-    : QObject(parent), totalItemCount(0) {
-}
+    : QObject(parent), totalItemCount(0) {}
 
 bool PDFOutlineModel::parseOutline(Poppler::Document* document) {
     clear();
@@ -30,7 +29,8 @@ bool PDFOutlineModel::parseOutline(Poppler::Document* document) {
 
         totalItemCount = countNodes(rootNodes);
 
-        qDebug() << "PDFOutlineModel: Parsed" << totalItemCount << "outline items";
+        qDebug() << "PDFOutlineModel: Parsed" << totalItemCount
+                 << "outline items";
         emit outlineParsed();
         return true;
     } catch (const std::exception& e) {
@@ -46,32 +46,29 @@ void PDFOutlineModel::clear() {
     emit outlineCleared();
 }
 
-const QList<std::shared_ptr<PDFOutlineNode>>& PDFOutlineModel::getRootNodes() const {
+const QList<std::shared_ptr<PDFOutlineNode>>& PDFOutlineModel::getRootNodes()
+    const {
     return rootNodes;
 }
 
-bool PDFOutlineModel::hasOutline() const {
-    return !rootNodes.isEmpty();
-}
+bool PDFOutlineModel::hasOutline() const { return !rootNodes.isEmpty(); }
 
-int PDFOutlineModel::getTotalItemCount() const {
-    return totalItemCount;
-}
+int PDFOutlineModel::getTotalItemCount() const { return totalItemCount; }
 
-std::shared_ptr<PDFOutlineNode> PDFOutlineModel::findNodeByPage(int pageNumber) const {
+std::shared_ptr<PDFOutlineNode> PDFOutlineModel::findNodeByPage(
+    int pageNumber) const {
     return findNodeByPageRecursive(rootNodes, pageNumber);
 }
 
-QList<std::shared_ptr<PDFOutlineNode>> PDFOutlineModel::getFlattenedNodes() const {
+QList<std::shared_ptr<PDFOutlineNode>> PDFOutlineModel::getFlattenedNodes()
+    const {
     QList<std::shared_ptr<PDFOutlineNode>> result;
     flattenNodesRecursive(rootNodes, result);
     return result;
 }
 
 std::shared_ptr<PDFOutlineNode> PDFOutlineModel::parseOutlineItem(
-    const QList<Poppler::OutlineItem>& items,
-    int level) {
-
+    const QList<Poppler::OutlineItem>& items, int level) {
     // 创建一个虚拟根节点来容纳所有顶级项
     auto rootNode = std::make_shared<PDFOutlineNode>("", -1, level - 1);
 
@@ -97,10 +94,8 @@ std::shared_ptr<PDFOutlineNode> PDFOutlineModel::parseOutlineItem(
 }
 
 void PDFOutlineModel::parseOutlineItemRecursive(
-    const Poppler::OutlineItem& item,
-    std::shared_ptr<PDFOutlineNode> node,
+    const Poppler::OutlineItem& item, std::shared_ptr<PDFOutlineNode> node,
     int level) {
-
     if (!node) {
         qWarning() << "PDFOutlineModel: Node is null";
         return;
@@ -114,20 +109,21 @@ void PDFOutlineModel::parseOutlineItemRecursive(
     }
 
     // 设置节点基本信息
-    node->title = item.name().trimmed(); // 去除首尾空白
+    node->title = item.name().trimmed();  // 去除首尾空白
     node->level = level;
-    node->pageNumber = -1; // 默认无效页面
+    node->pageNumber = -1;  // 默认无效页面
 
     // 获取目标页面
     try {
         if (item.destination()) {
             auto dest = item.destination();
             if (dest && dest->pageNumber() > 0) {
-                node->pageNumber = dest->pageNumber() - 1; // 转换为0-based
+                node->pageNumber = dest->pageNumber() - 1;  // 转换为0-based
             }
         }
     } catch (const std::exception& e) {
-        qWarning() << "PDFOutlineModel: Error getting destination for item" << node->title << ":" << e.what();
+        qWarning() << "PDFOutlineModel: Error getting destination for item"
+                   << node->title << ":" << e.what();
     }
 
     // 递归处理子项
@@ -147,12 +143,14 @@ void PDFOutlineModel::parseOutlineItemRecursive(
                 }
             }
         } catch (const std::exception& e) {
-            qWarning() << "PDFOutlineModel: Error processing children for item" << node->title << ":" << e.what();
+            qWarning() << "PDFOutlineModel: Error processing children for item"
+                       << node->title << ":" << e.what();
         }
     }
 }
 
-int PDFOutlineModel::countNodes(const QList<std::shared_ptr<PDFOutlineNode>>& nodes) const {
+int PDFOutlineModel::countNodes(
+    const QList<std::shared_ptr<PDFOutlineNode>>& nodes) const {
     int count = 0;
 
     for (const auto& node : nodes) {
@@ -166,9 +164,7 @@ int PDFOutlineModel::countNodes(const QList<std::shared_ptr<PDFOutlineNode>>& no
 }
 
 std::shared_ptr<PDFOutlineNode> PDFOutlineModel::findNodeByPageRecursive(
-    const QList<std::shared_ptr<PDFOutlineNode>>& nodes,
-    int pageNumber) const {
-
+    const QList<std::shared_ptr<PDFOutlineNode>>& nodes, int pageNumber) const {
     // 检查页面号有效性
     if (pageNumber < 0) {
         return nullptr;
@@ -194,7 +190,8 @@ std::shared_ptr<PDFOutlineNode> PDFOutlineModel::findNodeByPageRecursive(
     return nullptr;
 }
 
-QList<std::shared_ptr<PDFOutlineNode>> PDFOutlineModel::searchByTitle(const QString& title, bool caseSensitive) const {
+QList<std::shared_ptr<PDFOutlineNode>> PDFOutlineModel::searchByTitle(
+    const QString& title, bool caseSensitive) const {
     QList<std::shared_ptr<PDFOutlineNode>> result;
     if (title.isEmpty()) {
         return result;
@@ -204,7 +201,8 @@ QList<std::shared_ptr<PDFOutlineNode>> PDFOutlineModel::searchByTitle(const QStr
     return result;
 }
 
-QList<std::shared_ptr<PDFOutlineNode>> PDFOutlineModel::getNodesByLevel(int level) const {
+QList<std::shared_ptr<PDFOutlineNode>> PDFOutlineModel::getNodesByLevel(
+    int level) const {
     QList<std::shared_ptr<PDFOutlineNode>> result;
     if (level < 0) {
         return result;
@@ -221,7 +219,6 @@ int PDFOutlineModel::getMaxDepth() const {
 void PDFOutlineModel::flattenNodesRecursive(
     const QList<std::shared_ptr<PDFOutlineNode>>& nodes,
     QList<std::shared_ptr<PDFOutlineNode>>& result) const {
-
     for (const auto& node : nodes) {
         if (node) {
             result.append(node);
@@ -231,11 +228,8 @@ void PDFOutlineModel::flattenNodesRecursive(
 }
 
 void PDFOutlineModel::searchByTitleRecursive(
-    const QList<std::shared_ptr<PDFOutlineNode>>& nodes,
-    const QString& title,
-    bool caseSensitive,
-    QList<std::shared_ptr<PDFOutlineNode>>& result) const {
-
+    const QList<std::shared_ptr<PDFOutlineNode>>& nodes, const QString& title,
+    bool caseSensitive, QList<std::shared_ptr<PDFOutlineNode>>& result) const {
     for (const auto& node : nodes) {
         if (!node) {
             continue;
@@ -259,10 +253,8 @@ void PDFOutlineModel::searchByTitleRecursive(
 }
 
 void PDFOutlineModel::getNodesByLevelRecursive(
-    const QList<std::shared_ptr<PDFOutlineNode>>& nodes,
-    int targetLevel,
+    const QList<std::shared_ptr<PDFOutlineNode>>& nodes, int targetLevel,
     QList<std::shared_ptr<PDFOutlineNode>>& result) const {
-
     for (const auto& node : nodes) {
         if (!node) {
             continue;
@@ -277,7 +269,8 @@ void PDFOutlineModel::getNodesByLevelRecursive(
     }
 }
 
-int PDFOutlineModel::getMaxDepthRecursive(const QList<std::shared_ptr<PDFOutlineNode>>& nodes) const {
+int PDFOutlineModel::getMaxDepthRecursive(
+    const QList<std::shared_ptr<PDFOutlineNode>>& nodes) const {
     int maxDepth = -1;
 
     for (const auto& node : nodes) {
@@ -316,7 +309,8 @@ QString PDFOutlineNode::getFullPath(const QString& separator) const {
     return pathParts.join(separator);
 }
 
-std::shared_ptr<PDFOutlineNode> PDFOutlineNode::findChildByTitle(const QString& title, bool caseSensitive) const {
+std::shared_ptr<PDFOutlineNode> PDFOutlineNode::findChildByTitle(
+    const QString& title, bool caseSensitive) const {
     for (const auto& child : children) {
         if (!child) {
             continue;
@@ -352,7 +346,7 @@ int PDFOutlineNode::getDescendantCount() const {
 int PDFOutlineNode::getSiblingIndex() const {
     auto parentPtr = parent.lock();
     if (!parentPtr) {
-        return -1; // 根节点或孤立节点
+        return -1;  // 根节点或孤立节点
     }
 
     for (int i = 0; i < parentPtr->children.size(); ++i) {
@@ -361,5 +355,5 @@ int PDFOutlineNode::getSiblingIndex() const {
         }
     }
 
-    return -1; // 未找到（不应该发生）
+    return -1;  // 未找到（不应该发生）
 }

@@ -1,23 +1,18 @@
 #include "TextExtractor.h"
 #include <poppler-qt6.h>
 #include <QDebug>
-#include <QRectF>
 #include <QMutexLocker>
+#include <QRectF>
 
-class TextExtractor::Implementation
-{
+class TextExtractor::Implementation {
 public:
     Implementation(TextExtractor* q)
-        : q_ptr(q)
-        , document(nullptr)
-        , cacheEnabled(true)
-    {
-    }
+        : q_ptr(q), document(nullptr), cacheEnabled(true) {}
 
-    QString extractPageTextInternal(int pageNumber)
-    {
+    QString extractPageTextInternal(int pageNumber) {
         try {
-            if (!document || pageNumber < 0 || pageNumber >= document->numPages()) {
+            if (!document || pageNumber < 0 ||
+                pageNumber >= document->numPages()) {
                 qWarning() << "Invalid page number or document:" << pageNumber;
                 return QString();
             }
@@ -49,18 +44,21 @@ public:
             return text;
 
         } catch (const std::exception& e) {
-            QString errorMsg = QString("Text extraction failed for page %1: %2").arg(pageNumber).arg(e.what());
+            QString errorMsg = QString("Text extraction failed for page %1: %2")
+                                   .arg(pageNumber)
+                                   .arg(e.what());
             emit q_ptr->extractionError(pageNumber, errorMsg);
             return QString();
         } catch (...) {
-            QString errorMsg = QString("Unknown error during text extraction for page %1").arg(pageNumber);
+            QString errorMsg =
+                QString("Unknown error during text extraction for page %1")
+                    .arg(pageNumber);
             emit q_ptr->extractionError(pageNumber, errorMsg);
             return QString();
         }
     }
 
-    qint64 calculateCacheMemoryUsage() const
-    {
+    qint64 calculateCacheMemoryUsage() const {
         QMutexLocker locker(&cacheMutex);
         qint64 totalSize = 0;
         for (const QString& text : textCache) {
@@ -77,39 +75,29 @@ public:
 };
 
 TextExtractor::TextExtractor(QObject* parent)
-    : QObject(parent)
-    , m_d(std::make_unique<Implementation>(this))
-{
-}
+    : QObject(parent), m_d(std::make_unique<Implementation>(this)) {}
 
 TextExtractor::~TextExtractor() = default;
 
-void TextExtractor::setDocument(Poppler::Document* document)
-{
+void TextExtractor::setDocument(Poppler::Document* document) {
     if (m_d->document != document) {
         clearCache();
         m_d->document = document;
     }
 }
 
-void TextExtractor::clearDocument()
-{
+void TextExtractor::clearDocument() {
     m_d->document = nullptr;
     clearCache();
 }
 
-Poppler::Document* TextExtractor::getDocument() const
-{
-    return m_d->document;
-}
+Poppler::Document* TextExtractor::getDocument() const { return m_d->document; }
 
-QString TextExtractor::extractPageText(int pageNumber)
-{
+QString TextExtractor::extractPageText(int pageNumber) {
     return m_d->extractPageTextInternal(pageNumber);
 }
 
-QStringList TextExtractor::extractPagesText(const QList<int>& pageNumbers)
-{
+QStringList TextExtractor::extractPagesText(const QList<int>& pageNumbers) {
     QStringList texts;
     int total = pageNumbers.size();
     int current = 0;
@@ -123,8 +111,7 @@ QStringList TextExtractor::extractPagesText(const QList<int>& pageNumbers)
     return texts;
 }
 
-QString TextExtractor::extractAllText()
-{
+QString TextExtractor::extractAllText() {
     if (!m_d->document) {
         return QString();
     }
@@ -141,39 +128,31 @@ QString TextExtractor::extractAllText()
     return allText;
 }
 
-void TextExtractor::setCacheEnabled(bool enabled)
-{
+void TextExtractor::setCacheEnabled(bool enabled) {
     m_d->cacheEnabled = enabled;
     if (!enabled) {
         clearCache();
     }
 }
 
-bool TextExtractor::isCacheEnabled() const
-{
-    return m_d->cacheEnabled;
-}
+bool TextExtractor::isCacheEnabled() const { return m_d->cacheEnabled; }
 
-void TextExtractor::clearCache()
-{
+void TextExtractor::clearCache() {
     QMutexLocker locker(&m_d->cacheMutex);
     m_d->textCache.clear();
 }
 
-qint64 TextExtractor::cacheMemoryUsage() const
-{
+qint64 TextExtractor::cacheMemoryUsage() const {
     return m_d->calculateCacheMemoryUsage();
 }
 
-void TextExtractor::prefetchPages(const QList<int>& pageNumbers)
-{
+void TextExtractor::prefetchPages(const QList<int>& pageNumbers) {
     for (int pageNumber : pageNumbers) {
         m_d->extractPageTextInternal(pageNumber);
     }
 }
 
-void TextExtractor::prefetchRange(int startPage, int endPage)
-{
+void TextExtractor::prefetchRange(int startPage, int endPage) {
     if (!m_d->document) {
         return;
     }

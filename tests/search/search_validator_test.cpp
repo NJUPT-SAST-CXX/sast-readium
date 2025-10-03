@@ -1,18 +1,17 @@
-#include <QtTest/QtTest>
+#include <poppler-qt6.h>
 #include <QObject>
 #include <QStringList>
 #include <QVariant>
-#include <poppler-qt6.h>
-#include "../../app/search/SearchValidator.h"
+#include <QtTest/QtTest>
 #include "../../app/search/SearchConfiguration.h"
+#include "../../app/search/SearchValidator.h"
 #include "../TestUtilities.h"
 
 /**
  * Comprehensive tests for SearchValidator class
  * Tests input validation, security checks, and business logic validation
  */
-class SearchValidatorTest : public TestBase
-{
+class SearchValidatorTest : public TestBase {
     Q_OBJECT
 
 private slots:
@@ -83,37 +82,33 @@ private:
     SearchValidator* m_validator;
     ValidationConfig m_defaultConfig;
     Poppler::Document* m_testDocument;
-    
+
     // Helper methods
     void setupTestData();
     ValidationConfig createTestConfig(ValidationLevel level = Standard);
     SearchOptions createTestOptions();
-    void verifyValidationResult(const SearchValidator::ValidationResult& result, bool expectedValid);
-    void verifyValidationError(const SearchValidator::ValidationResult& result, ValidationError expectedError);
+    void verifyValidationResult(const SearchValidator::ValidationResult& result,
+                                bool expectedValid);
+    void verifyValidationError(const SearchValidator::ValidationResult& result,
+                               ValidationError expectedError);
 };
 
-void SearchValidatorTest::initTestCase()
-{
-    setupTestData();
-}
+void SearchValidatorTest::initTestCase() { setupTestData(); }
 
-void SearchValidatorTest::cleanupTestCase()
-{
+void SearchValidatorTest::cleanupTestCase() {
     if (m_testDocument) {
         delete m_testDocument;
         m_testDocument = nullptr;
     }
 }
 
-void SearchValidatorTest::init()
-{
+void SearchValidatorTest::init() {
     m_defaultConfig = createTestConfig();
     m_validator = new SearchValidator(m_defaultConfig);
     QVERIFY(m_validator != nullptr);
 }
 
-void SearchValidatorTest::cleanup()
-{
+void SearchValidatorTest::cleanup() {
     if (m_validator) {
         m_validator->resetValidationStats();
         delete m_validator;
@@ -121,286 +116,277 @@ void SearchValidatorTest::cleanup()
     }
 }
 
-void SearchValidatorTest::testValidationLevels()
-{
+void SearchValidatorTest::testValidationLevels() {
     // Test different validation levels
     m_validator->setValidationLevel(Basic);
     QCOMPARE(m_validator->getValidationLevel(), Basic);
-    
+
     m_validator->setValidationLevel(Standard);
     QCOMPARE(m_validator->getValidationLevel(), Standard);
-    
+
     m_validator->setValidationLevel(Strict);
     QCOMPARE(m_validator->getValidationLevel(), Strict);
-    
+
     m_validator->setValidationLevel(Paranoid);
     QCOMPARE(m_validator->getValidationLevel(), Paranoid);
 }
 
-void SearchValidatorTest::testValidationConfig()
-{
+void SearchValidatorTest::testValidationConfig() {
     ValidationConfig config = createTestConfig(Strict);
     config.minQueryLength = 2;
     config.maxQueryLength = 500;
     config.allowSpecialCharacters = false;
-    
+
     m_validator->setValidationConfig(config);
     ValidationConfig retrievedConfig = m_validator->getValidationConfig();
-    
+
     QCOMPARE(retrievedConfig.level, Strict);
     QCOMPARE(retrievedConfig.minQueryLength, 2);
     QCOMPARE(retrievedConfig.maxQueryLength, 500);
     QCOMPARE(retrievedConfig.allowSpecialCharacters, false);
 }
 
-void SearchValidatorTest::testConfigurationChanges()
-{
+void SearchValidatorTest::testConfigurationChanges() {
     ValidationConfig config1 = createTestConfig(Basic);
     ValidationConfig config2 = createTestConfig(Paranoid);
-    
+
     m_validator->setValidationConfig(config1);
-    auto result1 = m_validator->validateQuery("a"); // Very short query
-    
+    auto result1 = m_validator->validateQuery("a");  // Very short query
+
     m_validator->setValidationConfig(config2);
-    auto result2 = m_validator->validateQuery("a"); // Same query, different config
-    
+    auto result2 =
+        m_validator->validateQuery("a");  // Same query, different config
+
     // Results should be different due to different validation levels
-    QVERIFY(result1.isValid != result2.isValid || result1.errors != result2.errors);
+    QVERIFY(result1.isValid != result2.isValid ||
+            result1.errors != result2.errors);
 }
 
-void SearchValidatorTest::testValidateQuery()
-{
+void SearchValidatorTest::testValidateQuery() {
     // Test valid queries
     auto result1 = m_validator->validateQuery("test");
     verifyValidationResult(result1, true);
-    
+
     auto result2 = m_validator->validateQuery("multiple word query");
     verifyValidationResult(result2, true);
-    
+
     auto result3 = m_validator->validateQuery("query with 123 numbers");
     verifyValidationResult(result3, true);
-    
+
     // Test invalid queries
     auto result4 = m_validator->validateQuery("");
     verifyValidationResult(result4, false);
     verifyValidationError(result4, EmptyInput);
-    
-    auto result5 = m_validator->validateQuery("   "); // Only whitespace
+
+    auto result5 = m_validator->validateQuery("   ");  // Only whitespace
     verifyValidationResult(result5, false);
     verifyValidationError(result5, EmptyInput);
 }
 
-void SearchValidatorTest::testValidateQueryWithOptions()
-{
+void SearchValidatorTest::testValidateQueryWithOptions() {
     SearchOptions options = createTestOptions();
     options.useRegex = true;
-    
+
     // Test valid regex query
     auto result1 = m_validator->validateQueryWithOptions("test.*", options);
     verifyValidationResult(result1, true);
-    
+
     // Test invalid regex query
     auto result2 = m_validator->validateQueryWithOptions("[invalid", options);
     verifyValidationResult(result2, false);
     verifyValidationError(result2, InvalidFormat);
-    
+
     // Test non-regex query with regex option
     options.useRegex = false;
     auto result3 = m_validator->validateQueryWithOptions("test.*", options);
     verifyValidationResult(result3, true);
 }
 
-void SearchValidatorTest::testSanitizeQuery()
-{
+void SearchValidatorTest::testSanitizeQuery() {
     QString sanitized1 = m_validator->sanitizeQuery("  test  ");
     QCOMPARE(sanitized1, QString("test"));
-    
+
     QString sanitized2 = m_validator->sanitizeQuery("test\n\r\t");
     QVERIFY(!sanitized2.contains('\n'));
     QVERIFY(!sanitized2.contains('\r'));
     QVERIFY(!sanitized2.contains('\t'));
-    
+
     QString sanitized3 = m_validator->sanitizeQuery("test<script>");
     QVERIFY(!sanitized3.contains('<'));
     QVERIFY(!sanitized3.contains('>'));
 }
 
-void SearchValidatorTest::testIsQuerySafe()
-{
+void SearchValidatorTest::testIsQuerySafe() {
     QVERIFY(m_validator->isQuerySafe("test"));
     QVERIFY(m_validator->isQuerySafe("multiple words"));
     QVERIFY(m_validator->isQuerySafe("query with 123"));
-    
+
     // Test potentially unsafe queries
     QVERIFY(!m_validator->isQuerySafe("<script>"));
     QVERIFY(!m_validator->isQuerySafe("'; DROP TABLE;"));
     QVERIFY(!m_validator->isQuerySafe("../../../etc/passwd"));
 }
 
-void SearchValidatorTest::testQueryLengthValidation()
-{
+void SearchValidatorTest::testQueryLengthValidation() {
     ValidationConfig config = createTestConfig();
     config.minQueryLength = 3;
     config.maxQueryLength = 10;
     m_validator->setValidationConfig(config);
-    
+
     // Test too short
     auto result1 = m_validator->validateQuery("ab");
     verifyValidationResult(result1, false);
     verifyValidationError(result1, InvalidLength);
-    
+
     // Test valid length
     auto result2 = m_validator->validateQuery("test");
     verifyValidationResult(result2, true);
-    
+
     // Test too long
     auto result3 = m_validator->validateQuery("this is a very long query");
     verifyValidationResult(result3, false);
     verifyValidationError(result3, InvalidLength);
 }
 
-void SearchValidatorTest::testSpecialCharacterValidation()
-{
+void SearchValidatorTest::testSpecialCharacterValidation() {
     ValidationConfig config = createTestConfig();
     config.allowSpecialCharacters = false;
     m_validator->setValidationConfig(config);
-    
+
     auto result1 = m_validator->validateQuery("test");
     verifyValidationResult(result1, true);
-    
+
     auto result2 = m_validator->validateQuery("test@#$");
     verifyValidationResult(result2, false);
     verifyValidationError(result2, InvalidCharacters);
-    
+
     // Test with special characters allowed
     config.allowSpecialCharacters = true;
     m_validator->setValidationConfig(config);
-    
+
     auto result3 = m_validator->validateQuery("test@#$");
     verifyValidationResult(result3, true);
 }
 
-void SearchValidatorTest::testValidateSearchOptions()
-{
+void SearchValidatorTest::testValidateSearchOptions() {
     SearchOptions validOptions = createTestOptions();
     auto result1 = m_validator->validateSearchOptions(validOptions);
     verifyValidationResult(result1, true);
-    
+
     SearchOptions invalidOptions = createTestOptions();
-    invalidOptions.maxResults = -1; // Invalid
+    invalidOptions.maxResults = -1;  // Invalid
     auto result2 = m_validator->validateSearchOptions(invalidOptions);
     verifyValidationResult(result2, false);
     verifyValidationError(result2, InvalidRange);
-    
-    invalidOptions.maxResults = 100000; // Too large
+
+    invalidOptions.maxResults = 100000;  // Too large
     auto result3 = m_validator->validateSearchOptions(invalidOptions);
     verifyValidationResult(result3, false);
     verifyValidationError(result3, ResourceLimit);
 }
 
-void SearchValidatorTest::testValidatePageRange()
-{
+void SearchValidatorTest::testValidatePageRange() {
     int totalPages = 100;
-    
+
     // Valid ranges
     auto result1 = m_validator->validatePageRange(1, 10, totalPages);
     verifyValidationResult(result1, true);
-    
-    auto result2 = m_validator->validatePageRange(-1, -1, totalPages); // All pages
+
+    auto result2 =
+        m_validator->validatePageRange(-1, -1, totalPages);  // All pages
     verifyValidationResult(result2, true);
-    
+
     // Invalid ranges
-    auto result3 = m_validator->validatePageRange(10, 5, totalPages); // Start > end
+    auto result3 =
+        m_validator->validatePageRange(10, 5, totalPages);  // Start > end
     verifyValidationResult(result3, false);
     verifyValidationError(result3, InvalidRange);
-    
-    auto result4 = m_validator->validatePageRange(1, 200, totalPages); // End > total
+
+    auto result4 =
+        m_validator->validatePageRange(1, 200, totalPages);  // End > total
     verifyValidationResult(result4, false);
     verifyValidationError(result4, InvalidRange);
-    
-    auto result5 = m_validator->validatePageRange(-5, 10, totalPages); // Negative start
+
+    auto result5 =
+        m_validator->validatePageRange(-5, 10, totalPages);  // Negative start
     verifyValidationResult(result5, false);
     verifyValidationError(result5, InvalidRange);
 }
 
-void SearchValidatorTest::testValidateResultLimits()
-{
+void SearchValidatorTest::testValidateResultLimits() {
     // Valid limits
     auto result1 = m_validator->validateResultLimits(100, 50);
     verifyValidationResult(result1, true);
-    
+
     auto result2 = m_validator->validateResultLimits(1, 1);
     verifyValidationResult(result2, true);
-    
+
     // Invalid limits
-    auto result3 = m_validator->validateResultLimits(0, 50); // Zero results
+    auto result3 = m_validator->validateResultLimits(0, 50);  // Zero results
     verifyValidationResult(result3, false);
     verifyValidationError(result3, InvalidRange);
-    
-    auto result4 = m_validator->validateResultLimits(100, -1); // Negative context
+
+    auto result4 =
+        m_validator->validateResultLimits(100, -1);  // Negative context
     verifyValidationResult(result4, false);
     verifyValidationError(result4, InvalidRange);
-    
-    auto result5 = m_validator->validateResultLimits(100000, 50); // Too many results
+
+    auto result5 =
+        m_validator->validateResultLimits(100000, 50);  // Too many results
     verifyValidationResult(result5, false);
     verifyValidationError(result5, ResourceLimit);
 }
 
-void SearchValidatorTest::testValidateDocument()
-{
+void SearchValidatorTest::testValidateDocument() {
     // Test valid document
     auto result1 = m_validator->validateDocument(m_testDocument);
     verifyValidationResult(result1, true);
-    
+
     // Test null document
     auto result2 = m_validator->validateDocument(nullptr);
     verifyValidationResult(result2, false);
     verifyValidationError(result2, EmptyInput);
 }
 
-void SearchValidatorTest::testValidatePageNumber()
-{
+void SearchValidatorTest::testValidatePageNumber() {
     int totalPages = 10;
-    
+
     // Valid page numbers
     auto result1 = m_validator->validatePageNumber(0, totalPages);
     verifyValidationResult(result1, true);
-    
+
     auto result2 = m_validator->validatePageNumber(9, totalPages);
     verifyValidationResult(result2, true);
-    
+
     // Invalid page numbers
     auto result3 = m_validator->validatePageNumber(-1, totalPages);
     verifyValidationResult(result3, false);
     verifyValidationError(result3, InvalidRange);
-    
+
     auto result4 = m_validator->validatePageNumber(10, totalPages);
     verifyValidationResult(result4, false);
     verifyValidationError(result4, InvalidRange);
 }
 
-void SearchValidatorTest::testValidatePageNumbers()
-{
+void SearchValidatorTest::testValidatePageNumbers() {
     int totalPages = 10;
     QList<int> validPages = {0, 1, 2, 5, 9};
     QList<int> invalidPages = {-1, 0, 1, 10, 15};
-    
+
     auto result1 = m_validator->validatePageNumbers(validPages, totalPages);
     verifyValidationResult(result1, true);
-    
+
     auto result2 = m_validator->validatePageNumbers(invalidPages, totalPages);
     verifyValidationResult(result2, false);
     verifyValidationError(result2, InvalidRange);
 }
 
-void SearchValidatorTest::setupTestData()
-{
+void SearchValidatorTest::setupTestData() {
     // Create a minimal test document
-    m_testDocument = nullptr; // Would need actual PDF for full testing
+    m_testDocument = nullptr;  // Would need actual PDF for full testing
 }
 
-ValidationConfig SearchValidatorTest::createTestConfig(ValidationLevel level)
-{
+ValidationConfig SearchValidatorTest::createTestConfig(ValidationLevel level) {
     ValidationConfig config;
     config.level = level;
     config.minQueryLength = 1;
@@ -416,8 +402,7 @@ ValidationConfig SearchValidatorTest::createTestConfig(ValidationLevel level)
     return config;
 }
 
-SearchOptions SearchValidatorTest::createTestOptions()
-{
+SearchOptions SearchValidatorTest::createTestOptions() {
     SearchOptions options;
     options.maxResults = 100;
     options.contextLength = 50;
@@ -425,8 +410,8 @@ SearchOptions SearchValidatorTest::createTestOptions()
     return options;
 }
 
-void SearchValidatorTest::verifyValidationResult(const SearchValidator::ValidationResult& result, bool expectedValid)
-{
+void SearchValidatorTest::verifyValidationResult(
+    const SearchValidator::ValidationResult& result, bool expectedValid) {
     QCOMPARE(result.isValid, expectedValid);
     if (!expectedValid) {
         QVERIFY(!result.errorMessages.isEmpty());
@@ -434,8 +419,9 @@ void SearchValidatorTest::verifyValidationResult(const SearchValidator::Validati
     }
 }
 
-void SearchValidatorTest::verifyValidationError(const SearchValidator::ValidationResult& result, ValidationError expectedError)
-{
+void SearchValidatorTest::verifyValidationError(
+    const SearchValidator::ValidationResult& result,
+    ValidationError expectedError) {
     QVERIFY(result.hasError(expectedError));
 }
 

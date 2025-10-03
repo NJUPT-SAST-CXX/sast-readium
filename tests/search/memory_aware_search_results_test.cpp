@@ -1,7 +1,7 @@
-#include <QtTest/QtTest>
+#include <QList>
 #include <QObject>
 #include <QSignalSpy>
-#include <QList>
+#include <QtTest/QtTest>
 #include "../../app/search/MemoryManager.h"
 #include "../../app/search/SearchConfiguration.h"
 #include "../TestUtilities.h"
@@ -10,8 +10,7 @@
  * Comprehensive tests for MemoryAwareSearchResults implementation
  * Tests memory management, lazy loading, and result handling
  */
-class MemoryAwareSearchResultsTest : public TestBase
-{
+class MemoryAwareSearchResultsTest : public TestBase {
     Q_OBJECT
 
 protected:
@@ -54,7 +53,7 @@ private slots:
 private:
     MemoryAwareSearchResults* m_memoryResults;
     QList<SearchResult> m_testResults;
-    
+
     // Helper methods
     SearchResult createTestResult(const QString& text, int page, int position);
     QList<SearchResult> createTestResults(int count);
@@ -62,18 +61,15 @@ private:
     qint64 calculateExpectedMemoryUsage(const QList<SearchResult>& results);
 };
 
-void MemoryAwareSearchResultsTest::initTestCase()
-{
+void MemoryAwareSearchResultsTest::initTestCase() {
     qDebug() << "Starting MemoryAwareSearchResults tests";
 }
 
-void MemoryAwareSearchResultsTest::cleanupTestCase()
-{
+void MemoryAwareSearchResultsTest::cleanupTestCase() {
     qDebug() << "MemoryAwareSearchResults tests completed";
 }
 
-void MemoryAwareSearchResultsTest::init()
-{
+void MemoryAwareSearchResultsTest::init() {
     qDebug() << "Creating MemoryAwareSearchResults object...";
     try {
         m_memoryResults = new MemoryAwareSearchResults(this);
@@ -89,15 +85,13 @@ void MemoryAwareSearchResultsTest::init()
     }
 }
 
-void MemoryAwareSearchResultsTest::cleanup()
-{
+void MemoryAwareSearchResultsTest::cleanup() {
     delete m_memoryResults;
     m_memoryResults = nullptr;
     m_testResults.clear();
 }
 
-void MemoryAwareSearchResultsTest::testAddResults()
-{
+void MemoryAwareSearchResultsTest::testAddResults() {
     qDebug() << "Starting testAddResults...";
 
     // Defensive check - ensure object is properly initialized
@@ -130,19 +124,22 @@ void MemoryAwareSearchResultsTest::testAddResults()
 
         qDebug() << "Basic functionality test passed.";
     } catch (const std::exception& e) {
-        QFAIL(QString("Exception in testAddResults: %1").arg(e.what()).toLocal8Bit().data());
+        QFAIL(QString("Exception in testAddResults: %1")
+                  .arg(e.what())
+                  .toLocal8Bit()
+                  .data());
     } catch (...) {
         QFAIL("Unknown exception in testAddResults");
     }
 }
 
-void MemoryAwareSearchResultsTest::testAddResultsMemoryLimit()
-{
+void MemoryAwareSearchResultsTest::testAddResultsMemoryLimit() {
     qDebug() << "Testing memory limit functionality...";
 
     // Set a very low memory limit
-    m_memoryResults->setMaxMemoryUsage(1000); // 1KB
-    qDebug() << "Set memory limit to:" << m_memoryResults->getMaxMemoryUsage() << "bytes";
+    m_memoryResults->setMaxMemoryUsage(1000);  // 1KB
+    qDebug() << "Set memory limit to:" << m_memoryResults->getMaxMemoryUsage()
+             << "bytes";
 
     // Add large results that exceed limit
     QList<SearchResult> largeResults = createTestResults(100);
@@ -157,11 +154,10 @@ void MemoryAwareSearchResultsTest::testAddResultsMemoryLimit()
     qDebug() << "Max memory usage:" << maxUsage << "bytes";
 
     // Memory should be within limits (allowing some tolerance for overhead)
-    QVERIFY(currentUsage <= maxUsage * 1.1); // Allow 10% tolerance
+    QVERIFY(currentUsage <= maxUsage * 1.1);  // Allow 10% tolerance
 }
 
-void MemoryAwareSearchResultsTest::testClearResults()
-{
+void MemoryAwareSearchResultsTest::testClearResults() {
     qDebug() << "Testing clear results functionality...";
 
     // Add results first
@@ -176,19 +172,19 @@ void MemoryAwareSearchResultsTest::testClearResults()
     // Verify results were cleared
     QCOMPARE(m_memoryResults->getResultCount(), 0);
     QCOMPARE(m_memoryResults->getCurrentMemoryUsage(), 0);
-    qDebug() << "Clear test passed - count:" << m_memoryResults->getResultCount()
+    qDebug() << "Clear test passed - count:"
+             << m_memoryResults->getResultCount()
              << "memory:" << m_memoryResults->getCurrentMemoryUsage();
 }
 
-void MemoryAwareSearchResultsTest::testGetResults()
-{
+void MemoryAwareSearchResultsTest::testGetResults() {
     // Add test results
     m_memoryResults->addResults(m_testResults);
-    
+
     // Get all results
     QList<SearchResult> retrieved = m_memoryResults->getResults();
     QCOMPARE(retrieved.size(), m_testResults.size());
-    
+
     // Verify content matches
     for (int i = 0; i < retrieved.size(); ++i) {
         QCOMPARE(retrieved[i].matchedText, m_testResults[i].matchedText);
@@ -196,159 +192,154 @@ void MemoryAwareSearchResultsTest::testGetResults()
     }
 }
 
-void MemoryAwareSearchResultsTest::testGetResultsRange()
-{
+void MemoryAwareSearchResultsTest::testGetResultsRange() {
     // Add test results
     m_memoryResults->addResults(m_testResults);
-    
+
     // Get partial results
     QList<SearchResult> partial = m_memoryResults->getResults(2, 3);
     QCOMPARE(partial.size(), 3);
-    
+
     // Verify correct range
     for (int i = 0; i < partial.size(); ++i) {
         QCOMPARE(partial[i].matchedText, m_testResults[i + 2].matchedText);
     }
-    
+
     // Test edge cases
     QList<SearchResult> empty = m_memoryResults->getResults(100, 5);
     QVERIFY(empty.isEmpty());
-    
+
     QList<SearchResult> fromEnd = m_memoryResults->getResults(8, -1);
-    QCOMPARE(fromEnd.size(), 2); // Should get last 2 results
+    QCOMPARE(fromEnd.size(), 2);  // Should get last 2 results
 }
 
-void MemoryAwareSearchResultsTest::testMemoryUsageTracking()
-{
+void MemoryAwareSearchResultsTest::testMemoryUsageTracking() {
     qint64 initialMemory = m_memoryResults->getCurrentMemoryUsage();
     QCOMPARE(initialMemory, 0);
-    
+
     // Add results and check memory increases
     m_memoryResults->addResults(m_testResults);
     qint64 afterAdd = m_memoryResults->getCurrentMemoryUsage();
     QVERIFY(afterAdd > initialMemory);
-    
+
     // Clear and check memory resets
     m_memoryResults->clearResults();
     qint64 afterClear = m_memoryResults->getCurrentMemoryUsage();
     QCOMPARE(afterClear, 0);
 }
 
-void MemoryAwareSearchResultsTest::testMemoryOptimization()
-{
-    QSignalSpy optimizedSpy(m_memoryResults, &MemoryAwareSearchResults::memoryOptimized);
-    
+void MemoryAwareSearchResultsTest::testMemoryOptimization() {
+    QSignalSpy optimizedSpy(m_memoryResults,
+                            &MemoryAwareSearchResults::memoryOptimized);
+
     // Add results
     m_memoryResults->addResults(m_testResults);
     qint64 beforeOptimization = m_memoryResults->getCurrentMemoryUsage();
-    
+
     // Set lower memory limit to force optimization
     m_memoryResults->setMaxMemoryUsage(beforeOptimization / 2);
     m_memoryResults->optimizeMemoryUsage();
-    
+
     // Should have freed memory
     QVERIFY(optimizedSpy.count() > 0);
     QVERIFY(m_memoryResults->getCurrentMemoryUsage() < beforeOptimization);
 }
 
-void MemoryAwareSearchResultsTest::testMaxMemoryUsage()
-{
+void MemoryAwareSearchResultsTest::testMaxMemoryUsage() {
     // Test default max memory
     qint64 defaultMax = m_memoryResults->getMaxMemoryUsage();
     QVERIFY(defaultMax > 0);
-    
+
     // Set new max memory
-    qint64 newMax = 10 * 1024 * 1024; // 10MB
+    qint64 newMax = 10 * 1024 * 1024;  // 10MB
     m_memoryResults->setMaxMemoryUsage(newMax);
     QCOMPARE(m_memoryResults->getMaxMemoryUsage(), newMax);
 }
 
-void MemoryAwareSearchResultsTest::testLazyLoading()
-{
+void MemoryAwareSearchResultsTest::testLazyLoading() {
     // Test default state
     QVERIFY(!m_memoryResults->isLazyLoadingEnabled());
-    
+
     // Enable lazy loading
     m_memoryResults->enableLazyLoading(true);
     QVERIFY(m_memoryResults->isLazyLoadingEnabled());
-    
+
     // Add results
     m_memoryResults->addResults(m_testResults);
-    
+
     // Disable lazy loading
     m_memoryResults->enableLazyLoading(false);
     QVERIFY(!m_memoryResults->isLazyLoadingEnabled());
 }
 
-void MemoryAwareSearchResultsTest::testLazyLoadingPreload()
-{
-    QSignalSpy lazyLoadSpy(m_memoryResults, &MemoryAwareSearchResults::lazyLoadRequested);
-    
+void MemoryAwareSearchResultsTest::testLazyLoadingPreload() {
+    QSignalSpy lazyLoadSpy(m_memoryResults,
+                           &MemoryAwareSearchResults::lazyLoadRequested);
+
     // Enable lazy loading and add results
     m_memoryResults->enableLazyLoading(true);
-    m_memoryResults->addResults(createTestResults(200)); // Large set
-    
+    m_memoryResults->addResults(createTestResults(200));  // Large set
+
     // Preload specific range
     m_memoryResults->preloadResults(50, 25);
-    
+
     // Should have requested lazy loading for unloaded pages
     // The exact count depends on implementation details
     QVERIFY(lazyLoadSpy.count() >= 0);
 }
 
-void MemoryAwareSearchResultsTest::testSignalEmission()
-{
-    QSignalSpy addedSpy(m_memoryResults, &MemoryAwareSearchResults::resultsAdded);
-    QSignalSpy clearedSpy(m_memoryResults, &MemoryAwareSearchResults::resultsCleared);
-    QSignalSpy optimizedSpy(m_memoryResults, &MemoryAwareSearchResults::memoryOptimized);
-    
+void MemoryAwareSearchResultsTest::testSignalEmission() {
+    QSignalSpy addedSpy(m_memoryResults,
+                        &MemoryAwareSearchResults::resultsAdded);
+    QSignalSpy clearedSpy(m_memoryResults,
+                          &MemoryAwareSearchResults::resultsCleared);
+    QSignalSpy optimizedSpy(m_memoryResults,
+                            &MemoryAwareSearchResults::memoryOptimized);
+
     // Test resultsAdded signal
     m_memoryResults->addResults(m_testResults);
     QCOMPARE(addedSpy.count(), 1);
-    
+
     // Test resultsCleared signal
     m_memoryResults->clearResults();
     QCOMPARE(clearedSpy.count(), 1);
-    
+
     // Test memoryOptimized signal (by setting low memory limit)
     m_memoryResults->addResults(m_testResults);
-    m_memoryResults->setMaxMemoryUsage(100); // Very low limit
+    m_memoryResults->setMaxMemoryUsage(100);  // Very low limit
     QVERIFY(optimizedSpy.count() > 0);
 }
 
-void MemoryAwareSearchResultsTest::testEmptyResults()
-{
+void MemoryAwareSearchResultsTest::testEmptyResults() {
     // Test operations on empty results
     QCOMPARE(m_memoryResults->getResultCount(), 0);
     QCOMPARE(m_memoryResults->getCurrentMemoryUsage(), 0);
-    
+
     QList<SearchResult> empty = m_memoryResults->getResults();
     QVERIFY(empty.isEmpty());
-    
+
     // Clear empty results should not crash
     m_memoryResults->clearResults();
     QCOMPARE(m_memoryResults->getResultCount(), 0);
 }
 
-void MemoryAwareSearchResultsTest::testInvalidRanges()
-{
+void MemoryAwareSearchResultsTest::testInvalidRanges() {
     m_memoryResults->addResults(m_testResults);
-    
+
     // Test invalid start index
     QList<SearchResult> invalid1 = m_memoryResults->getResults(-1, 5);
     QVERIFY(invalid1.isEmpty());
-    
+
     // Test start index beyond range
     QList<SearchResult> invalid2 = m_memoryResults->getResults(100, 5);
     QVERIFY(invalid2.isEmpty());
-    
+
     // Test zero count
     QList<SearchResult> invalid3 = m_memoryResults->getResults(0, 0);
     QVERIFY(invalid3.isEmpty());
 }
 
-void MemoryAwareSearchResultsTest::testLargeResultSets()
-{
+void MemoryAwareSearchResultsTest::testLargeResultSets() {
     // Create large result set
     QList<SearchResult> largeResults = createTestResults(1000);
 
@@ -365,8 +356,7 @@ void MemoryAwareSearchResultsTest::testLargeResultSets()
     QCOMPARE(partial.size(), 100);
 }
 
-void MemoryAwareSearchResultsTest::testResultCount()
-{
+void MemoryAwareSearchResultsTest::testResultCount() {
     // Test initial count
     QCOMPARE(m_memoryResults->getResultCount(), 0);
 
@@ -379,9 +369,9 @@ void MemoryAwareSearchResultsTest::testResultCount()
     QCOMPARE(m_memoryResults->getResultCount(), 0);
 }
 
-void MemoryAwareSearchResultsTest::testMemoryPressureHandling()
-{
-    QSignalSpy optimizedSpy(m_memoryResults, &MemoryAwareSearchResults::memoryOptimized);
+void MemoryAwareSearchResultsTest::testMemoryPressureHandling() {
+    QSignalSpy optimizedSpy(m_memoryResults,
+                            &MemoryAwareSearchResults::memoryOptimized);
 
     // Add results
     m_memoryResults->addResults(m_testResults);
@@ -391,12 +381,13 @@ void MemoryAwareSearchResultsTest::testMemoryPressureHandling()
 
     // Should trigger memory optimization
     QVERIFY(optimizedSpy.count() > 0);
-    QVERIFY(m_memoryResults->getCurrentMemoryUsage() <= m_memoryResults->getMaxMemoryUsage());
+    QVERIFY(m_memoryResults->getCurrentMemoryUsage() <=
+            m_memoryResults->getMaxMemoryUsage());
 }
 
-void MemoryAwareSearchResultsTest::testLazyLoadingSignals()
-{
-    QSignalSpy lazyLoadSpy(m_memoryResults, &MemoryAwareSearchResults::lazyLoadRequested);
+void MemoryAwareSearchResultsTest::testLazyLoadingSignals() {
+    QSignalSpy lazyLoadSpy(m_memoryResults,
+                           &MemoryAwareSearchResults::lazyLoadRequested);
 
     // Enable lazy loading
     m_memoryResults->enableLazyLoading(true);
@@ -411,9 +402,9 @@ void MemoryAwareSearchResultsTest::testLazyLoadingSignals()
     QVERIFY(lazyLoadSpy.count() >= 0);
 }
 
-void MemoryAwareSearchResultsTest::testResultsAddedSignal()
-{
-    QSignalSpy addedSpy(m_memoryResults, &MemoryAwareSearchResults::resultsAdded);
+void MemoryAwareSearchResultsTest::testResultsAddedSignal() {
+    QSignalSpy addedSpy(m_memoryResults,
+                        &MemoryAwareSearchResults::resultsAdded);
 
     // Add results
     m_memoryResults->addResults(m_testResults);
@@ -426,9 +417,9 @@ void MemoryAwareSearchResultsTest::testResultsAddedSignal()
     QCOMPARE(arguments.at(0).toInt(), m_testResults.size());
 }
 
-void MemoryAwareSearchResultsTest::testResultsClearedSignal()
-{
-    QSignalSpy clearedSpy(m_memoryResults, &MemoryAwareSearchResults::resultsCleared);
+void MemoryAwareSearchResultsTest::testResultsClearedSignal() {
+    QSignalSpy clearedSpy(m_memoryResults,
+                          &MemoryAwareSearchResults::resultsCleared);
 
     // Add results first
     m_memoryResults->addResults(m_testResults);
@@ -440,9 +431,9 @@ void MemoryAwareSearchResultsTest::testResultsClearedSignal()
     QCOMPARE(clearedSpy.count(), 1);
 }
 
-void MemoryAwareSearchResultsTest::testMemoryOptimizedSignal()
-{
-    QSignalSpy optimizedSpy(m_memoryResults, &MemoryAwareSearchResults::memoryOptimized);
+void MemoryAwareSearchResultsTest::testMemoryOptimizedSignal() {
+    QSignalSpy optimizedSpy(m_memoryResults,
+                            &MemoryAwareSearchResults::memoryOptimized);
 
     // Add results
     m_memoryResults->addResults(m_testResults);
@@ -455,12 +446,13 @@ void MemoryAwareSearchResultsTest::testMemoryOptimizedSignal()
 
     // Verify signal arguments
     QList<QVariant> arguments = optimizedSpy.takeFirst();
-    QVERIFY(arguments.at(0).toLongLong() >= 0); // Memory freed amount
+    QVERIFY(arguments.at(0).toLongLong() >= 0);  // Memory freed amount
 }
 
 // Helper methods implementation
-SearchResult MemoryAwareSearchResultsTest::createTestResult(const QString& text, int page, int position)
-{
+SearchResult MemoryAwareSearchResultsTest::createTestResult(const QString& text,
+                                                            int page,
+                                                            int position) {
     SearchResult result;
     result.matchedText = text;
     result.contextText = QString("Context for %1").arg(text);
@@ -472,15 +464,12 @@ SearchResult MemoryAwareSearchResultsTest::createTestResult(const QString& text,
     return result;
 }
 
-QList<SearchResult> MemoryAwareSearchResultsTest::createTestResults(int count)
-{
+QList<SearchResult> MemoryAwareSearchResultsTest::createTestResults(int count) {
     QList<SearchResult> results;
     for (int i = 0; i < count; ++i) {
-        results.append(createTestResult(
-            QString("Test result %1 with some content").arg(i),
-            i / 3 + 1,
-            i * 10
-        ));
+        results.append(
+            createTestResult(QString("Test result %1 with some content").arg(i),
+                             i / 3 + 1, i * 10));
     }
     return results;
 }

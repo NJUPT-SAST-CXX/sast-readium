@@ -1,19 +1,19 @@
-#include <QTest>
-#include <QSignalSpy>
-#include <QTimer>
-#include <QEventLoop>
-#include <QStandardPaths>
-#include <QElapsedTimer>
-#include <QCoreApplication>
-#include <QFile>
-#include <QByteArray>
-#include <QDebug>
 #include <poppler/qt6/poppler-qt6.h>
-#include "../TestUtilities.h"
-#include "../../app/ui/viewer/PDFViewer.h"
+#include <QByteArray>
+#include <QCoreApplication>
+#include <QDebug>
+#include <QElapsedTimer>
+#include <QEventLoop>
+#include <QFile>
+#include <QSignalSpy>
+#include <QStandardPaths>
+#include <QTest>
+#include <QTimer>
 #include "../../app/controller/ApplicationController.h"
 #include "../../app/controller/ServiceLocator.h"
 #include "../../app/factory/ModelFactory.h"
+#include "../../app/ui/viewer/PDFViewer.h"
+#include "../TestUtilities.h"
 
 class MockDocumentService : public QObject {
     Q_OBJECT
@@ -23,8 +23,7 @@ public:
     QString documentPath() const { return "test.pdf"; }
 };
 
-class TestRenderingModeSwitch : public TestBase
-{
+class TestRenderingModeSwitch : public TestBase {
     Q_OBJECT
 
 private slots:
@@ -32,7 +31,7 @@ private slots:
     void cleanupTestCase() override;
     void init() override;
     void cleanup() override;
-    
+
     // Integration tests
     void testModeSwitch();
     void testStatePreservation();
@@ -46,47 +45,44 @@ private slots:
 
 private:
     Poppler::Document* createTestDocument();
-    void verifyViewerState(PDFViewer* viewer, int expectedPage, double expectedZoom, int expectedRotation);
+    void verifyViewerState(PDFViewer* viewer, int expectedPage,
+                           double expectedZoom, int expectedRotation);
     void performStandardOperations(PDFViewer* viewer);
     void setupServices();
     void teardownServices();
-    
+
     PDFViewer* m_viewer;
     Poppler::Document* m_testDocument;
     ApplicationController* m_appController;
     ModelFactory* m_modelFactory;
 };
 
-void TestRenderingModeSwitch::initTestCase()
-{
+void TestRenderingModeSwitch::initTestCase() {
     // Initialize service locator and factories
     setupServices();
-    
+
     // Create test document
     m_testDocument = createTestDocument();
     QVERIFY(m_testDocument != nullptr);
 }
 
-void TestRenderingModeSwitch::cleanupTestCase()
-{
+void TestRenderingModeSwitch::cleanupTestCase() {
     teardownServices();
-    
+
     if (m_testDocument) {
         delete m_testDocument;
         m_testDocument = nullptr;
     }
 }
 
-void TestRenderingModeSwitch::init()
-{
+void TestRenderingModeSwitch::init() {
     // Create viewer for each test
     m_viewer = new PDFViewer(nullptr, false);
     QVERIFY(m_viewer != nullptr);
     m_viewer->setDocument(m_testDocument);
 }
 
-void TestRenderingModeSwitch::cleanup()
-{
+void TestRenderingModeSwitch::cleanup() {
     // Clean up viewer after each test
     if (m_viewer) {
         delete m_viewer;
@@ -94,38 +90,37 @@ void TestRenderingModeSwitch::cleanup()
     }
 }
 
-void TestRenderingModeSwitch::setupServices()
-{
+void TestRenderingModeSwitch::setupServices() {
     // Clear any existing services
     ServiceLocator::instance().clearServices();
-    
+
     // Create and register model factory
     m_modelFactory = new ModelFactory(this);
     ServiceLocator::instance().registerService<ModelFactory>(m_modelFactory);
-    
+
     // Create mock application controller if needed
     // m_appController = new ApplicationController(nullptr, this);
     // ServiceLocator::instance().registerService<ApplicationController>(m_appController);
 }
 
-void TestRenderingModeSwitch::teardownServices()
-{
+void TestRenderingModeSwitch::teardownServices() {
     ServiceLocator::instance().clearServices();
-    
+
     // Cleanup is handled by parent-child relationship
     m_modelFactory = nullptr;
     m_appController = nullptr;
 }
 
-Poppler::Document* TestRenderingModeSwitch::createTestDocument()
-{
+Poppler::Document* TestRenderingModeSwitch::createTestDocument() {
     // Create a multi-page test PDF for comprehensive testing
-    QString testPdfPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/integration_test.pdf";
-    
+    QString testPdfPath =
+        QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
+        "/integration_test.pdf";
+
     QFile file(testPdfPath);
     if (file.open(QIODevice::WriteOnly)) {
         // Multi-page PDF content for testing
-        QByteArray pdfContent = 
+        QByteArray pdfContent =
             "%PDF-1.4\n"
             "1 0 obj\n"
             "<<\n"
@@ -222,25 +217,27 @@ Poppler::Document* TestRenderingModeSwitch::createTestDocument()
             "startxref\n"
             "616\n"
             "%%EOF\n";
-        
+
         file.write(pdfContent);
         file.close();
-        
+
         return Poppler::Document::load(testPdfPath).release();
     }
-    
+
     return nullptr;
 }
 
-void TestRenderingModeSwitch::verifyViewerState(PDFViewer* viewer, int expectedPage, double expectedZoom, int expectedRotation)
-{
+void TestRenderingModeSwitch::verifyViewerState(PDFViewer* viewer,
+                                                int expectedPage,
+                                                double expectedZoom,
+                                                int expectedRotation) {
     QCOMPARE(viewer->getCurrentPage(), expectedPage);
     QCOMPARE(viewer->getCurrentZoom(), expectedZoom);
-    // Note: Rotation comparison might need tolerance due to floating point precision
+    // Note: Rotation comparison might need tolerance due to floating point
+    // precision
 }
 
-void TestRenderingModeSwitch::performStandardOperations(PDFViewer* viewer)
-{
+void TestRenderingModeSwitch::performStandardOperations(PDFViewer* viewer) {
     // Perform a series of standard operations
     viewer->goToPage(1);
     viewer->setZoom(1.5);
@@ -250,11 +247,11 @@ void TestRenderingModeSwitch::performStandardOperations(PDFViewer* viewer)
     viewer->rotateLeft();
 }
 
-void TestRenderingModeSwitch::testModeSwitch()
-{
+void TestRenderingModeSwitch::testModeSwitch() {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // Test basic mode switching without a dedicated signal
-    QVERIFY(!m_viewer->isQGraphicsRenderingEnabled()); // Should start in traditional mode
+    QVERIFY(!m_viewer->isQGraphicsRenderingEnabled());  // Should start in
+                                                        // traditional mode
 
     // Switch to QGraphics mode
     m_viewer->setQGraphicsRenderingEnabled(true);
@@ -277,88 +274,89 @@ void TestRenderingModeSwitch::testModeSwitch()
 #endif
 }
 
-void TestRenderingModeSwitch::testStatePreservation()
-{
+void TestRenderingModeSwitch::testStatePreservation() {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // Set initial state
     m_viewer->goToPage(1);
     m_viewer->setZoom(2.0);
     m_viewer->setRotation(90);
-    
+
     int initialPage = m_viewer->getCurrentPage();
     double initialZoom = m_viewer->getCurrentZoom();
-    
+
     // Switch to QGraphics mode
     m_viewer->setQGraphicsRenderingEnabled(true);
-    
+
     // Verify state is preserved
     QCOMPARE(m_viewer->getCurrentPage(), initialPage);
     QCOMPARE(m_viewer->getCurrentZoom(), initialZoom);
-    
+
     // Modify state in QGraphics mode
     m_viewer->goToPage(2);
     m_viewer->setZoom(1.5);
-    
+
     int qgraphicsPage = m_viewer->getCurrentPage();
     double qgraphicsZoom = m_viewer->getCurrentZoom();
-    
+
     // Switch back to traditional mode
     m_viewer->setQGraphicsRenderingEnabled(false);
-    
+
     // Verify state is still preserved
     QCOMPARE(m_viewer->getCurrentPage(), qgraphicsPage);
     QCOMPARE(m_viewer->getCurrentZoom(), qgraphicsZoom);
-    
+
     qDebug() << "State preservation test passed";
 #else
     QSKIP("QGraphics support not compiled in");
 #endif
 }
 
-void TestRenderingModeSwitch::testSignalConsistency()
-{
+void TestRenderingModeSwitch::testSignalConsistency() {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // Test that signals are emitted consistently in both modes
     QSignalSpy pageChangedSpy(m_viewer, &PDFViewer::pageChanged);
     QSignalSpy zoomChangedSpy(m_viewer, &PDFViewer::zoomChanged);
     QSignalSpy rotationChangedSpy(m_viewer, &PDFViewer::rotationChanged);
-    
+
     // Test in traditional mode
     m_viewer->setQGraphicsRenderingEnabled(false);
-    
+
     int traditionalPageSignals = pageChangedSpy.count();
     int traditionalZoomSignals = zoomChangedSpy.count();
     int traditionalRotationSignals = rotationChangedSpy.count();
-    
+
     performStandardOperations(m_viewer);
-    
+
     int traditionalPageSignalsAfter = pageChangedSpy.count();
     int traditionalZoomSignalsAfter = zoomChangedSpy.count();
     int traditionalRotationSignalsAfter = rotationChangedSpy.count();
-    
+
     // Reset counters
     pageChangedSpy.clear();
     zoomChangedSpy.clear();
     rotationChangedSpy.clear();
-    
+
     // Test in QGraphics mode
     m_viewer->setQGraphicsRenderingEnabled(true);
-    
+
     performStandardOperations(m_viewer);
-    
+
     int qgraphicsPageSignals = pageChangedSpy.count();
     int qgraphicsZoomSignals = zoomChangedSpy.count();
     int qgraphicsRotationSignals = rotationChangedSpy.count();
-    
+
     // Verify signal consistency (signals should be emitted in both modes)
     QVERIFY(qgraphicsPageSignals > 0);
     QVERIFY(qgraphicsZoomSignals > 0);
     QVERIFY(qgraphicsRotationSignals > 0);
-    
+
     qDebug() << "Signal consistency test passed";
-    qDebug() << "Traditional mode signals - Page:" << (traditionalPageSignalsAfter - traditionalPageSignals)
-             << "Zoom:" << (traditionalZoomSignalsAfter - traditionalZoomSignals)
-             << "Rotation:" << (traditionalRotationSignalsAfter - traditionalRotationSignals);
+    qDebug() << "Traditional mode signals - Page:"
+             << (traditionalPageSignalsAfter - traditionalPageSignals)
+             << "Zoom:"
+             << (traditionalZoomSignalsAfter - traditionalZoomSignals)
+             << "Rotation:"
+             << (traditionalRotationSignalsAfter - traditionalRotationSignals);
     qDebug() << "QGraphics mode signals - Page:" << qgraphicsPageSignals
              << "Zoom:" << qgraphicsZoomSignals
              << "Rotation:" << qgraphicsRotationSignals;
@@ -367,143 +365,145 @@ void TestRenderingModeSwitch::testSignalConsistency()
 #endif
 }
 
-void TestRenderingModeSwitch::testPerformanceComparison()
-{
+void TestRenderingModeSwitch::testPerformanceComparison() {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     const int iterations = 10;
-    
+
     // Measure traditional mode performance
     m_viewer->setQGraphicsRenderingEnabled(false);
-    
+
     QElapsedTimer traditionalTimer;
     traditionalTimer.start();
-    
+
     for (int i = 0; i < iterations; ++i) {
         m_viewer->goToPage(i % m_testDocument->numPages());
         m_viewer->setZoom(1.0 + (i * 0.1));
-        QCoreApplication::processEvents(); // Allow rendering to complete
+        QCoreApplication::processEvents();  // Allow rendering to complete
     }
-    
+
     qint64 traditionalTime = traditionalTimer.elapsed();
-    
+
     // Measure QGraphics mode performance
     m_viewer->setQGraphicsRenderingEnabled(true);
-    
+
     QElapsedTimer qgraphicsTimer;
     qgraphicsTimer.start();
-    
+
     for (int i = 0; i < iterations; ++i) {
         m_viewer->goToPage(i % m_testDocument->numPages());
         m_viewer->setZoom(1.0 + (i * 0.1));
-        QCoreApplication::processEvents(); // Allow rendering to complete
+        QCoreApplication::processEvents();  // Allow rendering to complete
     }
-    
+
     qint64 qgraphicsTime = qgraphicsTimer.elapsed();
-    
+
     qDebug() << "Performance comparison:";
     qDebug() << "Traditional mode:" << traditionalTime << "ms";
     qDebug() << "QGraphics mode:" << qgraphicsTime << "ms";
-    
-    // Both modes should complete within reasonable time (not a strict performance test)
-    QVERIFY(traditionalTime < 10000); // Less than 10 seconds
-    QVERIFY(qgraphicsTime < 10000);   // Less than 10 seconds
-    
+
+    // Both modes should complete within reasonable time (not a strict
+    // performance test)
+    QVERIFY(traditionalTime < 10000);  // Less than 10 seconds
+    QVERIFY(qgraphicsTime < 10000);    // Less than 10 seconds
+
     qDebug() << "Performance comparison test passed";
 #else
     QSKIP("QGraphics support not compiled in");
 #endif
 }
 
-void TestRenderingModeSwitch::testErrorHandling()
-{
+void TestRenderingModeSwitch::testErrorHandling() {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // Test error handling during mode switches
-    
+
     // Try switching modes with null document
     PDFViewer* tempViewer = new PDFViewer();
     tempViewer->setQGraphicsRenderingEnabled(true);
     tempViewer->setQGraphicsRenderingEnabled(false);
     // Should not crash
-    
+
     delete tempViewer;
-    
+
     // Test switching modes rapidly
     for (int i = 0; i < 20; ++i) {
         m_viewer->setQGraphicsRenderingEnabled(i % 2 == 0);
         QCoreApplication::processEvents();
     }
-    
+
     // Viewer should still be functional
     QVERIFY(m_viewer->hasDocument());
-    
+
     qDebug() << "Error handling test passed";
 #else
     QSKIP("QGraphics support not compiled in");
 #endif
 }
 
-void TestRenderingModeSwitch::testMemoryManagement()
-{
+void TestRenderingModeSwitch::testMemoryManagement() {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // Test memory management during mode switches
-    
+
     // Get initial memory usage (approximate)
-    size_t initialMemory = 0; // Would need platform-specific code for actual memory measurement
-    
+    size_t initialMemory =
+        0;  // Would need platform-specific code for actual memory measurement
+
     // Perform multiple mode switches with operations
     for (int cycle = 0; cycle < 5; ++cycle) {
         m_viewer->setQGraphicsRenderingEnabled(true);
         performStandardOperations(m_viewer);
-        
+
         m_viewer->setQGraphicsRenderingEnabled(false);
         performStandardOperations(m_viewer);
-        
+
         QCoreApplication::processEvents();
     }
-    
+
     // Verify viewer is still functional after multiple switches
     QVERIFY(m_viewer->hasDocument());
     QVERIFY(m_viewer->getPageCount() > 0);
-    
+
     qDebug() << "Memory management test passed";
 #else
     QSKIP("QGraphics support not compiled in");
 #endif
 }
 
-void TestRenderingModeSwitch::testConcurrentOperations()
-{
+void TestRenderingModeSwitch::testConcurrentOperations() {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // Test concurrent operations during mode switches
-    
+
     QTimer* operationTimer = new QTimer();
     operationTimer->setInterval(50);
-    
+
     int operationCount = 0;
     connect(operationTimer, &QTimer::timeout, [this, &operationCount]() {
         // Perform operations while mode switching might be happening
-        if (operationCount % 4 == 0) m_viewer->nextPage();
-        else if (operationCount % 4 == 1) m_viewer->zoomIn();
-        else if (operationCount % 4 == 2) m_viewer->previousPage();
-        else m_viewer->zoomOut();
-        
+        if (operationCount % 4 == 0)
+            m_viewer->nextPage();
+        else if (operationCount % 4 == 1)
+            m_viewer->zoomIn();
+        else if (operationCount % 4 == 2)
+            m_viewer->previousPage();
+        else
+            m_viewer->zoomOut();
+
         operationCount++;
     });
-    
+
     operationTimer->start();
-    
+
     // Perform mode switches while operations are running
     for (int i = 0; i < 10; ++i) {
         m_viewer->setQGraphicsRenderingEnabled(i % 2 == 0);
-        QTest::qWait(100); // Allow some operations to execute
+        QTest::qWait(100);  // Allow some operations to execute
     }
-    
+
     operationTimer->stop();
     delete operationTimer;
-    
+
     // Verify viewer is still functional
     QVERIFY(m_viewer->hasDocument());
-    
+
     qDebug() << "Concurrent operations test passed";
     qDebug() << "Performed" << operationCount << "concurrent operations";
 #else
@@ -511,57 +511,57 @@ void TestRenderingModeSwitch::testConcurrentOperations()
 #endif
 }
 
-void TestRenderingModeSwitch::testWithServiceLocator()
-{
+void TestRenderingModeSwitch::testWithServiceLocator() {
     // Test that viewer can work with services from ServiceLocator
-    
+
     // Register a mock document service
     auto* docService = new MockDocumentService();
     ServiceLocator::instance().registerService<MockDocumentService>(docService);
-    
+
     // Verify service is available
-    auto* retrievedService = ServiceLocator::instance().getService<MockDocumentService>();
+    auto* retrievedService =
+        ServiceLocator::instance().getService<MockDocumentService>();
     QVERIFY(retrievedService != nullptr);
     QCOMPARE(retrievedService->documentPath(), QString("test.pdf"));
-    
+
     // Test viewer functionality with service
     QVERIFY(m_viewer != nullptr);
     QVERIFY(m_viewer->hasDocument());
-    
+
     // Cleanup
-    ServiceLocator::instance().removeService(QString::fromStdString(typeid(MockDocumentService).name()));
+    ServiceLocator::instance().removeService(
+        QString::fromStdString(typeid(MockDocumentService).name()));
 }
 
-void TestRenderingModeSwitch::testWithModelFactory()
-{
+void TestRenderingModeSwitch::testWithModelFactory() {
     // Test integration with ModelFactory
     QVERIFY(m_modelFactory != nullptr);
-    
+
     // Register a custom viewer model creator
-    m_modelFactory->registerModelType("ViewerModel", [](QObject* parent) -> QObject* {
-        return new QObject(parent);
-    });
-    
+    m_modelFactory->registerModelType(
+        "ViewerModel",
+        [](QObject* parent) -> QObject* { return new QObject(parent); });
+
     // Create model through factory
     QObject* viewerModel = m_modelFactory->createCustomModel("ViewerModel");
     QVERIFY(viewerModel != nullptr);
-    
+
     // Test with signal spy
     QSignalSpy modelCreatedSpy(m_modelFactory, &ModelFactory::modelCreated);
-    
+
     // Create another model
-    m_modelFactory->registerModelType("TestModel", [](QObject* parent) -> QObject* {
-        return new QObject(parent);
-    });
-    
+    m_modelFactory->registerModelType(
+        "TestModel",
+        [](QObject* parent) -> QObject* { return new QObject(parent); });
+
     QObject* testModel = m_modelFactory->createCustomModel("TestModel");
     QVERIFY(testModel != nullptr);
     QCOMPARE(modelCreatedSpy.count(), 1);
-    
+
     // Verify viewer still works with factory in place
     QVERIFY(m_viewer->hasDocument());
     performStandardOperations(m_viewer);
-    
+
     // Cleanup
     delete viewerModel;
     delete testModel;

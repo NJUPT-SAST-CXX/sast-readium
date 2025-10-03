@@ -1,9 +1,9 @@
 #include "NavigationCommands.h"
-#include "../controller/PageController.h"
-#include "../ui/core/ViewWidget.h"
-#include "../model/DocumentModel.h"
-#include <QWidget>
 #include <QApplication>
+#include <QWidget>
+#include "../controller/PageController.h"
+#include "../model/DocumentModel.h"
+#include "../ui/core/ViewWidget.h"
 
 // NavigationCommand base class implementation
 NavigationCommand::NavigationCommand(const QString& name, QObject* parent)
@@ -26,11 +26,11 @@ bool NextPageCommand::execute() {
     }
 
     m_previousPage = m_controller->getCurrentPage();
-    
+
     try {
         m_controller->goToNextPage();
         int newPage = m_controller->getCurrentPage();
-        
+
         if (newPage != m_previousPage) {
             emit navigationChanged(newPage);
             emit executed(true);
@@ -42,15 +42,17 @@ bool NextPageCommand::execute() {
             return false;
         }
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to navigate to next page: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to navigate to next page: %1").arg(e.what()));
         emit executed(false);
         return false;
     }
 }
 
 bool NextPageCommand::canExecute() const {
-    if (!m_controller) return false;
-    
+    if (!m_controller)
+        return false;
+
     int currentPage = m_controller->getCurrentPage();
     int totalPages = m_controller->getTotalPages();
     return currentPage < totalPages;
@@ -60,20 +62,24 @@ bool NextPageCommand::undo() {
     if (!m_controller || m_previousPage == -1) {
         return false;
     }
-    
+
     try {
         m_controller->goToPage(m_previousPage);
         emit navigationChanged(m_previousPage);
-        m_logger.debug(QString("Undid next page navigation, returned to page: %1").arg(m_previousPage));
+        m_logger.debug(
+            QString("Undid next page navigation, returned to page: %1")
+                .arg(m_previousPage));
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to undo next page navigation: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to undo next page navigation: %1").arg(e.what()));
         return false;
     }
 }
 
 // PreviousPageCommand implementation
-PreviousPageCommand::PreviousPageCommand(PageController* controller, QObject* parent)
+PreviousPageCommand::PreviousPageCommand(PageController* controller,
+                                         QObject* parent)
     : NavigationCommand("Previous Page", parent), m_controller(controller) {
     setDescription("Navigate to the previous page");
     setShortcut("Left");
@@ -87,15 +93,16 @@ bool PreviousPageCommand::execute() {
     }
 
     m_previousPage = m_controller->getCurrentPage();
-    
+
     try {
         m_controller->goToPrevPage();
         int newPage = m_controller->getCurrentPage();
-        
+
         if (newPage != m_previousPage) {
             emit navigationChanged(newPage);
             emit executed(true);
-            m_logger.debug(QString("Navigated to previous page: %1").arg(newPage));
+            m_logger.debug(
+                QString("Navigated to previous page: %1").arg(newPage));
             return true;
         } else {
             m_logger.warning("Already at first page");
@@ -103,15 +110,17 @@ bool PreviousPageCommand::execute() {
             return false;
         }
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to navigate to previous page: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to navigate to previous page: %1").arg(e.what()));
         emit executed(false);
         return false;
     }
 }
 
 bool PreviousPageCommand::canExecute() const {
-    if (!m_controller) return false;
-    
+    if (!m_controller)
+        return false;
+
     int currentPage = m_controller->getCurrentPage();
     return currentPage > 1;
 }
@@ -120,21 +129,27 @@ bool PreviousPageCommand::undo() {
     if (!m_controller || m_previousPage == -1) {
         return false;
     }
-    
+
     try {
         m_controller->goToPage(m_previousPage);
         emit navigationChanged(m_previousPage);
-        m_logger.debug(QString("Undid previous page navigation, returned to page: %1").arg(m_previousPage));
+        m_logger.debug(
+            QString("Undid previous page navigation, returned to page: %1")
+                .arg(m_previousPage));
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to undo previous page navigation: %1").arg(e.what()));
+        m_logger.error(QString("Failed to undo previous page navigation: %1")
+                           .arg(e.what()));
         return false;
     }
 }
 
 // GoToPageCommand implementation
-GoToPageCommand::GoToPageCommand(PageController* controller, int targetPage, QObject* parent)
-    : NavigationCommand("Go To Page", parent), m_controller(controller), m_targetPage(targetPage) {
+GoToPageCommand::GoToPageCommand(PageController* controller, int targetPage,
+                                 QObject* parent)
+    : NavigationCommand("Go To Page", parent),
+      m_controller(controller),
+      m_targetPage(targetPage) {
     setDescription(QString("Navigate to page %1").arg(targetPage));
     setShortcut("Ctrl+G");
 }
@@ -153,7 +168,7 @@ bool GoToPageCommand::execute() {
     }
 
     m_previousPage = m_controller->getCurrentPage();
-    
+
     try {
         m_controller->goToPage(m_targetPage);
         emit navigationChanged(m_targetPage);
@@ -161,14 +176,17 @@ bool GoToPageCommand::execute() {
         m_logger.debug(QString("Navigated to page: %1").arg(m_targetPage));
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to navigate to page %1: %2").arg(m_targetPage).arg(e.what()));
+        m_logger.error(QString("Failed to navigate to page %1: %2")
+                           .arg(m_targetPage)
+                           .arg(e.what()));
         emit executed(false);
         return false;
     }
 }
 
 bool GoToPageCommand::canExecute() const {
-    if (!m_controller) return false;
+    if (!m_controller)
+        return false;
     return m_controller->isValidPage(m_targetPage);
 }
 
@@ -176,14 +194,17 @@ bool GoToPageCommand::undo() {
     if (!m_controller || m_previousPage == -1) {
         return false;
     }
-    
+
     try {
         m_controller->goToPage(m_previousPage);
         emit navigationChanged(m_previousPage);
-        m_logger.debug(QString("Undid go to page navigation, returned to page: %1").arg(m_previousPage));
+        m_logger.debug(
+            QString("Undid go to page navigation, returned to page: %1")
+                .arg(m_previousPage));
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to undo go to page navigation: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to undo go to page navigation: %1").arg(e.what()));
         return false;
     }
 }
@@ -203,7 +224,7 @@ bool FirstPageCommand::execute() {
     }
 
     m_previousPage = m_controller->getCurrentPage();
-    
+
     try {
         m_controller->goToFirstPage();
         emit navigationChanged(1);
@@ -211,14 +232,16 @@ bool FirstPageCommand::execute() {
         m_logger.debug("Navigated to first page");
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to navigate to first page: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to navigate to first page: %1").arg(e.what()));
         emit executed(false);
         return false;
     }
 }
 
 bool FirstPageCommand::canExecute() const {
-    if (!m_controller) return false;
+    if (!m_controller)
+        return false;
     return m_controller->getCurrentPage() > 1;
 }
 
@@ -226,14 +249,17 @@ bool FirstPageCommand::undo() {
     if (!m_controller || m_previousPage == -1) {
         return false;
     }
-    
+
     try {
         m_controller->goToPage(m_previousPage);
         emit navigationChanged(m_previousPage);
-        m_logger.debug(QString("Undid first page navigation, returned to page: %1").arg(m_previousPage));
+        m_logger.debug(
+            QString("Undid first page navigation, returned to page: %1")
+                .arg(m_previousPage));
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to undo first page navigation: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to undo first page navigation: %1").arg(e.what()));
         return false;
     }
 }
@@ -253,7 +279,7 @@ bool LastPageCommand::execute() {
     }
 
     m_previousPage = m_controller->getCurrentPage();
-    
+
     try {
         m_controller->goToLastPage();
         int totalPages = m_controller->getTotalPages();
@@ -262,15 +288,17 @@ bool LastPageCommand::execute() {
         m_logger.debug(QString("Navigated to last page: %1").arg(totalPages));
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to navigate to last page: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to navigate to last page: %1").arg(e.what()));
         emit executed(false);
         return false;
     }
 }
 
 bool LastPageCommand::canExecute() const {
-    if (!m_controller) return false;
-    
+    if (!m_controller)
+        return false;
+
     int currentPage = m_controller->getCurrentPage();
     int totalPages = m_controller->getTotalPages();
     return currentPage < totalPages;
@@ -280,21 +308,27 @@ bool LastPageCommand::undo() {
     if (!m_controller || m_previousPage == -1) {
         return false;
     }
-    
+
     try {
         m_controller->goToPage(m_previousPage);
         emit navigationChanged(m_previousPage);
-        m_logger.debug(QString("Undid last page navigation, returned to page: %1").arg(m_previousPage));
+        m_logger.debug(
+            QString("Undid last page navigation, returned to page: %1")
+                .arg(m_previousPage));
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to undo last page navigation: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to undo last page navigation: %1").arg(e.what()));
         return false;
     }
 }
 
 // ZoomInCommand implementation
-ZoomInCommand::ZoomInCommand(ViewWidget* viewWidget, double factor, QObject* parent)
-    : NavigationCommand("Zoom In", parent), m_viewWidget(viewWidget), m_factor(factor) {
+ZoomInCommand::ZoomInCommand(ViewWidget* viewWidget, double factor,
+                             QObject* parent)
+    : NavigationCommand("Zoom In", parent),
+      m_viewWidget(viewWidget),
+      m_factor(factor) {
     setDescription("Zoom in to increase magnification");
     setShortcut("Ctrl++");
 }
@@ -330,10 +364,11 @@ bool ZoomInCommand::execute() {
 }
 
 bool ZoomInCommand::canExecute() const {
-    if (!m_viewWidget) return false;
+    if (!m_viewWidget)
+        return false;
 
     double currentZoom = m_viewWidget->getCurrentZoom();
-    return currentZoom < 10.0; // Maximum zoom level
+    return currentZoom < 10.0;  // Maximum zoom level
 }
 
 bool ZoomInCommand::undo() {
@@ -342,9 +377,11 @@ bool ZoomInCommand::undo() {
     }
 
     try {
-        // Note: ViewWidget doesn't have setZoom method, so we can't directly undo zoom
-        // This would require extending ViewWidget API or using a different approach
-        m_logger.warning("Zoom undo not implemented - ViewWidget API limitation");
+        // Note: ViewWidget doesn't have setZoom method, so we can't directly
+        // undo zoom This would require extending ViewWidget API or using a
+        // different approach
+        m_logger.warning(
+            "Zoom undo not implemented - ViewWidget API limitation");
         return false;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to undo zoom in: %1").arg(e.what()));
@@ -353,8 +390,11 @@ bool ZoomInCommand::undo() {
 }
 
 // ZoomOutCommand implementation
-ZoomOutCommand::ZoomOutCommand(ViewWidget* viewWidget, double factor, QObject* parent)
-    : NavigationCommand("Zoom Out", parent), m_viewWidget(viewWidget), m_factor(factor) {
+ZoomOutCommand::ZoomOutCommand(ViewWidget* viewWidget, double factor,
+                               QObject* parent)
+    : NavigationCommand("Zoom Out", parent),
+      m_viewWidget(viewWidget),
+      m_factor(factor) {
     setDescription("Zoom out to decrease magnification");
     setShortcut("Ctrl+-");
 }
@@ -390,10 +430,11 @@ bool ZoomOutCommand::execute() {
 }
 
 bool ZoomOutCommand::canExecute() const {
-    if (!m_viewWidget) return false;
+    if (!m_viewWidget)
+        return false;
 
     double currentZoom = m_viewWidget->getCurrentZoom();
-    return currentZoom > 0.1; // Minimum zoom level
+    return currentZoom > 0.1;  // Minimum zoom level
 }
 
 bool ZoomOutCommand::undo() {
@@ -402,9 +443,11 @@ bool ZoomOutCommand::undo() {
     }
 
     try {
-        // Note: ViewWidget doesn't have setZoom method, so we can't directly undo zoom
-        // This would require extending ViewWidget API or using a different approach
-        m_logger.warning("Zoom undo not implemented - ViewWidget API limitation");
+        // Note: ViewWidget doesn't have setZoom method, so we can't directly
+        // undo zoom This would require extending ViewWidget API or using a
+        // different approach
+        m_logger.warning(
+            "Zoom undo not implemented - ViewWidget API limitation");
         return false;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to undo zoom out: %1").arg(e.what()));
@@ -452,12 +495,15 @@ bool FitWidthCommand::undo() {
     }
 
     try {
-        // Note: ViewWidget doesn't have setZoom method, so we can't directly undo zoom
-        // This would require extending ViewWidget API or using a different approach
-        m_logger.warning("Zoom undo not implemented - ViewWidget API limitation");
+        // Note: ViewWidget doesn't have setZoom method, so we can't directly
+        // undo zoom This would require extending ViewWidget API or using a
+        // different approach
+        m_logger.warning(
+            "Zoom undo not implemented - ViewWidget API limitation");
         return false;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to undo fit to width: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to undo fit to width: %1").arg(e.what()));
         return false;
     }
 }
@@ -505,7 +551,8 @@ bool FitPageCommand::undo() {
         // Restore previous zoom level
         m_viewWidget->setZoom(m_previousZoom);
         emit zoomChanged(m_previousZoom);
-        m_logger.debug(QString("Undid fit to page, restored zoom: %1").arg(m_previousZoom));
+        m_logger.debug(QString("Undid fit to page, restored zoom: %1")
+                           .arg(m_previousZoom));
         return true;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to undo fit to page: %1").arg(e.what()));
@@ -514,8 +561,11 @@ bool FitPageCommand::undo() {
 }
 
 // SetZoomCommand implementation
-SetZoomCommand::SetZoomCommand(ViewWidget* viewWidget, double zoomLevel, QObject* parent)
-    : NavigationCommand("Set Zoom", parent), m_viewWidget(viewWidget), m_zoomLevel(zoomLevel) {
+SetZoomCommand::SetZoomCommand(ViewWidget* viewWidget, double zoomLevel,
+                               QObject* parent)
+    : NavigationCommand("Set Zoom", parent),
+      m_viewWidget(viewWidget),
+      m_zoomLevel(zoomLevel) {
     setDescription(QString("Set zoom level to %1%").arg(zoomLevel * 100));
     setShortcut("Ctrl+0");
 }
@@ -544,7 +594,8 @@ bool SetZoomCommand::execute() {
 }
 
 bool SetZoomCommand::canExecute() const {
-    return m_viewWidget != nullptr && m_viewWidget->hasDocuments() && m_zoomLevel > 0;
+    return m_viewWidget != nullptr && m_viewWidget->hasDocuments() &&
+           m_zoomLevel > 0;
 }
 
 bool SetZoomCommand::undo() {
@@ -556,7 +607,8 @@ bool SetZoomCommand::undo() {
         // Restore previous zoom level
         m_viewWidget->setZoom(m_previousZoom);
         emit zoomChanged(m_previousZoom);
-        m_logger.debug(QString("Undid set zoom, restored zoom: %1").arg(m_previousZoom));
+        m_logger.debug(
+            QString("Undid set zoom, restored zoom: %1").arg(m_previousZoom));
         return true;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to undo set zoom: %1").arg(e.what()));
@@ -565,10 +617,17 @@ bool SetZoomCommand::undo() {
 }
 
 // RotateViewCommand implementation
-RotateViewCommand::RotateViewCommand(ViewWidget* viewWidget, RotationDirection direction, int degrees, QObject* parent)
-    : NavigationCommand("Rotate View", parent), m_viewWidget(viewWidget), m_direction(direction), m_degrees(degrees) {
-    QString directionStr = (direction == Clockwise) ? "clockwise" : "counter-clockwise";
-    setDescription(QString("Rotate view %1 by %2 degrees").arg(directionStr).arg(degrees));
+RotateViewCommand::RotateViewCommand(ViewWidget* viewWidget,
+                                     RotationDirection direction, int degrees,
+                                     QObject* parent)
+    : NavigationCommand("Rotate View", parent),
+      m_viewWidget(viewWidget),
+      m_direction(direction),
+      m_degrees(degrees) {
+    QString directionStr =
+        (direction == Clockwise) ? "clockwise" : "counter-clockwise";
+    setDescription(
+        QString("Rotate view %1 by %2 degrees").arg(directionStr).arg(degrees));
     setShortcut((direction == Clockwise) ? "Ctrl+R" : "Ctrl+Shift+R");
 }
 
@@ -597,8 +656,9 @@ bool RotateViewCommand::execute() {
 
         emit executed(true);
         m_logger.debug(QString("Rotated view %1 by %2 degrees")
-                      .arg(m_direction == Clockwise ? "clockwise" : "counter-clockwise")
-                      .arg(m_degrees));
+                           .arg(m_direction == Clockwise ? "clockwise"
+                                                         : "counter-clockwise")
+                           .arg(m_degrees));
         return true;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to rotate view: %1").arg(e.what()));
@@ -627,13 +687,15 @@ bool RotateViewCommand::undo() {
         m_logger.debug("Undid view rotation");
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to undo view rotation: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to undo view rotation: %1").arg(e.what()));
         return false;
     }
 }
 
 // ToggleFullscreenCommand implementation
-ToggleFullscreenCommand::ToggleFullscreenCommand(QWidget* mainWindow, QObject* parent)
+ToggleFullscreenCommand::ToggleFullscreenCommand(QWidget* mainWindow,
+                                                 QObject* parent)
     : NavigationCommand("Toggle Fullscreen", parent), m_mainWindow(mainWindow) {
     setDescription("Toggle fullscreen mode");
     setShortcut("F11");
@@ -660,7 +722,8 @@ bool ToggleFullscreenCommand::execute() {
         emit executed(true);
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to toggle fullscreen: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to toggle fullscreen: %1").arg(e.what()));
         emit executed(false);
         return false;
     }
@@ -671,14 +734,25 @@ bool ToggleFullscreenCommand::canExecute() const {
 }
 
 // ChangeViewModeCommand implementation
-ChangeViewModeCommand::ChangeViewModeCommand(ViewWidget* viewWidget, ViewMode mode, QObject* parent)
-    : NavigationCommand("Change View Mode", parent), m_viewWidget(viewWidget), m_mode(mode) {
+ChangeViewModeCommand::ChangeViewModeCommand(ViewWidget* viewWidget,
+                                             ViewMode mode, QObject* parent)
+    : NavigationCommand("Change View Mode", parent),
+      m_viewWidget(viewWidget),
+      m_mode(mode) {
     QString modeStr;
     switch (mode) {
-        case SinglePage: modeStr = "Single Page"; break;
-        case Continuous: modeStr = "Continuous"; break;
-        case FacingPages: modeStr = "Facing Pages"; break;
-        case BookView: modeStr = "Book View"; break;
+        case SinglePage:
+            modeStr = "Single Page";
+            break;
+        case Continuous:
+            modeStr = "Continuous";
+            break;
+        case FacingPages:
+            modeStr = "Facing Pages";
+            break;
+        case BookView:
+            modeStr = "Book View";
+            break;
     }
     setDescription(QString("Change view mode to %1").arg(modeStr));
     setShortcut("Ctrl+M");
@@ -707,10 +781,18 @@ bool ChangeViewModeCommand::execute() {
 
         QString modeStr;
         switch (m_mode) {
-            case SinglePage: modeStr = "Single Page"; break;
-            case Continuous: modeStr = "Continuous"; break;
-            case FacingPages: modeStr = "Facing Pages"; break;
-            case BookView: modeStr = "Book View"; break;
+            case SinglePage:
+                modeStr = "Single Page";
+                break;
+            case Continuous:
+                modeStr = "Continuous";
+                break;
+            case FacingPages:
+                modeStr = "Facing Pages";
+                break;
+            case BookView:
+                modeStr = "Book View";
+                break;
         }
 
         emit viewModeChanged(modeStr);
@@ -739,39 +821,69 @@ bool ChangeViewModeCommand::undo() {
 
         QString modeStr;
         switch (m_previousMode) {
-            case SinglePage: modeStr = "Single Page"; break;
-            case Continuous: modeStr = "Continuous"; break;
-            case FacingPages: modeStr = "Facing Pages"; break;
-            case BookView: modeStr = "Book View"; break;
+            case SinglePage:
+                modeStr = "Single Page";
+                break;
+            case Continuous:
+                modeStr = "Continuous";
+                break;
+            case FacingPages:
+                modeStr = "Facing Pages";
+                break;
+            case BookView:
+                modeStr = "Book View";
+                break;
         }
 
         emit viewModeChanged(modeStr);
-        m_logger.debug(QString("Undid view mode change, restored to: %1").arg(modeStr));
+        m_logger.debug(
+            QString("Undid view mode change, restored to: %1").arg(modeStr));
         return true;
     } catch (const std::exception& e) {
-        m_logger.error(QString("Failed to undo view mode change: %1").arg(e.what()));
+        m_logger.error(
+            QString("Failed to undo view mode change: %1").arg(e.what()));
         return false;
     }
 }
 
 // ScrollToPositionCommand implementation
-ScrollToPositionCommand::ScrollToPositionCommand(ViewWidget* viewWidget, ScrollDirection direction, QObject* parent)
-    : NavigationCommand("Scroll To Position", parent), m_viewWidget(viewWidget), m_direction(direction) {
+ScrollToPositionCommand::ScrollToPositionCommand(ViewWidget* viewWidget,
+                                                 ScrollDirection direction,
+                                                 QObject* parent)
+    : NavigationCommand("Scroll To Position", parent),
+      m_viewWidget(viewWidget),
+      m_direction(direction) {
     QString directionStr;
     switch (direction) {
-        case Top: directionStr = "Top"; break;
-        case Bottom: directionStr = "Bottom"; break;
-        case Left: directionStr = "Left"; break;
-        case Right: directionStr = "Right"; break;
+        case Top:
+            directionStr = "Top";
+            break;
+        case Bottom:
+            directionStr = "Bottom";
+            break;
+        case Left:
+            directionStr = "Left";
+            break;
+        case Right:
+            directionStr = "Right";
+            break;
     }
     setDescription(QString("Scroll to %1").arg(directionStr));
 
     // Set shortcuts based on direction
     switch (direction) {
-        case Top: setShortcut("Ctrl+Home"); break;
-        case Bottom: setShortcut("Ctrl+End"); break;
-        case Left: setShortcut("Ctrl+Left"); break;
-        case Right: setShortcut("Ctrl+Right"); break;
+        case Top:
+            setShortcut("Ctrl+Home");
+            break;
+        case Bottom:
+            setShortcut("Ctrl+End");
+            break;
+        case Left:
+            setShortcut("Ctrl+Left");
+            break;
+        case Right:
+            setShortcut("Ctrl+Right");
+            break;
     }
 }
 
@@ -844,7 +956,8 @@ bool ScrollToPositionCommand::undo() {
         // Restore previous scroll position
         m_viewWidget->setScrollPosition(m_previousPosition);
         m_logger.debug(QString("Undid scroll, restored position: (%1, %2)")
-                      .arg(m_previousPosition.x()).arg(m_previousPosition.y()));
+                           .arg(m_previousPosition.x())
+                           .arg(m_previousPosition.y()));
         return true;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to undo scroll: %1").arg(e.what()));
@@ -853,9 +966,9 @@ bool ScrollToPositionCommand::undo() {
 }
 
 // NavigationCommandFactory implementation
-std::unique_ptr<NavigationCommand> NavigationCommandFactory::createPageNavigationCommand(
+std::unique_ptr<NavigationCommand>
+NavigationCommandFactory::createPageNavigationCommand(
     const QString& type, PageController* controller) {
-
     if (type == "next") {
         return std::make_unique<NextPageCommand>(controller);
     } else if (type == "previous") {
@@ -865,7 +978,7 @@ std::unique_ptr<NavigationCommand> NavigationCommandFactory::createPageNavigatio
     } else if (type == "last") {
         return std::make_unique<LastPageCommand>(controller);
     } else if (type.startsWith("goto:")) {
-        QString pageStr = type.mid(5); // Remove "goto:" prefix
+        QString pageStr = type.mid(5);  // Remove "goto:" prefix
         bool ok;
         int pageNumber = pageStr.toInt(&ok);
         if (ok && pageNumber > 0) {
@@ -878,7 +991,6 @@ std::unique_ptr<NavigationCommand> NavigationCommandFactory::createPageNavigatio
 
 std::unique_ptr<NavigationCommand> NavigationCommandFactory::createZoomCommand(
     const QString& type, ViewWidget* viewWidget) {
-
     if (type == "in") {
         return std::make_unique<ZoomInCommand>(viewWidget);
     } else if (type == "out") {
@@ -888,7 +1000,7 @@ std::unique_ptr<NavigationCommand> NavigationCommandFactory::createZoomCommand(
     } else if (type == "fit-page") {
         return std::make_unique<FitPageCommand>(viewWidget);
     } else if (type.startsWith("set:")) {
-        QString zoomStr = type.mid(4); // Remove "set:" prefix
+        QString zoomStr = type.mid(4);  // Remove "set:" prefix
         bool ok;
         double zoomLevel = zoomStr.toDouble(&ok);
         if (ok && zoomLevel > 0) {
@@ -901,27 +1013,36 @@ std::unique_ptr<NavigationCommand> NavigationCommandFactory::createZoomCommand(
 
 std::unique_ptr<NavigationCommand> NavigationCommandFactory::createViewCommand(
     const QString& type, ViewWidget* viewWidget) {
-
     if (type == "rotate-clockwise") {
-        return std::make_unique<RotateViewCommand>(viewWidget, RotateViewCommand::Clockwise);
+        return std::make_unique<RotateViewCommand>(
+            viewWidget, RotateViewCommand::Clockwise);
     } else if (type == "rotate-counter-clockwise") {
-        return std::make_unique<RotateViewCommand>(viewWidget, RotateViewCommand::CounterClockwise);
+        return std::make_unique<RotateViewCommand>(
+            viewWidget, RotateViewCommand::CounterClockwise);
     } else if (type == "single-page") {
-        return std::make_unique<ChangeViewModeCommand>(viewWidget, ChangeViewModeCommand::SinglePage);
+        return std::make_unique<ChangeViewModeCommand>(
+            viewWidget, ChangeViewModeCommand::SinglePage);
     } else if (type == "continuous") {
-        return std::make_unique<ChangeViewModeCommand>(viewWidget, ChangeViewModeCommand::Continuous);
+        return std::make_unique<ChangeViewModeCommand>(
+            viewWidget, ChangeViewModeCommand::Continuous);
     } else if (type == "facing-pages") {
-        return std::make_unique<ChangeViewModeCommand>(viewWidget, ChangeViewModeCommand::FacingPages);
+        return std::make_unique<ChangeViewModeCommand>(
+            viewWidget, ChangeViewModeCommand::FacingPages);
     } else if (type == "book-view") {
-        return std::make_unique<ChangeViewModeCommand>(viewWidget, ChangeViewModeCommand::BookView);
+        return std::make_unique<ChangeViewModeCommand>(
+            viewWidget, ChangeViewModeCommand::BookView);
     } else if (type == "scroll-top") {
-        return std::make_unique<ScrollToPositionCommand>(viewWidget, ScrollToPositionCommand::Top);
+        return std::make_unique<ScrollToPositionCommand>(
+            viewWidget, ScrollToPositionCommand::Top);
     } else if (type == "scroll-bottom") {
-        return std::make_unique<ScrollToPositionCommand>(viewWidget, ScrollToPositionCommand::Bottom);
+        return std::make_unique<ScrollToPositionCommand>(
+            viewWidget, ScrollToPositionCommand::Bottom);
     } else if (type == "scroll-left") {
-        return std::make_unique<ScrollToPositionCommand>(viewWidget, ScrollToPositionCommand::Left);
+        return std::make_unique<ScrollToPositionCommand>(
+            viewWidget, ScrollToPositionCommand::Left);
     } else if (type == "scroll-right") {
-        return std::make_unique<ScrollToPositionCommand>(viewWidget, ScrollToPositionCommand::Right);
+        return std::make_unique<ScrollToPositionCommand>(
+            viewWidget, ScrollToPositionCommand::Right);
     }
 
     return nullptr;
@@ -929,9 +1050,11 @@ std::unique_ptr<NavigationCommand> NavigationCommandFactory::createViewCommand(
 
 void NavigationCommandFactory::registerShortcuts(QWidget* widget) {
     // Register keyboard shortcuts with the widget
-    // Note: Shortcut registration is handled by the application's shortcut system
-    // This method is reserved for future per-widget shortcut customization
+    // Note: Shortcut registration is handled by the application's shortcut
+    // system This method is reserved for future per-widget shortcut
+    // customization
     if (widget) {
-        // Future: Set up QShortcut objects or integrate with custom shortcut system
+        // Future: Set up QShortcut objects or integrate with custom shortcut
+        // system
     }
 }

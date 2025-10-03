@@ -1,10 +1,10 @@
 #include "I18nManager.h"
 #include <QApplication>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QDebug>
-#include <QTranslator>
 #include <QLocale>
+#include <QTranslator>
 #include <vector>
 #include "../logging/LoggingMacros.h"
 
@@ -12,9 +12,7 @@
 class I18nManagerImpl {
 public:
     I18nManagerImpl()
-        : m_currentLanguage(I18nManager::System)
-        , m_initialized(false)
-    {
+        : m_currentLanguage(I18nManager::System), m_initialized(false) {
         // Set translation path relative to application directory
         m_translationPath = QApplication::applicationDirPath();
     }
@@ -30,26 +28,20 @@ public:
 };
 
 I18nManager::I18nManager(QObject* parent)
-    : QObject(parent)
-    , pImpl(std::make_unique<I18nManagerImpl>())
-{
-}
+    : QObject(parent), pImpl(std::make_unique<I18nManagerImpl>()) {}
 
 I18nManager::~I18nManager() = default;
 
-I18nManager& I18nManager::instance()
-{
+I18nManager& I18nManager::instance() {
     static I18nManager instance;
     return instance;
 }
 
-I18nManager::Language I18nManager::currentLanguage() const
-{
+I18nManager::Language I18nManager::currentLanguage() const {
     return pImpl->m_currentLanguage;
 }
 
-bool I18nManager::initialize()
-{
+bool I18nManager::initialize() {
     if (pImpl->m_initialized) {
         LOG_WARNING("I18nManager: Already initialized");
         return true;
@@ -59,11 +51,14 @@ bool I18nManager::initialize()
 
     // Load system language by default
     QString systemLang = pImpl->getSystemLanguageCode();
-    LOG_INFO("I18nManager: System language detected: {}", systemLang.toStdString());
+    LOG_INFO("I18nManager: System language detected: {}",
+             systemLang.toStdString());
 
     // Try to load system language, fall back to English if failed
     if (!loadLanguage(systemLang)) {
-        LOG_WARNING("I18nManager: Failed to load system language, falling back to English");
+        LOG_WARNING(
+            "I18nManager: Failed to load system language, falling back to "
+            "English");
         if (!loadLanguage("en")) {
             LOG_ERROR("I18nManager: Failed to load English translation");
             return false;
@@ -75,13 +70,11 @@ bool I18nManager::initialize()
     return true;
 }
 
-bool I18nManager::loadLanguage(Language lang)
-{
+bool I18nManager::loadLanguage(Language lang) {
     return loadLanguage(languageToCode(lang));
 }
 
-bool I18nManager::loadLanguage(const QString& languageCode)
-{
+bool I18nManager::loadLanguage(const QString& languageCode) {
     LOG_INFO("I18nManager: Loading language: {}", languageCode.toStdString());
 
     // Remove existing translators
@@ -95,7 +88,8 @@ bool I18nManager::loadLanguage(const QString& languageCode)
 
     // Load translation
     if (!pImpl->loadTranslation(actualCode)) {
-        LOG_ERROR("I18nManager: Failed to load translation for: {}", actualCode.toStdString());
+        LOG_ERROR("I18nManager: Failed to load translation for: {}",
+                  actualCode.toStdString());
         return false;
     }
 
@@ -106,12 +100,12 @@ bool I18nManager::loadLanguage(const QString& languageCode)
     emit languageChanged(pImpl->m_currentLanguage);
     emit languageChanged(actualCode);
 
-    LOG_INFO("I18nManager: Language loaded successfully: {}", actualCode.toStdString());
+    LOG_INFO("I18nManager: Language loaded successfully: {}",
+             actualCode.toStdString());
     return true;
 }
 
-bool I18nManagerImpl::loadTranslation(const QString& languageCode)
-{
+bool I18nManagerImpl::loadTranslation(const QString& languageCode) {
     // Skip loading for English (base language)
     if (languageCode == "en" || languageCode.startsWith("en_")) {
         LOG_DEBUG("I18nManager: Using base English language");
@@ -120,17 +114,19 @@ bool I18nManagerImpl::loadTranslation(const QString& languageCode)
 
     // Create translator for Qt system translations
     auto qtTranslator = std::make_unique<QTranslator>();
-    QString qtTransPath = QDir(m_translationPath).filePath(QString("qt_%1").arg(languageCode));
-    
+    QString qtTransPath =
+        QDir(m_translationPath).filePath(QString("qt_%1").arg(languageCode));
+
     if (qtTranslator->load(qtTransPath)) {
-        LOG_DEBUG("I18nManager: Loaded Qt translation: {}", qtTransPath.toStdString());
+        LOG_DEBUG("I18nManager: Loaded Qt translation: {}",
+                  qtTransPath.toStdString());
         qApp->installTranslator(qtTranslator.get());
         m_translators.push_back(std::move(qtTranslator));
     }
 
     // Create translator for application translations
     auto appTranslator = std::make_unique<QTranslator>();
-    
+
     // Try multiple possible paths
     QStringList searchPaths = {
         m_translationPath,
@@ -143,15 +139,17 @@ bool I18nManagerImpl::loadTranslation(const QString& languageCode)
 
     bool loaded = false;
     for (const QString& path : searchPaths) {
-        QString transFile = QDir(path).filePath(QString("app_%1").arg(languageCode));
-        
+        QString transFile =
+            QDir(path).filePath(QString("app_%1").arg(languageCode));
+
         // Try with .qm extension
         if (QFile::exists(transFile + ".qm")) {
             transFile += ".qm";
         }
-        
+
         if (appTranslator->load(transFile)) {
-            LOG_INFO("I18nManager: Loaded application translation from: {}", transFile.toStdString());
+            LOG_INFO("I18nManager: Loaded application translation from: {}",
+                     transFile.toStdString());
             qApp->installTranslator(appTranslator.get());
             m_translators.push_back(std::move(appTranslator));
             loaded = true;
@@ -160,15 +158,15 @@ bool I18nManagerImpl::loadTranslation(const QString& languageCode)
     }
 
     if (!loaded) {
-        LOG_WARNING("I18nManager: Could not find translation file for: {}", languageCode.toStdString());
+        LOG_WARNING("I18nManager: Could not find translation file for: {}",
+                    languageCode.toStdString());
         return false;
     }
 
     return true;
 }
 
-void I18nManagerImpl::removeTranslators()
-{
+void I18nManagerImpl::removeTranslators() {
     for (auto& translator : m_translators) {
         if (translator) {
             qApp->removeTranslator(translator.get());
@@ -177,10 +175,10 @@ void I18nManagerImpl::removeTranslators()
     m_translators.clear();
 }
 
-QString I18nManagerImpl::getSystemLanguageCode() const
-{
+QString I18nManagerImpl::getSystemLanguageCode() const {
     QLocale systemLocale = QLocale::system();
-    QString langCode = systemLocale.name(); // Returns format like "zh_CN" or "en_US"
+    QString langCode =
+        systemLocale.name();  // Returns format like "zh_CN" or "en_US"
 
     // Simplify to just language code for our purposes
     if (langCode.startsWith("zh")) {
@@ -193,23 +191,19 @@ QString I18nManagerImpl::getSystemLanguageCode() const
     return "en";
 }
 
-QStringList I18nManager::availableLanguages() const
-{
+QStringList I18nManager::availableLanguages() const {
     return QStringList() << "en" << "zh";
 }
 
-QString I18nManager::currentLanguageCode() const
-{
+QString I18nManager::currentLanguageCode() const {
     return languageToCode(pImpl->m_currentLanguage);
 }
 
-QString I18nManager::currentLanguageName() const
-{
+QString I18nManager::currentLanguageName() const {
     return languageToName(pImpl->m_currentLanguage);
 }
 
-QString I18nManager::languageToCode(Language lang)
-{
+QString I18nManager::languageToCode(Language lang) {
     switch (lang) {
         case English:
             return "en";
@@ -222,8 +216,7 @@ QString I18nManager::languageToCode(Language lang)
     }
 }
 
-I18nManager::Language I18nManager::codeToLanguage(const QString& code)
-{
+I18nManager::Language I18nManager::codeToLanguage(const QString& code) {
     if (code == "zh" || code.startsWith("zh_")) {
         return Chinese;
     } else if (code == "en" || code.startsWith("en_")) {
@@ -231,11 +224,10 @@ I18nManager::Language I18nManager::codeToLanguage(const QString& code)
     } else if (code == "system") {
         return System;
     }
-    return English; // Default
+    return English;  // Default
 }
 
-QString I18nManager::languageToName(Language lang)
-{
+QString I18nManager::languageToName(Language lang) {
     switch (lang) {
         case English:
             return QObject::tr("English");

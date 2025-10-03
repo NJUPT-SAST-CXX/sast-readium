@@ -1,18 +1,17 @@
-#include <QtTest/QtTest>
+#include <poppler-qt6.h>
 #include <QApplication>
-#include <QSignalSpy>
-#include <QScrollArea>
-#include <QWheelEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QScrollArea>
+#include <QSignalSpy>
 #include <QTemporaryFile>
-#include <poppler-qt6.h>
-#include "../../app/ui/viewer/PDFViewer.h"
+#include <QWheelEvent>
+#include <QtTest/QtTest>
 #include "../../app/model/DocumentModel.h"
 #include "../../app/model/RenderModel.h"
+#include "../../app/ui/viewer/PDFViewer.h"
 
-class PDFViewerIntegrationTest : public QObject
-{
+class PDFViewerIntegrationTest : public QObject {
     Q_OBJECT
 
 private slots:
@@ -26,46 +25,46 @@ private slots:
     void testDocumentLoading();
     void testPageNavigation();
     void testZoomOperations();
-    
+
     // View mode tests
     void testViewModes();
     void testFitToWidth();
     void testFitToPage();
     void testActualSize();
-    
+
     // Scrolling tests
     void testScrolling();
     void testScrollToPage();
     void testScrollPosition();
-    
+
     // Selection tests
     void testTextSelection();
     void testSelectionCopy();
     void testClearSelection();
-    
+
     // Search tests
     void testTextSearch();
     void testSearchResults();
     void testSearchNavigation();
-    
+
     // Annotation tests
     void testAnnotationDisplay();
     void testAnnotationInteraction();
-    
+
     // Event handling tests
     void testMouseEvents();
     void testKeyboardEvents();
     void testWheelEvents();
-    
+
     // Signal emission tests
     void testPageChangedSignal();
     void testZoomChangedSignal();
     void testSelectionChangedSignal();
-    
+
     // Performance tests
     void testRenderingPerformance();
     void testScrollPerformance();
-    
+
     // Error handling tests
     void testInvalidDocument();
     void testInvalidPageNumber();
@@ -77,19 +76,18 @@ private:
     QWidget* m_parentWidget;
     QTemporaryFile* m_testPdfFile;
     std::shared_ptr<Poppler::Document> m_testPopplerDoc;
-    
+
     void createTestPdf();
     void waitForRender();
     void simulateWheelEvent(int delta);
     void simulateKeyPress(int key);
 };
 
-void PDFViewerIntegrationTest::initTestCase()
-{
+void PDFViewerIntegrationTest::initTestCase() {
     m_parentWidget = new QWidget();
     m_parentWidget->resize(800, 600);
     m_parentWidget->show();
-    
+
     createTestPdf();
     m_renderModel = new RenderModel();
     m_documentModel = new DocumentModel(m_renderModel);
@@ -98,14 +96,12 @@ void PDFViewerIntegrationTest::initTestCase()
     }
 }
 
-void PDFViewerIntegrationTest::cleanupTestCase()
-{
+void PDFViewerIntegrationTest::cleanupTestCase() {
     delete m_testPdfFile;
     delete m_parentWidget;
 }
 
-void PDFViewerIntegrationTest::init()
-{
+void PDFViewerIntegrationTest::init() {
     m_viewer = new PDFViewer(m_parentWidget);
     // Create a test PDF document
     auto testDoc = Poppler::Document::load("test.pdf");
@@ -116,25 +112,22 @@ void PDFViewerIntegrationTest::init()
     QTest::qWaitForWindowExposed(m_viewer);
 }
 
-void PDFViewerIntegrationTest::cleanup()
-{
+void PDFViewerIntegrationTest::cleanup() {
     delete m_viewer;
     m_viewer = nullptr;
 }
 
-void PDFViewerIntegrationTest::testInitialization()
-{
+void PDFViewerIntegrationTest::testInitialization() {
     // Test basic initialization
     QVERIFY(m_viewer != nullptr);
     QVERIFY(m_viewer->isVisible());
-    
+
     // Test default values
     QCOMPARE(m_viewer->getCurrentPage(), 0);
     QVERIFY(m_viewer->getCurrentZoom() > 0.0);
 }
 
-void PDFViewerIntegrationTest::testDocumentLoading()
-{
+void PDFViewerIntegrationTest::testDocumentLoading() {
     // Test document presence
     QVERIFY(m_viewer->hasDocument());
 
@@ -150,8 +143,7 @@ void PDFViewerIntegrationTest::testDocumentLoading()
     }
 }
 
-void PDFViewerIntegrationTest::testPageNavigation()
-{
+void PDFViewerIntegrationTest::testPageNavigation() {
     if (!m_viewer->hasDocument() || m_viewer->getPageCount() == 0) {
         QSKIP("No document or pages available");
     }
@@ -174,8 +166,7 @@ void PDFViewerIntegrationTest::testPageNavigation()
     }
 }
 
-void PDFViewerIntegrationTest::testZoomOperations()
-{
+void PDFViewerIntegrationTest::testZoomOperations() {
     // Test zoom in
     double initialZoom = m_viewer->getCurrentZoom();
     m_viewer->zoomIn();
@@ -193,8 +184,7 @@ void PDFViewerIntegrationTest::testZoomOperations()
     QCOMPARE(m_viewer->getCurrentZoom(), 1.5);
 }
 
-void PDFViewerIntegrationTest::testViewModes()
-{
+void PDFViewerIntegrationTest::testViewModes() {
     // Test different view modes
     m_viewer->setViewMode(PDFViewMode::SinglePage);
     waitForRender();
@@ -210,18 +200,16 @@ void PDFViewerIntegrationTest::testViewModes()
     QCOMPARE(m_viewer->getViewMode(), PDFViewMode::SinglePage);
 }
 
-void PDFViewerIntegrationTest::testFitToWidth()
-{
+void PDFViewerIntegrationTest::testFitToWidth() {
     // Test zoom to width
     m_viewer->zoomToWidth();
     waitForRender();
 
     QVERIFY(m_viewer->getCurrentZoom() > 0.0);
-    QVERIFY(true); // Should not crash
+    QVERIFY(true);  // Should not crash
 }
 
-void PDFViewerIntegrationTest::testFitToPage()
-{
+void PDFViewerIntegrationTest::testFitToPage() {
     // Test zoom to fit
     m_viewer->zoomToFit();
     waitForRender();
@@ -229,8 +217,7 @@ void PDFViewerIntegrationTest::testFitToPage()
     QVERIFY(m_viewer->getCurrentZoom() > 0.0);
 }
 
-void PDFViewerIntegrationTest::testActualSize()
-{
+void PDFViewerIntegrationTest::testActualSize() {
     // Test setting zoom to 100% (actual size)
     m_viewer->setZoom(1.0);
     waitForRender();
@@ -238,8 +225,7 @@ void PDFViewerIntegrationTest::testActualSize()
     QCOMPARE(m_viewer->getCurrentZoom(), 1.0);
 }
 
-void PDFViewerIntegrationTest::testScrolling()
-{
+void PDFViewerIntegrationTest::testScrolling() {
     // Test page navigation (which provides scrolling functionality)
     m_viewer->nextPage();
     m_viewer->previousPage();
@@ -248,8 +234,7 @@ void PDFViewerIntegrationTest::testScrolling()
     QVERIFY(true);
 }
 
-void PDFViewerIntegrationTest::testScrollToPage()
-{
+void PDFViewerIntegrationTest::testScrollToPage() {
     if (!m_documentModel || m_viewer->getPageCount() == 0) {
         QSKIP("No document or pages available");
     }
@@ -267,8 +252,7 @@ void PDFViewerIntegrationTest::testScrollToPage()
     QVERIFY(true);
 }
 
-void PDFViewerIntegrationTest::testScrollPosition()
-{
+void PDFViewerIntegrationTest::testScrollPosition() {
     // Test basic viewer functionality instead of scroll position
     // The PDFViewer doesn't expose scroll position methods directly
 
@@ -287,32 +271,28 @@ void PDFViewerIntegrationTest::testScrollPosition()
     // Test zoom operations (which affect scroll behavior)
     m_viewer->zoomIn();
     m_viewer->zoomOut();
-    QVERIFY(true); // Should not crash
+    QVERIFY(true);  // Should not crash
 }
 
-void PDFViewerIntegrationTest::testTextSelection()
-{
+void PDFViewerIntegrationTest::testTextSelection() {
     // Test basic viewer functionality (text selection not implemented yet)
     QVERIFY(m_viewer->hasDocument());
     QVERIFY(m_viewer->getPageCount() > 0);
 }
 
-void PDFViewerIntegrationTest::testSelectionCopy()
-{
+void PDFViewerIntegrationTest::testSelectionCopy() {
     // Test basic viewer functionality (selection copy not implemented yet)
     QVERIFY(m_viewer->hasDocument());
     QVERIFY(m_viewer->getPageCount() > 0);
 }
 
-void PDFViewerIntegrationTest::testClearSelection()
-{
+void PDFViewerIntegrationTest::testClearSelection() {
     // Test basic viewer functionality (clear selection not implemented yet)
     QVERIFY(m_viewer->hasDocument());
     QVERIFY(m_viewer->getPageCount() > 0);
 }
 
-void PDFViewerIntegrationTest::testTextSearch()
-{
+void PDFViewerIntegrationTest::testTextSearch() {
     // Test search functionality
     m_viewer->showSearch();
     m_viewer->hideSearch();
@@ -322,8 +302,7 @@ void PDFViewerIntegrationTest::testTextSearch()
     QVERIFY(true);
 }
 
-void PDFViewerIntegrationTest::testSearchResults()
-{
+void PDFViewerIntegrationTest::testSearchResults() {
     // Test search highlighting functionality
     m_viewer->clearSearchHighlights();
 
@@ -331,8 +310,7 @@ void PDFViewerIntegrationTest::testSearchResults()
     QVERIFY(true);
 }
 
-void PDFViewerIntegrationTest::testSearchNavigation()
-{
+void PDFViewerIntegrationTest::testSearchNavigation() {
     // Test search navigation
     m_viewer->findNext();
     m_viewer->findPrevious();
@@ -342,29 +320,26 @@ void PDFViewerIntegrationTest::testSearchNavigation()
     QVERIFY(true);
 }
 
-void PDFViewerIntegrationTest::testAnnotationDisplay()
-{
+void PDFViewerIntegrationTest::testAnnotationDisplay() {
     // Test basic viewer functionality (annotations not implemented yet)
     QVERIFY(m_viewer->hasDocument());
     QVERIFY(m_viewer->getPageCount() > 0);
 }
 
-void PDFViewerIntegrationTest::testAnnotationInteraction()
-{
-    // Test basic viewer functionality (annotation interaction not implemented yet)
+void PDFViewerIntegrationTest::testAnnotationInteraction() {
+    // Test basic viewer functionality (annotation interaction not implemented
+    // yet)
     QVERIFY(m_viewer->hasDocument());
     QVERIFY(m_viewer->getPageCount() > 0);
 }
 
-void PDFViewerIntegrationTest::testMouseEvents()
-{
+void PDFViewerIntegrationTest::testMouseEvents() {
     // Test basic viewer functionality (mouse events handled internally)
     QVERIFY(m_viewer->hasDocument());
     QVERIFY(m_viewer->getPageCount() > 0);
 }
 
-void PDFViewerIntegrationTest::testKeyboardEvents()
-{
+void PDFViewerIntegrationTest::testKeyboardEvents() {
     // Test keyboard events
     simulateKeyPress(Qt::Key_PageDown);
     simulateKeyPress(Qt::Key_PageUp);
@@ -372,62 +347,58 @@ void PDFViewerIntegrationTest::testKeyboardEvents()
     simulateKeyPress(Qt::Key_End);
     simulateKeyPress(Qt::Key_Plus);
     simulateKeyPress(Qt::Key_Minus);
-    
+
     // Should handle keyboard events
     QVERIFY(true);
 }
 
-void PDFViewerIntegrationTest::testWheelEvents()
-{
+void PDFViewerIntegrationTest::testWheelEvents() {
     // Test wheel events
-    simulateWheelEvent(120); // Scroll up
-    simulateWheelEvent(-120); // Scroll down
-    
+    simulateWheelEvent(120);   // Scroll up
+    simulateWheelEvent(-120);  // Scroll down
+
     // Test zoom with Ctrl
     QPoint pos(m_viewer->width() / 2, m_viewer->height() / 2);
-    QWheelEvent zoomEvent(pos, m_viewer->mapToGlobal(pos), QPoint(), QPoint(0, 120),
-                         Qt::NoButton, Qt::ControlModifier, Qt::NoScrollPhase, false);
+    QWheelEvent zoomEvent(pos, m_viewer->mapToGlobal(pos), QPoint(),
+                          QPoint(0, 120), Qt::NoButton, Qt::ControlModifier,
+                          Qt::NoScrollPhase, false);
     QApplication::sendEvent(m_viewer, &zoomEvent);
-    
+
     // Should handle wheel events
     QVERIFY(true);
 }
 
-void PDFViewerIntegrationTest::testPageChangedSignal()
-{
+void PDFViewerIntegrationTest::testPageChangedSignal() {
     QSignalSpy pageChangedSpy(m_viewer, &PDFViewer::pageChanged);
-    
+
     if (m_documentModel && m_viewer->getPageCount() > 1) {
         m_viewer->goToPage(1);
         waitForRender();
-        
+
         QVERIFY(pageChangedSpy.count() >= 1);
         QList<QVariant> args = pageChangedSpy.takeLast();
         QCOMPARE(args.at(0).toInt(), 1);
     }
 }
 
-void PDFViewerIntegrationTest::testZoomChangedSignal()
-{
+void PDFViewerIntegrationTest::testZoomChangedSignal() {
     QSignalSpy zoomChangedSpy(m_viewer, &PDFViewer::zoomChanged);
-    
+
     m_viewer->setZoom(2.0);
     waitForRender();
-    
+
     QVERIFY(zoomChangedSpy.count() >= 1);
     QList<QVariant> args = zoomChangedSpy.takeLast();
     QCOMPARE(args.at(0).toDouble(), 2.0);
 }
 
-void PDFViewerIntegrationTest::testSelectionChangedSignal()
-{
+void PDFViewerIntegrationTest::testSelectionChangedSignal() {
     // Test basic viewer functionality (selection signals not implemented yet)
     QVERIFY(m_viewer->hasDocument());
     QVERIFY(m_viewer->getPageCount() > 0);
 }
 
-void PDFViewerIntegrationTest::testRenderingPerformance()
-{
+void PDFViewerIntegrationTest::testRenderingPerformance() {
     // Test rendering performance (basic test)
     QElapsedTimer timer;
     timer.start();
@@ -438,11 +409,10 @@ void PDFViewerIntegrationTest::testRenderingPerformance()
     qint64 renderTime = timer.elapsed();
 
     // Should render within reasonable time (adjust threshold as needed)
-    QVERIFY(renderTime < 5000); // 5 seconds max
+    QVERIFY(renderTime < 5000);  // 5 seconds max
 }
 
-void PDFViewerIntegrationTest::testScrollPerformance()
-{
+void PDFViewerIntegrationTest::testScrollPerformance() {
     // Test scroll performance
     QElapsedTimer timer;
     timer.start();
@@ -455,32 +425,30 @@ void PDFViewerIntegrationTest::testScrollPerformance()
     qint64 scrollTime = timer.elapsed();
 
     // Should handle scrolling efficiently
-    QVERIFY(scrollTime < 2000); // 2 seconds max
+    QVERIFY(scrollTime < 2000);  // 2 seconds max
 }
 
-void PDFViewerIntegrationTest::testInvalidDocument()
-{
+void PDFViewerIntegrationTest::testInvalidDocument() {
     // Test with null document
     m_viewer->setDocument(nullptr);
-    
+
     // Should handle null document gracefully
     m_viewer->goToPage(0);
     m_viewer->zoomIn();
     // Test basic functionality (selectAll not implemented yet)
     QVERIFY(m_viewer->hasDocument());
-    
+
     QVERIFY(true);
-    
+
     // Reset to original document
     m_viewer->setDocument(m_testPopplerDoc.get());
 }
 
-void PDFViewerIntegrationTest::testInvalidPageNumber()
-{
+void PDFViewerIntegrationTest::testInvalidPageNumber() {
     // Test with invalid page numbers
     m_viewer->goToPage(-1);
     m_viewer->goToPage(1000);
-    
+
     // Should handle invalid pages gracefully
     QVERIFY(m_viewer->getCurrentPage() >= 0);
 
@@ -489,15 +457,15 @@ void PDFViewerIntegrationTest::testInvalidPageNumber()
     }
 }
 
-void PDFViewerIntegrationTest::createTestPdf()
-{
+void PDFViewerIntegrationTest::createTestPdf() {
     m_testPdfFile = new QTemporaryFile();
     m_testPdfFile->setFileTemplate("viewer_test_XXXXXX.pdf");
     if (m_testPdfFile->open()) {
-        QByteArray pdfContent = 
+        QByteArray pdfContent =
             "%PDF-1.4\n"
             "1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n"
-            "2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R 5 0 R]\n/Count 2\n>>\nendobj\n"
+            "2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R 5 0 R]\n/Count "
+            "2\n>>\nendobj\n"
             "3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n"
             "/Contents 4 0 R\n>>\nendobj\n"
             "4 0 obj\n<<\n/Length 60\n>>\nstream\nBT\n/F1 12 Tf\n100 700 Td\n"
@@ -510,32 +478,30 @@ void PDFViewerIntegrationTest::createTestPdf()
             "0000000074 65535 n \n0000000133 65535 n \n0000000192 65535 n \n"
             "0000000304 65535 n \n0000000363 65535 n \n"
             "trailer\n<<\n/Size 7\n/Root 1 0 R\n>>\nstartxref\n475\n%%EOF\n";
-        
+
         m_testPdfFile->write(pdfContent);
         m_testPdfFile->flush();
-        
+
         m_testPopplerDoc = std::shared_ptr<Poppler::Document>(
             Poppler::Document::load(m_testPdfFile->fileName()));
     }
 }
 
-void PDFViewerIntegrationTest::waitForRender()
-{
+void PDFViewerIntegrationTest::waitForRender() {
     QTest::qWait(200);
     QApplication::processEvents();
 }
 
-void PDFViewerIntegrationTest::simulateWheelEvent(int delta)
-{
+void PDFViewerIntegrationTest::simulateWheelEvent(int delta) {
     QPoint pos(m_viewer->width() / 2, m_viewer->height() / 2);
-    QWheelEvent wheelEvent(pos, m_viewer->mapToGlobal(pos), QPoint(), QPoint(0, delta),
-                          Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    QWheelEvent wheelEvent(pos, m_viewer->mapToGlobal(pos), QPoint(),
+                           QPoint(0, delta), Qt::NoButton, Qt::NoModifier,
+                           Qt::NoScrollPhase, false);
     QApplication::sendEvent(m_viewer, &wheelEvent);
     QTest::qWait(10);
 }
 
-void PDFViewerIntegrationTest::simulateKeyPress(int key)
-{
+void PDFViewerIntegrationTest::simulateKeyPress(int key) {
     QKeyEvent keyEvent(QEvent::KeyPress, key, Qt::NoModifier);
     QApplication::sendEvent(m_viewer, &keyEvent);
     QTest::qWait(10);

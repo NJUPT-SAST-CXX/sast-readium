@@ -1,9 +1,9 @@
 #pragma once
 
-#include <QObject>
-#include <QStack>
 #include <QList>
 #include <QMessageBox>
+#include <QObject>
+#include <QStack>
 #include "../model/PageModel.h"
 
 // Forward declarations
@@ -18,9 +18,19 @@ struct PageBookmark {
     double zoomLevel;
     int rotation;
 
-    PageBookmark() : pageNumber(0), createdAt(QDateTime::currentDateTime()), zoomLevel(1.0), rotation(0) {}
-    PageBookmark(int page, const QString& t = "", const QString& desc = "", double zoom = 1.0, int rot = 0)
-        : pageNumber(page), title(t), description(desc), createdAt(QDateTime::currentDateTime()), zoomLevel(zoom), rotation(rot) {}
+    PageBookmark()
+        : pageNumber(0),
+          createdAt(QDateTime::currentDateTime()),
+          zoomLevel(1.0),
+          rotation(0) {}
+    PageBookmark(int page, const QString& t = "", const QString& desc = "",
+                 double zoom = 1.0, int rot = 0)
+        : pageNumber(page),
+          title(t),
+          description(desc),
+          createdAt(QDateTime::currentDateTime()),
+          zoomLevel(zoom),
+          rotation(rot) {}
 };
 
 // Error codes for page operations
@@ -39,7 +49,7 @@ class PageController : public QObject {
 
 public:
     PageController(PageModel* model, QObject* parent = nullptr);
-    ~PageController() {};
+    ~PageController(){};
 
     // Basic navigation (existing methods - maintained for compatibility)
 public slots:
@@ -65,8 +75,10 @@ public slots:
     QList<int> getNavigationHistory() const;
 
     // Bookmark functionality
-    void addBookmark(const QString& title = "", const QString& description = "");
-    void addBookmarkAtPage(int pageNumber, const QString& title = "", const QString& description = "");
+    void addBookmark(const QString& title = "",
+                     const QString& description = "");
+    void addBookmarkAtPage(int pageNumber, const QString& title = "",
+                           const QString& description = "");
     void removeBookmark(int index);
     void removeBookmarkAtPage(int pageNumber);
     void goToBookmark(int index);
@@ -114,7 +126,8 @@ private:
     // History management
     QStack<int> _backHistory;
     QStack<int> _forwardHistory;
-    bool _isNavigating; // Flag to prevent history recording during programmatic navigation
+    bool _isNavigating;  // Flag to prevent history recording during
+                         // programmatic navigation
 
     // Bookmark management
     QList<PageBookmark> _bookmarks;

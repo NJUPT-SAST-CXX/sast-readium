@@ -1,10 +1,9 @@
 #include "RenderModel.h"
 #include <QApplication>
 #include <QtConcurrent/QtConcurrent>
+#include "../logging/LoggingMacros.h"
 #include "qimage.h"
 #include "qlogging.h"
-#include "../logging/LoggingMacros.h"
-
 
 RenderModel::RenderModel(double dpiX, double dpiY, Poppler::Document* _document,
                          QObject* parent)
@@ -722,7 +721,7 @@ bool RenderModel::isRenderingAsync(int pageNum) const {
 }
 
 void RenderModel::onAsyncRenderCompleted() {
-QObject* s = sender();
+    QObject* s = sender();
     auto watcher = static_cast<QFutureWatcher<QImage>*>(s);
     if (!watcher) {
         return;

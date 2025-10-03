@@ -7,7 +7,7 @@ This document describes the comprehensive cross-platform debugging setup for the
 The debugging configuration supports multiple platforms and debuggers:
 
 - **Windows**: MSVC debugger, MinGW-w64 GDB, LLDB
-- **Linux**: GDB, LLDB  
+- **Linux**: GDB, LLDB
 - **macOS**: LLDB (primary), GDB (if available)
 
 ## Prerequisites

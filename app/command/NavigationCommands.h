@@ -12,7 +12,7 @@ class DocumentModel;
 
 /**
  * @brief Base class for navigation-related commands
- * 
+ *
  * Provides common functionality for all navigation operations
  * including page navigation, zooming, and view control.
  */
@@ -27,15 +27,15 @@ public:
     virtual bool execute() = 0;
     virtual bool canExecute() const { return true; }
     virtual bool undo() { return false; }
-    
+
     // Command metadata
     QString name() const { return m_name; }
     QString description() const { return m_description; }
-    
+
     // Keyboard shortcut support
     void setShortcut(const QString& shortcut) { m_shortcut = shortcut; }
     QString shortcut() const { return m_shortcut; }
-    
+
 signals:
     void executed(bool success);
     void navigationChanged(int page);
@@ -44,12 +44,12 @@ signals:
 
 protected:
     void setDescription(const QString& desc) { m_description = desc; }
-    
+
 private:
     QString m_name;
     QString m_description;
     QString m_shortcut;
-    
+
 protected:
     SastLogging::CategoryLogger m_logger{"NavigationCommand"};
 };
@@ -61,12 +61,13 @@ class NextPageCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    explicit NextPageCommand(PageController* controller, QObject* parent = nullptr);
-    
+    explicit NextPageCommand(PageController* controller,
+                             QObject* parent = nullptr);
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     PageController* m_controller;
     int m_previousPage = -1;
@@ -79,12 +80,13 @@ class PreviousPageCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    explicit PreviousPageCommand(PageController* controller, QObject* parent = nullptr);
-    
+    explicit PreviousPageCommand(PageController* controller,
+                                 QObject* parent = nullptr);
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     PageController* m_controller;
     int m_previousPage = -1;
@@ -97,17 +99,16 @@ class GoToPageCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    explicit GoToPageCommand(PageController* controller, 
-                            int targetPage = 1,
-                            QObject* parent = nullptr);
-    
+    explicit GoToPageCommand(PageController* controller, int targetPage = 1,
+                             QObject* parent = nullptr);
+
     void setTargetPage(int page) { m_targetPage = page; }
     int targetPage() const { return m_targetPage; }
-    
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     PageController* m_controller;
     int m_targetPage;
@@ -121,12 +122,13 @@ class FirstPageCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    explicit FirstPageCommand(PageController* controller, QObject* parent = nullptr);
-    
+    explicit FirstPageCommand(PageController* controller,
+                              QObject* parent = nullptr);
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     PageController* m_controller;
     int m_previousPage = -1;
@@ -139,12 +141,13 @@ class LastPageCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    explicit LastPageCommand(PageController* controller, QObject* parent = nullptr);
-    
+    explicit LastPageCommand(PageController* controller,
+                             QObject* parent = nullptr);
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     PageController* m_controller;
     int m_previousPage = -1;
@@ -157,17 +160,16 @@ class ZoomInCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    explicit ZoomInCommand(ViewWidget* viewWidget, 
-                          double factor = 1.25,
-                          QObject* parent = nullptr);
-    
+    explicit ZoomInCommand(ViewWidget* viewWidget, double factor = 1.25,
+                           QObject* parent = nullptr);
+
     void setZoomFactor(double factor) { m_factor = factor; }
     double zoomFactor() const { return m_factor; }
-    
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     ViewWidget* m_viewWidget;
     double m_factor;
@@ -181,17 +183,16 @@ class ZoomOutCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    explicit ZoomOutCommand(ViewWidget* viewWidget,
-                           double factor = 0.8,
-                           QObject* parent = nullptr);
-    
+    explicit ZoomOutCommand(ViewWidget* viewWidget, double factor = 0.8,
+                            QObject* parent = nullptr);
+
     void setZoomFactor(double factor) { m_factor = factor; }
     double zoomFactor() const { return m_factor; }
-    
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     ViewWidget* m_viewWidget;
     double m_factor;
@@ -205,17 +206,16 @@ class SetZoomCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    explicit SetZoomCommand(ViewWidget* viewWidget,
-                           double zoomLevel = 1.0,
-                           QObject* parent = nullptr);
-    
+    explicit SetZoomCommand(ViewWidget* viewWidget, double zoomLevel = 1.0,
+                            QObject* parent = nullptr);
+
     void setZoomLevel(double level) { m_zoomLevel = level; }
     double zoomLevel() const { return m_zoomLevel; }
-    
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     ViewWidget* m_viewWidget;
     double m_zoomLevel;
@@ -230,11 +230,11 @@ class FitWidthCommand : public NavigationCommand {
 
 public:
     explicit FitWidthCommand(ViewWidget* viewWidget, QObject* parent = nullptr);
-    
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     ViewWidget* m_viewWidget;
     double m_previousZoom = 1.0;
@@ -248,11 +248,11 @@ class FitPageCommand : public NavigationCommand {
 
 public:
     explicit FitPageCommand(ViewWidget* viewWidget, QObject* parent = nullptr);
-    
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     ViewWidget* m_viewWidget;
     double m_previousZoom = 1.0;
@@ -265,23 +265,19 @@ class RotateViewCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    enum RotationDirection {
-        Clockwise,
-        CounterClockwise
-    };
-    
+    enum RotationDirection { Clockwise, CounterClockwise };
+
     explicit RotateViewCommand(ViewWidget* viewWidget,
-                              RotationDirection direction = Clockwise,
-                              int degrees = 90,
-                              QObject* parent = nullptr);
-    
+                               RotationDirection direction = Clockwise,
+                               int degrees = 90, QObject* parent = nullptr);
+
     void setDirection(RotationDirection dir) { m_direction = dir; }
     void setDegrees(int degrees) { m_degrees = degrees; }
-    
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     ViewWidget* m_viewWidget;
     RotationDirection m_direction;
@@ -296,11 +292,12 @@ class ToggleFullscreenCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    explicit ToggleFullscreenCommand(QWidget* mainWindow, QObject* parent = nullptr);
-    
+    explicit ToggleFullscreenCommand(QWidget* mainWindow,
+                                     QObject* parent = nullptr);
+
     bool execute() override;
     bool canExecute() const override;
-    
+
 private:
     QWidget* m_mainWindow;
     bool m_wasFullscreen = false;
@@ -313,24 +310,18 @@ class ChangeViewModeCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    enum ViewMode {
-        SinglePage,
-        Continuous,
-        FacingPages,
-        BookView
-    };
-    
-    explicit ChangeViewModeCommand(ViewWidget* viewWidget,
-                                  ViewMode mode,
-                                  QObject* parent = nullptr);
-    
+    enum ViewMode { SinglePage, Continuous, FacingPages, BookView };
+
+    explicit ChangeViewModeCommand(ViewWidget* viewWidget, ViewMode mode,
+                                   QObject* parent = nullptr);
+
     void setViewMode(ViewMode mode) { m_mode = mode; }
     ViewMode viewMode() const { return m_mode; }
-    
+
     bool execute() override;
     bool canExecute() const override;
     bool undo() override;
-    
+
 private:
     ViewWidget* m_viewWidget;
     ViewMode m_mode;
@@ -344,19 +335,17 @@ class ScrollToPositionCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    enum ScrollDirection {
-        Top,
-        Bottom,
-        Left,
-        Right
-    };
-    
+    enum ScrollDirection { Top, Bottom, Left, Right };
+
     explicit ScrollToPositionCommand(ViewWidget* viewWidget,
-                                    ScrollDirection direction,
-                                    QObject* parent = nullptr);
-    
+                                     ScrollDirection direction,
+                                     QObject* parent = nullptr);
+
     void setDirection(ScrollDirection dir) { m_direction = dir; }
-    void setPosition(int x, int y) { m_x = x; m_y = y; }
+    void setPosition(int x, int y) {
+        m_x = x;
+        m_y = y;
+    }
 
     bool execute() override;
     bool canExecute() const override;
@@ -376,16 +365,13 @@ private:
 class NavigationCommandFactory {
 public:
     static std::unique_ptr<NavigationCommand> createPageNavigationCommand(
-        const QString& type,
-        PageController* controller);
-    
+        const QString& type, PageController* controller);
+
     static std::unique_ptr<NavigationCommand> createZoomCommand(
-        const QString& type,
-        ViewWidget* viewWidget);
-    
+        const QString& type, ViewWidget* viewWidget);
+
     static std::unique_ptr<NavigationCommand> createViewCommand(
-        const QString& type,
-        ViewWidget* viewWidget);
-    
+        const QString& type, ViewWidget* viewWidget);
+
     static void registerShortcuts(QWidget* widget);
 };

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <QObject>
 #include <QColor>
 #include <QFont>
+#include <QObject>
 #include <QString>
 #include <memory>
 

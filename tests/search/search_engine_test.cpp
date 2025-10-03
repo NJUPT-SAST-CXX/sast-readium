@@ -1,25 +1,24 @@
-#include <QtTest/QtTest>
+#include <poppler-qt6.h>
+#include <QCoreApplication>
+#include <QFile>
+#include <QList>
 #include <QObject>
-#include <QSignalSpy>
-#include <QTemporaryFile>
+#include <QPageSize>
 #include <QPainter>
 #include <QPdfWriter>
-#include <QFile>
+#include <QSignalSpy>
 #include <QString>
-#include <QPageSize>
-#include <QList>
-#include <QCoreApplication>
-#include <poppler-qt6.h>
-#include "../../app/search/SearchEngine.h"
+#include <QTemporaryFile>
+#include <QtTest/QtTest>
 #include "../../app/search/SearchConfiguration.h"
+#include "../../app/search/SearchEngine.h"
 #include "../TestUtilities.h"
 
 /**
  * Comprehensive tests for SearchEngine class
  * Tests all public interfaces, signals, and functionality
  */
-class SearchEngineTest : public TestBase
-{
+class SearchEngineTest : public TestBase {
     Q_OBJECT
 
 protected:
@@ -105,38 +104,33 @@ private:
     void createTestPdf();
     void createComplexTestPdf();
     SearchOptions createTestOptions();
-    void verifySearchResult(const SearchResult& result, int expectedPage, const QString& expectedText);
+    void verifySearchResult(const SearchResult& result, int expectedPage,
+                            const QString& expectedText);
 };
 
-void SearchEngineTest::initTestCase()
-{
-    createTestPdf();
-}
+void SearchEngineTest::initTestCase() { createTestPdf(); }
 
-void SearchEngineTest::cleanupTestCase()
-{
+void SearchEngineTest::cleanupTestCase() {
     if (m_testDocument) {
         delete m_testDocument;
         m_testDocument = nullptr;
     }
-    
+
     if (!m_testPdfPath.isEmpty()) {
         QFile::remove(m_testPdfPath);
     }
 }
 
-void SearchEngineTest::init()
-{
+void SearchEngineTest::init() {
     m_searchEngine = new SearchEngine(this);
     QVERIFY(m_searchEngine != nullptr);
-    
+
     if (m_testDocument) {
         m_searchEngine->setDocument(m_testDocument);
     }
 }
 
-void SearchEngineTest::cleanup()
-{
+void SearchEngineTest::cleanup() {
     if (m_searchEngine) {
         m_searchEngine->cancelSearch();
         m_searchEngine->clearResults();
@@ -145,8 +139,7 @@ void SearchEngineTest::cleanup()
     }
 }
 
-void SearchEngineTest::testConstructor()
-{
+void SearchEngineTest::testConstructor() {
     SearchEngine engine;
     QVERIFY(engine.document() == nullptr);
     QVERIFY(engine.results().isEmpty());
@@ -155,75 +148,69 @@ void SearchEngineTest::testConstructor()
     QVERIFY(engine.currentQuery().isEmpty());
 }
 
-void SearchEngineTest::testDestructor()
-{
+void SearchEngineTest::testDestructor() {
     // Test that destructor properly cleans up resources
     SearchEngine* engine = new SearchEngine();
     engine->setDocument(m_testDocument);
     engine->search("test");
-    
+
     // Destructor should handle cleanup gracefully
     delete engine;
     // If we reach here without crash, destructor worked correctly
     QVERIFY(true);
 }
 
-void SearchEngineTest::testSetDocument()
-{
+void SearchEngineTest::testSetDocument() {
     QVERIFY(m_searchEngine->document() == m_testDocument);
-    
+
     // Test setting null document
     m_searchEngine->setDocument(nullptr);
     QVERIFY(m_searchEngine->document() == nullptr);
-    
+
     // Test setting document back
     m_searchEngine->setDocument(m_testDocument);
     QVERIFY(m_searchEngine->document() == m_testDocument);
 }
 
-void SearchEngineTest::testDocumentAccess()
-{
+void SearchEngineTest::testDocumentAccess() {
     QVERIFY(m_searchEngine->document() == m_testDocument);
-    
+
     // Test const access
     const SearchEngine* constEngine = m_searchEngine;
     QVERIFY(constEngine->document() == m_testDocument);
 }
 
-void SearchEngineTest::testBasicSearch()
-{
+void SearchEngineTest::testBasicSearch() {
     QSignalSpy startedSpy(m_searchEngine, &SearchEngine::searchStarted);
     QSignalSpy finishedSpy(m_searchEngine, &SearchEngine::searchFinished);
-    
+
     m_searchEngine->search("test");
-    
+
     QVERIFY(waitFor([&]() { return finishedSpy.count() > 0; }));
     QCOMPARE(startedSpy.count(), 1);
     QCOMPARE(finishedSpy.count(), 1);
-    
+
     QList<SearchResult> results = m_searchEngine->results();
     QVERIFY(!results.isEmpty());
 }
 
-void SearchEngineTest::testSearchWithOptions()
-{
+void SearchEngineTest::testSearchWithOptions() {
     SearchOptions options = createTestOptions();
     options.caseSensitive = true;
     options.wholeWords = true;
-    
+
     QSignalSpy finishedSpy(m_searchEngine, &SearchEngine::searchFinished);
-    
+
     m_searchEngine->search("Test", options);
-    
+
     QVERIFY(waitFor([&]() { return finishedSpy.count() > 0; }));
-    
+
     // Verify search was performed with options
     QList<SearchResult> results = m_searchEngine->results();
     // Results should respect case sensitivity and whole word matching
 }
 
-void SearchEngineTest::createTestPdf()
-{
+void SearchEngineTest::createTestPdf() {
     QTemporaryFile tempFile("test_document_XXXXXX.pdf");
     tempFile.setAutoRemove(false);
     QVERIFY(tempFile.open());
@@ -232,19 +219,19 @@ void SearchEngineTest::createTestPdf()
 
     QPdfWriter writer(m_testPdfPath);
     writer.setPageSize(QPageSize::A4);
-    
+
     QPainter painter(&writer);
     painter.drawText(100, 100, "This is a test document for searching.");
     painter.drawText(100, 200, "It contains multiple lines of text.");
-    painter.drawText(100, 300, "Some words appear multiple times: test, document, text.");
+    painter.drawText(100, 300,
+                     "Some words appear multiple times: test, document, text.");
     painter.end();
 
     m_testDocument = Poppler::Document::load(m_testPdfPath).release();
     QVERIFY(m_testDocument != nullptr);
 }
 
-SearchOptions SearchEngineTest::createTestOptions()
-{
+SearchOptions SearchEngineTest::createTestOptions() {
     SearchOptions options;
     options.caseSensitive = false;
     options.wholeWords = false;
@@ -254,8 +241,9 @@ SearchOptions SearchEngineTest::createTestOptions()
     return options;
 }
 
-void SearchEngineTest::verifySearchResult(const SearchResult& result, int expectedPage, const QString& expectedText)
-{
+void SearchEngineTest::verifySearchResult(const SearchResult& result,
+                                          int expectedPage,
+                                          const QString& expectedText) {
     QVERIFY(result.isValid());
     QCOMPARE(result.pageNumber, expectedPage);
     QVERIFY(result.matchedText.contains(expectedText, Qt::CaseInsensitive));
@@ -263,8 +251,7 @@ void SearchEngineTest::verifySearchResult(const SearchResult& result, int expect
     QVERIFY(!result.boundingRect.isEmpty());
 }
 
-void SearchEngineTest::testIncrementalSearch()
-{
+void SearchEngineTest::testIncrementalSearch() {
     QSignalSpy finishedSpy(m_searchEngine, &SearchEngine::searchFinished);
 
     m_searchEngine->searchIncremental("test");
@@ -275,8 +262,7 @@ void SearchEngineTest::testIncrementalSearch()
     QVERIFY(!results.isEmpty());
 }
 
-void SearchEngineTest::testCancelSearch()
-{
+void SearchEngineTest::testCancelSearch() {
     QSignalSpy cancelledSpy(m_searchEngine, &SearchEngine::searchCancelled);
 
     m_searchEngine->search("test");
@@ -286,8 +272,7 @@ void SearchEngineTest::testCancelSearch()
     QCOMPARE(cancelledSpy.count(), 1);
 }
 
-void SearchEngineTest::testClearResults()
-{
+void SearchEngineTest::testClearResults() {
     m_searchEngine->search("test");
     QSignalSpy finishedSpy(m_searchEngine, &SearchEngine::searchFinished);
     QVERIFY(waitFor([&]() { return finishedSpy.count() > 0; }));
@@ -299,8 +284,7 @@ void SearchEngineTest::testClearResults()
     QCOMPARE(m_searchEngine->resultCount(), 0);
 }
 
-void SearchEngineTest::testStartSearch()
-{
+void SearchEngineTest::testStartSearch() {
     QSignalSpy finishedSpy(m_searchEngine, &SearchEngine::searchFinished);
 
     m_searchEngine->startSearch(m_testDocument, "test");
@@ -311,8 +295,7 @@ void SearchEngineTest::testStartSearch()
     QVERIFY(!results.isEmpty());
 }
 
-void SearchEngineTest::testGetResults()
-{
+void SearchEngineTest::testGetResults() {
     m_searchEngine->search("test");
     QSignalSpy finishedSpy(m_searchEngine, &SearchEngine::searchFinished);
     QVERIFY(waitFor([&]() { return finishedSpy.count() > 0; }));
@@ -327,8 +310,7 @@ void SearchEngineTest::testGetResults()
     }
 }
 
-void SearchEngineTest::testResultCount()
-{
+void SearchEngineTest::testResultCount() {
     m_searchEngine->search("test");
     QSignalSpy finishedSpy(m_searchEngine, &SearchEngine::searchFinished);
     QVERIFY(waitFor([&]() { return finishedSpy.count() > 0; }));
@@ -340,11 +322,11 @@ void SearchEngineTest::testResultCount()
     QVERIFY(count1 > 0);
 }
 
-void SearchEngineTest::testFuzzySearch()
-{
+void SearchEngineTest::testFuzzySearch() {
     SearchOptions options = createTestOptions();
 
-    m_searchEngine->fuzzySearch("tset", 2, options); // "tset" should match "test"
+    m_searchEngine->fuzzySearch("tset", 2,
+                                options);  // "tset" should match "test"
 
     QSignalSpy finishedSpy(m_searchEngine, &SearchEngine::searchFinished);
     QVERIFY(waitFor([&]() { return finishedSpy.count() > 0; }));
@@ -353,8 +335,7 @@ void SearchEngineTest::testFuzzySearch()
     QVERIFY(!results.isEmpty());
 }
 
-void SearchEngineTest::testWildcardSearch()
-{
+void SearchEngineTest::testWildcardSearch() {
     SearchOptions options = createTestOptions();
 
     m_searchEngine->wildcardSearch("te*t", options);
@@ -366,8 +347,7 @@ void SearchEngineTest::testWildcardSearch()
     QVERIFY(!results.isEmpty());
 }
 
-void SearchEngineTest::testPhraseSearch()
-{
+void SearchEngineTest::testPhraseSearch() {
     SearchOptions options = createTestOptions();
 
     m_searchEngine->phraseSearch("test document", 0, options);
@@ -379,8 +359,7 @@ void SearchEngineTest::testPhraseSearch()
     QVERIFY(!results.isEmpty());
 }
 
-void SearchEngineTest::testBooleanSearch()
-{
+void SearchEngineTest::testBooleanSearch() {
     SearchOptions options = createTestOptions();
 
     m_searchEngine->booleanSearch("test AND document", options);
@@ -392,8 +371,7 @@ void SearchEngineTest::testBooleanSearch()
     QVERIFY(!results.isEmpty());
 }
 
-void SearchEngineTest::testProximitySearch()
-{
+void SearchEngineTest::testProximitySearch() {
     QStringList terms = {"test", "document"};
     SearchOptions options = createTestOptions();
 

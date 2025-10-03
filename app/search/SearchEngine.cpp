@@ -1,49 +1,43 @@
 #include "SearchEngine.h"
-#include "SearchConfiguration.h"
-#include "TextExtractor.h"
-#include "SearchExecutor.h"
-#include "BackgroundProcessor.h"
-#include "IncrementalSearchManager.h"
-#include "SearchMetrics.h"
-#include "MemoryManager.h"
-#include "SearchValidator.h"
-#include "SearchErrorRecovery.h"
-#include "SearchThreadSafety.h"
-#include "SearchPerformance.h"
-#include "SearchFeatures.h"
-#include "../cache/SearchResultCache.h"
-#include "../cache/CacheManager.h"
-#include "../cache/PageTextCache.h"
 #include <poppler-qt6.h>
 #include <QDebug>
 #include <QElapsedTimer>
+#include "../cache/CacheManager.h"
+#include "../cache/PageTextCache.h"
+#include "../cache/SearchResultCache.h"
+#include "BackgroundProcessor.h"
+#include "IncrementalSearchManager.h"
+#include "MemoryManager.h"
+#include "SearchConfiguration.h"
+#include "SearchErrorRecovery.h"
+#include "SearchExecutor.h"
+#include "SearchFeatures.h"
+#include "SearchMetrics.h"
+#include "SearchPerformance.h"
+#include "SearchThreadSafety.h"
+#include "SearchValidator.h"
+#include "TextExtractor.h"
 
-class SearchEngine::Implementation
-{
+class SearchEngine::Implementation {
 public:
     Implementation(SearchEngine* q)
-        : q_ptr(q)
-        , document(nullptr)
-        , isSearching(false)
-        , cacheEnabled(true)
-        , incrementalSearchEnabled(true)
-        , backgroundProcessingEnabled(true)
-        , documentMutex(SearchThreadSafety::MutexHierarchy::DocumentLevel)
-        , searchMutex(SearchThreadSafety::MutexHierarchy::SearchLevel)
-        , cacheMutex(SearchThreadSafety::MutexHierarchy::CacheLevel)
-        , metricsMutex(SearchThreadSafety::MutexHierarchy::MetricsLevel)
-    {
+        : q_ptr(q),
+          document(nullptr),
+          isSearching(false),
+          cacheEnabled(true),
+          incrementalSearchEnabled(true),
+          backgroundProcessingEnabled(true),
+          documentMutex(SearchThreadSafety::MutexHierarchy::DocumentLevel),
+          searchMutex(SearchThreadSafety::MutexHierarchy::SearchLevel),
+          cacheMutex(SearchThreadSafety::MutexHierarchy::CacheLevel),
+          metricsMutex(SearchThreadSafety::MutexHierarchy::MetricsLevel) {
         initializeComponents();
         connectSignals();
     }
 
-    ~Implementation()
-    {
-        cancelCurrentSearch();
-    }
+    ~Implementation() { cancelCurrentSearch(); }
 
-    void initializeComponents()
-    {
+    void initializeComponents() {
         // Initialize core components
         textExtractor = new TextExtractor(q_ptr);
         searchExecutor = new SearchExecutor(q_ptr);
@@ -78,30 +72,34 @@ public:
         incrementalManager->setDelay(300);
     }
 
-    void setupErrorRecovery()
-    {
+    void setupErrorRecovery() {
         // Configure error recovery for different components
         SearchErrorRecovery::RecoveryConfig searchConfig;
         searchConfig.strategy = SearchErrorRecovery::Fallback;
         searchConfig.maxRetries = 2;
         searchConfig.retryDelayMs = 1000;
         searchConfig.enableFallback = true;
-        errorRecovery->setRecoveryConfig(SearchErrorRecovery::SearchError, searchConfig);
+        errorRecovery->setRecoveryConfig(SearchErrorRecovery::SearchError,
+                                         searchConfig);
 
         SearchErrorRecovery::RecoveryConfig documentConfig;
         documentConfig.strategy = SearchErrorRecovery::Retry;
         documentConfig.maxRetries = 3;
         documentConfig.retryDelayMs = 2000;
-        errorRecovery->setRecoveryConfig(SearchErrorRecovery::DocumentError, documentConfig);
+        errorRecovery->setRecoveryConfig(SearchErrorRecovery::DocumentError,
+                                         documentConfig);
 
         SearchErrorRecovery::RecoveryConfig cacheConfig;
         cacheConfig.strategy = SearchErrorRecovery::Skip;
         cacheConfig.maxRetries = 1;
-        errorRecovery->setRecoveryConfig(SearchErrorRecovery::CacheError, cacheConfig);
+        errorRecovery->setRecoveryConfig(SearchErrorRecovery::CacheError,
+                                         cacheConfig);
 
         // Register fallback functions
-        errorRecovery->registerFallback(SearchErrorRecovery::SearchError, "search",
-            [this](const SearchErrorRecovery::ErrorContext& context) -> QVariant {
+        errorRecovery->registerFallback(
+            SearchErrorRecovery::SearchError, "search",
+            [this](
+                const SearchErrorRecovery::ErrorContext& context) -> QVariant {
                 // Fallback to simple text search without regex
                 SearchOptions simpleOptions;
                 simpleOptions.useRegex = false;
@@ -110,13 +108,16 @@ public:
 
                 QString query = context.metadata.value("query").toString();
                 if (!query.isEmpty()) {
-                    return QVariant::fromValue(executeSimpleSearch(query, simpleOptions));
+                    return QVariant::fromValue(
+                        executeSimpleSearch(query, simpleOptions));
                 }
                 return QVariant();
             });
 
-        errorRecovery->registerFallback(SearchErrorRecovery::DocumentError, "page_access",
-            [this](const SearchErrorRecovery::ErrorContext& context) -> QVariant {
+        errorRecovery->registerFallback(
+            SearchErrorRecovery::DocumentError, "page_access",
+            [this](
+                const SearchErrorRecovery::ErrorContext& context) -> QVariant {
                 // Skip problematic pages and continue
                 int pageNumber = context.metadata.value("pageNumber").toInt();
                 qDebug() << "Skipping problematic page:" << pageNumber;
@@ -129,10 +130,10 @@ public:
         errorRecovery->enableCircuitBreaker("search_execution", 10, 120000);
     }
 
-    void setupPerformanceOptimizer()
-    {
+    void setupPerformanceOptimizer() {
         // Initialize memory pool for search operations
-        performanceOptimizer->initializeMemoryPool(2 * 1024 * 1024); // 2MB pool
+        performanceOptimizer->initializeMemoryPool(2 * 1024 *
+                                                   1024);  // 2MB pool
 
         // Enable predictive caching
         performanceOptimizer->enablePredictiveCache(true);
@@ -154,62 +155,67 @@ public:
         performanceOptimizer->setRankingFactors(factors);
 
         // Connect performance signals
-        QObject::connect(performanceOptimizer, &SearchPerformance::optimizationCompleted,
+        QObject::connect(
+            performanceOptimizer, &SearchPerformance::optimizationCompleted,
             [this](const SearchPerformance::PerformanceMetrics& metrics) {
-                qDebug() << "Search optimization completed:"
-                         << "Algorithm:" << metrics.algorithmUsed
+                qDebug() << "Search optimization completed:" << "Algorithm:"
+                         << metrics.algorithmUsed
                          << "Time:" << metrics.searchTime << "ms"
                          << "Results:" << metrics.resultsFound;
             });
 
-        QObject::connect(performanceOptimizer, &SearchPerformance::algorithmSelected,
+        QObject::connect(
+            performanceOptimizer, &SearchPerformance::algorithmSelected,
             [this](const QString& algorithm, const QString& reason) {
-                qDebug() << "Selected algorithm:" << algorithm << "Reason:" << reason;
+                qDebug() << "Selected algorithm:" << algorithm
+                         << "Reason:" << reason;
             });
     }
 
-    void setupAdvancedFeatures()
-    {
+    void setupAdvancedFeatures() {
         // Configure highlight colors
-        advancedFeatures->setHighlightColors(QColor("#FFFF00"), QColor("#FF6600"));
+        advancedFeatures->setHighlightColors(QColor("#FFFF00"),
+                                             QColor("#FF6600"));
 
         // Connect advanced search signals
-        QObject::connect(advancedFeatures, &SearchFeatures::fuzzySearchCompleted,
+        QObject::connect(
+            advancedFeatures, &SearchFeatures::fuzzySearchCompleted,
             [this](const QList<SearchFeatures::FuzzyMatch>& matches) {
-                qDebug() << "Fuzzy search completed with" << matches.size() << "matches";
+                qDebug() << "Fuzzy search completed with" << matches.size()
+                         << "matches";
             });
 
-        QObject::connect(advancedFeatures, &SearchFeatures::highlightsGenerated,
+        QObject::connect(
+            advancedFeatures, &SearchFeatures::highlightsGenerated,
             [this](const QList<SearchFeatures::HighlightInfo>& highlights) {
                 qDebug() << "Generated" << highlights.size() << "highlights";
             });
 
         QObject::connect(advancedFeatures, &SearchFeatures::historyUpdated,
-            [this]() {
-                qDebug() << "Search history updated";
-            });
+                         [this]() { qDebug() << "Search history updated"; });
 
         QObject::connect(advancedFeatures, &SearchFeatures::suggestionsReady,
-            [this](const QStringList& suggestions) {
-                qDebug() << "Search suggestions ready:" << suggestions.size() << "items";
-            });
+                         [this](const QStringList& suggestions) {
+                             qDebug() << "Search suggestions ready:"
+                                      << suggestions.size() << "items";
+                         });
     }
 
-    void connectSignals()
-    {
+    void connectSignals() {
         // Connect incremental search manager
-        QObject::connect(incrementalManager, &IncrementalSearchManager::searchTriggered,
+        QObject::connect(
+            incrementalManager, &IncrementalSearchManager::searchTriggered,
             [this](const QString& query, const SearchOptions& options) {
                 performSearch(query, options);
             });
 
         // Connect search executor progress
-        QObject::connect(searchExecutor, &SearchExecutor::searchProgress,
-            q_ptr, &SearchEngine::searchProgress);
+        QObject::connect(searchExecutor, &SearchExecutor::searchProgress, q_ptr,
+                         &SearchEngine::searchProgress);
 
         // Connect background processor
-        QObject::connect(backgroundProcessor, &BackgroundProcessor::taskFinished,
-            [this]() {
+        QObject::connect(
+            backgroundProcessor, &BackgroundProcessor::taskFinished, [this]() {
                 if (!isSearching.isSet() && backgroundProcessor->isIdle()) {
                     isSearching.clear();
                 }
@@ -217,13 +223,12 @@ public:
 
         // Connect metrics warnings
         QObject::connect(metrics, &SearchMetrics::performanceWarning,
-            [this](const QString& warning) {
-                qWarning() << "Performance:" << warning;
-            });
+                         [this](const QString& warning) {
+                             qWarning() << "Performance:" << warning;
+                         });
     }
 
-    void performSearch(const QString& query, const SearchOptions& options)
-    {
+    void performSearch(const QString& query, const SearchOptions& options) {
         if (!document) {
             emit q_ptr->searchError("No document loaded");
             return;
@@ -237,13 +242,14 @@ public:
             SearchResultCache::CacheKey key = createCacheKey(query, options);
 
             if (resultCache->hasResults(key)) {
-                QList<SearchResult> cachedResults = resultCache->getResults(key);
+                QList<SearchResult> cachedResults =
+                    resultCache->getResults(key);
                 currentResults.set(cachedResults);
                 currentQuery.set(query);
                 currentOptions.set(options);
-                
+
                 metrics->recordCacheHit(query);
-                
+
                 // Record metrics
                 SearchMetrics::Metric metric;
                 metric.query = query;
@@ -253,25 +259,25 @@ public:
                 metric.incremental = false;
                 metric.timestamp = QDateTime::currentDateTime();
                 metrics->recordSearch(metric);
-                
+
                 emit q_ptr->searchFinished(cachedResults);
                 return;
             }
-            
+
             metrics->recordCacheMiss(query);
         }
 
         // Check for incremental search opportunity
         if (incrementalSearchEnabled.isSet() &&
             incrementalManager->canRefineSearch(query, currentQuery.copy())) {
-
             QList<SearchResult> refinedResults =
-                incrementalManager->refineResults(currentResults.copy(), query, currentQuery.copy());
-            
+                incrementalManager->refineResults(currentResults.copy(), query,
+                                                  currentQuery.copy());
+
             if (!refinedResults.isEmpty()) {
                 currentResults.set(refinedResults);
                 currentQuery.set(query);
-                
+
                 // Record metrics
                 SearchMetrics::Metric metric;
                 metric.query = query;
@@ -281,7 +287,7 @@ public:
                 metric.incremental = true;
                 metric.timestamp = QDateTime::currentDateTime();
                 metrics->recordSearch(metric);
-                
+
                 emit q_ptr->searchFinished(refinedResults);
                 return;
             }
@@ -297,7 +303,7 @@ public:
             // Asynchronous search
             backgroundProcessor->executeAsync([this, query, options, timer]() {
                 QList<SearchResult> results = executeFullSearch(query, options);
-                
+
                 // Record metrics
                 SearchMetrics::Metric metric;
                 metric.query = query;
@@ -308,18 +314,21 @@ public:
                 metric.incremental = false;
                 metric.timestamp = QDateTime::currentDateTime();
                 metrics->recordSearch(metric);
-                
+
                 // Update state on main thread
-                QMetaObject::invokeMethod(q_ptr, [this, results]() {
-                    currentResults.set(results);
-                    isSearching.clear();
-                    emit q_ptr->searchFinished(results);
-                }, Qt::QueuedConnection);
+                QMetaObject::invokeMethod(
+                    q_ptr,
+                    [this, results]() {
+                        currentResults.set(results);
+                        isSearching.clear();
+                        emit q_ptr->searchFinished(results);
+                    },
+                    Qt::QueuedConnection);
             });
         } else {
             // Synchronous search
             QList<SearchResult> results = executeFullSearch(query, options);
-            
+
             // Record metrics
             SearchMetrics::Metric metric;
             metric.query = query;
@@ -330,15 +339,15 @@ public:
             metric.incremental = false;
             metric.timestamp = QDateTime::currentDateTime();
             metrics->recordSearch(metric);
-            
+
             currentResults.set(results);
             isSearching.clear();
             emit q_ptr->searchFinished(results);
         }
     }
 
-    QList<SearchResult> executeFullSearch(const QString& query, const SearchOptions& options)
-    {
+    QList<SearchResult> executeFullSearch(const QString& query,
+                                          const SearchOptions& options) {
         if (!document) {
             return QList<SearchResult>();
         }
@@ -352,7 +361,8 @@ public:
         }
 
         // Perform search
-        QList<SearchResult> results = searchExecutor->searchInPages(pages, query);
+        QList<SearchResult> results =
+            searchExecutor->searchInPages(pages, query);
 
         // Cache results
         if (cacheEnabled.isSet()) {
@@ -363,8 +373,8 @@ public:
         return results;
     }
 
-    QList<SearchResult> executeSimpleSearch(const QString& query, const SearchOptions& options)
-    {
+    QList<SearchResult> executeSimpleSearch(const QString& query,
+                                            const SearchOptions& options) {
         if (!document || query.isEmpty()) {
             return QList<SearchResult>();
         }
@@ -372,11 +382,13 @@ public:
         QList<SearchResult> results;
 
         // Simple text search without regex - more reliable fallback
-        for (int i = 0; i < document->numPages() && results.size() < options.maxResults; ++i) {
+        for (int i = 0;
+             i < document->numPages() && results.size() < options.maxResults;
+             ++i) {
             try {
                 std::unique_ptr<Poppler::Page> page(document->page(i));
                 if (!page) {
-                    continue; // Skip invalid pages
+                    continue;  // Skip invalid pages
                 }
 
                 QString pageText = page->text(QRectF());
@@ -385,18 +397,25 @@ public:
                 }
 
                 // Simple case-insensitive text search
-                QString searchText = options.caseSensitive ? pageText : pageText.toLower();
-                QString searchQuery = options.caseSensitive ? query : query.toLower();
+                QString searchText =
+                    options.caseSensitive ? pageText : pageText.toLower();
+                QString searchQuery =
+                    options.caseSensitive ? query : query.toLower();
 
                 int pos = 0;
-                while ((pos = searchText.indexOf(searchQuery, pos)) != -1 && results.size() < options.maxResults) {
+                while ((pos = searchText.indexOf(searchQuery, pos)) != -1 &&
+                       results.size() < options.maxResults) {
                     // Extract context around the match
                     int contextStart = qMax(0, pos - options.contextLength);
-                    int contextEnd = qMin(pageText.length(), pos + searchQuery.length() + options.contextLength);
-                    QString context = pageText.mid(contextStart, contextEnd - contextStart);
+                    int contextEnd =
+                        qMin(pageText.length(), pos + searchQuery.length() +
+                                                    options.contextLength);
+                    QString context =
+                        pageText.mid(contextStart, contextEnd - contextStart);
 
                     // Create search result
-                    SearchResult result(i, searchQuery, context, QRectF(), pos, searchQuery.length());
+                    SearchResult result(i, searchQuery, context, QRectF(), pos,
+                                        searchQuery.length());
                     results.append(result);
 
                     pos += searchQuery.length();
@@ -404,7 +423,8 @@ public:
 
             } catch (const std::exception& e) {
                 // Skip problematic pages in simple search
-                qDebug() << "Skipping page" << i << "in simple search due to error:" << e.what();
+                qDebug() << "Skipping page" << i
+                         << "in simple search due to error:" << e.what();
                 continue;
             }
         }
@@ -412,8 +432,7 @@ public:
         return results;
     }
 
-    void cancelCurrentSearch()
-    {
+    void cancelCurrentSearch() {
         if (isSearching.isSet()) {
             backgroundProcessor->cancelAll();
             incrementalManager->cancelScheduledSearch();
@@ -422,8 +441,8 @@ public:
         }
     }
 
-    SearchResultCache::CacheKey createCacheKey(const QString& query, const SearchOptions& options)
-    {
+    SearchResultCache::CacheKey createCacheKey(const QString& query,
+                                               const SearchOptions& options) {
         SearchResultCache::CacheKey key;
         key.query = query;
         key.options = options;
@@ -431,13 +450,12 @@ public:
         return key;
     }
 
-    void updateDocumentId()
-    {
+    void updateDocumentId() {
         if (document) {
             // Generate unique ID based on document pointer and timestamp
             documentId = QString("doc_%1_%2")
-                .arg(reinterpret_cast<quintptr>(document))
-                .arg(QDateTime::currentMSecsSinceEpoch());
+                             .arg(reinterpret_cast<quintptr>(document))
+                             .arg(QDateTime::currentMSecsSinceEpoch());
         } else {
             documentId.clear();
         }
@@ -485,17 +503,17 @@ public:
 // Public interface implementation
 
 SearchEngine::SearchEngine(QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<Implementation>(this))
-{
+    : QObject(parent), d(std::make_unique<Implementation>(this)) {
     // Register caches with the unified cache manager
     CacheManager& cacheManager = CacheManager::instance();
 
     // Register SearchResultCache
-    cacheManager.registerCache(CacheManager::SEARCH_RESULT_CACHE, d->resultCache);
+    cacheManager.registerCache(CacheManager::SEARCH_RESULT_CACHE,
+                               d->resultCache);
 
     // Register TextExtractor cache through adapter
-    TextExtractorCacheAdapter* textCacheAdapter = new TextExtractorCacheAdapter(d->textExtractor, this);
+    TextExtractorCacheAdapter* textCacheAdapter =
+        new TextExtractorCacheAdapter(d->textExtractor, this);
     cacheManager.registerCache(CacheManager::PAGE_TEXT_CACHE, textCacheAdapter);
 
     // Register with memory optimizer
@@ -505,8 +523,7 @@ SearchEngine::SearchEngine(QObject* parent)
 
 SearchEngine::~SearchEngine() = default;
 
-void SearchEngine::setDocument(Poppler::Document* document)
-{
+void SearchEngine::setDocument(Poppler::Document* document) {
     if (d->document != document) {
         d->cancelCurrentSearch();
         d->document = document;
@@ -514,7 +531,7 @@ void SearchEngine::setDocument(Poppler::Document* document)
         d->textExtractor->setDocument(document);
         d->currentResults.set(QList<SearchResult>());
         d->currentQuery.set(QString());
-        
+
         // Clear cache for old document
         if (document) {
             d->resultCache->invalidateDocument(d->documentId);
@@ -522,26 +539,28 @@ void SearchEngine::setDocument(Poppler::Document* document)
     }
 }
 
-Poppler::Document* SearchEngine::document() const
-{
-    return d->document;
-}
+Poppler::Document* SearchEngine::document() const { return d->document; }
 
-void SearchEngine::search(const QString& query, const SearchOptions& options)
-{
-    SEARCH_ERROR_SCOPE(d->errorRecovery, SearchErrorRecovery::SearchError, "search", "SearchEngine");
+void SearchEngine::search(const QString& query, const SearchOptions& options) {
+    SEARCH_ERROR_SCOPE(d->errorRecovery, SearchErrorRecovery::SearchError,
+                       "search", "SearchEngine");
 
     try {
         // Comprehensive input validation
-        auto validationResult = d->validator->validateSearchRequest(query, options, d->document);
+        auto validationResult =
+            d->validator->validateSearchRequest(query, options, d->document);
         if (!validationResult.isValid) {
-            QString errorMsg = QString("Search validation failed: %1").arg(validationResult.errorMessages.join("; "));
+            QString errorMsg =
+                QString("Search validation failed: %1")
+                    .arg(validationResult.errorMessages.join("; "));
             emit searchError(errorMsg);
             return;
         }
 
         // Use sanitized query if available
-        QString sanitizedQuery = validationResult.sanitizedInput.isEmpty() ? query : validationResult.sanitizedInput;
+        QString sanitizedQuery = validationResult.sanitizedInput.isEmpty()
+                                     ? query
+                                     : validationResult.sanitizedInput;
 
         if (sanitizedQuery.isEmpty()) {
             clearResults();
@@ -554,28 +573,32 @@ void SearchEngine::search(const QString& query, const SearchOptions& options)
             return true;
         };
 
-        SearchErrorRecovery::ErrorContext context(SearchErrorRecovery::SearchError, "search", "SearchEngine");
+        SearchErrorRecovery::ErrorContext context(
+            SearchErrorRecovery::SearchError, "search", "SearchEngine");
         context.metadata["query"] = sanitizedQuery;
         context.metadata["options"] = QVariant::fromValue(options);
 
         d->errorRecovery->executeWithRecovery<bool>(searchOperation, context);
 
     } catch (const SearchException& e) {
-        SearchErrorRecovery::ErrorContext context(e.type(), "search", "SearchEngine", e.what());
+        SearchErrorRecovery::ErrorContext context(e.type(), "search",
+                                                  "SearchEngine", e.what());
         context.metadata["query"] = query;
         d->errorRecovery->handleError(e, context);
         emit searchError(QString("Search failed: %1").arg(e.what()));
 
     } catch (const std::exception& e) {
-        SearchErrorRecovery::ErrorContext context(SearchErrorRecovery::UnknownError, "search", "SearchEngine", e.what());
+        SearchErrorRecovery::ErrorContext context(
+            SearchErrorRecovery::UnknownError, "search", "SearchEngine",
+            e.what());
         context.metadata["query"] = query;
         d->errorRecovery->handleError(e, context);
         emit searchError(QString("Unexpected search error: %1").arg(e.what()));
     }
 }
 
-void SearchEngine::searchIncremental(const QString& query, const SearchOptions& options)
-{
+void SearchEngine::searchIncremental(const QString& query,
+                                     const SearchOptions& options) {
     if (query.isEmpty()) {
         clearResults();
         return;
@@ -588,20 +611,15 @@ void SearchEngine::searchIncremental(const QString& query, const SearchOptions& 
     }
 }
 
-void SearchEngine::cancelSearch()
-{
-    d->cancelCurrentSearch();
-}
+void SearchEngine::cancelSearch() { d->cancelCurrentSearch(); }
 
-void SearchEngine::clearResults()
-{
+void SearchEngine::clearResults() {
     d->currentResults.set(QList<SearchResult>());
     d->currentQuery.set(QString());
     emit resultsUpdated(QList<SearchResult>());
 }
 
-void SearchEngine::setCacheEnabled(bool enabled)
-{
+void SearchEngine::setCacheEnabled(bool enabled) {
     if (enabled) {
         d->cacheEnabled.set();
     } else {
@@ -613,13 +631,9 @@ void SearchEngine::setCacheEnabled(bool enabled)
     }
 }
 
-bool SearchEngine::isCacheEnabled() const
-{
-    return d->cacheEnabled.isSet();
-}
+bool SearchEngine::isCacheEnabled() const { return d->cacheEnabled.isSet(); }
 
-void SearchEngine::setIncrementalSearchEnabled(bool enabled)
-{
+void SearchEngine::setIncrementalSearchEnabled(bool enabled) {
     if (enabled) {
         d->incrementalSearchEnabled.set();
     } else {
@@ -628,13 +642,11 @@ void SearchEngine::setIncrementalSearchEnabled(bool enabled)
     d->incrementalManager->setEnabled(enabled);
 }
 
-bool SearchEngine::isIncrementalSearchEnabled() const
-{
+bool SearchEngine::isIncrementalSearchEnabled() const {
     return d->incrementalSearchEnabled.isSet();
 }
 
-void SearchEngine::setBackgroundProcessingEnabled(bool enabled)
-{
+void SearchEngine::setBackgroundProcessingEnabled(bool enabled) {
     if (enabled) {
         d->backgroundProcessingEnabled.set();
     } else {
@@ -642,50 +654,39 @@ void SearchEngine::setBackgroundProcessingEnabled(bool enabled)
     }
 }
 
-bool SearchEngine::isBackgroundProcessingEnabled() const
-{
+bool SearchEngine::isBackgroundProcessingEnabled() const {
     return d->backgroundProcessingEnabled.isSet();
 }
 
-QList<SearchResult> SearchEngine::results() const
-{
+QList<SearchResult> SearchEngine::results() const {
     return d->currentResults.copy();
 }
 
-int SearchEngine::resultCount() const
-{
+int SearchEngine::resultCount() const {
     return d->currentResults.copy().size();
 }
 
-bool SearchEngine::isSearching() const
-{
-    return d->isSearching.isSet();
-}
+bool SearchEngine::isSearching() const { return d->isSearching.isSet(); }
 
-QString SearchEngine::currentQuery() const
-{
-    return d->currentQuery.copy();
-}
+QString SearchEngine::currentQuery() const { return d->currentQuery.copy(); }
 
-double SearchEngine::cacheHitRatio() const
-{
+double SearchEngine::cacheHitRatio() const {
     return d->metrics->cacheHitRatio();
 }
 
-qint64 SearchEngine::cacheMemoryUsage() const
-{
-    return d->resultCache->getMemoryUsage() + d->textExtractor->cacheMemoryUsage();
+qint64 SearchEngine::cacheMemoryUsage() const {
+    return d->resultCache->getMemoryUsage() +
+           d->textExtractor->cacheMemoryUsage();
 }
 
-void SearchEngine::resetStatistics()
-{
+void SearchEngine::resetStatistics() {
     d->metrics->clearHistory();
     d->resultCache->resetStatistics();
 }
 
 // Advanced search operations implementation
-void SearchEngine::fuzzySearch(const QString& query, int maxDistance, const SearchOptions& options)
-{
+void SearchEngine::fuzzySearch(const QString& query, int maxDistance,
+                               const SearchOptions& options) {
     if (!d->document || query.isEmpty()) {
         emit searchError("Invalid document or empty query for fuzzy search");
         return;
@@ -703,10 +704,12 @@ void SearchEngine::fuzzySearch(const QString& query, int maxDistance, const Sear
         // Perform fuzzy search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page) continue;
+            if (!page)
+                continue;
 
             QString pageText = page->text(QRectF());
-            auto fuzzyMatches = d->advancedFeatures->fuzzySearch(pageText, query, maxDistance);
+            auto fuzzyMatches =
+                d->advancedFeatures->fuzzySearch(pageText, query, maxDistance);
 
             // Convert fuzzy matches to SearchResult
             for (const auto& match : fuzzyMatches) {
@@ -716,7 +719,8 @@ void SearchEngine::fuzzySearch(const QString& query, int maxDistance, const Sear
                 result.contextText = match.context;
                 result.textPosition = match.position;
                 result.textLength = match.length;
-                // Note: boundingRect would need coordinate mapping from text position
+                // Note: boundingRect would need coordinate mapping from text
+                // position
 
                 allResults.append(result);
             }
@@ -724,7 +728,8 @@ void SearchEngine::fuzzySearch(const QString& query, int maxDistance, const Sear
 
         // Add to search history
         qint64 searchTime = timer.elapsed();
-        d->advancedFeatures->addToHistory(query, options, allResults.size(), searchTime, true);
+        d->advancedFeatures->addToHistory(query, options, allResults.size(),
+                                          searchTime, true);
 
         d->currentResults.set(allResults);
         d->isSearching.clear();
@@ -737,10 +742,11 @@ void SearchEngine::fuzzySearch(const QString& query, int maxDistance, const Sear
     }
 }
 
-void SearchEngine::wildcardSearch(const QString& pattern, const SearchOptions& options)
-{
+void SearchEngine::wildcardSearch(const QString& pattern,
+                                  const SearchOptions& options) {
     if (!d->document || pattern.isEmpty()) {
-        emit searchError("Invalid document or empty pattern for wildcard search");
+        emit searchError(
+            "Invalid document or empty pattern for wildcard search");
         return;
     }
 
@@ -756,16 +762,19 @@ void SearchEngine::wildcardSearch(const QString& pattern, const SearchOptions& o
         // Perform wildcard search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page) continue;
+            if (!page)
+                continue;
 
             QString pageText = page->text(QRectF());
-            auto wildcardResults = d->advancedFeatures->wildcardSearch(pageText, pattern, pageNum);
+            auto wildcardResults =
+                d->advancedFeatures->wildcardSearch(pageText, pattern, pageNum);
             allResults.append(wildcardResults);
         }
 
         // Add to search history
         qint64 searchTime = timer.elapsed();
-        d->advancedFeatures->addToHistory(pattern, options, allResults.size(), searchTime, true);
+        d->advancedFeatures->addToHistory(pattern, options, allResults.size(),
+                                          searchTime, true);
 
         d->currentResults.set(allResults);
         d->isSearching.clear();
@@ -778,8 +787,8 @@ void SearchEngine::wildcardSearch(const QString& pattern, const SearchOptions& o
     }
 }
 
-void SearchEngine::phraseSearch(const QString& phrase, int proximity, const SearchOptions& options)
-{
+void SearchEngine::phraseSearch(const QString& phrase, int proximity,
+                                const SearchOptions& options) {
     if (!d->document || phrase.isEmpty()) {
         emit searchError("Invalid document or empty phrase for phrase search");
         return;
@@ -797,16 +806,19 @@ void SearchEngine::phraseSearch(const QString& phrase, int proximity, const Sear
         // Perform phrase search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page) continue;
+            if (!page)
+                continue;
 
             QString pageText = page->text(QRectF());
-            auto phraseResults = d->advancedFeatures->phraseSearch(pageText, phrase, pageNum, proximity);
+            auto phraseResults = d->advancedFeatures->phraseSearch(
+                pageText, phrase, pageNum, proximity);
             allResults.append(phraseResults);
         }
 
         // Add to search history
         qint64 searchTime = timer.elapsed();
-        d->advancedFeatures->addToHistory(phrase, options, allResults.size(), searchTime, true);
+        d->advancedFeatures->addToHistory(phrase, options, allResults.size(),
+                                          searchTime, true);
 
         d->currentResults.set(allResults);
         d->isSearching.clear();
@@ -819,8 +831,8 @@ void SearchEngine::phraseSearch(const QString& phrase, int proximity, const Sear
     }
 }
 
-void SearchEngine::booleanSearch(const QString& query, const SearchOptions& options)
-{
+void SearchEngine::booleanSearch(const QString& query,
+                                 const SearchOptions& options) {
     if (!d->document || query.isEmpty()) {
         emit searchError("Invalid document or empty query for boolean search");
         return;
@@ -838,16 +850,19 @@ void SearchEngine::booleanSearch(const QString& query, const SearchOptions& opti
         // Perform boolean search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page) continue;
+            if (!page)
+                continue;
 
             QString pageText = page->text(QRectF());
-            auto booleanResults = d->advancedFeatures->booleanSearch(pageText, query, pageNum);
+            auto booleanResults =
+                d->advancedFeatures->booleanSearch(pageText, query, pageNum);
             allResults.append(booleanResults);
         }
 
         // Add to search history
         qint64 searchTime = timer.elapsed();
-        d->advancedFeatures->addToHistory(query, options, allResults.size(), searchTime, true);
+        d->advancedFeatures->addToHistory(query, options, allResults.size(),
+                                          searchTime, true);
 
         d->currentResults.set(allResults);
         d->isSearching.clear();
@@ -860,10 +875,11 @@ void SearchEngine::booleanSearch(const QString& query, const SearchOptions& opti
     }
 }
 
-void SearchEngine::proximitySearch(const QStringList& terms, int maxDistance, bool ordered, const SearchOptions& options)
-{
+void SearchEngine::proximitySearch(const QStringList& terms, int maxDistance,
+                                   bool ordered, const SearchOptions& options) {
     if (!d->document || terms.isEmpty()) {
-        emit searchError("Invalid document or empty terms for proximity search");
+        emit searchError(
+            "Invalid document or empty terms for proximity search");
         return;
     }
 
@@ -886,17 +902,20 @@ void SearchEngine::proximitySearch(const QStringList& terms, int maxDistance, bo
         // Perform proximity search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page) continue;
+            if (!page)
+                continue;
 
             QString pageText = page->text(QRectF());
-            auto proximityResults = d->advancedFeatures->proximitySearch(pageText, terms, proxOptions, pageNum);
+            auto proximityResults = d->advancedFeatures->proximitySearch(
+                pageText, terms, proxOptions, pageNum);
             allResults.append(proximityResults);
         }
 
         // Add to search history
         QString queryString = terms.join(" NEAR ");
         qint64 searchTime = timer.elapsed();
-        d->advancedFeatures->addToHistory(queryString, options, allResults.size(), searchTime, true);
+        d->advancedFeatures->addToHistory(queryString, options,
+                                          allResults.size(), searchTime, true);
 
         d->currentResults.set(allResults);
         d->isSearching.clear();
@@ -910,23 +929,22 @@ void SearchEngine::proximitySearch(const QStringList& terms, int maxDistance, bo
 }
 
 // Advanced features access methods
-SearchFeatures* SearchEngine::advancedFeatures() const
-{
+SearchFeatures* SearchEngine::advancedFeatures() const {
     return d->advancedFeatures;
 }
 
-void SearchEngine::setHighlightColors(const QColor& normalColor, const QColor& currentColor)
-{
+void SearchEngine::setHighlightColors(const QColor& normalColor,
+                                      const QColor& currentColor) {
     d->advancedFeatures->setHighlightColors(normalColor, currentColor);
 }
 
-QStringList SearchEngine::getSearchSuggestions(const QString& partialQuery, int maxSuggestions)
-{
-    return d->advancedFeatures->generateSuggestions(partialQuery, maxSuggestions);
+QStringList SearchEngine::getSearchSuggestions(const QString& partialQuery,
+                                               int maxSuggestions) {
+    return d->advancedFeatures->generateSuggestions(partialQuery,
+                                                    maxSuggestions);
 }
 
-QStringList SearchEngine::getSearchHistory(int maxEntries)
-{
+QStringList SearchEngine::getSearchHistory(int maxEntries) {
     auto historyEntries = d->advancedFeatures->getSearchHistory(maxEntries);
     QStringList queries;
 
@@ -937,14 +955,12 @@ QStringList SearchEngine::getSearchHistory(int maxEntries)
     return queries;
 }
 
-void SearchEngine::clearSearchHistory()
-{
-    d->advancedFeatures->clearHistory();
-}
+void SearchEngine::clearSearchHistory() { d->advancedFeatures->clearHistory(); }
 
 // Synchronous search operations for testing compatibility
-void SearchEngine::startSearch(Poppler::Document* document, const QString& query, const SearchOptions& options)
-{
+void SearchEngine::startSearch(Poppler::Document* document,
+                               const QString& query,
+                               const SearchOptions& options) {
     // Handle null document or empty query immediately
     if (!document || query.isEmpty()) {
         // Don't wait for signals, just return empty results
@@ -972,7 +988,4 @@ void SearchEngine::startSearch(Poppler::Document* document, const QString& query
     loop.exec();
 }
 
-QList<SearchResult> SearchEngine::getResults() const
-{
-    return results();
-}
+QList<SearchResult> SearchEngine::getResults() const { return results(); }

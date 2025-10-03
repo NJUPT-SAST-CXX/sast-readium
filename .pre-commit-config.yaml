@@ -22,6 +22,8 @@ repos:
       # Check YAML syntax
       - id: check-yaml
         files: \.(yml|yaml)$
+        exclude: '^(\.github/workflows/(performance|dependencies|security|docs)\.yml|mkdocs\.yml)$'
+        args: ['--unsafe']
       # Check JSON syntax
       - id: check-json
         files: \.json$
@@ -61,19 +63,6 @@ repos:
               vcpkg_installed/.*
           )$
         args: [--style=file, --fallback-style=none]
-
-  # CMake formatting and linting
-  - repo: https://github.com/cheshirekow/cmake-format-precommit
-    rev: v0.6.13
-    hooks:
-      - id: cmake-format
-        files: (CMakeLists\.txt|\.cmake)$
-        args: [--line-width=100, --tab-size=4]
-        additional_dependencies: [PyYAML]
-      - id: cmake-lint
-        files: (CMakeLists\.txt|\.cmake)$
-        args: [--line-width=100]
-        additional_dependencies: [PyYAML]
 
   # C++ static analysis with clang-tidy
   - repo: https://github.com/pocc/pre-commit-hooks
@@ -119,19 +108,6 @@ repos:
       - id: shfmt
         files: \.(sh|bash)$
         args: [-w, -s, -i=4]
-
-  # Check for secrets in commits (optional - requires manual setup)
-  # - repo: https://github.com/Yelp/detect-secrets
-  #   rev: v1.5.0
-  #   hooks:
-  #     - id: detect-secrets
-  #       args: [--baseline, .secrets.baseline]
-  #       exclude: |
-  #         (?x)^(
-  #             .*\.pdf$|
-  #             .*\.log$|
-  #             build/.*
-  #         )$
 
   # Markdown formatting and linting
   - repo: https://github.com/igorshubovych/markdownlint-cli

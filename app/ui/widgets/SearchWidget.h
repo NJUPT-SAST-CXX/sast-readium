@@ -1,20 +1,20 @@
 #pragma once
 
-#include <QWidget>
-#include <QLineEdit>
-#include <QPushButton>
 #include <QCheckBox>
-#include <QLabel>
-#include <QListView>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QGroupBox>
-#include <QProgressBar>
-#include <QTimer>
-#include <QSpinBox>
-#include <QComboBox>
 #include <QColorDialog>
+#include <QComboBox>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListView>
+#include <QProgressBar>
+#include <QPushButton>
 #include <QRegularExpression>
+#include <QSpinBox>
+#include <QTimer>
+#include <QVBoxLayout>
+#include <QWidget>
 #include "../../model/SearchModel.h"
 
 class QShortcut;
@@ -51,7 +51,8 @@ public:
     void loadSearchHistory();
 
     // Enhanced UI features
-    void setHighlightColors(const QColor& normalColor, const QColor& currentColor);
+    void setHighlightColors(const QColor& normalColor,
+                            const QColor& currentColor);
     void showSearchProgress(bool show);
     void updateSearchProgress(int current, int total);
     void setSearchResultInfo(int currentResult, int totalResults);
@@ -69,7 +70,8 @@ signals:
     void navigateToResult(int pageNumber, const QRectF& rect);
     void searchClosed();
     void searchCleared();
-    void highlightColorsChanged(const QColor& normalColor, const QColor& currentColor);
+    void highlightColorsChanged(const QColor& normalColor,
+                                const QColor& currentColor);
 
 public slots:
     void performSearch();
@@ -170,7 +172,7 @@ private:
     // Data and state
     SearchModel* m_searchModel;
     Poppler::Document* m_document;
-    QTimer* m_searchTimer; // For debounced search
+    QTimer* m_searchTimer;  // For debounced search
     bool m_optionsVisible;
 
     // Shortcuts

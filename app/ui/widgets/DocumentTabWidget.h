@@ -1,17 +1,17 @@
 #pragma once
 
-#include <QTabWidget>
-#include <QTabBar>
-#include <QMouseEvent>
-#include <QDragEnterEvent>
-#include <QDropEvent>
-#include <QMimeData>
 #include <QApplication>
 #include <QDrag>
-#include <QPushButton>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMimeData>
+#include <QMouseEvent>
+#include <QPushButton>
 #include <QStyle>
+#include <QTabBar>
+#include <QTabWidget>
 #include "../../model/DocumentModel.h"
 
 class DocumentTabBar : public QTabBar {
@@ -40,17 +40,17 @@ class DocumentTabWidget : public QTabWidget {
 
 public:
     DocumentTabWidget(QWidget* parent = nullptr);
-    
+
     // 标签页管理
     int addDocumentTab(const QString& fileName, const QString& filePath);
     void removeDocumentTab(int index);
     void updateTabText(int index, const QString& fileName);
     void setCurrentTab(int index);
     void setTabLoadingState(int index, bool loading);
-    
+
     // 拖拽支持
     void moveTab(int from, int to);
-    
+
     // 获取标签页信息
     QString getTabFilePath(int index) const;
     int getTabCount() const;
@@ -65,7 +65,7 @@ private slots:
 
 private:
     DocumentTabBar* customTabBar;
-    QHash<int, QString> tabFilePaths; // 存储每个标签页对应的文件路径
+    QHash<int, QString> tabFilePaths;  // 存储每个标签页对应的文件路径
 
 signals:
     void tabCloseRequested(int index);

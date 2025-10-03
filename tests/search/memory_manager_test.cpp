@@ -1,8 +1,8 @@
-#include <QtTest/QtTest>
+#include <QElapsedTimer>
 #include <QObject>
 #include <QSignalSpy>
 #include <QTimer>
-#include <QElapsedTimer>
+#include <QtTest/QtTest>
 #include "../../app/search/MemoryManager.h"
 #include "../../app/search/SearchEngine.h"
 #include "../../app/search/TextExtractor.h"
@@ -12,8 +12,7 @@
  * Comprehensive tests for MemoryManager class
  * Tests memory optimization, monitoring, and predictive optimization
  */
-class MemoryManagerTest : public TestBase
-{
+class MemoryManagerTest : public TestBase {
     Q_OBJECT
 
 protected:
@@ -78,25 +77,21 @@ private:
     MemoryManager::MemoryStats createMockStats();
 };
 
-void MemoryManagerTest::initTestCase()
-{
+void MemoryManagerTest::initTestCase() {
     qDebug() << "Starting MemoryManager tests";
 }
 
-void MemoryManagerTest::cleanupTestCase()
-{
+void MemoryManagerTest::cleanupTestCase() {
     qDebug() << "MemoryManager tests completed";
 }
 
-void MemoryManagerTest::init()
-{
+void MemoryManagerTest::init() {
     m_manager = new MemoryManager(this);
     m_mockSearchEngine = nullptr;
     m_mockTextExtractor = nullptr;
 }
 
-void MemoryManagerTest::cleanup()
-{
+void MemoryManagerTest::cleanup() {
     if (m_mockSearchEngine) {
         delete m_mockSearchEngine;
         m_mockSearchEngine = nullptr;
@@ -111,58 +106,54 @@ void MemoryManagerTest::cleanup()
     }
 }
 
-void MemoryManagerTest::testConstructor()
-{
+void MemoryManagerTest::testConstructor() {
     QVERIFY(m_manager != nullptr);
-    QVERIFY(m_manager->getOptimizationLevel() != MemoryManager::OptimizationLevel(-1));
+    QVERIFY(m_manager->getOptimizationLevel() !=
+            MemoryManager::OptimizationLevel(-1));
     QVERIFY(m_manager->getOptimizationInterval() > 0);
 }
 
-void MemoryManagerTest::testOptimizationLevel()
-{
+void MemoryManagerTest::testOptimizationLevel() {
     // Test setting different optimization levels
     m_manager->setOptimizationLevel(MemoryManager::Conservative);
     QCOMPARE(m_manager->getOptimizationLevel(), MemoryManager::Conservative);
-    
+
     m_manager->setOptimizationLevel(MemoryManager::Balanced);
     QCOMPARE(m_manager->getOptimizationLevel(), MemoryManager::Balanced);
-    
+
     m_manager->setOptimizationLevel(MemoryManager::Aggressive);
     QCOMPARE(m_manager->getOptimizationLevel(), MemoryManager::Aggressive);
 }
 
-void MemoryManagerTest::testAutoOptimization()
-{
+void MemoryManagerTest::testAutoOptimization() {
     // Test enabling/disabling auto optimization
     m_manager->setAutoOptimizationEnabled(true);
     QVERIFY(m_manager->isAutoOptimizationEnabled());
-    
+
     m_manager->setAutoOptimizationEnabled(false);
     QVERIFY(!m_manager->isAutoOptimizationEnabled());
 }
 
-void MemoryManagerTest::testOptimizationInterval()
-{
+void MemoryManagerTest::testOptimizationInterval() {
     int originalInterval = m_manager->getOptimizationInterval();
-    
+
     m_manager->setOptimizationInterval(30);
     QCOMPARE(m_manager->getOptimizationInterval(), 30);
-    
+
     m_manager->setOptimizationInterval(60);
     QCOMPARE(m_manager->getOptimizationInterval(), 60);
-    
+
     // Test invalid interval
     m_manager->setOptimizationInterval(-10);
     QVERIFY(m_manager->getOptimizationInterval() > 0);
-    
+
     // Restore original
     m_manager->setOptimizationInterval(originalInterval);
 }
 
-void MemoryManagerTest::testGetMemoryStats()
-{
+void MemoryManagerTest::testGetMemoryStats() {
     MemoryManager::MemoryStats stats = m_manager->getMemoryStats();
-    
+
     QVERIFY(stats.totalMemoryUsage >= 0);
     QVERIFY(stats.searchCacheMemory >= 0);
     QVERIFY(stats.textCacheMemory >= 0);
@@ -173,220 +164,205 @@ void MemoryManagerTest::testGetMemoryStats()
     QVERIFY(stats.optimizationCount >= 0);
 }
 
-void MemoryManagerTest::testGetCurrentPressureLevel()
-{
-    MemoryManager::MemoryPressureLevel level = m_manager->getCurrentPressureLevel();
-    QVERIFY(level == MemoryManager::Normal || 
-            level == MemoryManager::Warning || 
+void MemoryManagerTest::testGetCurrentPressureLevel() {
+    MemoryManager::MemoryPressureLevel level =
+        m_manager->getCurrentPressureLevel();
+    QVERIFY(level == MemoryManager::Normal || level == MemoryManager::Warning ||
             level == MemoryManager::Critical);
 }
 
-void MemoryManagerTest::testGetAvailableMemory()
-{
+void MemoryManagerTest::testGetAvailableMemory() {
     qint64 available = m_manager->getAvailableMemory();
     QVERIFY(available >= 0);
 }
 
-void MemoryManagerTest::testGetMemoryEfficiency()
-{
+void MemoryManagerTest::testGetMemoryEfficiency() {
     double efficiency = m_manager->getMemoryEfficiency();
     QVERIFY(efficiency >= 0.0 && efficiency <= 1.0);
 }
 
-void MemoryManagerTest::testOptimizeMemoryUsage()
-{
-    QSignalSpy optimizationStartedSpy(m_manager, &MemoryManager::memoryOptimizationStarted);
-    QSignalSpy optimizationCompletedSpy(m_manager, &MemoryManager::memoryOptimizationCompleted);
-    
+void MemoryManagerTest::testOptimizeMemoryUsage() {
+    QSignalSpy optimizationStartedSpy(
+        m_manager, &MemoryManager::memoryOptimizationStarted);
+    QSignalSpy optimizationCompletedSpy(
+        m_manager, &MemoryManager::memoryOptimizationCompleted);
+
     m_manager->optimizeMemoryUsage();
-    
+
     // Verify signals were emitted
     QVERIFY(optimizationStartedSpy.count() >= 0);
     QVERIFY(optimizationCompletedSpy.count() >= 0);
 }
 
-void MemoryManagerTest::testOptimizeSearchCaches()
-{
+void MemoryManagerTest::testOptimizeSearchCaches() {
     // Test that cache optimization doesn't crash
     m_manager->optimizeSearchCaches();
     QVERIFY(true);
 }
 
-void MemoryManagerTest::testOptimizeTextCaches()
-{
+void MemoryManagerTest::testOptimizeTextCaches() {
     // Test that text cache optimization doesn't crash
     m_manager->optimizeTextCaches();
     QVERIFY(true);
 }
 
-void MemoryManagerTest::testOptimizeHighlightCaches()
-{
+void MemoryManagerTest::testOptimizeHighlightCaches() {
     // Test that highlight cache optimization doesn't crash
     m_manager->optimizeHighlightCaches();
     QVERIFY(true);
 }
 
-void MemoryManagerTest::testPerformEmergencyCleanup()
-{
-    QSignalSpy emergencyCleanupSpy(m_manager, &MemoryManager::emergencyCleanupTriggered);
-    
+void MemoryManagerTest::testPerformEmergencyCleanup() {
+    QSignalSpy emergencyCleanupSpy(m_manager,
+                                   &MemoryManager::emergencyCleanupTriggered);
+
     m_manager->performEmergencyCleanup();
-    
+
     // Emergency cleanup should always trigger signal
     QVERIFY(emergencyCleanupSpy.count() >= 0);
 }
 
-void MemoryManagerTest::testEnablePredictiveOptimization()
-{
+void MemoryManagerTest::testEnablePredictiveOptimization() {
     m_manager->enablePredictiveOptimization(true);
     QVERIFY(m_manager->isPredictiveOptimizationEnabled());
-    
+
     m_manager->enablePredictiveOptimization(false);
     QVERIFY(!m_manager->isPredictiveOptimizationEnabled());
 }
 
-void MemoryManagerTest::testAnalyzeMemoryUsagePatterns()
-{
+void MemoryManagerTest::testAnalyzeMemoryUsagePatterns() {
     // Test that pattern analysis doesn't crash
     m_manager->analyzeMemoryUsagePatterns();
     QVERIFY(true);
 }
 
-void MemoryManagerTest::testPredictMemoryNeeds()
-{
+void MemoryManagerTest::testPredictMemoryNeeds() {
     // Test that memory prediction doesn't crash
     m_manager->predictMemoryNeeds();
     QVERIFY(true);
 }
 
-void MemoryManagerTest::testRegisterSearchEngine()
-{
+void MemoryManagerTest::testRegisterSearchEngine() {
     m_mockSearchEngine = new SearchEngine(this);
-    
+
     // Test registration
     m_manager->registerSearchEngine(m_mockSearchEngine);
-    QVERIFY(true); // If no crash, registration succeeded
-    
+    QVERIFY(true);  // If no crash, registration succeeded
+
     // Test duplicate registration
     m_manager->registerSearchEngine(m_mockSearchEngine);
-    QVERIFY(true); // Should handle duplicates gracefully
+    QVERIFY(true);  // Should handle duplicates gracefully
 }
 
-void MemoryManagerTest::testRegisterTextExtractor()
-{
+void MemoryManagerTest::testRegisterTextExtractor() {
     m_mockTextExtractor = new TextExtractor(this);
-    
+
     // Test registration
     m_manager->registerTextExtractor(m_mockTextExtractor);
-    QVERIFY(true); // If no crash, registration succeeded
+    QVERIFY(true);  // If no crash, registration succeeded
 }
 
-void MemoryManagerTest::testUnregisterComponents()
-{
+void MemoryManagerTest::testUnregisterComponents() {
     m_mockSearchEngine = new SearchEngine(this);
     m_mockTextExtractor = new TextExtractor(this);
-    
+
     // Register components
     m_manager->registerSearchEngine(m_mockSearchEngine);
     m_manager->registerTextExtractor(m_mockTextExtractor);
-    
+
     // Unregister components
     m_manager->unregisterSearchEngine(m_mockSearchEngine);
     m_manager->unregisterTextExtractor(m_mockTextExtractor);
-    
-    QVERIFY(true); // If no crash, unregistration succeeded
+
+    QVERIFY(true);  // If no crash, unregistration succeeded
 }
 
-void MemoryManagerTest::testMemoryOptimizationSignals()
-{
+void MemoryManagerTest::testMemoryOptimizationSignals() {
     QSignalSpy startedSpy(m_manager, &MemoryManager::memoryOptimizationStarted);
-    QSignalSpy completedSpy(m_manager, &MemoryManager::memoryOptimizationCompleted);
-    
+    QSignalSpy completedSpy(m_manager,
+                            &MemoryManager::memoryOptimizationCompleted);
+
     m_manager->optimizeMemoryUsage();
-    
+
     // Verify signals are emitted appropriately
     QVERIFY(startedSpy.count() >= 0);
     QVERIFY(completedSpy.count() >= 0);
 }
 
-void MemoryManagerTest::testMemoryPressureSignals()
-{
+void MemoryManagerTest::testMemoryPressureSignals() {
     QSignalSpy pressureSpy(m_manager, &MemoryManager::memoryPressureChanged);
-    
+
     // Simulate pressure change
     simulateMemoryPressure(0.8);
-    
+
     // Note: Signal emission depends on implementation
     QVERIFY(pressureSpy.count() >= 0);
 }
 
-void MemoryManagerTest::testOnMemoryPressureDetected()
-{
-    QSignalSpy optimizationSpy(m_manager, &MemoryManager::memoryOptimizationStarted);
-    
+void MemoryManagerTest::testOnMemoryPressureDetected() {
+    QSignalSpy optimizationSpy(m_manager,
+                               &MemoryManager::memoryOptimizationStarted);
+
     // Simulate high memory pressure
     m_manager->onMemoryPressureDetected(0.9);
-    
+
     // Should trigger optimization at high pressure
     QVERIFY(optimizationSpy.count() >= 0);
 }
 
-void MemoryManagerTest::testOnSystemMemoryPressure()
-{
-    QSignalSpy emergencySpy(m_manager, &MemoryManager::emergencyCleanupTriggered);
-    
+void MemoryManagerTest::testOnSystemMemoryPressure() {
+    QSignalSpy emergencySpy(m_manager,
+                            &MemoryManager::emergencyCleanupTriggered);
+
     // Simulate critical system memory pressure
     m_manager->onSystemMemoryPressure(0.95);
-    
+
     // Should trigger emergency cleanup at critical pressure
     QVERIFY(emergencySpy.count() >= 0);
 }
 
-void MemoryManagerTest::testOnCacheMemoryExceeded()
-{
-    QSignalSpy optimizationSpy(m_manager, &MemoryManager::memoryOptimizationStarted);
-    
+void MemoryManagerTest::testOnCacheMemoryExceeded() {
+    QSignalSpy optimizationSpy(m_manager,
+                               &MemoryManager::memoryOptimizationStarted);
+
     // Simulate cache memory exceeded
-    qint64 usage = 1024 * 1024 * 100; // 100MB
-    qint64 limit = 1024 * 1024 * 50;  // 50MB
+    qint64 usage = 1024 * 1024 * 100;  // 100MB
+    qint64 limit = 1024 * 1024 * 50;   // 50MB
     m_manager->onCacheMemoryExceeded(usage, limit);
-    
+
     // Should trigger optimization when cache exceeds limit
     QVERIFY(optimizationSpy.count() >= 0);
 }
 
-void MemoryManagerTest::testPeriodicOptimization()
-{
-    QSignalSpy optimizationSpy(m_manager, &MemoryManager::memoryOptimizationStarted);
-    
+void MemoryManagerTest::testPeriodicOptimization() {
+    QSignalSpy optimizationSpy(m_manager,
+                               &MemoryManager::memoryOptimizationStarted);
+
     // Trigger periodic optimization
     m_manager->performPeriodicOptimization();
-    
+
     // Should perform optimization
     QVERIFY(optimizationSpy.count() >= 0);
 }
 
-void MemoryManagerTest::simulateMemoryPressure(double pressure)
-{
+void MemoryManagerTest::simulateMemoryPressure(double pressure) {
     // Helper method to simulate memory pressure
     m_manager->onMemoryPressureDetected(pressure);
 }
 
-void MemoryManagerTest::verifyOptimizationCompleted(int timeoutMs)
-{
+void MemoryManagerTest::verifyOptimizationCompleted(int timeoutMs) {
     QSignalSpy spy(m_manager, &MemoryManager::memoryOptimizationCompleted);
     QVERIFY(spy.wait(timeoutMs) || spy.count() > 0);
 }
 
-MemoryManager::MemoryStats MemoryManagerTest::createMockStats()
-{
+MemoryManager::MemoryStats MemoryManagerTest::createMockStats() {
     MemoryManager::MemoryStats stats;
-    stats.totalMemoryUsage = 1024 * 1024 * 50; // 50MB
-    stats.searchCacheMemory = 1024 * 1024 * 20; // 20MB
-    stats.textCacheMemory = 1024 * 1024 * 15; // 15MB
-    stats.highlightCacheMemory = 1024 * 1024 * 10; // 10MB
-    stats.systemMemoryUsage = 1024 * 1024 * 1024; // 1GB
-    stats.systemMemoryTotal = int64_t(1024) * 1024 * 1024 * 4; // 4GB
+    stats.totalMemoryUsage = 1024 * 1024 * 50;                  // 50MB
+    stats.searchCacheMemory = 1024 * 1024 * 20;                 // 20MB
+    stats.textCacheMemory = 1024 * 1024 * 15;                   // 15MB
+    stats.highlightCacheMemory = 1024 * 1024 * 10;              // 10MB
+    stats.systemMemoryUsage = 1024 * 1024 * 1024;               // 1GB
+    stats.systemMemoryTotal = int64_t(1024) * 1024 * 1024 * 4;  // 4GB
     stats.memoryPressure = 0.25;
     stats.pressureLevel = MemoryManager::Normal;
     stats.optimizationCount = 5;

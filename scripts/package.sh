@@ -44,7 +44,7 @@ print_error() {
 
 # Show usage information
 show_usage() {
-    cat << EOF
+    cat <<EOF
 Usage: $0 [OPTIONS]
 
 Create platform-specific packages for SAST Readium
@@ -82,67 +82,67 @@ EOF
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -t|--type)
-                PACKAGE_TYPES="$2"
-                shift 2
-                ;;
-            -v|--version)
-                VERSION="$2"
-                shift 2
-                ;;
-            -b|--build-type)
-                BUILD_TYPE="$2"
-                shift 2
-                ;;
-            -c|--clean)
-                CLEAN_PACKAGING=true
-                shift
-                ;;
-            -h|--help)
-                show_usage
-                exit 0
-                ;;
-            *)
-                print_error "Unknown option: $1"
-                show_usage
-                exit 1
-                ;;
+        -t | --type)
+            PACKAGE_TYPES="$2"
+            shift 2
+            ;;
+        -v | --version)
+            VERSION="$2"
+            shift 2
+            ;;
+        -b | --build-type)
+            BUILD_TYPE="$2"
+            shift 2
+            ;;
+        -c | --clean)
+            CLEAN_PACKAGING=true
+            shift
+            ;;
+        -h | --help)
+            show_usage
+            exit 0
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_usage
+            exit 1
+            ;;
         esac
     done
 }
 
 # Detect platform and set default package types
 detect_platform() {
-    if [[ -z "$PACKAGE_TYPES" ]]; then
+    if [[ -z $PACKAGE_TYPES ]]; then
         case "$(uname -s)" in
-            Linux*)
-                PACKAGE_TYPES="deb"
-                if command -v rpm &> /dev/null; then
-                    PACKAGE_TYPES="$PACKAGE_TYPES rpm"
-                fi
-                if command -v appimagetool &> /dev/null; then
-                    PACKAGE_TYPES="$PACKAGE_TYPES appimage"
-                fi
-                ;;
-            Darwin*)
-                PACKAGE_TYPES="dmg"
-                ;;
-            *)
-                print_error "Unsupported platform: $(uname -s)"
-                exit 1
-                ;;
+        Linux*)
+            PACKAGE_TYPES="deb"
+            if command -v rpm &>/dev/null; then
+                PACKAGE_TYPES="$PACKAGE_TYPES rpm"
+            fi
+            if command -v appimagetool &>/dev/null; then
+                PACKAGE_TYPES="$PACKAGE_TYPES appimage"
+            fi
+            ;;
+        Darwin*)
+            PACKAGE_TYPES="dmg"
+            ;;
+        *)
+            print_error "Unsupported platform: $(uname -s)"
+            exit 1
+            ;;
         esac
-    elif [[ "$PACKAGE_TYPES" == "all" ]]; then
+    elif [[ $PACKAGE_TYPES == "all" ]]; then
         case "$(uname -s)" in
-            Linux*)
-                PACKAGE_TYPES="deb rpm appimage"
-                ;;
-            Darwin*)
-                PACKAGE_TYPES="dmg"
-                ;;
+        Linux*)
+            PACKAGE_TYPES="deb rpm appimage"
+            ;;
+        Darwin*)
+            PACKAGE_TYPES="dmg"
+            ;;
         esac
     fi
-    
+
     print_status "Package types: $PACKAGE_TYPES"
 }
 
@@ -150,21 +150,21 @@ detect_platform() {
 check_build() {
     local build_path="$BUILD_DIR/$BUILD_TYPE"
     local app_path="$build_path/app/app"
-    
-    if [[ ! -f "$app_path" ]]; then
+
+    if [[ ! -f $app_path ]]; then
         print_error "Build not found at $app_path"
         print_error "Please build the project first:"
         print_error "  cmake --preset=$BUILD_TYPE-Unix"
         print_error "  cmake --build --preset=$BUILD_TYPE-Unix"
         exit 1
     fi
-    
+
     print_success "Found build at $app_path"
 }
 
 # Clean packaging directory
 clean_packaging() {
-    if [[ "$CLEAN_PACKAGING" == "true" ]]; then
+    if [[ $CLEAN_PACKAGING == "true" ]]; then
         print_status "Cleaning packaging directory..."
         rm -rf "$PACKAGE_DIR"
     fi
@@ -174,18 +174,18 @@ clean_packaging() {
 # Create .deb package
 create_deb() {
     print_status "Creating .deb package..."
-    
+
     local deb_dir="$PACKAGE_DIR/deb"
     mkdir -p "$deb_dir/DEBIAN"
     mkdir -p "$deb_dir/usr/bin"
     mkdir -p "$deb_dir/usr/share/applications"
     mkdir -p "$deb_dir/usr/share/pixmaps"
-    
+
     # Copy binary
     cp "$BUILD_DIR/$BUILD_TYPE/app/app" "$deb_dir/usr/bin/$APP_NAME"
-    
+
     # Create desktop file
-    cat > "$deb_dir/usr/share/applications/$APP_NAME.desktop" << EOF
+    cat >"$deb_dir/usr/share/applications/$APP_NAME.desktop" <<EOF
 [Desktop Entry]
 Name=$APP_DISPLAY_NAME
 Comment=Qt6-based PDF reader
@@ -196,9 +196,9 @@ Type=Application
 Categories=Office;Viewer;
 MimeType=application/pdf;
 EOF
-    
+
     # Create control file
-    cat > "$deb_dir/DEBIAN/control" << EOF
+    cat >"$deb_dir/DEBIAN/control" <<EOF
 Package: $APP_NAME
 Version: $VERSION
 Section: utils
@@ -209,23 +209,23 @@ Maintainer: SAST Team
 Description: Qt6-based PDF reader application
  A modern PDF reader built with Qt6 and Poppler.
 EOF
-    
+
     # Build .deb
     local deb_file="$PROJECT_ROOT/${APP_NAME}_${VERSION}_amd64.deb"
     dpkg-deb --build "$deb_dir" "$deb_file"
-    
+
     print_success "Created $deb_file"
 }
 
 # Create .rpm package
 create_rpm() {
     print_status "Creating .rpm package..."
-    
+
     local rpm_dir="$PACKAGE_DIR/rpm"
     mkdir -p "$rpm_dir"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-    
+
     # Create RPM spec file
-    cat > "$rpm_dir/SPECS/$APP_NAME.spec" << EOF
+    cat >"$rpm_dir/SPECS/$APP_NAME.spec" <<EOF
 Name: $APP_NAME
 Version: $VERSION
 Release: 1%{?dist}
@@ -250,70 +250,70 @@ cp $PACKAGE_DIR/deb/usr/share/applications/$APP_NAME.desktop %{buildroot}/usr/sh
 * $(date +'%a %b %d %Y') SAST Team - $VERSION-1
 - Release $VERSION
 EOF
-    
+
     # Build RPM
     rpmbuild --define "_topdir $rpm_dir" -bb "$rpm_dir/SPECS/$APP_NAME.spec"
     cp "$rpm_dir/RPMS/x86_64/$APP_NAME-"*.rpm "$PROJECT_ROOT/"
-    
+
     print_success "Created RPM package"
 }
 
 # Create AppImage
 create_appimage() {
     print_status "Creating AppImage..."
-    
-    if ! command -v appimagetool &> /dev/null; then
+
+    if ! command -v appimagetool &>/dev/null; then
         print_error "appimagetool not found. Please install it first."
         return 1
     fi
-    
+
     local appimage_dir="$PACKAGE_DIR/appimage"
     local appdir="$appimage_dir/$APP_NAME.AppDir"
-    
+
     mkdir -p "$appdir/usr/bin"
     mkdir -p "$appdir/usr/share/applications"
     mkdir -p "$appdir/usr/share/icons/hicolor/256x256/apps"
-    
+
     # Copy files
     cp "$BUILD_DIR/$BUILD_TYPE/app/app" "$appdir/usr/bin/$APP_NAME"
     cp "$PACKAGE_DIR/deb/usr/share/applications/$APP_NAME.desktop" "$appdir/"
-    
+
     # Create AppRun
-    cat > "$appdir/AppRun" << EOF
+    cat >"$appdir/AppRun" <<EOF
 #!/bin/bash
 HERE="\$(dirname "\$(readlink -f "\${0}")")"
 exec "\${HERE}/usr/bin/$APP_NAME" "\$@"
 EOF
     chmod +x "$appdir/AppRun"
-    
+
     # Build AppImage
     cd "$appimage_dir"
     appimagetool "$APP_NAME.AppDir" "$PROJECT_ROOT/$APP_NAME-$VERSION-x86_64.AppImage"
-    
+
     print_success "Created AppImage"
 }
 
 # Create .dmg (macOS)
 create_dmg() {
     print_status "Creating .dmg package..."
-    
-    if ! command -v create-dmg &> /dev/null; then
+
+    if ! command -v create-dmg &>/dev/null; then
         print_error "create-dmg not found. Please install it with: brew install create-dmg"
         return 1
     fi
-    
+
     local dmg_dir="$PACKAGE_DIR/dmg"
     local app_bundle="$dmg_dir/$APP_DISPLAY_NAME.app"
-    
+
     mkdir -p "$app_bundle/Contents/MacOS"
     mkdir -p "$app_bundle/Contents/Resources"
-    
+
     # Copy binary
     cp "$BUILD_DIR/$BUILD_TYPE/app/app" "$app_bundle/Contents/MacOS/$APP_NAME"
     chmod +x "$app_bundle/Contents/MacOS/$APP_NAME"
-    
+
     # Create Info.plist
-    cat > "$app_bundle/Contents/Info.plist" << EOF
+    cat >"$app_bundle/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -335,7 +335,7 @@ create_dmg() {
 </dict>
 </plist>
 EOF
-    
+
     # Create .dmg
     create-dmg \
         --volname "$APP_DISPLAY_NAME $VERSION" \
@@ -347,7 +347,7 @@ EOF
         --app-drop-link 425 120 \
         "$PROJECT_ROOT/$APP_NAME-$VERSION-universal.dmg" \
         "$dmg_dir/" || true
-    
+
     print_success "Created .dmg package"
 }
 
@@ -355,33 +355,33 @@ EOF
 main() {
     print_status "SAST Readium Packaging Script"
     print_status "=============================="
-    
+
     parse_args "$@"
     detect_platform
     check_build
     clean_packaging
-    
+
     # Create packages based on requested types
     for package_type in $PACKAGE_TYPES; do
         case $package_type in
-            deb)
-                create_deb
-                ;;
-            rpm)
-                create_rpm
-                ;;
-            appimage)
-                create_appimage
-                ;;
-            dmg)
-                create_dmg
-                ;;
-            *)
-                print_warning "Unknown package type: $package_type"
-                ;;
+        deb)
+            create_deb
+            ;;
+        rpm)
+            create_rpm
+            ;;
+        appimage)
+            create_appimage
+            ;;
+        dmg)
+            create_dmg
+            ;;
+        *)
+            print_warning "Unknown package type: $package_type"
+            ;;
         esac
     done
-    
+
     print_success "Packaging completed successfully!"
     print_status "Generated packages:"
     ls -la "$PROJECT_ROOT"/*.{deb,rpm,AppImage,dmg} 2>/dev/null || true

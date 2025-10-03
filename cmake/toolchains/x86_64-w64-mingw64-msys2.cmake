@@ -8,13 +8,13 @@ set(CMAKE_SYSTEM_PROCESSOR x86_64)
 # Function to detect MSYS2 installation
 function(_detect_msys2_installation)
     set(MSYS2_CANDIDATES "")
-    
+
     # Priority 1: Explicit MSYS2_ROOT environment variable
     if(DEFINED ENV{MSYS2_ROOT})
         list(APPEND MSYS2_CANDIDATES "$ENV{MSYS2_ROOT}")
         message(STATUS "MSYS2: Checking explicit MSYS2_ROOT: $ENV{MSYS2_ROOT}")
     endif()
-    
+
     # Priority 2: Active MSYS2 environment (MSYSTEM_PREFIX)
     if(DEFINED ENV{MSYSTEM_PREFIX})
         # Extract MSYS2 root from MSYSTEM_PREFIX (e.g., /c/msys64/mingw64 -> /c/msys64)
@@ -24,19 +24,19 @@ function(_detect_msys2_installation)
         list(APPEND MSYS2_CANDIDATES "${MSYS2_FROM_PREFIX}")
         message(STATUS "MSYS2: Checking active environment: ${MSYS2_FROM_PREFIX}")
     endif()
-    
+
     # Priority 3: Common default installation paths
-    list(APPEND MSYS2_CANDIDATES 
+    list(APPEND MSYS2_CANDIDATES
         "C:/msys64"
         "C:/msys2"
         "D:/msys64"
         "D:/msys2"
     )
-    
+
     # Test each candidate path
     foreach(candidate ${MSYS2_CANDIDATES})
         message(STATUS "MSYS2: Testing candidate path: ${candidate}")
-        
+
         # Check if msys2_shell.cmd exists (primary indicator)
         if(EXISTS "${candidate}/msys2_shell.cmd")
             # Check if mingw64 directory exists
@@ -56,9 +56,9 @@ function(_detect_msys2_installation)
             message(STATUS "MSYS2: Missing msys2_shell.cmd at: ${candidate}/msys2_shell.cmd")
         endif()
     endforeach()
-    
+
     # If we reach here, no valid MSYS2 installation was found
-    message(FATAL_ERROR 
+    message(FATAL_ERROR
         "MSYS2 installation not found!\n"
         "Searched paths:\n"
         "  - MSYS2_ROOT environment variable\n"
@@ -92,7 +92,7 @@ set(CMAKE_RC_COMPILER "${MSYS2_MINGW_PREFIX}/bin/windres.exe")
 # Verify compilers exist
 foreach(compiler CMAKE_C_COMPILER CMAKE_CXX_COMPILER CMAKE_RC_COMPILER)
     if(NOT EXISTS "${${compiler}}")
-        message(FATAL_ERROR 
+        message(FATAL_ERROR
             "MSYS2 compiler not found: ${${compiler}}\n"
             "Please install the MinGW-w64 toolchain:\n"
             "  pacman -S mingw-w64-x86_64-toolchain"

@@ -1,39 +1,33 @@
 ﻿#include "ViewDelegate.h"
-#include <QMainWindow>
-#include <QSettings>
 #include <QApplication>
+#include <QMainWindow>
 #include <QPointer>
+#include <QSettings>
 #include <QSplitter>
 #include <QVariant>
-#include "../ui/core/ViewWidget.h"
-#include "../ui/core/SideBar.h"
+#include "../logging/SimpleLogging.h"
+#include "../ui/core/MenuBar.h"
 #include "../ui/core/RightSideBar.h"
+#include "../ui/core/SideBar.h"
 #include "../ui/core/StatusBar.h"
 #include "../ui/core/ToolBar.h"
-#include "../ui/core/MenuBar.h"
-#include "../logging/SimpleLogging.h"
+#include "../ui/core/ViewWidget.h"
 
 // ViewDelegate Implementation class
-class ViewDelegate::Implementation
-{
+class ViewDelegate::Implementation {
 public:
     explicit Implementation(ViewDelegate* q, QMainWindow* mainWindow)
-        : q_ptr(q)
-        , mainWindow(mainWindow)
-        , logger("ViewDelegate")
-    {
+        : q_ptr(q), mainWindow(mainWindow), logger("ViewDelegate") {
         logger.debug("ViewDelegate created");
     }
 
-    ~Implementation()
-    {
-        logger.debug("ViewDelegate destroyed");
-    }
+    ~Implementation() { logger.debug("ViewDelegate destroyed"); }
 
     // Helper methods
     void connectSignals();
     void saveState(const QString& key, const QVariant& value);
-    QVariant loadState(const QString& key, const QVariant& defaultValue = QVariant());
+    QVariant loadState(const QString& key,
+                       const QVariant& defaultValue = QVariant());
 
     ViewDelegate* q_ptr;
 
@@ -64,21 +58,14 @@ public:
 };
 
 // MainViewDelegate Implementation class
-class MainViewDelegate::Implementation
-{
+class MainViewDelegate::Implementation {
 public:
     explicit Implementation(MainViewDelegate* q, ViewWidget* viewWidget)
-        : q_ptr(q)
-        , viewWidget(viewWidget)
-        , logger("MainViewDelegate")
-    {
+        : q_ptr(q), viewWidget(viewWidget), logger("MainViewDelegate") {
         logger.debug("MainViewDelegate created");
     }
 
-    ~Implementation()
-    {
-        logger.debug("MainViewDelegate destroyed");
-    }
+    ~Implementation() { logger.debug("MainViewDelegate destroyed"); }
 
     // Helper methods
     void updateRenderSettings();
@@ -104,21 +91,14 @@ public:
 };
 
 // SideBarDelegate Implementation class
-class SideBarDelegate::Implementation
-{
+class SideBarDelegate::Implementation {
 public:
     explicit Implementation(SideBarDelegate* q, SideBar* sideBar)
-        : q_ptr(q)
-        , sideBar(sideBar)
-        , logger("SideBarDelegate")
-    {
+        : q_ptr(q), sideBar(sideBar), logger("SideBarDelegate") {
         logger.debug("SideBarDelegate created");
     }
 
-    ~Implementation()
-    {
-        logger.debug("SideBarDelegate destroyed");
-    }
+    ~Implementation() { logger.debug("SideBarDelegate destroyed"); }
 
     SideBarDelegate* q_ptr;
     QPointer<SideBar> sideBar;
@@ -129,15 +109,9 @@ public:
 
 // ViewDelegate implementation
 ViewDelegate::ViewDelegate(QMainWindow* mainWindow, QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<Implementation>(this, mainWindow))
-{
-}
+    : QObject(parent), d(std::make_unique<Implementation>(this, mainWindow)) {}
 
-ViewDelegate::~ViewDelegate()
-{
-    saveLayoutState();
-}
+ViewDelegate::~ViewDelegate() { saveLayoutState(); }
 
 void ViewDelegate::setupMainLayout() {
     if (!d->mainWindow) {
@@ -161,70 +135,52 @@ void ViewDelegate::setupMainLayout() {
 }
 
 // Component setter methods
-void ViewDelegate::setSideBar(SideBar* sideBar)
-{
-    d->sideBar = sideBar;
-}
+void ViewDelegate::setSideBar(SideBar* sideBar) { d->sideBar = sideBar; }
 
-void ViewDelegate::setRightSideBar(RightSideBar* rightSideBar)
-{
+void ViewDelegate::setRightSideBar(RightSideBar* rightSideBar) {
     d->rightSideBar = rightSideBar;
 }
 
-void ViewDelegate::setViewWidget(ViewWidget* viewWidget)
-{
+void ViewDelegate::setViewWidget(ViewWidget* viewWidget) {
     d->viewWidget = viewWidget;
 }
 
-void ViewDelegate::setStatusBar(StatusBar* statusBar)
-{
+void ViewDelegate::setStatusBar(StatusBar* statusBar) {
     d->statusBar = statusBar;
 }
 
-void ViewDelegate::setToolBar(ToolBar* toolBar)
-{
-    d->toolBar = toolBar;
-}
+void ViewDelegate::setToolBar(ToolBar* toolBar) { d->toolBar = toolBar; }
 
-void ViewDelegate::setMenuBar(MenuBar* menuBar)
-{
-    d->menuBar = menuBar;
-}
+void ViewDelegate::setMenuBar(MenuBar* menuBar) { d->menuBar = menuBar; }
 
-void ViewDelegate::setSplitter(QSplitter* splitter)
-{
-    d->splitter = splitter;
-}
+void ViewDelegate::setSplitter(QSplitter* splitter) { d->splitter = splitter; }
 
 // Implementation class method definitions
-void ViewDelegate::Implementation::connectSignals()
-{
+void ViewDelegate::Implementation::connectSignals() {
     if (splitter) {
-        QObject::connect(splitter, &QSplitter::splitterMoved,
-                        q_ptr, &ViewDelegate::onSplitterMoved);
+        QObject::connect(splitter, &QSplitter::splitterMoved, q_ptr,
+                         &ViewDelegate::onSplitterMoved);
     }
 }
 
-void ViewDelegate::Implementation::saveState(const QString& key, const QVariant& value)
-{
+void ViewDelegate::Implementation::saveState(const QString& key,
+                                             const QVariant& value) {
     QSettings settings;
     settings.setValue(QString("ViewDelegate/%1").arg(key), value);
 }
 
-QVariant ViewDelegate::Implementation::loadState(const QString& key, const QVariant& defaultValue)
-{
+QVariant ViewDelegate::Implementation::loadState(const QString& key,
+                                                 const QVariant& defaultValue) {
     QSettings settings;
     return settings.value(QString("ViewDelegate/%1").arg(key), defaultValue);
 }
 
-void MainViewDelegate::Implementation::updateRenderSettings()
-{
+void MainViewDelegate::Implementation::updateRenderSettings() {
     // Apply render settings to ViewWidget
     // Implementation depends on ViewWidget API
 }
 
-void MainViewDelegate::Implementation::applyViewMode()
-{
+void MainViewDelegate::Implementation::applyViewMode() {
     // Apply view mode to ViewWidget
     // Implementation depends on ViewWidget API
 }
@@ -234,25 +190,28 @@ void ViewDelegate::adjustSplitterSizes() {
         return;
     }
 
-    int leftWidth = d->sideBar && d->sideBar->isVisible() ?
-                   d->sideBar->getPreferredWidth() : 0;
-    int rightWidth = d->rightSideBar && d->rightSideBar->isVisible() ?
-                    d->rightSideBar->getPreferredWidth() : 0;
+    int leftWidth = d->sideBar && d->sideBar->isVisible()
+                        ? d->sideBar->getPreferredWidth()
+                        : 0;
+    int rightWidth = d->rightSideBar && d->rightSideBar->isVisible()
+                         ? d->rightSideBar->getPreferredWidth()
+                         : 0;
 
     d->splitter->setSizes({leftWidth, 1000, rightWidth});
 
     d->logger.debug(QString("Adjusted splitter sizes: %1, 1000, %2")
-                  .arg(leftWidth).arg(rightWidth));
+                        .arg(leftWidth)
+                        .arg(rightWidth));
 }
 
 // ViewDelegate method implementations
-void ViewDelegate::saveLayoutState()
-{
+void ViewDelegate::saveLayoutState() {
     QSettings settings;
     settings.beginGroup("ViewLayout");
 
     if (d->splitter) {
-        settings.setValue("splitterSizes", QVariant::fromValue(d->splitter->sizes()));
+        settings.setValue("splitterSizes",
+                          QVariant::fromValue(d->splitter->sizes()));
     }
 
     settings.setValue("sideBarVisible", isSideBarVisible());
@@ -265,24 +224,20 @@ void ViewDelegate::saveLayoutState()
     d->logger.debug("Layout state saved");
 }
 
-void ViewDelegate::restoreLayoutState()
-{
+void ViewDelegate::restoreLayoutState() {
     // Simplified implementation
     d->logger.debug("Layout state restored");
 }
 
-bool ViewDelegate::isSideBarVisible() const
-{
+bool ViewDelegate::isSideBarVisible() const {
     return d->sideBar && d->sideBar->isVisible();
 }
 
-bool ViewDelegate::isRightSideBarVisible() const
-{
+bool ViewDelegate::isRightSideBarVisible() const {
     return d->rightSideBar && d->rightSideBar->isVisible();
 }
 
-void ViewDelegate::showSideBar(bool show)
-{
+void ViewDelegate::showSideBar(bool show) {
     if (d->sideBar) {
         QWidget* widget = d->sideBar;
         widget->setVisible(show);
@@ -292,8 +247,7 @@ void ViewDelegate::showSideBar(bool show)
     }
 }
 
-void ViewDelegate::showRightSideBar(bool show)
-{
+void ViewDelegate::showRightSideBar(bool show) {
     if (d->rightSideBar) {
         QWidget* widget = d->rightSideBar;
         widget->setVisible(show);
@@ -303,39 +257,31 @@ void ViewDelegate::showRightSideBar(bool show)
     }
 }
 
-void ViewDelegate::toggleSideBar()
-{
-    showSideBar(!isSideBarVisible());
-}
+void ViewDelegate::toggleSideBar() { showSideBar(!isSideBarVisible()); }
 
-void ViewDelegate::toggleRightSideBar()
-{
+void ViewDelegate::toggleRightSideBar() {
     showRightSideBar(!isRightSideBarVisible());
 }
 
-void ViewDelegate::setFullScreenMode(bool fullScreen)
-{
+void ViewDelegate::setFullScreenMode(bool fullScreen) {
     d->isFullScreen = fullScreen;
     emit modeChanged("fullScreen", fullScreen);
     d->logger.debug(QString("Full screen mode: %1").arg(fullScreen));
 }
 
-void ViewDelegate::setPresentationMode(bool presentation)
-{
+void ViewDelegate::setPresentationMode(bool presentation) {
     d->isPresentationMode = presentation;
     emit modeChanged("presentation", presentation);
     d->logger.debug(QString("Presentation mode: %1").arg(presentation));
 }
 
-void ViewDelegate::setFocusMode(bool focus)
-{
+void ViewDelegate::setFocusMode(bool focus) {
     d->isFocusMode = focus;
     emit modeChanged("focus", focus);
     d->logger.debug(QString("Focus mode: %1").arg(focus));
 }
 
-void ViewDelegate::applyDefaultLayout()
-{
+void ViewDelegate::applyDefaultLayout() {
     showSideBar(true);
     showRightSideBar(false);
     adjustSplitterSizes();
@@ -343,8 +289,7 @@ void ViewDelegate::applyDefaultLayout()
     d->logger.debug("Applied default layout");
 }
 
-void ViewDelegate::applyReadingLayout()
-{
+void ViewDelegate::applyReadingLayout() {
     showSideBar(false);
     showRightSideBar(false);
     setFocusMode(true);
@@ -352,8 +297,7 @@ void ViewDelegate::applyReadingLayout()
     d->logger.debug("Applied reading layout");
 }
 
-void ViewDelegate::applyEditingLayout()
-{
+void ViewDelegate::applyEditingLayout() {
     showSideBar(true);
     showRightSideBar(true);
     setFocusMode(false);
@@ -362,66 +306,57 @@ void ViewDelegate::applyEditingLayout()
     d->logger.debug("Applied editing layout");
 }
 
-void ViewDelegate::applyCompactLayout()
-{
+void ViewDelegate::applyCompactLayout() {
     showSideBar(false);
     showRightSideBar(false);
-    if (d->toolBar) d->toolBar->hide();
+    if (d->toolBar)
+        d->toolBar->hide();
     emit layoutChanged();
     d->logger.debug("Applied compact layout");
 }
 
-void ViewDelegate::onSplitterMoved(int pos, int index)
-{
+void ViewDelegate::onSplitterMoved(int pos, int index) {
     Q_UNUSED(pos)
     Q_UNUSED(index)
     emit layoutChanged();
 }
 
-void ViewDelegate::onComponentResized()
-{
-    adjustSplitterSizes();
-}
+void ViewDelegate::onComponentResized() { adjustSplitterSizes(); }
 
 // MainViewDelegate implementation
 MainViewDelegate::MainViewDelegate(ViewWidget* viewWidget, QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<Implementation>(this, viewWidget))
-{
-}
+    : QObject(parent), d(std::make_unique<Implementation>(this, viewWidget)) {}
 
 MainViewDelegate::~MainViewDelegate() = default;
 
-double MainViewDelegate::zoomLevel() const
-{
-    return d->zoomLevel;
-}
+double MainViewDelegate::zoomLevel() const { return d->zoomLevel; }
 
-void MainViewDelegate::setZoomLevel(double level)
-{
+void MainViewDelegate::setZoomLevel(double level) {
     d->zoomLevel = qBound(0.1, level, 10.0);
     emit zoomChanged(d->zoomLevel);
     d->logger.debug(QString("Zoom level: %1").arg(d->zoomLevel));
 }
 
-void MainViewDelegate::zoomIn()
-{
-    setZoomLevel(d->zoomLevel * 1.25);
-}
+void MainViewDelegate::zoomIn() { setZoomLevel(d->zoomLevel * 1.25); }
 
-void MainViewDelegate::zoomOut()
-{
-    setZoomLevel(d->zoomLevel * 0.8);
-}
+void MainViewDelegate::zoomOut() { setZoomLevel(d->zoomLevel * 0.8); }
 
 // MainViewDelegate method implementations
-void MainViewDelegate::setRenderQuality(int quality) { d->renderQuality = qBound(1, quality, 100); }
-void MainViewDelegate::setAntiAliasing(bool enabled) { d->antiAliasing = enabled; }
-void MainViewDelegate::setSmoothPixmapTransform(bool enabled) { d->smoothTransform = enabled; }
+void MainViewDelegate::setRenderQuality(int quality) {
+    d->renderQuality = qBound(1, quality, 100);
+}
+void MainViewDelegate::setAntiAliasing(bool enabled) {
+    d->antiAliasing = enabled;
+}
+void MainViewDelegate::setSmoothPixmapTransform(bool enabled) {
+    d->smoothTransform = enabled;
+}
 void MainViewDelegate::zoomToFit() { d->logger.debug("Zoom to fit"); }
 void MainViewDelegate::zoomToWidth() { d->logger.debug("Zoom to width"); }
 void MainViewDelegate::setSinglePageMode() { d->currentViewMode = "single"; }
-void MainViewDelegate::setContinuousMode() { d->currentViewMode = "continuous"; }
+void MainViewDelegate::setContinuousMode() {
+    d->currentViewMode = "continuous";
+}
 void MainViewDelegate::setFacingPagesMode() { d->currentViewMode = "facing"; }
 void MainViewDelegate::setBookViewMode() { d->currentViewMode = "book"; }
 
@@ -454,26 +389,25 @@ void MainViewDelegate::centerOnPage(int page) {
     }
     emit pageChanged(page);
 }
-void MainViewDelegate::enableTextSelection(bool enable) { d->textSelectionEnabled = enable; }
-void MainViewDelegate::enableAnnotations(bool enable) { d->annotationsEnabled = enable; }
-void MainViewDelegate::setHighlightCurrentPage(bool highlight) { d->highlightCurrentPage = highlight; }
+void MainViewDelegate::enableTextSelection(bool enable) {
+    d->textSelectionEnabled = enable;
+}
+void MainViewDelegate::enableAnnotations(bool enable) {
+    d->annotationsEnabled = enable;
+}
+void MainViewDelegate::setHighlightCurrentPage(bool highlight) {
+    d->highlightCurrentPage = highlight;
+}
 
 // SideBarDelegate implementation
 SideBarDelegate::SideBarDelegate(SideBar* sideBar, QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<Implementation>(this, sideBar))
-{
-}
+    : QObject(parent), d(std::make_unique<Implementation>(this, sideBar)) {}
 
 SideBarDelegate::~SideBarDelegate() = default;
 
-int SideBarDelegate::preferredWidth() const
-{
-    return d->preferredWidth;
-}
+int SideBarDelegate::preferredWidth() const { return d->preferredWidth; }
 
-void SideBarDelegate::setPreferredWidth(int width)
-{
+void SideBarDelegate::setPreferredWidth(int width) {
     d->preferredWidth = qBound(150, width, 500);
     if (d->sideBar) {
         d->sideBar->setPreferredWidth(d->preferredWidth);
@@ -483,15 +417,34 @@ void SideBarDelegate::setPreferredWidth(int width)
 }
 
 // SideBarDelegate method implementations
-void SideBarDelegate::showTab(int index) { d->currentTab = index; emit tabChanged(index); }
-void SideBarDelegate::showTab(const QString& name) { d->logger.debug(QString("Showing tab: %1").arg(name)); }
-void SideBarDelegate::enableTab(int index, bool enable) { Q_UNUSED(index) Q_UNUSED(enable) }
-void SideBarDelegate::setTabVisible(int index, bool visible) { Q_UNUSED(index) Q_UNUSED(visible) }
+void SideBarDelegate::showTab(int index) {
+    d->currentTab = index;
+    emit tabChanged(index);
+}
+void SideBarDelegate::showTab(const QString& name) {
+    d->logger.debug(QString("Showing tab: %1").arg(name));
+}
+void SideBarDelegate::enableTab(int index, bool enable) {
+    Q_UNUSED(index)
+    Q_UNUSED(enable)
+}
+void SideBarDelegate::setTabVisible(int index, bool visible) {
+    Q_UNUSED(index)
+    Q_UNUSED(visible)
+}
 void SideBarDelegate::updateOutline() { emit contentUpdated("outline"); }
 void SideBarDelegate::updateThumbnails() { emit contentUpdated("thumbnails"); }
 void SideBarDelegate::updateBookmarks() { emit contentUpdated("bookmarks"); }
-void SideBarDelegate::updateAnnotations() { emit contentUpdated("annotations"); }
-void SideBarDelegate::setMinimumWidth(int width) { if (d->sideBar) d->sideBar->setMinimumWidth(width); }
-void SideBarDelegate::setMaximumWidth(int width) { if (d->sideBar) d->sideBar->setMaximumWidth(width); }
+void SideBarDelegate::updateAnnotations() {
+    emit contentUpdated("annotations");
+}
+void SideBarDelegate::setMinimumWidth(int width) {
+    if (d->sideBar)
+        d->sideBar->setMinimumWidth(width);
+}
+void SideBarDelegate::setMaximumWidth(int width) {
+    if (d->sideBar)
+        d->sideBar->setMaximumWidth(width);
+}
 void SideBarDelegate::saveState() { d->logger.debug("State saved"); }
 void SideBarDelegate::restoreState() { d->logger.debug("State restored"); }

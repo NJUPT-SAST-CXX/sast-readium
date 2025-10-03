@@ -1,30 +1,26 @@
 #include "SearchExecutor.h"
-#include "TextExtractor.h"
-#include "SearchValidator.h"
-#include "SearchErrorRecovery.h"
-#include "logging/LoggingMacros.h"
-#include <QDebug>
 #include <poppler-qt6.h>
+#include <QDebug>
+#include "SearchErrorRecovery.h"
+#include "SearchValidator.h"
+#include "TextExtractor.h"
+#include "logging/LoggingMacros.h"
 
-class SearchExecutor::Implementation
-{
+class SearchExecutor::Implementation {
 public:
     Implementation(SearchExecutor* q)
-        : q_ptr(q)
-        , textExtractor(nullptr)
-        , validator(new SearchValidator())
-    {
-    }
+        : q_ptr(q), textExtractor(nullptr), validator(new SearchValidator()) {}
 
-    QString extractContext(const QString& text, int position, int length) const
-    {
+    QString extractContext(const QString& text, int position,
+                           int length) const {
         int contextStart = qMax(0, position - options.contextLength);
-        int contextEnd = qMin(text.length(), position + length + options.contextLength);
+        int contextEnd =
+            qMin(text.length(), position + length + options.contextLength);
         return text.mid(contextStart, contextEnd - contextStart);
     }
 
-    QList<SearchResult> performSearch(const QString& text, const QString& query, int pageNumber)
-    {
+    QList<SearchResult> performSearch(const QString& text, const QString& query,
+                                      int pageNumber) {
         QList<SearchResult> results;
 
         if (text.isEmpty() || query.isEmpty()) {
@@ -33,7 +29,8 @@ public:
 
         QRegularExpression regex = q_ptr->createSearchPattern(query, options);
         if (!regex.isValid()) {
-            emit q_ptr->searchError("Invalid search pattern: " + regex.errorString());
+            emit q_ptr->searchError("Invalid search pattern: " +
+                                    regex.errorString());
             return results;
         }
 
@@ -48,9 +45,11 @@ public:
             QString context = extractContext(text, position, length);
 
             // Calculate bounding rect for the matched text
-            QRectF boundingRect = calculateBoundingRect(pageNumber, position, length);
+            QRectF boundingRect =
+                calculateBoundingRect(pageNumber, position, length);
 
-            SearchResult result(pageNumber, matchedText, context, boundingRect, position, length);
+            SearchResult result(pageNumber, matchedText, context, boundingRect,
+                                position, length);
             results.append(result);
 
             emit q_ptr->resultFound(result);
@@ -59,8 +58,8 @@ public:
         return results;
     }
 
-    QRectF calculateBoundingRect(int pageNumber, int textPosition, int textLength)
-    {
+    QRectF calculateBoundingRect(int pageNumber, int textPosition,
+                                 int textLength) {
         if (!textExtractor || textPosition < 0 || textLength <= 0) {
             return QRectF();
         }
@@ -88,17 +87,20 @@ public:
             int matchStart = textPosition;
             int matchEnd = textPosition + textLength;
 
-            // Get some context around the match (100 characters before and after)
+            // Get some context around the match (100 characters before and
+            // after)
             int contextStart = qMax(0, matchStart - 100);
             int contextEnd = qMin(pageText.length(), matchEnd + 100);
-            QString contextText = pageText.mid(contextStart, contextEnd - contextStart);
+            QString contextText =
+                pageText.mid(contextStart, contextEnd - contextStart);
 
             // Calculate relative position within context
             int relativeStart = matchStart - contextStart;
             int relativeEnd = matchEnd - contextStart;
 
             // Use Poppler's text boxes to find actual coordinates
-            // This requires Poppler::TextBox which provides accurate position info
+            // This requires Poppler::TextBox which provides accurate position
+            // info
             QList<QRectF> textBoxes = extractTextBoxes(page, contextText);
 
             if (textBoxes.isEmpty()) {
@@ -109,7 +111,8 @@ public:
             return combineTextBoxRects(textBoxes, relativeStart, relativeEnd);
 
         } catch (const std::exception& e) {
-            LOG_WARNING("Error calculating precise bounding rectangle: {}", e.what());
+            LOG_WARNING("Error calculating precise bounding rectangle: {}",
+                        e.what());
             return calculateEstimatedRect(textPosition, textLength);
         } catch (...) {
             LOG_WARNING("Unknown error calculating bounding rectangle");
@@ -118,13 +121,13 @@ public:
     }
 
 private:
-    QList<QRectF> extractTextBoxes(const std::unique_ptr<Poppler::Page>& page, const QString& text)
-    {
+    QList<QRectF> extractTextBoxes(const std::unique_ptr<Poppler::Page>& page,
+                                   const QString& text) {
         QList<QRectF> textBoxes;
 
         // This would use Poppler::TextBox functionality
-        // For now, return empty list as we don't have direct access to Poppler headers here
-        // In a real implementation, you would:
+        // For now, return empty list as we don't have direct access to Poppler
+        // headers here In a real implementation, you would:
         // 1. Get Poppler::Page* from page
         // 2. Call page->textList() to get Poppler::TextBox list
         // 3. Extract coordinates from each TextBox
@@ -134,14 +137,15 @@ private:
         return textBoxes;
     }
 
-    QRectF combineTextBoxRects(const QList<QRectF>& textBoxes, int startChar, int endChar)
-    {
+    QRectF combineTextBoxRects(const QList<QRectF>& textBoxes, int startChar,
+                               int endChar) {
         if (textBoxes.isEmpty()) {
             return QRectF();
         }
 
-        // For now, create a bounding rectangle that encompasses all relevant text boxes
-        // In a real implementation, you would map character positions to specific text boxes
+        // For now, create a bounding rectangle that encompasses all relevant
+        // text boxes In a real implementation, you would map character
+        // positions to specific text boxes
         QRectF combinedRect;
         for (const QRectF& rect : textBoxes) {
             if (combinedRect.isEmpty()) {
@@ -152,20 +156,24 @@ private:
         }
 
         // Adjust for the specific character range if needed
-        // This is a simplified approach - a full implementation would be more precise
+        // This is a simplified approach - a full implementation would be more
+        // precise
         return combinedRect;
     }
 
-    QRectF calculateEstimatedRect(int textPosition, int textLength)
-    {
-        // Fallback to estimated calculation when precise methods aren't available
+    QRectF calculateEstimatedRect(int textPosition, int textLength) {
+        // Fallback to estimated calculation when precise methods aren't
+        // available
 
         // More sophisticated estimation based on typical PDF characteristics
-        const double avgCharWidth = 7.5;    // More realistic average character width
-        const double lineHeight = 11.5;      // Standard line height for most PDFs
-        const double pageMargin = 36.0;      // 0.5 inch margin on all sides
-        const double usableWidth = 612.0 - 2 * pageMargin;  // Standard letter size minus margins
-        const double usableHeight = 792.0 - 2 * pageMargin; // Standard letter size minus margins
+        const double avgCharWidth =
+            7.5;  // More realistic average character width
+        const double lineHeight = 11.5;  // Standard line height for most PDFs
+        const double pageMargin = 36.0;  // 0.5 inch margin on all sides
+        const double usableWidth =
+            612.0 - 2 * pageMargin;  // Standard letter size minus margins
+        const double usableHeight =
+            792.0 - 2 * pageMargin;  // Standard letter size minus margins
 
         // Calculate characters per line based on typical column width
         const int charsPerLine = static_cast<int>(usableWidth / avgCharWidth);
@@ -183,7 +191,8 @@ private:
         // Calculate bounding rectangle with margins
         double x = pageMargin + (column * avgCharWidth);
         double y = pageMargin + (line * lineHeight);
-        double width = qMin(textLength * avgCharWidth, usableWidth - (column * avgCharWidth));
+        double width = qMin(textLength * avgCharWidth,
+                            usableWidth - (column * avgCharWidth));
         double height = lineHeight;
 
         // Ensure rectangle is within page bounds
@@ -201,36 +210,33 @@ public:
 };
 
 SearchExecutor::SearchExecutor(QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<Implementation>(this))
-{
-}
+    : QObject(parent), d(std::make_unique<Implementation>(this)) {}
 
 SearchExecutor::~SearchExecutor() = default;
 
-void SearchExecutor::setTextExtractor(TextExtractor* extractor)
-{
+void SearchExecutor::setTextExtractor(TextExtractor* extractor) {
     d->textExtractor = extractor;
 }
 
-void SearchExecutor::setOptions(const SearchOptions& options)
-{
+void SearchExecutor::setOptions(const SearchOptions& options) {
     d->options = options;
 }
 
-QList<SearchResult> SearchExecutor::searchInPage(int pageNumber, const QString& query)
-{
+QList<SearchResult> SearchExecutor::searchInPage(int pageNumber,
+                                                 const QString& query) {
     try {
         // Validate inputs
         auto queryResult = d->validator->validateQuery(query);
         if (!queryResult.isValid) {
-            emit searchError(QString("Invalid query: %1").arg(queryResult.errorMessages.join("; ")));
+            emit searchError(QString("Invalid query: %1")
+                                 .arg(queryResult.errorMessages.join("; ")));
             return QList<SearchResult>();
         }
 
         auto pageResult = d->validator->validatePageNumber(pageNumber, INT_MAX);
         if (!pageResult.isValid) {
-            emit searchError(QString("Invalid page number: %1").arg(pageResult.errorMessages.join("; ")));
+            emit searchError(QString("Invalid page number: %1")
+                                 .arg(pageResult.errorMessages.join("; ")));
             return QList<SearchResult>();
         }
 
@@ -240,16 +246,22 @@ QList<SearchResult> SearchExecutor::searchInPage(int pageNumber, const QString& 
         }
 
         QString pageText = d->textExtractor->extractPageText(pageNumber);
-        return searchInText(pageText, queryResult.sanitizedInput.isEmpty() ? query : queryResult.sanitizedInput, pageNumber);
+        return searchInText(pageText,
+                            queryResult.sanitizedInput.isEmpty()
+                                ? query
+                                : queryResult.sanitizedInput,
+                            pageNumber);
 
     } catch (const std::exception& e) {
-        emit searchError(QString("Search error on page %1: %2").arg(pageNumber).arg(e.what()));
+        emit searchError(QString("Search error on page %1: %2")
+                             .arg(pageNumber)
+                             .arg(e.what()));
         return QList<SearchResult>();
     }
 }
 
-QList<SearchResult> SearchExecutor::searchInPages(const QList<int>& pageNumbers, const QString& query)
-{
+QList<SearchResult> SearchExecutor::searchInPages(const QList<int>& pageNumbers,
+                                                  const QString& query) {
     QList<SearchResult> allResults;
     int total = pageNumbers.size();
     int current = 0;
@@ -257,10 +269,10 @@ QList<SearchResult> SearchExecutor::searchInPages(const QList<int>& pageNumbers,
     for (int pageNumber : pageNumbers) {
         QList<SearchResult> pageResults = searchInPage(pageNumber, query);
         allResults.append(pageResults);
-        
+
         current++;
         emit searchProgress(current, total);
-        
+
         if (allResults.size() >= d->options.maxResults) {
             break;
         }
@@ -269,13 +281,13 @@ QList<SearchResult> SearchExecutor::searchInPages(const QList<int>& pageNumbers,
     return allResults;
 }
 
-QList<SearchResult> SearchExecutor::searchInText(const QString& text, const QString& query, int pageNumber)
-{
+QList<SearchResult> SearchExecutor::searchInText(const QString& text,
+                                                 const QString& query,
+                                                 int pageNumber) {
     return d->performSearch(text, query, pageNumber);
 }
 
-bool SearchExecutor::validateQuery(const QString& query) const
-{
+bool SearchExecutor::validateQuery(const QString& query) const {
     if (query.isEmpty()) {
         return false;
     }
@@ -288,13 +300,13 @@ bool SearchExecutor::validateQuery(const QString& query) const
     return true;
 }
 
-QRegularExpression SearchExecutor::createSearchPattern(const QString& query) const
-{
+QRegularExpression SearchExecutor::createSearchPattern(
+    const QString& query) const {
     return createSearchPattern(query, d->options);
 }
 
-QRegularExpression SearchExecutor::createSearchPattern(const QString& query, const SearchOptions& options) const
-{
+QRegularExpression SearchExecutor::createSearchPattern(
+    const QString& query, const SearchOptions& options) const {
     QString pattern = query;
 
     if (!options.useRegex) {
@@ -305,7 +317,8 @@ QRegularExpression SearchExecutor::createSearchPattern(const QString& query, con
         pattern = "\\b" + pattern + "\\b";
     }
 
-    QRegularExpression::PatternOptions regexOptions = QRegularExpression::NoPatternOption;
+    QRegularExpression::PatternOptions regexOptions =
+        QRegularExpression::NoPatternOption;
     if (!options.caseSensitive) {
         regexOptions |= QRegularExpression::CaseInsensitiveOption;
     }
@@ -314,7 +327,7 @@ QRegularExpression SearchExecutor::createSearchPattern(const QString& query, con
     return regex;
 }
 
-QRectF SearchExecutor::calculateBoundingRect(int pageNumber, int textPosition, int textLength)
-{
+QRectF SearchExecutor::calculateBoundingRect(int pageNumber, int textPosition,
+                                             int textLength) {
     return d->calculateBoundingRect(pageNumber, textPosition, textLength);
 }

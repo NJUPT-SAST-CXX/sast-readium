@@ -36,7 +36,8 @@
 // Forward declarations to reduce header dependencies
 class QDebug;
 class QThread;
-template<typename Key, typename T> class QHash;
+template <typename Key, typename T>
+class QHash;
 
 // ============================================================================
 // Core Logging Macros (spdlog-style with format strings)
@@ -394,7 +395,8 @@ class LoggingManager;
 
 /**
  * @class ScopedLogLevel
- * @brief Enhanced scoped logging configuration changer that can handle both level-only and full configuration changes
+ * @brief Enhanced scoped logging configuration changer that can handle both
+ * level-only and full configuration changes
  *
  * This class provides RAII-style temporary changes to logging configuration.
  * It can either change just the log level or the entire logging configuration,
@@ -412,7 +414,8 @@ public:
      * @brief Construct a scoped configuration changer (full configuration mode)
      * @param tempConfig Temporary logging configuration to set
      */
-    explicit ScopedLogLevel(const LoggingManager::LoggingConfiguration& tempConfig);
+    explicit ScopedLogLevel(
+        const LoggingManager::LoggingConfiguration& tempConfig);
 
     /**
      * @brief Destroy the scoped changer and restore original configuration
@@ -426,8 +429,10 @@ public:
     ScopedLogLevel& operator=(ScopedLogLevel&&) = delete;
 
 private:
-    LoggingManager::LoggingConfiguration m_originalConfig;  ///< Original configuration to restore
-    bool m_levelOnly;  ///< True if only changing level, false if changing full config
+    LoggingManager::LoggingConfiguration
+        m_originalConfig;  ///< Original configuration to restore
+    bool m_levelOnly;  ///< True if only changing level, false if changing full
+                       ///< config
 };
 
 /**

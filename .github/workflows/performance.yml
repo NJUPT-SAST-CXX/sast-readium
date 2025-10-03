@@ -1,0 +1,424 @@
+name: Performance Benchmarking
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  schedule:
+    # Run performance benchmarks daily at 4 AM UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+env:
+  APP_NAME: sast-readium
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j4"
+
+jobs:
+  # Performance benchmarking (Linux)
+  benchmark-linux:
+    name: Performance Benchmarks (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build build-essential \
+            qt6-base-dev qt6-svg-dev qt6-tools-dev qt6-l10n-tools \
+            libpoppler-qt6-dev pkg-config \
+            time hyperfine bc
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install matplotlib seaborn pandas numpy scipy
+
+      - name: Configure CMake for Performance
+        run: |
+          cmake --preset=Release-Unix \
+            -DUSE_VCPKG=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -march=native" \
+            -DCMAKE_C_FLAGS="-O3 -DNDEBUG -march=native"
+
+      - name: Build for Performance Testing
+        run: |
+          cmake --build --preset=Release-Unix --parallel 4
+
+      - name: Run Unit Tests (Baseline)
+        run: |
+          cd build/Release
+          echo "## Unit Test Performance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run tests with timing
+          ctest --output-on-failure --verbose --parallel 1 2>&1 | tee test-results.txt
+
+          # Extract test times
+          grep -E "Test.*passed" test-results.txt | head -20 | while read line; do
+            echo "- $line" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Run Performance Tests
+        run: |
+          cd build/Release
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Performance Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Find and run performance-specific tests
+          PERF_TESTS=$(find . -name "*performance*" -name "*test*" -executable 2>/dev/null || true)
+          SEARCH_TESTS=$(find . -name "*search*performance*" -executable 2>/dev/null || true)
+          RENDERING_TESTS=$(find . -name "*rendering*performance*" -executable 2>/dev/null || true)
+
+          if [ -n "$PERF_TESTS" ]; then
+            echo "### General Performance Tests" >> $GITHUB_STEP_SUMMARY
+            for test in $PERF_TESTS; do
+              if [ -x "$test" ]; then
+                echo "Running $test..." >> $GITHUB_STEP_SUMMARY
+                /usr/bin/time -v ./$test 2>"$test.timing" || true
+                if [ -f "$test.timing" ]; then
+                  MAX_MEM=$(grep "Maximum resident set size" "$test.timing" | awk '{print $6}')
+                  USER_TIME=$(grep "User time" "$test.timing" | awk '{print $4}')
+                  echo "- Max Memory: ${MAX_MEM}KB, User Time: ${USER_TIME}s" >> $GITHUB_STEP_SUMMARY
+                fi
+              fi
+            done
+          fi
+
+          if [ -n "$SEARCH_TESTS" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Search Performance Tests" >> $GITHUB_STEP_SUMMARY
+            for test in $SEARCH_TESTS; do
+              if [ -x "$test" ]; then
+                echo "Running $test..." >> $GITHUB_STEP_SUMMARY
+                /usr/bin/time -v ./$test 2>"$test.timing" || true
+                if [ -f "$test.timing" ]; then
+                  MAX_MEM=$(grep "Maximum resident set size" "$test.timing" | awk '{print $6}')
+                  USER_TIME=$(grep "User time" "$test.timing" | awk '{print $4}')
+                  echo "- Search Test - Max Memory: ${MAX_MEM}KB, User Time: ${USER_TIME}s" >> $GITHUB_STEP_SUMMARY
+                fi
+              fi
+            done
+          fi
+
+          if [ -n "$RENDERING_TESTS" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Rendering Performance Tests" >> $GITHUB_STEP_SUMMARY
+            for test in $RENDERING_TESTS; do
+              if [ -x "$test" ]; then
+                echo "Running $test..." >> $GITHUB_STEP_SUMMARY
+                /usr/bin/time -v ./$test 2>"$test.timing" || true
+                if [ -f "$test.timing" ]; then
+                  MAX_MEM=$(grep "Maximum resident set size" "$test.timing" | awk '{print $6}')
+                  USER_TIME=$(grep "User time" "$test.timing" | awk '{print $4}')
+                  echo "- Rendering Test - Max Memory: ${MAX_MEM}KB, User Time: ${USER_TIME}s" >> $GITHUB_STEP_SUMMARY
+                fi
+              fi
+            done
+          fi
+
+      - name: Application Startup Performance
+        run: |
+          cd build/Release
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Application Startup Performance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "app/app" ]; then
+            echo "### Startup Time Measurements" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Test startup time with hyperfine (multiple runs for statistical significance)
+            if command -v hyperfine &> /dev/null; then
+              echo "Running startup benchmarks..." >> $GITHUB_STEP_SUMMARY
+              timeout 30s hyperfine --warmup 1 --runs 5 "./app/app --help" > startup-benchmark.txt 2>&1 || true
+
+              if [ -f "startup-benchmark.txt" ]; then
+                MEAN_TIME=$(grep -E "Mean" startup-benchmark.txt | grep -o "[0-9.]*" | head -1)
+                if [ -n "$MEAN_TIME" ]; then
+                  echo "- **Mean Startup Time:** ${MEAN_TIME}s" >> $GITHUB_STEP_SUMMARY
+                fi
+              fi
+            else
+              # Fallback to basic time measurement
+              STARTUP_TIME=$(timeout 10s /usr/bin/time -f "%e" ./app/app --help 2>&1 || echo "10.0")
+              echo "- **Startup Time:** ${STARTUP_TIME}s" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+      - name: Memory Usage Analysis
+        run: |
+          cd build/Release
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Memory Usage Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "app/app" ]; then
+            echo "### Memory Profiling" >> $GITHUB_STEP_SUMMARY
+
+            # Monitor memory usage during basic operations
+            timeout 30s /usr/bin/time -v ./app/app --help 2> memory-usage.txt || true
+
+            if [ -f "memory-usage.txt" ]; then
+              MAX_RSS=$(grep "Maximum resident set size" memory-usage.txt | awk '{print $6}')
+              AVG_RSS=$(grep "Average resident set size" memory-usage.txt | awk '{print $6}')
+              PEAK_MEM=$(grep "Peak resident set size" memory-usage.txt | awk '{print $6}' || echo "N/A")
+
+              echo "- **Max RSS:** ${MAX_RSS}KB" >> $GITHUB_STEP_SUMMARY
+              echo "- **Avg RSS:** ${AVG_RSS}KB" >> $GITHUB_STEP_SUMMARY
+              if [ "$PEAK_MEM" != "N/A" ]; then
+                echo "- **Peak Memory:** ${PEAK_MEM}KB" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          fi
+
+      - name: Generate Performance Report
+        run: |
+          cd build/Release
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Performance Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Create performance summary script
+          cat > analyze_performance.py << 'EOF'
+import json
+import re
+import os
+from pathlib import Path
+
+def analyze_test_results():
+    results = {}
+
+    # Parse timing files
+    for timing_file in Path('.').glob('*.timing'):
+        test_name = timing_file.stem
+        try:
+            with open(timing_file, 'r') as f:
+                content = f.read()
+
+            # Extract metrics
+            max_mem = re.search(r'Maximum resident set size.*?(\d+)', content)
+            user_time = re.search(r'User time.*?([\d.]+)', content)
+            sys_time = re.search(r'System time.*?([\d.]+)', content)
+
+            results[test_name] = {
+                'max_memory_kb': int(max_mem.group(1)) if max_mem else None,
+                'user_time_s': float(user_time.group(1)) if user_time else None,
+                'system_time_s': float(sys_time.group(1)) if sys_time else None,
+                'total_time_s': None
+            }
+
+            if results[test_name]['user_time_s'] and results[test_name]['system_time_s']:
+                results[test_name]['total_time_s'] = (
+                    results[test_name]['user_time_s'] + results[test_name]['system_time_s']
+                )
+        except Exception as e:
+            print(f"Error processing {timing_file}: {e}")
+
+    return results
+
+def main():
+    results = analyze_test_results()
+
+    if results:
+        print("### Performance Metrics Summary")
+        print("")
+        print("| Test | Max Memory (KB) | User Time (s) | Total Time (s) |")
+        print("|------|----------------|---------------|----------------|")
+
+        for test_name, metrics in results.items():
+            max_mem = metrics['max_memory_kb'] or 'N/A'
+            user_time = f"{metrics['user_time_s']:.3f}" if metrics['user_time_s'] else 'N/A'
+            total_time = f"{metrics['total_time_s']:.3f}" if metrics['total_time_s'] else 'N/A'
+            print(f"| {test_name} | {max_mem} | {user_time} | {total_time} |")
+
+        print("")
+        print("### Performance Recommendations")
+        print("")
+
+        # Analyze results and provide recommendations
+        high_memory_tests = [name for name, metrics in results.items()
+                           if metrics['max_memory_kb'] and metrics['max_memory_kb'] > 50000]
+        slow_tests = [name for name, metrics in results.items()
+                     if metrics['total_time_s'] and metrics['total_time_s'] > 5.0]
+
+        if high_memory_tests:
+            print("- **High Memory Usage Tests:** Consider memory optimization for:")
+            for test in high_memory_tests:
+                print(f"  - {test}")
+
+        if slow_tests:
+            print("- **Slow Running Tests:** Consider performance optimization for:")
+            for test in slow_tests:
+                print(f"  - {test}")
+
+        if not high_memory_tests and not slow_tests:
+            print("✅ All tests within acceptable performance thresholds")
+    else:
+        print("No performance data available")
+
+if __name__ == "__main__":
+    main()
+EOF
+
+          python3 analyze_performance.py >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Performance Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results-linux
+          path: |
+            build/Release/*.timing
+            build/Release/*.txt
+            build/Release/analyze_performance.py
+          retention-days: 30
+
+  # Performance benchmarking (Windows)
+  benchmark-windows:
+    name: Performance Benchmarks (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-svg
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-poppler-qt6
+            mingw-w64-ucrt-x86_64-pkg-config
+            git
+
+      - name: Configure CMake for Performance
+        run: |
+          cmake --preset=Release-MSYS2 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG" \
+            -DCMAKE_C_FLAGS="-O3 -DNDEBUG"
+
+      - name: Build for Performance Testing
+        run: |
+          cmake --build --preset=Release-MSYS2 --parallel 4
+
+      - name: Run Performance Tests
+        run: |
+          cd build/Release-MSYS2
+          echo "## Windows Performance Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run performance-specific tests
+          PERF_TESTS=$(find . -name "*performance*" -name "*.exe" 2>/dev/null || true)
+
+          if [ -n "$PERF_TESTS" ]; then
+            for test in $PERF_TESTS; do
+              if [ -f "$test" ]; then
+                echo "Running $test..." >> $GITHUB_STEP_SUMMARY
+                timeout 30s ./"$test" || true
+                echo "- Completed: $test" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          else
+            echo "No specific performance tests found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Windows Performance Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results-windows
+          path: |
+            build/Release-MSYS2/*.exe
+          retention-days: 30
+
+  # Performance Comparison
+  performance-comparison:
+    name: Performance Comparison
+    runs-on: ubuntu-latest
+    needs: [benchmark-linux, benchmark-windows]
+    if: always() && github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Performance Results
+        uses: actions/download-artifact@v4
+        with:
+          path: performance-artifacts
+
+      - name: Compare Performance with Base Branch
+        run: |
+          echo "# Performance Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Comparing performance changes with the base branch..." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check if we have performance results
+          if [ -d "performance-artifacts/performance-results-linux" ]; then
+            echo "## Linux Performance Results" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Performance tests completed successfully" >> $GITHUB_STEP_SUMMARY
+
+            # Look for any timing data
+            TIMING_FILES=$(find performance-artifacts/performance-results-linux -name "*.timing" | wc -l)
+            echo "- Timing files generated: $TIMING_FILES" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Linux performance results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -d "performance-artifacts/performance-results-windows" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## Windows Performance Results" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Windows performance tests completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Windows performance results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Performance Recommendations" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Review detailed performance artifacts for specific metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor memory usage patterns in long-running operations" >> $GITHUB_STEP_SUMMARY
+          echo "- Consider performance regression testing for critical paths" >> $GITHUB_STEP_SUMMARY
+          echo "- Profile PDF rendering and search operations for optimization opportunities" >> $GITHUB_STEP_SUMMARY

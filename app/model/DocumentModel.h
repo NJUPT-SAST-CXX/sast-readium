@@ -4,13 +4,13 @@
 #include <QFileDialog>
 #include <QObject>
 #include <QString>
-#include <vector>
 #include <memory>
-#include "AsyncDocumentLoader.h"
-#include "qtmetamacros.h"
-#include "RenderModel.h"
+#include <vector>
 #include "../utils/ErrorHandling.h"
 #include "../utils/ErrorRecovery.h"
+#include "AsyncDocumentLoader.h"
+#include "RenderModel.h"
+#include "qtmetamacros.h"
 
 // Forward declarations
 class RecentFilesManager;

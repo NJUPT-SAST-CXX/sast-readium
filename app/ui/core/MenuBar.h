@@ -1,10 +1,11 @@
 #pragma once
 
-#include <QMenuBar>
-#include <QMenu>
 #include <QAction>
-#include <QString>
+#include <QMenu>
+#include <QMenuBar>
 #include <QObject>
+#include <QShortcut>
+#include <QString>
 #include "../../controller/tool.hpp"
 #include "../../managers/RecentFilesManager.h"
 
@@ -42,6 +43,7 @@ private:
     void createViewMenu();
     void createThemeMenu();
     void setupRecentFilesMenu();
+    void setupRecentFileShortcuts();
     void retranslateUi();
 
     RecentFilesManager* m_recentFilesManager;
@@ -51,4 +53,7 @@ private:
     QAction* m_debugPanelToggleAction;
     QAction* m_debugPanelClearAction;
     QAction* m_debugPanelExportAction;
+
+    // Keyboard shortcuts for recent files (Ctrl+Alt+1-9)
+    QShortcut* m_recentFileShortcuts[9];
 };

@@ -1,239 +1,238 @@
 #include "OnboardingWidget.h"
-#include "../../managers/OnboardingManager.h"
-#include <QLabel>
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QPropertyAnimation>
-#include <QGraphicsOpacityEffect>
-#include <QTimer>
-#include <QPainter>
-#include <QResizeEvent>
-#include <QMouseEvent>
-#include <QKeyEvent>
 #include <QApplication>
+#include <QGraphicsOpacityEffect>
+#include <QHBoxLayout>
+#include <QKeyEvent>
+#include <QLabel>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPropertyAnimation>
+#include <QPushButton>
+#include <QResizeEvent>
+#include <QTimer>
+#include <QVBoxLayout>
 #include <cmath>
+#include "../../managers/OnboardingManager.h"
 
 // Static constants
 const qreal OnboardingWidget::MAX_OVERLAY_OPACITY = 0.8;
 
 OnboardingWidget::OnboardingWidget(QWidget* parent)
-    : QWidget(parent)
-    , m_manager(nullptr)
-    , m_tooltipWidget(nullptr)
-    , m_titleLabel(nullptr)
-    , m_descriptionLabel(nullptr)
-    , m_stepIndicator(nullptr)
-    , m_nextButton(nullptr)
-    , m_previousButton(nullptr)
-    , m_skipButton(nullptr)
-    , m_closeButton(nullptr)
-    , m_highlightedWidget(nullptr)
-    , m_hasHighlight(false)
-    , m_overlayOpacity(0.0)
-    , m_tooltipPosition(0, 0)
-    , m_pulsePhase(0.0)
-    , m_isAnimating(false)
-    , m_tooltipAlignment(Qt::AlignCenter)
-    , m_tooltipOffset(0, 0)
-{
+    : QWidget(parent),
+      m_manager(nullptr),
+      m_tooltipWidget(nullptr),
+      m_titleLabel(nullptr),
+      m_descriptionLabel(nullptr),
+      m_stepIndicator(nullptr),
+      m_nextButton(nullptr),
+      m_previousButton(nullptr),
+      m_skipButton(nullptr),
+      m_closeButton(nullptr),
+      m_highlightedWidget(nullptr),
+      m_hasHighlight(false),
+      m_overlayOpacity(0.0),
+      m_tooltipPosition(0, 0),
+      m_pulsePhase(0.0),
+      m_isAnimating(false),
+      m_tooltipAlignment(Qt::AlignCenter),
+      m_tooltipOffset(0, 0) {
     setAttribute(Qt::WA_TransparentForMouseEvents, false);
     setAttribute(Qt::WA_NoSystemBackground, true);
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
-    
+
     initializeUI();
     setupTooltip();
-    
+
     // Initialize animations
-    m_fadeAnimation = std::make_unique<QPropertyAnimation>(this, "overlayOpacity");
+    m_fadeAnimation =
+        std::make_unique<QPropertyAnimation>(this, "overlayOpacity");
     m_fadeAnimation->setDuration(ANIMATION_DURATION);
-    
-    m_moveAnimation = std::make_unique<QPropertyAnimation>(this, "tooltipPosition");
+
+    m_moveAnimation =
+        std::make_unique<QPropertyAnimation>(this, "tooltipPosition");
     m_moveAnimation->setDuration(ANIMATION_DURATION);
-    
+
     m_pulseTimer = std::make_unique<QTimer>(this);
     m_pulseTimer->setInterval(PULSE_INTERVAL);
-    connect(m_pulseTimer.get(), &QTimer::timeout, this, &OnboardingWidget::onPulseTimer);
-    
-    connect(m_fadeAnimation.get(), &QPropertyAnimation::finished, 
-            this, &OnboardingWidget::onAnimationFinished);
-    connect(m_moveAnimation.get(), &QPropertyAnimation::finished, 
-            this, &OnboardingWidget::onAnimationFinished);
+    connect(m_pulseTimer.get(), &QTimer::timeout, this,
+            &OnboardingWidget::onPulseTimer);
+
+    connect(m_fadeAnimation.get(), &QPropertyAnimation::finished, this,
+            &OnboardingWidget::onAnimationFinished);
+    connect(m_moveAnimation.get(), &QPropertyAnimation::finished, this,
+            &OnboardingWidget::onAnimationFinished);
 }
 
 OnboardingWidget::~OnboardingWidget() = default;
 
-void OnboardingWidget::setOnboardingManager(OnboardingManager* manager)
-{
+void OnboardingWidget::setOnboardingManager(OnboardingManager* manager) {
     m_manager = manager;
 }
 
-void OnboardingWidget::showStep(OnboardingStep step)
-{
+void OnboardingWidget::showStep(OnboardingStep step) {
     // Update step content based on the step
     updateStepContent();
-    
+
     // Show the widget with fade in animation
     show();
     m_fadeAnimation->setStartValue(0.0);
     m_fadeAnimation->setEndValue(MAX_OVERLAY_OPACITY);
     m_fadeAnimation->start();
-    
+
     m_pulseTimer->start();
 }
 
-void OnboardingWidget::hideStep()
-{
+void OnboardingWidget::hideStep() {
     m_pulseTimer->stop();
-    
+
     // Hide with fade out animation
     m_fadeAnimation->setStartValue(m_overlayOpacity);
     m_fadeAnimation->setEndValue(0.0);
     m_fadeAnimation->start();
 }
 
-void OnboardingWidget::updateStepContent()
-{
-    if (!m_manager) return;
-    
+void OnboardingWidget::updateStepContent() {
+    if (!m_manager)
+        return;
+
     OnboardingStep currentStep = m_manager->currentStep();
-    
+
     // Update content based on current step
     switch (currentStep) {
         case OnboardingStep::Welcome:
             m_titleLabel->setText("Welcome to SAST Readium!");
-            m_descriptionLabel->setText("Let's take a quick tour to get you started with our PDF reader.");
+            m_descriptionLabel->setText(
+                "Let's take a quick tour to get you started with our PDF "
+                "reader.");
             break;
         case OnboardingStep::OpenFile:
             m_titleLabel->setText("Opening Files");
-            m_descriptionLabel->setText("Click 'File > Open' or use Ctrl+O to open a PDF document.");
+            m_descriptionLabel->setText(
+                "Click 'File > Open' or use Ctrl+O to open a PDF document.");
             break;
         case OnboardingStep::Navigation:
             m_titleLabel->setText("Navigation");
-            m_descriptionLabel->setText("Use the navigation buttons or arrow keys to move between pages.");
+            m_descriptionLabel->setText(
+                "Use the navigation buttons or arrow keys to move between "
+                "pages.");
             break;
         case OnboardingStep::Search:
             m_titleLabel->setText("Search");
-            m_descriptionLabel->setText("Use Ctrl+F to search for text within your document.");
+            m_descriptionLabel->setText(
+                "Use Ctrl+F to search for text within your document.");
             break;
         case OnboardingStep::Bookmarks:
             m_titleLabel->setText("Bookmarks");
-            m_descriptionLabel->setText("Create bookmarks to quickly navigate to important sections.");
+            m_descriptionLabel->setText(
+                "Create bookmarks to quickly navigate to important sections.");
             break;
         case OnboardingStep::Annotations:
             m_titleLabel->setText("Annotations");
-            m_descriptionLabel->setText("Add notes and highlights to your documents.");
+            m_descriptionLabel->setText(
+                "Add notes and highlights to your documents.");
             break;
         case OnboardingStep::ViewModes:
             m_titleLabel->setText("View Modes");
-            m_descriptionLabel->setText("Switch between different view modes for optimal reading.");
+            m_descriptionLabel->setText(
+                "Switch between different view modes for optimal reading.");
             break;
         case OnboardingStep::Settings:
             m_titleLabel->setText("Settings");
-            m_descriptionLabel->setText("Customize the application to your preferences.");
+            m_descriptionLabel->setText(
+                "Customize the application to your preferences.");
             break;
         case OnboardingStep::KeyboardShortcuts:
             m_titleLabel->setText("Keyboard Shortcuts");
-            m_descriptionLabel->setText("Learn useful keyboard shortcuts to work more efficiently.");
+            m_descriptionLabel->setText(
+                "Learn useful keyboard shortcuts to work more efficiently.");
             break;
         case OnboardingStep::Complete:
             m_titleLabel->setText("Tour Complete!");
-            m_descriptionLabel->setText("You're all set! Enjoy using SAST Readium.");
+            m_descriptionLabel->setText(
+                "You're all set! Enjoy using SAST Readium.");
             break;
     }
-    
+
     // Update step indicator
     int currentStepNum = static_cast<int>(currentStep) + 1;
     int totalSteps = m_manager->getTotalStepsCount();
-    m_stepIndicator->setText(QString("Step %1 of %2").arg(currentStepNum).arg(totalSteps));
-    
+    m_stepIndicator->setText(
+        QString("Step %1 of %2").arg(currentStepNum).arg(totalSteps));
+
     // Update button states
     m_previousButton->setEnabled(currentStepNum > 1);
-    m_nextButton->setText(currentStep == OnboardingStep::Complete ? "Finish" : "Next");
+    m_nextButton->setText(currentStep == OnboardingStep::Complete ? "Finish"
+                                                                  : "Next");
 }
 
-void OnboardingWidget::highlightWidget(QWidget* widget)
-{
+void OnboardingWidget::highlightWidget(QWidget* widget) {
     m_highlightedWidget = widget;
     m_hasHighlight = true;
-    
+
     if (widget) {
         m_highlightArea = widget->geometry();
         if (widget->parentWidget()) {
-            QPoint globalTopLeft = widget->parentWidget()->mapToGlobal(m_highlightArea.topLeft());
+            QPoint globalTopLeft =
+                widget->parentWidget()->mapToGlobal(m_highlightArea.topLeft());
             QPoint localTopLeft = mapFromGlobal(globalTopLeft);
             m_highlightArea.moveTopLeft(localTopLeft);
         }
     }
-    
+
     update();
 }
 
-void OnboardingWidget::highlightArea(const QRect& area)
-{
+void OnboardingWidget::highlightArea(const QRect& area) {
     m_highlightArea = area;
     m_hasHighlight = true;
     m_highlightedWidget = nullptr;
     update();
 }
 
-void OnboardingWidget::clearHighlight()
-{
+void OnboardingWidget::clearHighlight() {
     m_hasHighlight = false;
     m_highlightedWidget = nullptr;
     update();
 }
 
-void OnboardingWidget::showTooltip(const QString& title, const QString& description, 
-                                  const QPoint& position, Qt::Alignment alignment)
-{
+void OnboardingWidget::showTooltip(const QString& title,
+                                   const QString& description,
+                                   const QPoint& position,
+                                   Qt::Alignment alignment) {
     m_titleLabel->setText(title);
     m_descriptionLabel->setText(description);
     m_tooltipAlignment = alignment;
     updateTooltipPosition(position);
-    
+
     if (!isVisible()) {
         show();
     }
 }
 
-void OnboardingWidget::hideTooltip()
-{
-    hideStep();
-}
+void OnboardingWidget::hideTooltip() { hideStep(); }
 
-void OnboardingWidget::updateTooltipPosition(const QPoint& position)
-{
+void OnboardingWidget::updateTooltipPosition(const QPoint& position) {
     setTooltipPosition(position);
     updateLayout();
 }
 
-qreal OnboardingWidget::overlayOpacity() const
-{
-    return m_overlayOpacity;
-}
+qreal OnboardingWidget::overlayOpacity() const { return m_overlayOpacity; }
 
-void OnboardingWidget::setOverlayOpacity(qreal opacity)
-{
+void OnboardingWidget::setOverlayOpacity(qreal opacity) {
     m_overlayOpacity = opacity;
     update();
 }
 
-QPoint OnboardingWidget::tooltipPosition() const
-{
-    return m_tooltipPosition;
-}
+QPoint OnboardingWidget::tooltipPosition() const { return m_tooltipPosition; }
 
-void OnboardingWidget::setTooltipPosition(const QPoint& position)
-{
+void OnboardingWidget::setTooltipPosition(const QPoint& position) {
     m_tooltipPosition = position;
     updateLayout();
 }
 
-void OnboardingWidget::applyTheme()
-{
+void OnboardingWidget::applyTheme() {
     // Apply current theme to the widget
-    QString tooltipStyle = 
+    QString tooltipStyle =
         "QWidget {"
         "    background-color: rgba(255, 255, 255, 240);"
         "    border: 1px solid #ccc;"
@@ -262,47 +261,44 @@ void OnboardingWidget::applyTheme()
         "    background-color: #ccc;"
         "    color: #999;"
         "}";
-    
+
     if (m_tooltipWidget) {
         m_tooltipWidget->setStyleSheet(tooltipStyle);
     }
 }
 
-void OnboardingWidget::paintEvent(QPaintEvent* event)
-{
+void OnboardingWidget::paintEvent(QPaintEvent* event) {
     Q_UNUSED(event)
-    
+
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    
+
     // Draw overlay
-    painter.fillRect(rect(), QColor(0, 0, 0, int(255 * m_overlayOpacity * 0.6)));
-    
+    painter.fillRect(rect(),
+                     QColor(0, 0, 0, int(255 * m_overlayOpacity * 0.6)));
+
     // Draw highlight if present
     if (m_hasHighlight) {
         drawSpotlight(painter, m_highlightArea);
     }
 }
 
-void OnboardingWidget::resizeEvent(QResizeEvent* event)
-{
+void OnboardingWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     updateLayout();
 }
 
-void OnboardingWidget::mousePressEvent(QMouseEvent* event)
-{
+void OnboardingWidget::mousePressEvent(QMouseEvent* event) {
     // Allow clicking through to highlighted widget
     if (m_hasHighlight && m_highlightArea.contains(event->pos())) {
         event->ignore();
         return;
     }
-    
+
     QWidget::mousePressEvent(event);
 }
 
-void OnboardingWidget::keyPressEvent(QKeyEvent* event)
-{
+void OnboardingWidget::keyPressEvent(QKeyEvent* event) {
     switch (event->key()) {
         case Qt::Key_Escape:
             onCloseClicked();
@@ -319,36 +315,22 @@ void OnboardingWidget::keyPressEvent(QKeyEvent* event)
     }
 }
 
-bool OnboardingWidget::eventFilter(QObject* watched, QEvent* event)
-{
+bool OnboardingWidget::eventFilter(QObject* watched, QEvent* event) {
     Q_UNUSED(watched)
     Q_UNUSED(event)
     return false;
 }
 
 // Private slots
-void OnboardingWidget::onNextClicked()
-{
-    emit nextClicked();
-}
+void OnboardingWidget::onNextClicked() { emit nextClicked(); }
 
-void OnboardingWidget::onPreviousClicked()
-{
-    emit previousClicked();
-}
+void OnboardingWidget::onPreviousClicked() { emit previousClicked(); }
 
-void OnboardingWidget::onSkipClicked()
-{
-    emit skipClicked();
-}
+void OnboardingWidget::onSkipClicked() { emit skipClicked(); }
 
-void OnboardingWidget::onCloseClicked()
-{
-    emit closeClicked();
-}
+void OnboardingWidget::onCloseClicked() { emit closeClicked(); }
 
-void OnboardingWidget::onAnimationFinished()
-{
+void OnboardingWidget::onAnimationFinished() {
     m_isAnimating = false;
 
     // Hide widget if opacity is 0
@@ -357,8 +339,7 @@ void OnboardingWidget::onAnimationFinished()
     }
 }
 
-void OnboardingWidget::onPulseTimer()
-{
+void OnboardingWidget::onPulseTimer() {
     m_pulsePhase += 0.1;
     if (m_pulsePhase > 2.0 * M_PI) {
         m_pulsePhase = 0.0;
@@ -369,9 +350,9 @@ void OnboardingWidget::onPulseTimer()
     }
 }
 
-void OnboardingWidget::updateLayout()
-{
-    if (!m_tooltipWidget) return;
+void OnboardingWidget::updateLayout() {
+    if (!m_tooltipWidget)
+        return;
 
     // Calculate tooltip position
     QPoint pos = m_tooltipPosition;
@@ -396,15 +377,15 @@ void OnboardingWidget::updateLayout()
 }
 
 // Private methods
-void OnboardingWidget::initializeUI()
-{
+void OnboardingWidget::initializeUI() {
     // Create tooltip widget
     m_tooltipWidget = new QWidget(this);
     m_tooltipWidget->setFixedWidth(TOOLTIP_WIDTH);
 
     // Create labels
     m_titleLabel = new QLabel(this);
-    m_titleLabel->setStyleSheet("font-weight: bold; font-size: 16px; color: #333;");
+    m_titleLabel->setStyleSheet(
+        "font-weight: bold; font-size: 16px; color: #333;");
     m_titleLabel->setWordWrap(true);
 
     m_descriptionLabel = new QLabel(this);
@@ -422,18 +403,23 @@ void OnboardingWidget::initializeUI()
     m_closeButton = new QPushButton("×", this);
 
     m_closeButton->setFixedSize(24, 24);
-    m_closeButton->setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }");
+    m_closeButton->setStyleSheet(
+        "QPushButton { font-size: 16px; font-weight: bold; }");
 
     // Connect signals
-    connect(m_nextButton, &QPushButton::clicked, this, &OnboardingWidget::onNextClicked);
-    connect(m_previousButton, &QPushButton::clicked, this, &OnboardingWidget::onPreviousClicked);
-    connect(m_skipButton, &QPushButton::clicked, this, &OnboardingWidget::onSkipClicked);
-    connect(m_closeButton, &QPushButton::clicked, this, &OnboardingWidget::onCloseClicked);
+    connect(m_nextButton, &QPushButton::clicked, this,
+            &OnboardingWidget::onNextClicked);
+    connect(m_previousButton, &QPushButton::clicked, this,
+            &OnboardingWidget::onPreviousClicked);
+    connect(m_skipButton, &QPushButton::clicked, this,
+            &OnboardingWidget::onSkipClicked);
+    connect(m_closeButton, &QPushButton::clicked, this,
+            &OnboardingWidget::onCloseClicked);
 }
 
-void OnboardingWidget::setupTooltip()
-{
-    if (!m_tooltipWidget) return;
+void OnboardingWidget::setupTooltip() {
+    if (!m_tooltipWidget)
+        return;
 
     auto* layout = new QVBoxLayout(m_tooltipWidget);
     layout->setContentsMargins(16, 16, 16, 16);
@@ -462,11 +448,10 @@ void OnboardingWidget::setupTooltip()
     applyTheme();
 }
 
-void OnboardingWidget::drawSpotlight(QPainter& painter, const QRect& rect)
-{
+void OnboardingWidget::drawSpotlight(QPainter& painter, const QRect& rect) {
     // Create spotlight effect around highlighted area
     QRect expandedRect = rect.adjusted(-HIGHLIGHT_PADDING, -HIGHLIGHT_PADDING,
-                                      HIGHLIGHT_PADDING, HIGHLIGHT_PADDING);
+                                       HIGHLIGHT_PADDING, HIGHLIGHT_PADDING);
 
     // Draw pulsing border
     qreal pulseIntensity = 0.5 + 0.5 * sin(m_pulsePhase);

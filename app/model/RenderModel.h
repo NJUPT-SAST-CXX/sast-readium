@@ -1,16 +1,16 @@
 #pragma once
 
-#include <QObject>
 #include <poppler/qt6/poppler-qt6.h>
-#include <QImage>
-#include <QDebug>
-#include <QSizeF>
-#include <QRectF>
-#include <QDateTime>
-#include <QMap>
 #include <QCache>
+#include <QDateTime>
+#include <QDebug>
 #include <QFuture>
 #include <QFutureWatcher>
+#include <QImage>
+#include <QMap>
+#include <QObject>
+#include <QRectF>
+#include <QSizeF>
 #include <QTimer>
 #include "qtmetamacros.h"
 
@@ -20,11 +20,14 @@ class RenderModel : public QObject {
 public:
     enum class RenderQuality { Draft, Normal, High, Ultra };
 
-    RenderModel(double dpiX = 72.0, double dpiY = 72.0, Poppler::Document *_document = nullptr, QObject *parent = nullptr);
+    RenderModel(double dpiX = 72.0, double dpiY = 72.0,
+                Poppler::Document* _document = nullptr,
+                QObject* parent = nullptr);
     ~RenderModel();
 
     // Basic rendering (existing)
-    QImage renderPage(int pageNum = 0, double xres = 72.0, double yres = 72.0, int x = 0, int y = 0, int w = -1, int h = -1);
+    QImage renderPage(int pageNum = 0, double xres = 72.0, double yres = 72.0,
+                      int x = 0, int y = 0, int w = -1, int h = -1);
     int getPageCount();
     void setDocument(Poppler::Document* _document);
 
@@ -67,7 +70,8 @@ public:
     int getCacheSize() const;
     int getMaxCacheSize() const;
     void setMaxCacheSize(int size);
-    bool isPageCached(int pageNum, double xres = 72.0, double yres = 72.0) const;
+    bool isPageCached(int pageNum, double xres = 72.0,
+                      double yres = 72.0) const;
 
     // Validation
     bool isDocumentValid() const;
@@ -81,7 +85,8 @@ private slots:
 private:
     // Helper methods
     double getQualityMultiplier() const;
-    QString generateCacheKey(int pageNum, double xres, double yres, int x, int y, int w, int h) const;
+    QString generateCacheKey(int pageNum, double xres, double yres, int x,
+                             int y, int w, int h) const;
 
 signals:
     void renderPageDone(QImage image);

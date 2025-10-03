@@ -1,5 +1,5 @@
-#include <QTest>
 #include <QSignalSpy>
+#include <QTest>
 #include <memory>
 #include "../TestUtilities.h"
 
@@ -38,7 +38,7 @@ void NavigationCommandsTest::testBasicFunctionality() {
     QString testString = "Navigation Test";
     QCOMPARE(testString, "Navigation Test");
     QVERIFY(!testString.isEmpty());
-    
+
     QStringList testList;
     testList << "page1" << "page2";
     QCOMPARE(testList.size(), 2);

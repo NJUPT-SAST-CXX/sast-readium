@@ -119,7 +119,7 @@ Decoupled event-driven communication:
 
 ```cpp
 // Subscribe to events
-EventBus::instance().subscribe("document_opened", this, 
+EventBus::instance().subscribe("document_opened", this,
     [](Event* event) {
         QString filename = event->data().toString();
         // Handle event
@@ -390,7 +390,7 @@ public:
         // Implementation
         return true;
     }
-    
+
     bool undo() override {
         // Undo logic
         return true;
@@ -398,7 +398,7 @@ public:
 };
 
 // 2. Register with CommandManager
-GlobalCommandManager::registerCommand("my_command", 
+GlobalCommandManager::registerCommand("my_command",
     []() { return new MyCommand(); }
 );
 
@@ -455,16 +455,16 @@ class MyPlugin : public QObject, public PluginInterface {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.sast.readium.PluginInterface")
     Q_INTERFACES(PluginInterface)
-    
+
 public:
     QString name() const override { return "MyPlugin"; }
     QString version() const override { return "1.0.0"; }
-    
+
     bool initialize() override {
         // Plugin initialization
         return true;
     }
-    
+
     void shutdown() override {
         // Cleanup
     }

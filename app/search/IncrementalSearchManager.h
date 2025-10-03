@@ -9,8 +9,7 @@
  * Incremental search management component
  * Handles progressive search refinement and optimization
  */
-class IncrementalSearchManager : public QObject
-{
+class IncrementalSearchManager : public QObject {
     Q_OBJECT
 
 public:
@@ -29,14 +28,17 @@ public:
     bool hasScheduledSearch() const;
 
     // Incremental logic
-    bool canRefineSearch(const QString& newQuery, const QString& previousQuery) const;
-    QList<SearchResult> refineResults(const QList<SearchResult>& previousResults, 
-                                     const QString& newQuery,
-                                     const QString& previousQuery) const;
+    bool canRefineSearch(const QString& newQuery,
+                         const QString& previousQuery) const;
+    QList<SearchResult> refineResults(
+        const QList<SearchResult>& previousResults, const QString& newQuery,
+        const QString& previousQuery) const;
 
     // Query analysis
-    bool isQueryExtension(const QString& newQuery, const QString& previousQuery) const;
-    bool isQueryReduction(const QString& newQuery, const QString& previousQuery) const;
+    bool isQueryExtension(const QString& newQuery,
+                          const QString& previousQuery) const;
+    bool isQueryReduction(const QString& newQuery,
+                          const QString& previousQuery) const;
     QString getCommonPrefix(const QString& query1, const QString& query2) const;
 
 signals:

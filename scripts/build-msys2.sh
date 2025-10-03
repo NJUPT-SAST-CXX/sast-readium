@@ -2,7 +2,7 @@
 # MSYS2 Build Script for SAST Readium
 # This script automates the build process in MSYS2 environment
 
-set -e  # Exit on any error
+set -e # Exit on any error
 
 # Colors for output
 RED='\033[0;31m'
@@ -37,7 +37,7 @@ print_error() {
 
 # Function to show usage
 show_usage() {
-    cat << EOF
+    cat <<EOF
 Usage: $0 [OPTIONS]
 
 Build SAST Readium in MSYS2 environment
@@ -62,12 +62,12 @@ EOF
 
 # Function to check MSYS2 environment
 check_msys2_env() {
-    if [[ -z "$MSYSTEM" ]]; then
+    if [[ -z $MSYSTEM ]]; then
         print_error "This script must be run in MSYS2 environment"
         print_error "Please start MSYS2 and run this script from there"
         exit 1
     fi
-    
+
     print_status "MSYS2 environment detected: $MSYSTEM"
     print_status "MSYSTEM_PREFIX: $MSYSTEM_PREFIX"
 }
@@ -75,7 +75,7 @@ check_msys2_env() {
 # Function to install MSYS2 dependencies
 install_dependencies() {
     print_status "Installing MSYS2 dependencies..."
-    
+
     local packages=(
         "mingw-w64-$MSYSTEM_CARCH-cmake"
         "mingw-w64-$MSYSTEM_CARCH-ninja"
@@ -87,24 +87,24 @@ install_dependencies() {
         "mingw-w64-$MSYSTEM_CARCH-pkg-config"
         "git"
     )
-    
+
     print_status "Updating package database..."
     pacman -Sy
-    
+
     print_status "Installing packages: ${packages[*]}"
     pacman -S --needed --noconfirm "${packages[@]}"
-    
+
     print_success "Dependencies installed successfully"
 }
 
 # Function to clean build directory
 clean_build() {
     local build_dir="build/${BUILD_TYPE}-MSYS2"
-    if [[ "$USE_VCPKG" == "ON" ]]; then
+    if [[ $USE_VCPKG == "ON" ]]; then
         build_dir="build/${BUILD_TYPE}-MSYS2-vcpkg"
     fi
-    
-    if [[ -d "$build_dir" ]]; then
+
+    if [[ -d $build_dir ]]; then
         print_status "Cleaning build directory: $build_dir"
         rm -rf "$build_dir"
         print_success "Build directory cleaned"
@@ -114,54 +114,54 @@ clean_build() {
 # Function to configure CMake
 configure_cmake() {
     print_status "Configuring CMake..."
-    
+
     local preset="${BUILD_TYPE}-MSYS2"
-    if [[ "$USE_VCPKG" == "ON" ]]; then
+    if [[ $USE_VCPKG == "ON" ]]; then
         preset="${BUILD_TYPE}-MSYS2-vcpkg"
-        
+
         # Check if VCPKG_ROOT is set when using vcpkg
-        if [[ -z "$VCPKG_ROOT" ]]; then
+        if [[ -z $VCPKG_ROOT ]]; then
             print_error "VCPKG_ROOT environment variable is not set"
             print_error "Please set VCPKG_ROOT to your vcpkg installation directory"
             exit 1
         fi
         print_status "Using vcpkg from: $VCPKG_ROOT"
     fi
-    
+
     print_status "Using CMake preset: $preset"
     cmake --preset="$preset"
-    
+
     print_success "CMake configuration completed"
 }
 
 # Function to build the project
 build_project() {
     print_status "Building project..."
-    
+
     local preset="${BUILD_TYPE}-MSYS2"
-    if [[ "$USE_VCPKG" == "ON" ]]; then
+    if [[ $USE_VCPKG == "ON" ]]; then
         preset="${BUILD_TYPE}-MSYS2-vcpkg"
     fi
-    
+
     cmake --build --preset="$preset" --parallel "$JOBS"
-    
+
     print_success "Build completed successfully"
 }
 
 # Function to show build information
 show_build_info() {
     local build_dir="build/${BUILD_TYPE}-MSYS2"
-    if [[ "$USE_VCPKG" == "ON" ]]; then
+    if [[ $USE_VCPKG == "ON" ]]; then
         build_dir="build/${BUILD_TYPE}-MSYS2-vcpkg"
     fi
-    
+
     print_success "=== Build Information ==="
     echo "Build Type: $BUILD_TYPE"
     echo "Using vcpkg: $USE_VCPKG"
     echo "Build Directory: $build_dir"
     echo "Parallel Jobs: $JOBS"
     echo "MSYSTEM: $MSYSTEM"
-    
+
     if [[ -f "$build_dir/app/app.exe" ]]; then
         echo "Executable: $build_dir/app/app.exe"
         echo "Executable size: $(du -h "$build_dir/app/app.exe" | cut -f1)"
@@ -172,70 +172,70 @@ show_build_info() {
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -t|--type)
-            BUILD_TYPE="$2"
-            if [[ "$BUILD_TYPE" != "Debug" && "$BUILD_TYPE" != "Release" ]]; then
-                print_error "Invalid build type: $BUILD_TYPE. Must be Debug or Release."
-                exit 1
-            fi
-            shift 2
-            ;;
-        -v|--vcpkg)
-            USE_VCPKG="ON"
-            shift
-            ;;
-        -c|--clean)
-            CLEAN_BUILD="true"
-            shift
-            ;;
-        -d|--install-deps)
-            INSTALL_DEPS="true"
-            shift
-            ;;
-        -j|--jobs)
-            JOBS="$2"
-            if ! [[ "$JOBS" =~ ^[0-9]+$ ]]; then
-                print_error "Invalid number of jobs: $JOBS"
-                exit 1
-            fi
-            shift 2
-            ;;
-        -h|--help)
-            show_usage
-            exit 0
-            ;;
-        *)
-            print_error "Unknown option: $1"
-            show_usage
+    -t | --type)
+        BUILD_TYPE="$2"
+        if [[ $BUILD_TYPE != "Debug" && $BUILD_TYPE != "Release" ]]; then
+            print_error "Invalid build type: $BUILD_TYPE. Must be Debug or Release."
             exit 1
-            ;;
+        fi
+        shift 2
+        ;;
+    -v | --vcpkg)
+        USE_VCPKG="ON"
+        shift
+        ;;
+    -c | --clean)
+        CLEAN_BUILD="true"
+        shift
+        ;;
+    -d | --install-deps)
+        INSTALL_DEPS="true"
+        shift
+        ;;
+    -j | --jobs)
+        JOBS="$2"
+        if ! [[ $JOBS =~ ^[0-9]+$ ]]; then
+            print_error "Invalid number of jobs: $JOBS"
+            exit 1
+        fi
+        shift 2
+        ;;
+    -h | --help)
+        show_usage
+        exit 0
+        ;;
+    *)
+        print_error "Unknown option: $1"
+        show_usage
+        exit 1
+        ;;
     esac
 done
 
 # Main execution
 main() {
     print_status "Starting MSYS2 build process..."
-    
+
     # Check environment
     check_msys2_env
-    
+
     # Install dependencies if requested
-    if [[ "$INSTALL_DEPS" == "true" ]]; then
+    if [[ $INSTALL_DEPS == "true" ]]; then
         install_dependencies
     fi
-    
+
     # Clean build if requested
-    if [[ "$CLEAN_BUILD" == "true" ]]; then
+    if [[ $CLEAN_BUILD == "true" ]]; then
         clean_build
     fi
-    
+
     # Configure and build
     configure_cmake
     build_project
-    
+
     # Show build information
     show_build_info
-    
+
     print_success "MSYS2 build process completed successfully!"
 }
 

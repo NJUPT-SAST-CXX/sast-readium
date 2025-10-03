@@ -1,24 +1,23 @@
 #include "Logger.h"
-#include "LoggingConfig.h"
-#include <spdlog/spdlog.h>
-#include <spdlog/fmt/fmt.h>
 #include <fmt/format.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/qt_sinks.h>
-#include <QStandardPaths>
-#include <QDir>
-#include <QMutexLocker>
+#include <spdlog/sinks/rotating_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 #include <QApplication>
-#include <QTextEdit>
+#include <QDir>
 #include <QMutex>
-#include <vector>
+#include <QMutexLocker>
+#include <QStandardPaths>
+#include <QTextEdit>
 #include <string>
+#include <vector>
+#include "LoggingConfig.h"
 
 // Logger Implementation class
-class Logger::Implementation
-{
+class Logger::Implementation {
 public:
     Implementation() = default;
     ~Implementation() = default;
@@ -35,15 +34,13 @@ public:
     void createLogger();
     static spdlog::level::level_enum toSpdlogLevel(Logger::LogLevel level);
     static Logger::LogLevel fromSpdlogLevel(spdlog::level::level_enum level);
-    static Logger::LoggerConfig convertFromLoggingConfig(const LoggingConfig& modernConfig);
+    static Logger::LoggerConfig convertFromLoggingConfig(
+        const LoggingConfig& modernConfig);
 };
 
-Logger::Logger() : d(std::make_unique<Implementation>())
-{
-}
+Logger::Logger() : d(std::make_unique<Implementation>()) {}
 
-Logger::~Logger()
-{
+Logger::~Logger() {
     // Ensure proper cleanup of spdlog resources
     if (d && d->initialized) {
         try {
@@ -59,18 +56,16 @@ Logger::~Logger()
     }
 }
 
-Logger& Logger::instance()
-{
+Logger& Logger::instance() {
     static Logger instance;
     return instance;
 }
 
-void Logger::initialize(const LoggerConfig& config)
-{
+void Logger::initialize(const LoggerConfig& config) {
     QMutexLocker locker(&d->mutex);
 
     if (d->initialized) {
-        return; // Already initialized
+        return;  // Already initialized
     }
 
     d->config = config;
@@ -85,10 +80,13 @@ void Logger::initialize(const LoggerConfig& config)
         // Add file sink if enabled
         if (d->config.enableFile) {
             // Create logs directory if it doesn't exist
-            QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
+            QString logDir = QStandardPaths::writableLocation(
+                                 QStandardPaths::AppDataLocation) +
+                             "/logs";
             QDir().mkpath(logDir);
             QString logPath = logDir + "/" + d->config.logFileName;
-            addRotatingFileSink(logPath, d->config.maxFileSize, d->config.maxFiles);
+            addRotatingFileSink(logPath, d->config.maxFileSize,
+                                d->config.maxFiles);
         }
 
         // Add Qt widget sink if enabled and widget is provided
@@ -110,41 +108,46 @@ void Logger::initialize(const LoggerConfig& config)
         d->sinks.clear();
         addConsoleSink();
         d->createLogger();
-        error("Logger initialization failed: {}. Falling back to console-only logging.", e.what());
+        error(
+            "Logger initialization failed: {}. Falling back to console-only "
+            "logging.",
+            e.what());
         d->initialized = true;
     }
 }
 
-void Logger::initialize(const LoggingConfig& config)
-{
+void Logger::initialize(const LoggingConfig& config) {
     QMutexLocker locker(&d->mutex);
 
     if (d->initialized) {
-        return; // Already initialized
+        return;  // Already initialized
     }
 
     // Convert LoggingConfig to LoggerConfig and initialize
-    LoggerConfig loggerConfig = Implementation::convertFromLoggingConfig(config);
+    LoggerConfig loggerConfig =
+        Implementation::convertFromLoggingConfig(config);
     initialize(loggerConfig);
 }
 
 // Implementation class methods
-void Logger::Implementation::createLogger()
-{
+void Logger::Implementation::createLogger() {
     if (sinks.empty()) {
         // This should not happen as we ensure at least console sink exists
         return;
     }
 
-    // Check if logger already exists and drop it to avoid registration conflicts
+    // Check if logger already exists and drop it to avoid registration
+    // conflicts
     auto existing = spdlog::get("sast-readium");
     if (existing) {
         spdlog::drop("sast-readium");
     }
 
-    logger = std::make_shared<spdlog::logger>("sast-readium", sinks.begin(), sinks.end());
-    logger->set_level(spdlog::level::trace); // Set to lowest level, actual filtering done per sink
-    logger->flush_on(spdlog::level::warn); // Auto-flush on warnings and errors
+    logger = std::make_shared<spdlog::logger>("sast-readium", sinks.begin(),
+                                              sinks.end());
+    logger->set_level(spdlog::level::trace);  // Set to lowest level, actual
+                                              // filtering done per sink
+    logger->flush_on(spdlog::level::warn);  // Auto-flush on warnings and errors
 
     // Register with spdlog
     try {
@@ -156,8 +159,7 @@ void Logger::Implementation::createLogger()
     }
 }
 
-void Logger::setLogLevel(LogLevel level)
-{
+void Logger::setLogLevel(LogLevel level) {
     QMutexLocker locker(&d->mutex);
     d->config.level = level;
 
@@ -166,8 +168,7 @@ void Logger::setLogLevel(LogLevel level)
     }
 }
 
-void Logger::setPattern(const QString& pattern)
-{
+void Logger::setPattern(const QString& pattern) {
     QMutexLocker locker(&d->mutex);
     d->config.pattern = pattern;
 
@@ -176,47 +177,49 @@ void Logger::setPattern(const QString& pattern)
     }
 }
 
-void Logger::addConsoleSink()
-{
+void Logger::addConsoleSink() {
     QMutexLocker locker(&d->mutex);
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     console_sink->set_level(Implementation::toSpdlogLevel(d->config.level));
     d->sinks.push_back(console_sink);
 }
 
-void Logger::addFileSink(const QString& filename)
-{
+void Logger::addFileSink(const QString& filename) {
     QMutexLocker locker(&d->mutex);
     try {
-        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename.toStdString(), true);
+        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
+            filename.toStdString(), true);
         file_sink->set_level(Implementation::toSpdlogLevel(d->config.level));
         d->sinks.push_back(file_sink);
     } catch (const std::exception& e) {
         // If we can't create file sink, log error to console
         if (d->logger) {
-            error("Failed to create file sink '{}': {}", filename.toStdString(), e.what());
+            error("Failed to create file sink '{}': {}", filename.toStdString(),
+                  e.what());
         }
     }
 }
 
-void Logger::addRotatingFileSink(const QString& filename, size_t maxSize, size_t maxFiles)
-{
+void Logger::addRotatingFileSink(const QString& filename, size_t maxSize,
+                                 size_t maxFiles) {
     QMutexLocker locker(&d->mutex);
     try {
-        auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-            filename.toStdString(), maxSize, maxFiles);
-        rotating_sink->set_level(Implementation::toSpdlogLevel(d->config.level));
+        auto rotating_sink =
+            std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+                filename.toStdString(), maxSize, maxFiles);
+        rotating_sink->set_level(
+            Implementation::toSpdlogLevel(d->config.level));
         d->sinks.push_back(rotating_sink);
     } catch (const std::exception& e) {
         // If we can't create rotating file sink, log error to console
         if (d->logger) {
-            error("Failed to create rotating file sink '{}': {}", filename.toStdString(), e.what());
+            error("Failed to create rotating file sink '{}': {}",
+                  filename.toStdString(), e.what());
         }
     }
 }
 
-void Logger::addQtWidgetSink(QTextEdit* widget)
-{
+void Logger::addQtWidgetSink(QTextEdit* widget) {
     if (widget == nullptr) {
         return;
     }
@@ -226,17 +229,20 @@ void Logger::addQtWidgetSink(QTextEdit* widget)
 
     try {
         // qt_sink requires QObject* and meta method name (signal name)
-        // The second parameter should be the name of a Qt signal that accepts a QString
-        auto qt_sink = std::make_shared<spdlog::sinks::qt_sink_mt>(widget, "append");
+        // The second parameter should be the name of a Qt signal that accepts a
+        // QString
+        auto qt_sink =
+            std::make_shared<spdlog::sinks::qt_sink_mt>(widget, "append");
         qt_sink->set_level(Implementation::toSpdlogLevel(d->config.level));
         d->sinks.push_back(qt_sink);
 
         // Connect Qt signal for additional processing if needed
-        connect(this, &Logger::logMessage, this, [](const QString& message, int level) {
-            // Additional Qt-specific processing can be added here
-            Q_UNUSED(message)
-            Q_UNUSED(level)
-        });
+        connect(this, &Logger::logMessage, this,
+                [](const QString& message, int level) {
+                    // Additional Qt-specific processing can be added here
+                    Q_UNUSED(message)
+                    Q_UNUSED(level)
+                });
 
     } catch (const std::exception& e) {
         if (d->logger) {
@@ -245,12 +251,11 @@ void Logger::addQtWidgetSink(QTextEdit* widget)
     }
 }
 
-void Logger::setQtWidget(QTextEdit* widget)
-{
+void Logger::setQtWidget(QTextEdit* widget) {
     QMutexLocker locker(&d->mutex);
 
     if (d->qtWidget == widget) {
-        return; // Same widget, nothing to do
+        return;  // Same widget, nothing to do
     }
 
     // Remove existing Qt widget sink if any
@@ -268,15 +273,12 @@ void Logger::setQtWidget(QTextEdit* widget)
     }
 }
 
-QTextEdit* Logger::getQtWidget() const
-{
-    return d->qtWidget;
-}
+QTextEdit* Logger::getQtWidget() const { return d->qtWidget; }
 
-void Logger::removeSink(SinkType type)
-{
+void Logger::removeSink(SinkType type) {
     // Implementation for removing specific sink types
-    // This is a simplified version - in practice, you'd need to track sink types
+    // This is a simplified version - in practice, you'd need to track sink
+    // types
     switch (type) {
         case SinkType::QtWidget:
             d->qtWidget = nullptr;
@@ -286,84 +288,93 @@ void Logger::removeSink(SinkType type)
     }
 }
 
-spdlog::level::level_enum Logger::Implementation::toSpdlogLevel(Logger::LogLevel level)
-{
+spdlog::level::level_enum Logger::Implementation::toSpdlogLevel(
+    Logger::LogLevel level) {
     switch (level) {
-        case Logger::LogLevel::Trace: return spdlog::level::trace;
-        case Logger::LogLevel::Debug: return spdlog::level::debug;
-        case Logger::LogLevel::Info: return spdlog::level::info;
-        case Logger::LogLevel::Warning: return spdlog::level::warn;
-        case Logger::LogLevel::Error: return spdlog::level::err;
-        case Logger::LogLevel::Critical: return spdlog::level::critical;
-        case Logger::LogLevel::Off: return spdlog::level::off;
-        default: return spdlog::level::info;
+        case Logger::LogLevel::Trace:
+            return spdlog::level::trace;
+        case Logger::LogLevel::Debug:
+            return spdlog::level::debug;
+        case Logger::LogLevel::Info:
+            return spdlog::level::info;
+        case Logger::LogLevel::Warning:
+            return spdlog::level::warn;
+        case Logger::LogLevel::Error:
+            return spdlog::level::err;
+        case Logger::LogLevel::Critical:
+            return spdlog::level::critical;
+        case Logger::LogLevel::Off:
+            return spdlog::level::off;
+        default:
+            return spdlog::level::info;
     }
 }
 
-Logger::LogLevel Logger::Implementation::fromSpdlogLevel(spdlog::level::level_enum level)
-{
+Logger::LogLevel Logger::Implementation::fromSpdlogLevel(
+    spdlog::level::level_enum level) {
     switch (level) {
-        case spdlog::level::trace: return Logger::LogLevel::Trace;
-        case spdlog::level::debug: return Logger::LogLevel::Debug;
-        case spdlog::level::info: return Logger::LogLevel::Info;
-        case spdlog::level::warn: return Logger::LogLevel::Warning;
-        case spdlog::level::err: return Logger::LogLevel::Error;
-        case spdlog::level::critical: return Logger::LogLevel::Critical;
-        case spdlog::level::off: return Logger::LogLevel::Off;
-        default: return Logger::LogLevel::Info;
+        case spdlog::level::trace:
+            return Logger::LogLevel::Trace;
+        case spdlog::level::debug:
+            return Logger::LogLevel::Debug;
+        case spdlog::level::info:
+            return Logger::LogLevel::Info;
+        case spdlog::level::warn:
+            return Logger::LogLevel::Warning;
+        case spdlog::level::err:
+            return Logger::LogLevel::Error;
+        case spdlog::level::critical:
+            return Logger::LogLevel::Critical;
+        case spdlog::level::off:
+            return Logger::LogLevel::Off;
+        default:
+            return Logger::LogLevel::Info;
     }
 }
 
 // Simple string logging methods for Qt-style compatibility
-void Logger::trace(const QString& message)
-{
+void Logger::trace(const QString& message) {
     if (d->logger) {
         d->logger->trace(message.toStdString());
     }
 }
 
-void Logger::debug(const QString& message)
-{
+void Logger::debug(const QString& message) {
     if (d->logger) {
         d->logger->debug(message.toStdString());
     }
 }
 
-void Logger::info(const QString& message)
-{
+void Logger::info(const QString& message) {
     if (d->logger) {
         d->logger->info(message.toStdString());
     }
 }
 
-void Logger::warning(const QString& message)
-{
+void Logger::warning(const QString& message) {
     if (d->logger) {
         d->logger->warn(message.toStdString());
     }
 }
 
-void Logger::error(const QString& message)
-{
+void Logger::error(const QString& message) {
     if (d->logger) {
         d->logger->error(message.toStdString());
     }
 }
 
-void Logger::critical(const QString& message)
-{
+void Logger::critical(const QString& message) {
     if (d->logger) {
         d->logger->critical(message.toStdString());
     }
 }
 
-std::shared_ptr<spdlog::logger> Logger::getSpdlogLogger() const
-{
+std::shared_ptr<spdlog::logger> Logger::getSpdlogLogger() const {
     return d->logger;
 }
 
-Logger::LoggerConfig Logger::Implementation::convertFromLoggingConfig(const LoggingConfig& modernConfig)
-{
+Logger::LoggerConfig Logger::Implementation::convertFromLoggingConfig(
+    const LoggingConfig& modernConfig) {
     LoggerConfig loggerConfig;
 
     // Convert global configuration

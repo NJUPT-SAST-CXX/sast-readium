@@ -1,41 +1,41 @@
 #pragma once
 
-#include <QToolBar>
 #include <QAction>
-#include <QToolButton>
-#include <QSpinBox>
-#include <QLabel>
-#include <QComboBox>
 #include <QButtonGroup>
-#include <QSlider>
-#include <QGroupBox>
-#include <QPropertyAnimation>
-#include <QFrame>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
+#include <QComboBox>
 #include <QDateTime>
+#include <QFrame>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPropertyAnimation>
+#include <QSlider>
+#include <QSpinBox>
+#include <QToolBar>
+#include <QToolButton>
+#include <QVBoxLayout>
 #include <memory>
 #include "../../controller/tool.hpp"
 
 class CollapsibleSection : public QWidget {
     Q_OBJECT
-    
+
 public:
     CollapsibleSection(const QString& title, QWidget* parent = nullptr);
     void setContentWidget(QWidget* widget);
     void setExpanded(bool expanded);
     bool isExpanded() const { return m_expanded; }
-    
+
 signals:
     void expandedChanged(bool expanded);
-    
+
 private:
     QToolButton* m_toggleButton;
     QWidget* m_contentWidget;
     QFrame* m_contentFrame;
     QPropertyAnimation* m_animation;
     bool m_expanded;
-    
+
     void toggleExpanded();
 };
 
@@ -48,8 +48,8 @@ public:
     // 状态更新接口
     void updatePageInfo(int currentPage, int totalPages);
     void updateZoomLevel(double zoomFactor);
-    void updateDocumentInfo(const QString& fileName, qint64 fileSize, 
-                           const QDateTime& lastModified);
+    void updateDocumentInfo(const QString& fileName, qint64 fileSize,
+                            const QDateTime& lastModified);
     void setActionsEnabled(bool enabled);
     void setCompactMode(bool compact);
 
@@ -89,7 +89,7 @@ private:
     QAction* m_saveAsAction;
     QAction* m_printAction;
     QAction* m_emailAction;
-    
+
     // 导航操作组
     CollapsibleSection* m_navigationSection;
     QAction* m_firstPageAction;
@@ -100,7 +100,7 @@ private:
     QAction* m_lastPageAction;
     QSlider* m_pageSlider;
     QLabel* m_thumbnailPreview;
-    
+
     // 缩放操作组
     CollapsibleSection* m_zoomSection;
     QAction* m_zoomInAction;
@@ -111,7 +111,7 @@ private:
     QAction* m_fitWidthAction;
     QAction* m_fitPageAction;
     QAction* m_fitHeightAction;
-    
+
     // 视图操作组
     CollapsibleSection* m_viewSection;
     QAction* m_toggleSidebarAction;
@@ -120,7 +120,7 @@ private:
     QComboBox* m_layoutCombo;
     QAction* m_nightModeAction;
     QAction* m_readingModeAction;
-    
+
     // 工具操作组
     CollapsibleSection* m_toolsSection;
     QAction* m_searchAction;
@@ -130,25 +130,25 @@ private:
     QAction* m_snapshotAction;
     QAction* m_rotateLeftAction;
     QAction* m_rotateRightAction;
-    
+
     // 快速访问栏
     QFrame* m_quickAccessBar;
     QAction* m_themeToggleAction;
     QAction* m_settingsAction;
     QAction* m_helpAction;
-    
+
     // 文档信息显示
     QLabel* m_documentInfoLabel;
     QLabel* m_fileSizeLabel;
     QLabel* m_lastModifiedLabel;
-    
+
     // 动画和效果
     QPropertyAnimation* m_hoverAnimation;
     QPropertyAnimation* m_expandAnimation;
-    
+
     bool m_compactMode;
     bool m_isHovered;
-    
+
     // 保留兼容性的别名
     QAction*& openAction = m_openAction;
     QAction*& openFolderAction = m_openFolderAction;

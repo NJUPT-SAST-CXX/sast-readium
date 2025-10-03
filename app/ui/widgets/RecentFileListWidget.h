@@ -1,20 +1,18 @@
 #pragma once
 
-#include <QWidget>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QScrollArea>
-#include <QLabel>
-#include <QPushButton>
-#include <QFrame>
-#include <QTimer>
-#include <QPropertyAnimation>
-#include <QGraphicsOpacityEffect>
-#include <QMouseEvent>
 #include <QDateTime>
 #include <QEnterEvent>
-#include <QPropertyAnimation>
+#include <QFrame>
 #include <QGraphicsOpacityEffect>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QMouseEvent>
+#include <QPropertyAnimation>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QTimer>
+#include <QVBoxLayout>
+#include <QWidget>
 
 class RecentFilesManager;
 #include "../../managers/RecentFilesManager.h"
@@ -27,7 +25,8 @@ class RecentFileItemWidget : public QFrame {
     Q_OBJECT
 
 public:
-    explicit RecentFileItemWidget(const RecentFileInfo& fileInfo, QWidget* parent = nullptr);
+    explicit RecentFileItemWidget(const RecentFileInfo& fileInfo,
+                                  QWidget* parent = nullptr);
     ~RecentFileItemWidget();
 
     // 文件信息
@@ -60,16 +59,16 @@ private:
     void startPressAnimation();
 
     RecentFileInfo m_fileInfo;
-    
+
     // UI组件
     QHBoxLayout* m_mainLayout;
     QVBoxLayout* m_infoLayout;
-    QLabel* m_fileIconLabel;        // File type icon
+    QLabel* m_fileIconLabel;  // File type icon
     QLabel* m_fileNameLabel;
     QLabel* m_filePathLabel;
     QLabel* m_lastOpenedLabel;
     QPushButton* m_removeButton;
-    
+
     // 状态
     bool m_isHovered;
     bool m_isPressed;
@@ -81,9 +80,10 @@ private:
     qreal m_currentOpacity;
 
     // Enhanced 样式常量 with modern card design
-    static const int ITEM_HEIGHT = 64;  // Increased height for icon and better spacing
-    static const int PADDING = 16;      // Enhanced padding for modern card look
-    static const int SPACING = 4;       // Improved spacing between elements
+    static const int ITEM_HEIGHT =
+        64;  // Increased height for icon and better spacing
+    static const int PADDING = 16;  // Enhanced padding for modern card look
+    static const int SPACING = 4;   // Improved spacing between elements
 };
 
 /**
@@ -136,24 +136,24 @@ private:
 
     // 管理器
     RecentFilesManager* m_recentFilesManager;
-    
+
     // UI组件
     QVBoxLayout* m_mainLayout;
     QScrollArea* m_scrollArea;
     QWidget* m_contentWidget;
     QVBoxLayout* m_contentLayout;
     QLabel* m_emptyLabel;
-    
+
     // 文件条目
     QList<RecentFileItemWidget*> m_fileItems;
-    
+
     // 刷新定时器
     QTimer* m_refreshTimer;
-    
+
     // 状态
     bool m_isInitialized;
-    
+
     // 样式常量
     static const int MAX_VISIBLE_ITEMS = 10;
-    static const int REFRESH_DELAY = 100; // ms
+    static const int REFRESH_DELAY = 100;  // ms
 };

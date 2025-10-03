@@ -1,11 +1,11 @@
 #pragma once
 
+#include <QDateTime>
+#include <QHash>
 #include <QObject>
 #include <QString>
 #include <QStringList>
-#include <QHash>
 #include <QVariant>
-#include <QDateTime>
 #include <memory>
 #include "Logger.h"
 
@@ -225,17 +225,23 @@ private:
     CategoryConfiguration categoryConfigFromJson(const QJsonObject& json) const;
 
     // Settings conversion methods
-    void globalConfigToSettings(QSettings& settings, const GlobalConfiguration& config) const;
-    void sinkConfigToSettings(QSettings& settings, const SinkConfiguration& config) const;
-    void categoryConfigToSettings(QSettings& settings, const CategoryConfiguration& config) const;
+    void globalConfigToSettings(QSettings& settings,
+                                const GlobalConfiguration& config) const;
+    void sinkConfigToSettings(QSettings& settings,
+                              const SinkConfiguration& config) const;
+    void categoryConfigToSettings(QSettings& settings,
+                                  const CategoryConfiguration& config) const;
     GlobalConfiguration globalConfigFromSettings(QSettings& settings) const;
     SinkConfiguration sinkConfigFromSettings(QSettings& settings) const;
     CategoryConfiguration categoryConfigFromSettings(QSettings& settings) const;
 
     // Validation methods
-    bool validateSinkConfiguration(const SinkConfiguration& config, QStringList& errors) const;
-    bool validateCategoryConfiguration(const CategoryConfiguration& config, QStringList& errors) const;
-    bool validateGlobalConfiguration(const GlobalConfiguration& config, QStringList& errors) const;
+    bool validateSinkConfiguration(const SinkConfiguration& config,
+                                   QStringList& errors) const;
+    bool validateCategoryConfiguration(const CategoryConfiguration& config,
+                                       QStringList& errors) const;
+    bool validateGlobalConfiguration(const GlobalConfiguration& config,
+                                     QStringList& errors) const;
 
     // Default configurations - kept as static members
     static const GlobalConfiguration s_defaultGlobalConfig;

@@ -122,7 +122,7 @@ cmake --preset=Debug-MSYS2  # Regenerates .clangd automatically
    # Clean and reconfigure
    rm -rf build/Debug-MSYS2  # Linux/macOS
    Remove-Item -Recurse -Force build/Debug-MSYS2  # Windows PowerShell
-   
+
    cmake --preset=Debug-MSYS2
    cmake --build --preset=Debug-MSYS2
    ```
@@ -152,7 +152,7 @@ cmake --preset=Debug-MSYS2  # Regenerates .clangd automatically
    ```bash
    # Windows PowerShell
    Remove-Item -Recurse -Force "$env:LOCALAPPDATA\clangd\index"
-   
+
    # Linux/macOS
    rm -rf ~/.cache/clangd/index
    # or

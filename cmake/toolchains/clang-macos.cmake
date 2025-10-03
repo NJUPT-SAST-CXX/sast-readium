@@ -12,7 +12,7 @@ if(NOT DEFINED CMAKE_OSX_ARCHITECTURES)
         OUTPUT_VARIABLE HOST_ARCH
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-    
+
     if(HOST_ARCH STREQUAL "arm64")
         set(CMAKE_SYSTEM_PROCESSOR arm64)
         set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Target architecture")
@@ -56,7 +56,7 @@ else()
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET
     )
-    
+
     if(CMAKE_OSX_SYSROOT)
         message(STATUS "Auto-detected macOS SDK: ${CMAKE_OSX_SYSROOT}")
     else()
@@ -105,7 +105,7 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH "@executable_path/../lib;@executable_path/../Frameworks")
 
 # Framework search paths
-set(CMAKE_FRAMEWORK_PATH 
+set(CMAKE_FRAMEWORK_PATH
     "/System/Library/Frameworks"
     "/Library/Frameworks"
     CACHE STRING "Framework search paths"
@@ -160,7 +160,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
     endif()
-    
+
     # Function and data sections for better dead code elimination
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffunction-sections -fdata-sections")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffunction-sections -fdata-sections")

@@ -1,48 +1,47 @@
 #include "ThumbnailModel.h"
-#include "../ui/thumbnail/ThumbnailGenerator.h"
-#include "../logging/LoggingMacros.h"
-#include <QDebug>
-#include <QDateTime>
-#include <QMutexLocker>
-#include <QApplication>
 #include <poppler-qt6.h>
+#include <QApplication>
+#include <QDateTime>
+#include <QDebug>
+#include <QMutexLocker>
+#include "../logging/LoggingMacros.h"
+#include "../ui/thumbnail/ThumbnailGenerator.h"
 
 ThumbnailModel::ThumbnailModel(QObject* parent)
-    : QAbstractListModel(parent)
-    , m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT)
-    , m_thumbnailQuality(DEFAULT_QUALITY)
-    , m_maxCacheSize(DEFAULT_CACHE_SIZE)
-    , m_maxMemory(DEFAULT_MEMORY_LIMIT)
-    , m_preloadRange(DEFAULT_PRELOAD_RANGE)
-    , m_visibleStart(-1)
-    , m_visibleEnd(-1)
-    , m_viewportMargin(2)
-    , m_lazyLoadingEnabled(true)
-    , m_cacheCompressionRatio(0.8)
-    , m_adaptiveCaching(true)
-    , m_lastCleanupTime(0)
-    , m_prefetchStrategy(PrefetchStrategy::ADAPTIVE)
-    , m_prefetchDistance(DEFAULT_PREFETCH_DISTANCE)
-    , m_compressionMode(CompressionMode::ADAPTIVE)
-    , m_compressionQuality(DEFAULT_COMPRESSION_QUALITY)
-    , m_memoryStrategy(MemoryStrategy::BALANCED)
-    , m_memoryPressureThreshold(DEFAULT_MEMORY_PRESSURE_THRESHOLD)
-    , m_intelligentPrefetchEnabled(true)
-    , m_memoryCompressionEnabled(true)
-    , m_predictiveLoadingEnabled(true)
-    , m_prefetchTimer(nullptr)
-    , m_prefetchThreadPool(nullptr)
-    , m_patternAnalysisTimer(nullptr)
-{
+    : QAbstractListModel(parent),
+      m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT),
+      m_thumbnailQuality(DEFAULT_QUALITY),
+      m_maxCacheSize(DEFAULT_CACHE_SIZE),
+      m_maxMemory(DEFAULT_MEMORY_LIMIT),
+      m_preloadRange(DEFAULT_PRELOAD_RANGE),
+      m_visibleStart(-1),
+      m_visibleEnd(-1),
+      m_viewportMargin(2),
+      m_lazyLoadingEnabled(true),
+      m_cacheCompressionRatio(0.8),
+      m_adaptiveCaching(true),
+      m_lastCleanupTime(0),
+      m_prefetchStrategy(PrefetchStrategy::ADAPTIVE),
+      m_prefetchDistance(DEFAULT_PREFETCH_DISTANCE),
+      m_compressionMode(CompressionMode::ADAPTIVE),
+      m_compressionQuality(DEFAULT_COMPRESSION_QUALITY),
+      m_memoryStrategy(MemoryStrategy::BALANCED),
+      m_memoryPressureThreshold(DEFAULT_MEMORY_PRESSURE_THRESHOLD),
+      m_intelligentPrefetchEnabled(true),
+      m_memoryCompressionEnabled(true),
+      m_predictiveLoadingEnabled(true),
+      m_prefetchTimer(nullptr),
+      m_prefetchThreadPool(nullptr),
+      m_patternAnalysisTimer(nullptr) {
     // Initialize optimized cache with memory-based cost calculation
-    m_optimizedCache.setMaxCost(static_cast<int>(m_maxMemory / 1024)); // Cost in KB
+    m_optimizedCache.setMaxCost(
+        static_cast<int>(m_maxMemory / 1024));  // Cost in KB
 
     initializeModel();
     initializeAdvancedFeatures();
 }
 
-ThumbnailModel::~ThumbnailModel()
-{
+ThumbnailModel::~ThumbnailModel() {
     cleanupAdvancedFeatures();
     if (m_preloadTimer) {
         m_preloadTimer->stop();
@@ -50,26 +49,26 @@ ThumbnailModel::~ThumbnailModel()
     clearCache();
 }
 
-void ThumbnailModel::initializeModel()
-{
+void ThumbnailModel::initializeModel() {
     // 创建缩略图生成器
     m_generator = std::make_unique<ThumbnailGenerator>(this);
-    
+
     // 连接信号
-    connect(m_generator.get(), &ThumbnailGenerator::thumbnailGenerated,
-            this, &ThumbnailModel::onThumbnailGenerated);
-    connect(m_generator.get(), &ThumbnailGenerator::thumbnailError,
-            this, &ThumbnailModel::onThumbnailError);
-    
+    connect(m_generator.get(), &ThumbnailGenerator::thumbnailGenerated, this,
+            &ThumbnailModel::onThumbnailGenerated);
+    connect(m_generator.get(), &ThumbnailGenerator::thumbnailError, this,
+            &ThumbnailModel::onThumbnailError);
+
     // 设置预加载定时器
     m_preloadTimer = new QTimer(this);
     m_preloadTimer->setInterval(PRELOAD_TIMER_INTERVAL);
     m_preloadTimer->setSingleShot(false);
-    connect(m_preloadTimer, &QTimer::timeout, this, &ThumbnailModel::onPreloadTimer);
-    
+    connect(m_preloadTimer, &QTimer::timeout, this,
+            &ThumbnailModel::onPreloadTimer);
+
     // 设置缓存清理定时器
     QTimer* cleanupTimer = new QTimer(this);
-    cleanupTimer->setInterval(30000); // 30秒清理一次
+    cleanupTimer->setInterval(30000);  // 30秒清理一次
     cleanupTimer->setSingleShot(false);
     connect(cleanupTimer, &QTimer::timeout, this, [this]() {
         cleanupCache();
@@ -79,45 +78,48 @@ void ThumbnailModel::initializeModel()
 
     // 设置优先级更新定时器
     m_priorityUpdateTimer = new QTimer(this);
-    m_priorityUpdateTimer->setInterval(200); // 200ms间隔
+    m_priorityUpdateTimer->setInterval(200);  // 200ms间隔
     m_priorityUpdateTimer->setSingleShot(false);
-    connect(m_priorityUpdateTimer, &QTimer::timeout, this, &ThumbnailModel::onPriorityUpdateTimer);
+    connect(m_priorityUpdateTimer, &QTimer::timeout, this,
+            &ThumbnailModel::onPriorityUpdateTimer);
 }
 
-int ThumbnailModel::rowCount(const QModelIndex& parent) const
-{
+int ThumbnailModel::rowCount(const QModelIndex& parent) const {
     Q_UNUSED(parent)
     return m_document ? m_document->numPages() : 0;
 }
 
-QVariant ThumbnailModel::data(const QModelIndex& index, int role) const
-{
+QVariant ThumbnailModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid() || !m_document) {
         return QVariant();
     }
-    
+
     int pageNumber = index.row();
     if (pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return QVariant();
     }
-    
+
     QMutexLocker locker(&m_thumbnailsMutex);
-    
+
     switch (role) {
         case PageNumberRole:
             return pageNumber;
-            
+
         case PixmapRole: {
             // 记录访问开始时间
             QElapsedTimer accessTimer;
             accessTimer.start();
 
             // Try optimized cache first
-            ThumbnailItem* cachedItem = const_cast<ThumbnailModel*>(this)->getFromOptimizedCache(pageNumber);
+            ThumbnailItem* cachedItem =
+                const_cast<ThumbnailModel*>(this)->getFromOptimizedCache(
+                    pageNumber);
             if (cachedItem) {
                 // 检查是否需要解压缩
                 if (cachedItem->isCompressed && cachedItem->pixmap.isNull()) {
-                    QPixmap decompressed = const_cast<ThumbnailModel*>(this)->decompressThumbnail(cachedItem->compressedData);
+                    QPixmap decompressed =
+                        const_cast<ThumbnailModel*>(this)->decompressThumbnail(
+                            cachedItem->compressedData);
                     if (!decompressed.isNull()) {
                         cachedItem->pixmap = decompressed;
                         cachedItem->isCompressed = false;
@@ -127,19 +129,23 @@ QVariant ThumbnailModel::data(const QModelIndex& index, int role) const
 
                 if (!cachedItem->pixmap.isNull()) {
                     // 更新访问统计
-                    cachedItem->lastAccessed = QDateTime::currentMSecsSinceEpoch();
+                    cachedItem->lastAccessed =
+                        QDateTime::currentMSecsSinceEpoch();
                     cachedItem->accessCount++;
 
                     // 记录访问时间
                     qint64 accessTime = accessTimer.elapsed();
-                    const_cast<ThumbnailModel*>(this)->recordAccessTime(accessTime);
+                    const_cast<ThumbnailModel*>(this)->recordAccessTime(
+                        accessTime);
 
                     // 分析访问模式
-                    const_cast<ThumbnailModel*>(this)->analyzeAccessPattern(pageNumber);
+                    const_cast<ThumbnailModel*>(this)->analyzeAccessPattern(
+                        pageNumber);
 
                     // 检查是否是预取命中
                     if (cachedItem->wasPrefetched) {
-                        const_cast<ThumbnailModel*>(this)->m_prefetchHits.fetch_add(1);
+                        const_cast<ThumbnailModel*>(this)
+                            ->m_prefetchHits.fetch_add(1);
                         cachedItem->wasPrefetched = false;
                     }
 
@@ -152,16 +158,20 @@ QVariant ThumbnailModel::data(const QModelIndex& index, int role) const
             if (it != m_thumbnails.end()) {
                 // 更新访问时间和频率
                 it->lastAccessed = QDateTime::currentMSecsSinceEpoch();
-                const_cast<ThumbnailModel*>(this)->updateAccessFrequency(pageNumber);
+                const_cast<ThumbnailModel*>(this)->updateAccessFrequency(
+                    pageNumber);
 
                 if (!it->pixmap.isNull()) {
                     // Migrate to optimized cache
-                    const_cast<ThumbnailModel*>(this)->insertIntoOptimizedCache(pageNumber, *it);
+                    const_cast<ThumbnailModel*>(this)->insertIntoOptimizedCache(
+                        pageNumber, *it);
 
                     // 记录访问时间和模式
                     qint64 accessTime = accessTimer.elapsed();
-                    const_cast<ThumbnailModel*>(this)->recordAccessTime(accessTime);
-                    const_cast<ThumbnailModel*>(this)->analyzeAccessPattern(pageNumber);
+                    const_cast<ThumbnailModel*>(this)->recordAccessTime(
+                        accessTime);
+                    const_cast<ThumbnailModel*>(this)->analyzeAccessPattern(
+                        pageNumber);
 
                     return it->pixmap;
                 }
@@ -172,22 +182,22 @@ QVariant ThumbnailModel::data(const QModelIndex& index, int role) const
             const_cast<ThumbnailModel*>(this)->requestThumbnail(pageNumber);
             return QVariant();
         }
-        
+
         case LoadingRole: {
             auto it = m_thumbnails.find(pageNumber);
             return (it != m_thumbnails.end()) ? it->isLoading : false;
         }
-        
+
         case ErrorRole: {
             auto it = m_thumbnails.find(pageNumber);
             return (it != m_thumbnails.end()) ? it->hasError : false;
         }
-        
+
         case ErrorMessageRole: {
             auto it = m_thumbnails.find(pageNumber);
             return (it != m_thumbnails.end()) ? it->errorMessage : QString();
         }
-        
+
         case PageSizeRole: {
             auto it = m_thumbnails.find(pageNumber);
             if (it != m_thumbnails.end() && !it->pageSize.isEmpty()) {
@@ -196,13 +206,15 @@ QVariant ThumbnailModel::data(const QModelIndex& index, int role) const
 
             // 如果没有缓存页面尺寸，尝试获取
             if (m_document) {
-                std::unique_ptr<Poppler::Page> page(m_document->page(pageNumber));
+                std::unique_ptr<Poppler::Page> page(
+                    m_document->page(pageNumber));
                 if (page) {
                     QSizeF pageSize = page->pageSizeF();
                     QSize size = pageSize.toSize();
 
                     // 缓存页面尺寸
-                    ThumbnailItem& item = const_cast<ThumbnailModel*>(this)->m_thumbnails[pageNumber];
+                    ThumbnailItem& item = const_cast<ThumbnailModel*>(this)
+                                              ->m_thumbnails[pageNumber];
                     item.pageSize = size;
 
                     return size;
@@ -231,16 +243,14 @@ QVariant ThumbnailModel::data(const QModelIndex& index, int role) const
     }
 }
 
-Qt::ItemFlags ThumbnailModel::flags(const QModelIndex& index) const
-{
+Qt::ItemFlags ThumbnailModel::flags(const QModelIndex& index) const {
     if (!index.isValid()) {
         return Qt::NoItemFlags;
     }
     return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 }
 
-QHash<int, QByteArray> ThumbnailModel::roleNames() const
-{
+QHash<int, QByteArray> ThumbnailModel::roleNames() const {
     QHash<int, QByteArray> roles;
     roles[PageNumberRole] = "pageNumber";
     roles[PixmapRole] = "pixmap";
@@ -251,32 +261,30 @@ QHash<int, QByteArray> ThumbnailModel::roleNames() const
     return roles;
 }
 
-void ThumbnailModel::setDocument(std::shared_ptr<Poppler::Document> document)
-{
+void ThumbnailModel::setDocument(std::shared_ptr<Poppler::Document> document) {
     beginResetModel();
-    
+
     m_document = document;
     clearCache();
-    
+
     if (m_generator) {
         m_generator->setDocument(document);
     }
-    
+
     endResetModel();
 }
 
-void ThumbnailModel::setThumbnailSize(const QSize& size)
-{
+void ThumbnailModel::setThumbnailSize(const QSize& size) {
     if (m_thumbnailSize != size) {
         m_thumbnailSize = size;
-        
+
         if (m_generator) {
             m_generator->setThumbnailSize(size);
         }
-        
+
         // 清除现有缓存，因为尺寸改变了
         clearCache();
-        
+
         // 通知视图刷新
         if (rowCount() > 0) {
             emit dataChanged(index(0), index(rowCount() - 1));
@@ -284,18 +292,17 @@ void ThumbnailModel::setThumbnailSize(const QSize& size)
     }
 }
 
-void ThumbnailModel::setThumbnailQuality(double quality)
-{
+void ThumbnailModel::setThumbnailQuality(double quality) {
     if (qAbs(m_thumbnailQuality - quality) > 0.001) {
         m_thumbnailQuality = quality;
-        
+
         if (m_generator) {
             m_generator->setQuality(quality);
         }
-        
+
         // 清除现有缓存，因为质量改变了
         clearCache();
-        
+
         // 通知视图刷新
         if (rowCount() > 0) {
             emit dataChanged(index(0), index(rowCount() - 1));
@@ -303,28 +310,25 @@ void ThumbnailModel::setThumbnailQuality(double quality)
     }
 }
 
-void ThumbnailModel::setCacheSize(int maxItems)
-{
+void ThumbnailModel::setCacheSize(int maxItems) {
     m_maxCacheSize = qMax(1, maxItems);
-    
+
     // 如果当前缓存超过限制，清理多余项
     while (m_thumbnails.size() > m_maxCacheSize) {
         evictLeastRecentlyUsed();
     }
 }
 
-void ThumbnailModel::setMemoryLimit(qint64 maxMemory)
-{
-    m_maxMemory = qMax(1024LL * 1024, maxMemory); // 最少1MB
-    
+void ThumbnailModel::setMemoryLimit(qint64 maxMemory) {
+    m_maxMemory = qMax(1024LL * 1024, maxMemory);  // 最少1MB
+
     // 如果当前内存使用超过限制，清理
     while (m_currentMemory > m_maxMemory && !m_thumbnails.isEmpty()) {
         evictLeastRecentlyUsed();
     }
 }
 
-void ThumbnailModel::clearCache()
-{
+void ThumbnailModel::clearCache() {
     QMutexLocker locker(&m_thumbnailsMutex);
 
     // Clear optimized cache
@@ -345,13 +349,11 @@ void ThumbnailModel::clearCache()
     emit memoryUsageChanged(0);
 }
 
-void ThumbnailModel::setPreloadRange(int range)
-{
+void ThumbnailModel::setPreloadRange(int range) {
     m_preloadRange = qMax(0, range);
 }
 
-void ThumbnailModel::requestThumbnail(int pageNumber)
-{
+void ThumbnailModel::requestThumbnail(int pageNumber) {
     if (!m_document || pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return;
     }
@@ -366,12 +368,12 @@ void ThumbnailModel::requestThumbnail(int pageNumber)
     // Check if already in optimized cache
     ThumbnailItem* cachedItem = getFromOptimizedCache(pageNumber);
     if (cachedItem && (!cachedItem->pixmap.isNull() || cachedItem->isLoading)) {
-        return; // Already cached or loading
+        return;  // Already cached or loading
     }
 
     // Check if already loading
     if (m_loadingPages.contains(pageNumber)) {
-        return; // Already being processed
+        return;  // Already being processed
     }
 
     // Add to loading set
@@ -389,7 +391,8 @@ void ThumbnailModel::requestThumbnail(int pageNumber)
     // 发送生成请求，使用优先级
     if (m_generator) {
         int priority = calculatePriority(pageNumber);
-        m_generator->generateThumbnail(pageNumber, m_thumbnailSize, m_thumbnailQuality, priority);
+        m_generator->generateThumbnail(pageNumber, m_thumbnailSize,
+                                       m_thumbnailQuality, priority);
     }
 
     // 通知加载状态变化
@@ -399,9 +402,9 @@ void ThumbnailModel::requestThumbnail(int pageNumber)
     emit dataChanged(idx, idx, {LoadingRole});
 }
 
-void ThumbnailModel::requestThumbnailRange(int startPage, int endPage)
-{
-    if (!m_document) return;
+void ThumbnailModel::requestThumbnailRange(int startPage, int endPage) {
+    if (!m_document)
+        return;
 
     int numPages = m_document->numPages();
     startPage = qMax(0, startPage);
@@ -412,29 +415,25 @@ void ThumbnailModel::requestThumbnailRange(int startPage, int endPage)
     }
 }
 
-bool ThumbnailModel::isLoading(int pageNumber) const
-{
+bool ThumbnailModel::isLoading(int pageNumber) const {
     QMutexLocker locker(&m_thumbnailsMutex);
     auto it = m_thumbnails.find(pageNumber);
     return (it != m_thumbnails.end()) ? it->isLoading : false;
 }
 
-bool ThumbnailModel::hasError(int pageNumber) const
-{
+bool ThumbnailModel::hasError(int pageNumber) const {
     QMutexLocker locker(&m_thumbnailsMutex);
     auto it = m_thumbnails.find(pageNumber);
     return (it != m_thumbnails.end()) ? it->hasError : false;
 }
 
-QString ThumbnailModel::errorMessage(int pageNumber) const
-{
+QString ThumbnailModel::errorMessage(int pageNumber) const {
     QMutexLocker locker(&m_thumbnailsMutex);
     auto it = m_thumbnails.find(pageNumber);
     return (it != m_thumbnails.end()) ? it->errorMessage : QString();
 }
 
-void ThumbnailModel::refreshThumbnail(int pageNumber)
-{
+void ThumbnailModel::refreshThumbnail(int pageNumber) {
     if (!m_document || pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return;
     }
@@ -457,8 +456,7 @@ void ThumbnailModel::refreshThumbnail(int pageNumber)
     emit memoryUsageChanged(m_currentMemory.load());
 }
 
-void ThumbnailModel::refreshAllThumbnails()
-{
+void ThumbnailModel::refreshAllThumbnails() {
     clearCache();
 
     if (rowCount() > 0) {
@@ -466,9 +464,9 @@ void ThumbnailModel::refreshAllThumbnails()
     }
 }
 
-void ThumbnailModel::preloadVisibleRange(int firstVisible, int lastVisible)
-{
-    if (!m_document) return;
+void ThumbnailModel::preloadVisibleRange(int firstVisible, int lastVisible) {
+    if (!m_document)
+        return;
 
     int numPages = m_document->numPages();
 
@@ -489,8 +487,8 @@ void ThumbnailModel::preloadVisibleRange(int firstVisible, int lastVisible)
     }
 }
 
-void ThumbnailModel::onThumbnailGenerated(int pageNumber, const QPixmap& pixmap)
-{
+void ThumbnailModel::onThumbnailGenerated(int pageNumber,
+                                          const QPixmap& pixmap) {
     QMutexLocker locker(&m_thumbnailsMutex);
 
     // Create thumbnail item
@@ -520,7 +518,9 @@ void ThumbnailModel::onThumbnailGenerated(int pageNumber, const QPixmap& pixmap)
     // Check memory limits using optimized eviction
     qint64 currentMemory = m_currentMemory.load();
     if (currentMemory > m_maxMemory) {
-        int itemsToEvict = qMax(1, static_cast<int>((currentMemory - m_maxMemory) / (item.memorySize + 1)));
+        int itemsToEvict =
+            qMax(1, static_cast<int>((currentMemory - m_maxMemory) /
+                                     (item.memorySize + 1)));
         evictFromOptimizedCache(itemsToEvict);
     }
 
@@ -535,21 +535,25 @@ void ThumbnailModel::onThumbnailGenerated(int pageNumber, const QPixmap& pixmap)
     emit dataChanged(idx, idx, {PixmapRole, LoadingRole});
 }
 
-void ThumbnailModel::onThumbnailError(int pageNumber, const QString& error)
-{
+void ThumbnailModel::onThumbnailError(int pageNumber, const QString& error) {
     using namespace ErrorHandling;
 
     // Log the thumbnail generation error with structured information
-    auto errorInfo = createRenderingError("thumbnail generation",
-        QString("Failed to generate thumbnail for page %1: %2").arg(pageNumber).arg(error));
-    errorInfo.context = QString("ThumbnailModel::onThumbnailError - Page %1").arg(pageNumber);
+    auto errorInfo = createRenderingError(
+        "thumbnail generation",
+        QString("Failed to generate thumbnail for page %1: %2")
+            .arg(pageNumber)
+            .arg(error));
+    errorInfo.context =
+        QString("ThumbnailModel::onThumbnailError - Page %1").arg(pageNumber);
     logError(errorInfo);
 
     QMutexLocker locker(&m_thumbnailsMutex);
 
     auto it = m_thumbnails.find(pageNumber);
     if (it == m_thumbnails.end()) {
-        LOG_WARNING("ThumbnailModel: Received error for non-existent page {}", pageNumber);
+        LOG_WARNING("ThumbnailModel: Received error for non-existent page {}",
+                    pageNumber);
         return;
     }
 
@@ -569,8 +573,7 @@ void ThumbnailModel::onThumbnailError(int pageNumber, const QString& error)
     emit dataChanged(idx, idx, {LoadingRole, ErrorRole, ErrorMessageRole});
 }
 
-void ThumbnailModel::onPreloadTimer()
-{
+void ThumbnailModel::onPreloadTimer() {
     if (m_preloadQueue.isEmpty()) {
         m_preloadTimer->stop();
         return;
@@ -588,8 +591,7 @@ void ThumbnailModel::onPreloadTimer()
     }
 }
 
-void ThumbnailModel::cleanupCache()
-{
+void ThumbnailModel::cleanupCache() {
     QMutexLocker locker(&m_thumbnailsMutex);
 
     if (m_thumbnails.isEmpty()) {
@@ -612,8 +614,7 @@ void ThumbnailModel::cleanupCache()
     emit cacheUpdated();
 }
 
-void ThumbnailModel::evictLeastRecentlyUsed()
-{
+void ThumbnailModel::evictLeastRecentlyUsed() {
     if (m_thumbnails.isEmpty()) {
         return;
     }
@@ -636,8 +637,7 @@ void ThumbnailModel::evictLeastRecentlyUsed()
     m_thumbnails.erase(oldestIt);
 }
 
-qint64 ThumbnailModel::calculatePixmapMemory(const QPixmap& pixmap) const
-{
+qint64 ThumbnailModel::calculatePixmapMemory(const QPixmap& pixmap) const {
     if (pixmap.isNull()) {
         return 0;
     }
@@ -646,8 +646,7 @@ qint64 ThumbnailModel::calculatePixmapMemory(const QPixmap& pixmap) const
     return static_cast<qint64>(pixmap.width()) * pixmap.height() * 4;
 }
 
-void ThumbnailModel::updateMemoryUsage()
-{
+void ThumbnailModel::updateMemoryUsage() {
     QMutexLocker locker(&m_thumbnailsMutex);
 
     qint64 totalMemory = 0;
@@ -659,8 +658,7 @@ void ThumbnailModel::updateMemoryUsage()
     emit memoryUsageChanged(totalMemory);
 }
 
-bool ThumbnailModel::shouldPreload(int pageNumber) const
-{
+bool ThumbnailModel::shouldPreload(int pageNumber) const {
     if (!m_document || pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return false;
     }
@@ -673,12 +671,11 @@ bool ThumbnailModel::shouldPreload(int pageNumber) const
         return it->pixmap.isNull() && !it->isLoading && !it->hasError;
     }
 
-    return true; // 没有缓存项，需要预加载
+    return true;  // 没有缓存项，需要预加载
 }
 
 // 懒加载和视口管理实现
-void ThumbnailModel::setLazyLoadingEnabled(bool enabled)
-{
+void ThumbnailModel::setLazyLoadingEnabled(bool enabled) {
     m_lazyLoadingEnabled = enabled;
     if (enabled && m_priorityUpdateTimer) {
         m_priorityUpdateTimer->start();
@@ -687,8 +684,7 @@ void ThumbnailModel::setLazyLoadingEnabled(bool enabled)
     }
 }
 
-void ThumbnailModel::setViewportRange(int start, int end, int margin)
-{
+void ThumbnailModel::setViewportRange(int start, int end, int margin) {
     m_visibleStart = start;
     m_visibleEnd = end;
     m_viewportMargin = margin;
@@ -698,22 +694,23 @@ void ThumbnailModel::setViewportRange(int start, int end, int margin)
     }
 }
 
-void ThumbnailModel::updateViewportPriorities()
-{
-    if (!m_document) return;
+void ThumbnailModel::updateViewportPriorities() {
+    if (!m_document)
+        return;
 
     m_pagePriorities.clear();
 
     // 可见区域最高优先级
     for (int i = m_visibleStart; i <= m_visibleEnd; ++i) {
         if (i >= 0 && i < m_document->numPages()) {
-            m_pagePriorities[i] = 0; // 最高优先级
+            m_pagePriorities[i] = 0;  // 最高优先级
         }
     }
 
     // 预加载区域次高优先级
     int preloadStart = qMax(0, m_visibleStart - m_viewportMargin);
-    int preloadEnd = qMin(m_document->numPages() - 1, m_visibleEnd + m_viewportMargin);
+    int preloadEnd =
+        qMin(m_document->numPages() - 1, m_visibleEnd + m_viewportMargin);
 
     for (int i = preloadStart; i < m_visibleStart; ++i) {
         m_pagePriorities[i] = 1;
@@ -723,8 +720,7 @@ void ThumbnailModel::updateViewportPriorities()
     }
 }
 
-bool ThumbnailModel::shouldGenerateThumbnail(int pageNumber) const
-{
+bool ThumbnailModel::shouldGenerateThumbnail(int pageNumber) const {
     if (!m_lazyLoadingEnabled) {
         return true;
     }
@@ -732,8 +728,7 @@ bool ThumbnailModel::shouldGenerateThumbnail(int pageNumber) const
     return isInViewport(pageNumber);
 }
 
-int ThumbnailModel::calculatePriority(int pageNumber) const
-{
+int ThumbnailModel::calculatePriority(int pageNumber) const {
     auto it = m_pagePriorities.find(pageNumber);
     if (it != m_pagePriorities.end()) {
         return it.value();
@@ -743,10 +738,9 @@ int ThumbnailModel::calculatePriority(int pageNumber) const
     return 5;
 }
 
-bool ThumbnailModel::isInViewport(int pageNumber) const
-{
+bool ThumbnailModel::isInViewport(int pageNumber) const {
     if (m_visibleStart < 0 || m_visibleEnd < 0) {
-        return true; // 如果没有设置视口，生成所有缩略图
+        return true;  // 如果没有设置视口，生成所有缩略图
     }
 
     int expandedStart = qMax(0, m_visibleStart - m_viewportMargin);
@@ -755,16 +749,14 @@ bool ThumbnailModel::isInViewport(int pageNumber) const
     return pageNumber >= expandedStart && pageNumber <= expandedEnd;
 }
 
-void ThumbnailModel::onPriorityUpdateTimer()
-{
+void ThumbnailModel::onPriorityUpdateTimer() {
     if (m_lazyLoadingEnabled) {
         updateViewportPriorities();
     }
 }
 
 // 高级缓存管理实现
-void ThumbnailModel::updateAccessFrequency(int pageNumber)
-{
+void ThumbnailModel::updateAccessFrequency(int pageNumber) {
     m_accessFrequency[pageNumber]++;
 
     // 限制频率表大小
@@ -781,9 +773,9 @@ void ThumbnailModel::updateAccessFrequency(int pageNumber)
     }
 }
 
-void ThumbnailModel::evictLeastFrequentlyUsed()
-{
-    if (m_thumbnails.isEmpty()) return;
+void ThumbnailModel::evictLeastFrequentlyUsed() {
+    if (m_thumbnails.isEmpty())
+        return;
 
     QMutexLocker locker(&m_thumbnailsMutex);
 
@@ -813,8 +805,7 @@ void ThumbnailModel::evictLeastFrequentlyUsed()
     }
 }
 
-void ThumbnailModel::evictByAdaptivePolicy()
-{
+void ThumbnailModel::evictByAdaptivePolicy() {
     if (!m_adaptiveCaching) {
         evictLeastRecentlyUsed();
         return;
@@ -832,20 +823,21 @@ void ThumbnailModel::evictByAdaptivePolicy()
     }
 }
 
-double ThumbnailModel::calculateCacheEfficiency() const
-{
+double ThumbnailModel::calculateCacheEfficiency() const {
     int totalAccess = m_cacheHits + m_cacheMisses;
-    if (totalAccess == 0) return 1.0;
+    if (totalAccess == 0)
+        return 1.0;
 
     return static_cast<double>(m_cacheHits.load()) / totalAccess;
 }
 
 // Optimized cache implementation methods
-void ThumbnailModel::insertIntoOptimizedCache(int pageNumber, const ThumbnailItem& item)
-{
+void ThumbnailModel::insertIntoOptimizedCache(int pageNumber,
+                                              const ThumbnailItem& item) {
     // Calculate memory cost in KB for QCache
     int memoryCostKB = static_cast<int>(item.memorySize / 1024);
-    if (memoryCostKB == 0) memoryCostKB = 1; // Minimum cost
+    if (memoryCostKB == 0)
+        memoryCostKB = 1;  // Minimum cost
 
     // Create cache entry
     auto* cacheEntry = new CacheEntry(item, pageNumber);
@@ -858,16 +850,18 @@ void ThumbnailModel::insertIntoOptimizedCache(int pageNumber, const ThumbnailIte
         // Update access frequency index for LFU support
         updateAccessFrequencyOptimized(pageNumber);
 
-        LOG_DEBUG("ThumbnailModel: Inserted page {} into optimized cache ({}KB)",
-                 pageNumber, memoryCostKB);
+        LOG_DEBUG(
+            "ThumbnailModel: Inserted page {} into optimized cache ({}KB)",
+            pageNumber, memoryCostKB);
     } else {
-        delete cacheEntry; // QCache rejected the entry
-        LOG_WARNING("ThumbnailModel: Failed to insert page {} into cache", pageNumber);
+        delete cacheEntry;  // QCache rejected the entry
+        LOG_WARNING("ThumbnailModel: Failed to insert page {} into cache",
+                    pageNumber);
     }
 }
 
-ThumbnailModel::ThumbnailItem* ThumbnailModel::getFromOptimizedCache(int pageNumber)
-{
+ThumbnailModel::ThumbnailItem* ThumbnailModel::getFromOptimizedCache(
+    int pageNumber) {
     CacheEntry* entry = m_optimizedCache.object(pageNumber);
     if (entry) {
         // Update access statistics
@@ -884,8 +878,7 @@ ThumbnailModel::ThumbnailItem* ThumbnailModel::getFromOptimizedCache(int pageNum
     return nullptr;
 }
 
-void ThumbnailModel::evictFromOptimizedCache(int count)
-{
+void ThumbnailModel::evictFromOptimizedCache(int count) {
     // QCache handles LRU eviction automatically when maxCost is exceeded
     // This method provides manual eviction for memory pressure situations
 
@@ -901,7 +894,8 @@ void ThumbnailModel::evictFromOptimizedCache(int count)
         std::sort(keys.begin(), keys.end(), [this](int a, int b) {
             CacheEntry* entryA = m_optimizedCache.object(a);
             CacheEntry* entryB = m_optimizedCache.object(b);
-            if (!entryA || !entryB) return false;
+            if (!entryA || !entryB)
+                return false;
 
             // Sort by access count (LFU), then by last accessed time
             if (entryA->item.accessCount != entryB->item.accessCount) {
@@ -924,13 +918,13 @@ void ThumbnailModel::evictFromOptimizedCache(int count)
     LOG_DEBUG("ThumbnailModel: Evicted {} items from optimized cache", count);
 }
 
-void ThumbnailModel::updateAccessFrequencyOptimized(int pageNumber)
-{
+void ThumbnailModel::updateAccessFrequencyOptimized(int pageNumber) {
     // Update frequency index for efficient LFU operations
     CacheEntry* entry = m_optimizedCache.object(pageNumber);
     if (entry) {
         // Remove old frequency mapping
-        auto range = m_accessFrequencyIndex.equal_range(entry->item.accessCount - 1);
+        auto range =
+            m_accessFrequencyIndex.equal_range(entry->item.accessCount - 1);
         for (auto it = range.first; it != range.second; ++it) {
             if (it.value() == pageNumber) {
                 m_accessFrequencyIndex.erase(it);
@@ -943,13 +937,12 @@ void ThumbnailModel::updateAccessFrequencyOptimized(int pageNumber)
     }
 }
 
-void ThumbnailModel::cleanupOptimizedCache()
-{
+void ThumbnailModel::cleanupOptimizedCache() {
     // Periodic cleanup to maintain cache efficiency
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
     // Only cleanup if enough time has passed
-    if (currentTime - m_lastCleanupTime < 30000) { // 30 seconds
+    if (currentTime - m_lastCleanupTime < 30000) {  // 30 seconds
         return;
     }
 
@@ -962,7 +955,7 @@ void ThumbnailModel::cleanupOptimizedCache()
     for (int key : keys) {
         CacheEntry* entry = m_optimizedCache.object(key);
         if (entry &&
-            (currentTime - entry->item.lastAccessed > 300000) && // 5 minutes
+            (currentTime - entry->item.lastAccessed > 300000) &&  // 5 minutes
             entry->item.accessCount < 2) {
             keysToRemove.append(key);
         }
@@ -978,12 +971,12 @@ void ThumbnailModel::cleanupOptimizedCache()
     }
 
     if (!keysToRemove.isEmpty()) {
-        LOG_DEBUG("ThumbnailModel: Cleaned up {} expired cache entries", keysToRemove.size());
+        LOG_DEBUG("ThumbnailModel: Cleaned up {} expired cache entries",
+                  keysToRemove.size());
     }
 }
 
-void ThumbnailModel::adaptCacheSize()
-{
+void ThumbnailModel::adaptCacheSize() {
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
     // 每30秒调整一次
@@ -1009,29 +1002,29 @@ void ThumbnailModel::adaptCacheSize()
 // 新增的高级功能实现
 // ============================================================================
 
-void ThumbnailModel::initializeAdvancedFeatures()
-{
+void ThumbnailModel::initializeAdvancedFeatures() {
     // 初始化预取线程池
     m_prefetchThreadPool = new QThreadPool(this);
-    m_prefetchThreadPool->setMaxThreadCount(2); // 限制预取线程数
+    m_prefetchThreadPool->setMaxThreadCount(2);  // 限制预取线程数
 
     // 初始化预取定时器
     m_prefetchTimer = new QTimer(this);
-    m_prefetchTimer->setInterval(200); // 200ms间隔
-    connect(m_prefetchTimer, &QTimer::timeout, this, &ThumbnailModel::processPrefetchQueue);
+    m_prefetchTimer->setInterval(200);  // 200ms间隔
+    connect(m_prefetchTimer, &QTimer::timeout, this,
+            &ThumbnailModel::processPrefetchQueue);
 
     // 初始化访问模式分析定时器
     m_patternAnalysisTimer = new QTimer(this);
     m_patternAnalysisTimer->setInterval(PATTERN_ANALYSIS_INTERVAL);
-    connect(m_patternAnalysisTimer, &QTimer::timeout, this, &ThumbnailModel::updateAccessPattern);
+    connect(m_patternAnalysisTimer, &QTimer::timeout, this,
+            &ThumbnailModel::updateAccessPattern);
     m_patternAnalysisTimer->start();
 
     // 启动性能计时器
     m_performanceTimer.start();
 }
 
-void ThumbnailModel::cleanupAdvancedFeatures()
-{
+void ThumbnailModel::cleanupAdvancedFeatures() {
     if (m_prefetchTimer) {
         m_prefetchTimer->stop();
     }
@@ -1041,7 +1034,7 @@ void ThumbnailModel::cleanupAdvancedFeatures()
     }
 
     if (m_prefetchThreadPool) {
-        m_prefetchThreadPool->waitForDone(3000); // 等待3秒
+        m_prefetchThreadPool->waitForDone(3000);  // 等待3秒
     }
 
     m_prefetchQueue.clear();
@@ -1049,8 +1042,7 @@ void ThumbnailModel::cleanupAdvancedFeatures()
     m_compressedCache.clear();
 }
 
-void ThumbnailModel::setPrefetchStrategy(PrefetchStrategy strategy)
-{
+void ThumbnailModel::setPrefetchStrategy(PrefetchStrategy strategy) {
     if (m_prefetchStrategy != strategy) {
         m_prefetchStrategy = strategy;
 
@@ -1063,23 +1055,19 @@ void ThumbnailModel::setPrefetchStrategy(PrefetchStrategy strategy)
     }
 }
 
-void ThumbnailModel::setPrefetchDistance(int distance)
-{
+void ThumbnailModel::setPrefetchDistance(int distance) {
     m_prefetchDistance = qBound(1, distance, 10);
 }
 
-void ThumbnailModel::setCompressionMode(CompressionMode mode)
-{
+void ThumbnailModel::setCompressionMode(CompressionMode mode) {
     m_compressionMode = mode;
 }
 
-void ThumbnailModel::setCompressionQuality(int quality)
-{
+void ThumbnailModel::setCompressionQuality(int quality) {
     m_compressionQuality = qBound(1, quality, 100);
 }
 
-void ThumbnailModel::setMemoryStrategy(MemoryStrategy strategy)
-{
+void ThumbnailModel::setMemoryStrategy(MemoryStrategy strategy) {
     if (m_memoryStrategy != strategy) {
         m_memoryStrategy = strategy;
 
@@ -1101,13 +1089,11 @@ void ThumbnailModel::setMemoryStrategy(MemoryStrategy strategy)
     }
 }
 
-void ThumbnailModel::setMemoryPressureThreshold(double threshold)
-{
+void ThumbnailModel::setMemoryPressureThreshold(double threshold) {
     m_memoryPressureThreshold = qBound(0.1, threshold, 0.99);
 }
 
-void ThumbnailModel::enableIntelligentPrefetch(bool enabled)
-{
+void ThumbnailModel::enableIntelligentPrefetch(bool enabled) {
     if (m_intelligentPrefetchEnabled != enabled) {
         m_intelligentPrefetchEnabled = enabled;
 
@@ -1119,8 +1105,7 @@ void ThumbnailModel::enableIntelligentPrefetch(bool enabled)
     }
 }
 
-void ThumbnailModel::enableMemoryCompression(bool enabled)
-{
+void ThumbnailModel::enableMemoryCompression(bool enabled) {
     m_memoryCompressionEnabled = enabled;
 
     if (enabled) {
@@ -1129,25 +1114,24 @@ void ThumbnailModel::enableMemoryCompression(bool enabled)
     }
 }
 
-void ThumbnailModel::enablePredictiveLoading(bool enabled)
-{
+void ThumbnailModel::enablePredictiveLoading(bool enabled) {
     m_predictiveLoadingEnabled = enabled;
 }
 
-double ThumbnailModel::compressionRatio() const
-{
+double ThumbnailModel::compressionRatio() const {
     qint64 original = m_originalSize.load();
     qint64 compressed = m_compressedSize.load();
 
-    if (original == 0) return 1.0;
+    if (original == 0)
+        return 1.0;
     return static_cast<double>(compressed) / original;
 }
 
-double ThumbnailModel::averageAccessTime() const
-{
+double ThumbnailModel::averageAccessTime() const {
     QMutexLocker locker(&m_performanceMutex);
 
-    if (m_accessTimes.isEmpty()) return 0.0;
+    if (m_accessTimes.isEmpty())
+        return 0.0;
 
     qint64 total = 0;
     for (qint64 time : m_accessTimes) {
@@ -1157,33 +1141,30 @@ double ThumbnailModel::averageAccessTime() const
     return static_cast<double>(total) / m_accessTimes.size();
 }
 
-int ThumbnailModel::prefetchHitRate() const
-{
+int ThumbnailModel::prefetchHitRate() const {
     int hits = m_prefetchHits.load();
     int misses = m_prefetchMisses.load();
     int total = hits + misses;
 
-    if (total == 0) return 0;
+    if (total == 0)
+        return 0;
     return (hits * 100) / total;
 }
 
-void ThumbnailModel::startIntelligentPrefetch()
-{
+void ThumbnailModel::startIntelligentPrefetch() {
     if (m_prefetchTimer && !m_prefetchTimer->isActive()) {
         m_prefetchTimer->start();
     }
 }
 
-void ThumbnailModel::stopIntelligentPrefetch()
-{
+void ThumbnailModel::stopIntelligentPrefetch() {
     if (m_prefetchTimer) {
         m_prefetchTimer->stop();
     }
     m_prefetchQueue.clear();
 }
 
-void ThumbnailModel::processPrefetchQueue()
-{
+void ThumbnailModel::processPrefetchQueue() {
     if (m_prefetchQueue.isEmpty() || !m_document) {
         return;
     }
@@ -1195,13 +1176,14 @@ void ThumbnailModel::processPrefetchQueue()
 
     // 处理队列中的预取请求
     int processed = 0;
-    const int maxProcessPerCycle = 2; // 每次最多处理2个
+    const int maxProcessPerCycle = 2;  // 每次最多处理2个
 
     while (!m_prefetchQueue.isEmpty() && processed < maxProcessPerCycle) {
         PrefetchEntry entry = m_prefetchQueue.dequeue();
 
         // 检查是否已经加载或正在加载
-        if (!isLoading(entry.pageNumber) && !m_loadingPages.contains(entry.pageNumber)) {
+        if (!isLoading(entry.pageNumber) &&
+            !m_loadingPages.contains(entry.pageNumber)) {
             QMutexLocker locker(&m_thumbnailsMutex);
 
             ThumbnailItem* item = getFromOptimizedCache(entry.pageNumber);
@@ -1217,8 +1199,9 @@ void ThumbnailModel::processPrefetchQueue()
     }
 }
 
-void ThumbnailModel::addToPrefetchQueue(int pageNumber, PrefetchStrategy strategy, int priority)
-{
+void ThumbnailModel::addToPrefetchQueue(int pageNumber,
+                                        PrefetchStrategy strategy,
+                                        int priority) {
     if (!m_document || pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return;
     }
@@ -1233,8 +1216,8 @@ void ThumbnailModel::addToPrefetchQueue(int pageNumber, PrefetchStrategy strateg
     m_prefetchQueue.enqueue(PrefetchEntry(pageNumber, priority, strategy));
 }
 
-void ThumbnailModel::predictNextPages(const QList<int>& recentAccesses, QList<int>& predictions)
-{
+void ThumbnailModel::predictNextPages(const QList<int>& recentAccesses,
+                                      QList<int>& predictions) {
     predictions.clear();
 
     if (recentAccesses.size() < 2 || !m_document) {
@@ -1243,7 +1226,9 @@ void ThumbnailModel::predictNextPages(const QList<int>& recentAccesses, QList<in
 
     // 简单的预测算法：基于访问模式
     int lastPage = recentAccesses.last();
-    int secondLastPage = recentAccesses.size() > 1 ? recentAccesses[recentAccesses.size() - 2] : -1;
+    int secondLastPage = recentAccesses.size() > 1
+                             ? recentAccesses[recentAccesses.size() - 2]
+                             : -1;
 
     // 检测顺序访问模式
     if (secondLastPage >= 0) {
@@ -1273,8 +1258,7 @@ void ThumbnailModel::predictNextPages(const QList<int>& recentAccesses, QList<in
     predictions = QList<int>(uniqueSet.begin(), uniqueSet.end());
 }
 
-QByteArray ThumbnailModel::compressThumbnail(const QPixmap& pixmap)
-{
+QByteArray ThumbnailModel::compressThumbnail(const QPixmap& pixmap) {
     if (!m_memoryCompressionEnabled || pixmap.isNull()) {
         return QByteArray();
     }
@@ -1317,8 +1301,7 @@ QByteArray ThumbnailModel::compressThumbnail(const QPixmap& pixmap)
     return QByteArray();
 }
 
-QPixmap ThumbnailModel::decompressThumbnail(const QByteArray& data)
-{
+QPixmap ThumbnailModel::decompressThumbnail(const QByteArray& data) {
     if (data.isEmpty()) {
         return QPixmap();
     }
@@ -1331,14 +1314,13 @@ QPixmap ThumbnailModel::decompressThumbnail(const QByteArray& data)
     return QPixmap();
 }
 
-void ThumbnailModel::updateCompressionStats(qint64 originalSize, qint64 compressedSize)
-{
+void ThumbnailModel::updateCompressionStats(qint64 originalSize,
+                                            qint64 compressedSize) {
     m_originalSize.fetch_add(originalSize);
     m_compressedSize.fetch_add(compressedSize);
 }
 
-void ThumbnailModel::analyzeAccessPattern(int pageNumber)
-{
+void ThumbnailModel::analyzeAccessPattern(int pageNumber) {
     // 记录访问
     m_accessPattern.recentAccesses.append(pageNumber);
 
@@ -1352,7 +1334,9 @@ void ThumbnailModel::analyzeAccessPattern(int pageNumber)
 
     // 分析访问模式
     if (m_accessPattern.recentAccesses.size() >= 2) {
-        int lastPage = m_accessPattern.recentAccesses[m_accessPattern.recentAccesses.size() - 2];
+        int lastPage =
+            m_accessPattern
+                .recentAccesses[m_accessPattern.recentAccesses.size() - 2];
         int currentPage = pageNumber;
 
         if (qAbs(currentPage - lastPage) == 1) {
@@ -1363,7 +1347,8 @@ void ThumbnailModel::analyzeAccessPattern(int pageNumber)
     }
 
     // 触发预测性预取
-    if (m_predictiveLoadingEnabled && m_prefetchStrategy == PrefetchStrategy::PREDICTIVE) {
+    if (m_predictiveLoadingEnabled &&
+        m_prefetchStrategy == PrefetchStrategy::PREDICTIVE) {
         QList<int> predictions;
         predictNextPages(m_accessPattern.recentAccesses, predictions);
 
@@ -1373,8 +1358,7 @@ void ThumbnailModel::analyzeAccessPattern(int pageNumber)
     }
 }
 
-void ThumbnailModel::updateAccessPattern()
-{
+void ThumbnailModel::updateAccessPattern() {
     // 计算平均访问间隔
     if (m_accessPattern.recentAccesses.size() >= 2) {
         qint64 totalInterval = 0;
@@ -1397,28 +1381,28 @@ void ThumbnailModel::updateAccessPattern()
     }
 }
 
-ThumbnailModel::PrefetchStrategy ThumbnailModel::determineBestStrategy() const
-{
+ThumbnailModel::PrefetchStrategy ThumbnailModel::determineBestStrategy() const {
     // 根据访问模式统计决定最佳策略
-    int totalAccesses = m_accessPattern.sequentialCount + m_accessPattern.randomCount;
+    int totalAccesses =
+        m_accessPattern.sequentialCount + m_accessPattern.randomCount;
 
     if (totalAccesses < 10) {
-        return PrefetchStrategy::LINEAR; // 默认线性策略
+        return PrefetchStrategy::LINEAR;  // 默认线性策略
     }
 
-    double sequentialRatio = static_cast<double>(m_accessPattern.sequentialCount) / totalAccesses;
+    double sequentialRatio =
+        static_cast<double>(m_accessPattern.sequentialCount) / totalAccesses;
 
     if (sequentialRatio > 0.7) {
-        return PrefetchStrategy::LINEAR; // 顺序访问较多
+        return PrefetchStrategy::LINEAR;  // 顺序访问较多
     } else if (sequentialRatio > 0.3) {
-        return PrefetchStrategy::ADAPTIVE; // 混合模式
+        return PrefetchStrategy::ADAPTIVE;  // 混合模式
     } else {
-        return PrefetchStrategy::PREDICTIVE; // 随机访问较多，使用预测
+        return PrefetchStrategy::PREDICTIVE;  // 随机访问较多，使用预测
     }
 }
 
-void ThumbnailModel::optimizeMemoryUsage()
-{
+void ThumbnailModel::optimizeMemoryUsage() {
     if (isMemoryPressureHigh()) {
         handleMemoryPressure();
     }
@@ -1429,16 +1413,14 @@ void ThumbnailModel::optimizeMemoryUsage()
     }
 }
 
-bool ThumbnailModel::isMemoryPressureHigh() const
-{
+bool ThumbnailModel::isMemoryPressureHigh() const {
     double usage = static_cast<double>(m_currentMemory.load()) / m_maxMemory;
     return usage > m_memoryPressureThreshold;
 }
 
-void ThumbnailModel::handleMemoryPressure()
-{
+void ThumbnailModel::handleMemoryPressure() {
     // 激进的内存清理
-    int itemsToEvict = m_maxCacheSize / 4; // 清理25%的缓存
+    int itemsToEvict = m_maxCacheSize / 4;  // 清理25%的缓存
 
     for (int i = 0; i < itemsToEvict; ++i) {
         evictFromOptimizedCache(1);
@@ -1450,30 +1432,28 @@ void ThumbnailModel::handleMemoryPressure()
     }
 }
 
-void ThumbnailModel::compressOldEntries()
-{
+void ThumbnailModel::compressOldEntries() {
     QMutexLocker locker(&m_thumbnailsMutex);
 
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-    const qint64 compressionAge = 60000; // 1分钟
+    const qint64 compressionAge = 60000;  // 1分钟
 
     for (auto it = m_thumbnails.begin(); it != m_thumbnails.end(); ++it) {
         ThumbnailItem& item = it.value();
 
         // 压缩超过1分钟未访问的项目
-        if (!item.isCompressed &&
-            !item.pixmap.isNull() &&
+        if (!item.isCompressed && !item.pixmap.isNull() &&
             (currentTime - item.lastAccessed) > compressionAge) {
-
             QByteArray compressed = compressThumbnail(item.pixmap);
             if (!compressed.isEmpty()) {
                 qint64 originalSize = item.memorySize;
 
                 item.compressedData = compressed;
                 item.isCompressed = true;
-                item.pixmap = QPixmap(); // 释放原始像素图
+                item.pixmap = QPixmap();  // 释放原始像素图
                 item.memorySize = compressed.size();
-                item.compressionRatio = static_cast<double>(compressed.size()) / originalSize;
+                item.compressionRatio =
+                    static_cast<double>(compressed.size()) / originalSize;
 
                 updateCompressionStats(originalSize, compressed.size());
 
@@ -1484,8 +1464,7 @@ void ThumbnailModel::compressOldEntries()
     }
 }
 
-void ThumbnailModel::recordAccessTime(qint64 time)
-{
+void ThumbnailModel::recordAccessTime(qint64 time) {
     QMutexLocker locker(&m_performanceMutex);
 
     m_accessTimes.append(time);
@@ -1496,8 +1475,7 @@ void ThumbnailModel::recordAccessTime(qint64 time)
     }
 }
 
-void ThumbnailModel::updatePerformanceMetrics()
-{
+void ThumbnailModel::updatePerformanceMetrics() {
     // 这个方法可以用于定期更新性能指标
     // 目前主要通过其他方法实时更新
 }

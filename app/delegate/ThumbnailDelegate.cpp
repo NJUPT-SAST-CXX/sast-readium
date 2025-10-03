@@ -1,27 +1,26 @@
 #include "ThumbnailDelegate.h"
-#include "../model/ThumbnailModel.h"
-#include "../managers/StyleManager.h"
-#include <QApplication>
-#include <QPainter>
-#include <QStyleOptionViewItem>
-#include <QModelIndex>
-#include <QDebug>
-#include <QPropertyAnimation>
-#include <QTimer>
 #include <QAbstractItemView>
-#include <QHash>
-#include <QMutex>
-#include <QFont>
-#include <QPixmap>
-#include <QElapsedTimer>
+#include <QApplication>
 #include <QDateTime>
-#include <QSettings>
+#include <QDebug>
+#include <QElapsedTimer>
+#include <QFont>
+#include <QHash>
+#include <QModelIndex>
+#include <QMutex>
+#include <QPainter>
 #include <QPersistentModelIndex>
+#include <QPixmap>
+#include <QPropertyAnimation>
+#include <QSettings>
+#include <QStyleOptionViewItem>
+#include <QTimer>
 #include <atomic>
+#include "../managers/StyleManager.h"
+#include "../model/ThumbnailModel.h"
 
 // Implementation class definition
-class ThumbnailDelegate::Implementation
-{
+class ThumbnailDelegate::Implementation {
 public:
     // Constants
     static constexpr int DEFAULT_THUMBNAIL_WIDTH = 120;
@@ -33,13 +32,13 @@ public:
     static constexpr int DEFAULT_SHADOW_OFFSET = 2;
     static constexpr int DEFAULT_BORDER_WIDTH = 2;
     static constexpr int LOADING_SPINNER_SIZE = 24;
-    static constexpr int LOADING_ANIMATION_INTERVAL = 50; // ms
-    static constexpr int HOVER_ANIMATION_DURATION = 200; // ms
-    static constexpr int SELECTION_ANIMATION_DURATION = 300; // ms
+    static constexpr int LOADING_ANIMATION_INTERVAL = 50;     // ms
+    static constexpr int HOVER_ANIMATION_DURATION = 200;      // ms
+    static constexpr int SELECTION_ANIMATION_DURATION = 300;  // ms
     static constexpr int DEFAULT_MAX_CACHE_SIZE = 50;
-    static constexpr qint64 CACHE_EXPIRY_TIME = 300000; // 5分钟
-    static constexpr qint64 CACHE_CLEANUP_INTERVAL = 60000; // 1分钟
-    static constexpr double PERFORMANCE_SAMPLE_RATE = 0.1; // 10%采样率
+    static constexpr qint64 CACHE_EXPIRY_TIME = 300000;      // 5分钟
+    static constexpr qint64 CACHE_CLEANUP_INTERVAL = 60000;  // 1分钟
+    static constexpr double PERFORMANCE_SAMPLE_RATE = 0.1;   // 10%采样率
 
     // Chrome风格颜色常量
     static const QColor GOOGLE_BLUE;
@@ -53,23 +52,22 @@ public:
     static const QColor DARK_TEXT;
 
     explicit Implementation(ThumbnailDelegate* q)
-        : q_ptr(q)
-        , thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT)
-        , margin(DEFAULT_MARGIN)
-        , borderRadius(DEFAULT_BORDER_RADIUS)
-        , pageNumberHeight(DEFAULT_PAGE_NUMBER_HEIGHT)
-        , shadowEnabled(true)
-        , animationEnabled(true)
-        , shadowBlurRadius(DEFAULT_SHADOW_BLUR_RADIUS)
-        , shadowOffset(DEFAULT_SHADOW_OFFSET)
-        , borderWidth(DEFAULT_BORDER_WIDTH)
-        , renderCacheEnabled(true)
-        , maxCacheSize(DEFAULT_MAX_CACHE_SIZE)
-        , highQualityRendering(true)
-        , antiAliasingEnabled(true)
-        , smoothPixmapTransform(true)
-        , loadingTimer(new QTimer(q))
-    {
+        : q_ptr(q),
+          thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT),
+          margin(DEFAULT_MARGIN),
+          borderRadius(DEFAULT_BORDER_RADIUS),
+          pageNumberHeight(DEFAULT_PAGE_NUMBER_HEIGHT),
+          shadowEnabled(true),
+          animationEnabled(true),
+          shadowBlurRadius(DEFAULT_SHADOW_BLUR_RADIUS),
+          shadowOffset(DEFAULT_SHADOW_OFFSET),
+          borderWidth(DEFAULT_BORDER_WIDTH),
+          renderCacheEnabled(true),
+          maxCacheSize(DEFAULT_MAX_CACHE_SIZE),
+          highQualityRendering(true),
+          antiAliasingEnabled(true),
+          smoothPixmapTransform(true),
+          loadingTimer(new QTimer(q)) {
         // 设置默认颜色主题
         setLightTheme();
 
@@ -79,17 +77,18 @@ public:
 
         // 设置加载动画定时器
         loadingTimer->setInterval(LOADING_ANIMATION_INTERVAL);
-        QObject::connect(loadingTimer, &QTimer::timeout, q, &ThumbnailDelegate::onLoadingAnimationTimer);
+        QObject::connect(loadingTimer, &QTimer::timeout, q,
+                         &ThumbnailDelegate::onLoadingAnimationTimer);
 
         // 设置缓存清理定时器
         QTimer* cacheCleanupTimer = new QTimer(q);
         cacheCleanupTimer->setInterval(CACHE_CLEANUP_INTERVAL);
-        QObject::connect(cacheCleanupTimer, &QTimer::timeout, q, [this]() { cleanupExpiredCache(); });
+        QObject::connect(cacheCleanupTimer, &QTimer::timeout, q,
+                         [this]() { cleanupExpiredCache(); });
         cacheCleanupTimer->start();
     }
 
-    ~Implementation()
-    {
+    ~Implementation() {
         cleanupAnimations();
         clearRenderCache();
     }
@@ -132,13 +131,13 @@ public:
         std::atomic<int> cacheMisses{0};
         QElapsedTimer sessionTimer;
 
-        PerformanceStats() {
-            sessionTimer.start();
-        }
+        PerformanceStats() { sessionTimer.start(); }
 
         double averagePaintTime() const {
             int calls = paintCalls.load();
-            return calls > 0 ? static_cast<double>(totalPaintTime.load()) / calls : 0.0;
+            return calls > 0
+                       ? static_cast<double>(totalPaintTime.load()) / calls
+                       : 0.0;
         }
 
         double cacheHitRate() const {
@@ -205,19 +204,21 @@ public:
 
     // Helper methods
     void paintThumbnail(QPainter* painter, const QRect& rect,
-                       const QPixmap& pixmap, const QStyleOptionViewItem& option) const;
-    void paintBackground(QPainter* painter, const QRect& rect,
+                        const QPixmap& pixmap,
                         const QStyleOptionViewItem& option) const;
+    void paintBackground(QPainter* painter, const QRect& rect,
+                         const QStyleOptionViewItem& option) const;
     void paintBorder(QPainter* painter, const QRect& rect,
-                    const QStyleOptionViewItem& option) const;
+                     const QStyleOptionViewItem& option) const;
     void paintShadow(QPainter* painter, const QRect& rect,
-                    const QStyleOptionViewItem& option) const;
-    void paintPageNumber(QPainter* painter, const QRect& rect,
-                        int pageNumber, const QStyleOptionViewItem& option) const;
+                     const QStyleOptionViewItem& option) const;
+    void paintPageNumber(QPainter* painter, const QRect& rect, int pageNumber,
+                         const QStyleOptionViewItem& option) const;
     void paintLoadingIndicator(QPainter* painter, const QRect& rect,
-                              const QStyleOptionViewItem& option) const;
+                               const QStyleOptionViewItem& option) const;
     void paintErrorIndicator(QPainter* painter, const QRect& rect,
-                            const QString& errorMessage, const QStyleOptionViewItem& option) const;
+                             const QString& errorMessage,
+                             const QStyleOptionViewItem& option) const;
 
     QRect getThumbnailRect(const QRect& itemRect) const;
     QRect getPageNumberRect(const QRect& thumbnailRect) const;
@@ -230,18 +231,23 @@ public:
     void cleanupAnimations();
 
     // Performance optimization methods
-    Qt::TransformationMode getOptimalTransformationMode(const QSize& sourceSize, const QSize& targetSize) const;
+    Qt::TransformationMode getOptimalTransformationMode(
+        const QSize& sourceSize, const QSize& targetSize) const;
 
     // Cache management methods
-    QString generateCacheKey(const QModelIndex& index, const QStyleOptionViewItem& option) const;
+    QString generateCacheKey(const QModelIndex& index,
+                             const QStyleOptionViewItem& option) const;
     RenderCache* getRenderCache(const QString& key) const;
     void insertRenderCache(const QString& key, RenderCache* cache);
     void cleanupExpiredCache();
 
     // Optimized rendering methods
-    void paintOptimized(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const;
-    QPixmap renderToCache(const QStyleOptionViewItem& option, const QModelIndex& index) const;
-    void paintFromCache(QPainter* painter, const QRect& rect, const QPixmap& cached) const;
+    void paintOptimized(QPainter* painter, const QStyleOptionViewItem& option,
+                        const QModelIndex& index) const;
+    QPixmap renderToCache(const QStyleOptionViewItem& option,
+                          const QModelIndex& index) const;
+    void paintFromCache(QPainter* painter, const QRect& rect,
+                        const QPixmap& cached) const;
 
     // Performance monitoring methods
     void recordPaintTime(qint64 time) const;
@@ -250,19 +256,26 @@ public:
 };
 
 // Chrome风格颜色常量定义
-const QColor ThumbnailDelegate::Implementation::GOOGLE_BLUE = QColor(66, 133, 244);
-const QColor ThumbnailDelegate::Implementation::GOOGLE_BLUE_DARK = QColor(26, 115, 232);
-const QColor ThumbnailDelegate::Implementation::GOOGLE_RED = QColor(234, 67, 53);
-const QColor ThumbnailDelegate::Implementation::LIGHT_BACKGROUND = QColor(255, 255, 255);
-const QColor ThumbnailDelegate::Implementation::LIGHT_BORDER = QColor(200, 200, 200);
+const QColor ThumbnailDelegate::Implementation::GOOGLE_BLUE =
+    QColor(66, 133, 244);
+const QColor ThumbnailDelegate::Implementation::GOOGLE_BLUE_DARK =
+    QColor(26, 115, 232);
+const QColor ThumbnailDelegate::Implementation::GOOGLE_RED =
+    QColor(234, 67, 53);
+const QColor ThumbnailDelegate::Implementation::LIGHT_BACKGROUND =
+    QColor(255, 255, 255);
+const QColor ThumbnailDelegate::Implementation::LIGHT_BORDER =
+    QColor(200, 200, 200);
 const QColor ThumbnailDelegate::Implementation::LIGHT_TEXT = QColor(60, 60, 60);
-const QColor ThumbnailDelegate::Implementation::DARK_BACKGROUND = QColor(32, 33, 36);
-const QColor ThumbnailDelegate::Implementation::DARK_BORDER = QColor(95, 99, 104);
-const QColor ThumbnailDelegate::Implementation::DARK_TEXT = QColor(232, 234, 237);
+const QColor ThumbnailDelegate::Implementation::DARK_BACKGROUND =
+    QColor(32, 33, 36);
+const QColor ThumbnailDelegate::Implementation::DARK_BORDER =
+    QColor(95, 99, 104);
+const QColor ThumbnailDelegate::Implementation::DARK_TEXT =
+    QColor(232, 234, 237);
 
 // Implementation class method definitions
-void ThumbnailDelegate::Implementation::setLightTheme()
-{
+void ThumbnailDelegate::Implementation::setLightTheme() {
     backgroundColor = LIGHT_BACKGROUND;
     borderColorNormal = LIGHT_BORDER;
     borderColorHovered = GOOGLE_BLUE.lighter(150);
@@ -275,8 +288,7 @@ void ThumbnailDelegate::Implementation::setLightTheme()
     placeholderColor = QColor(200, 200, 200);
 }
 
-void ThumbnailDelegate::Implementation::setDarkTheme()
-{
+void ThumbnailDelegate::Implementation::setDarkTheme() {
     backgroundColor = DARK_BACKGROUND;
     borderColorNormal = DARK_BORDER;
     borderColorHovered = GOOGLE_BLUE.lighter(150);
@@ -290,24 +302,23 @@ void ThumbnailDelegate::Implementation::setDarkTheme()
 }
 
 ThumbnailDelegate::ThumbnailDelegate(QObject* parent)
-    : QStyledItemDelegate(parent)
-    , d(std::make_unique<Implementation>(this))
-{
-}
+    : QStyledItemDelegate(parent), d(std::make_unique<Implementation>(this)) {}
 
 ThumbnailDelegate::~ThumbnailDelegate() = default;
 
-QSize ThumbnailDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
+QSize ThumbnailDelegate::sizeHint(const QStyleOptionViewItem& option,
+                                  const QModelIndex& index) const {
     Q_UNUSED(option)
     Q_UNUSED(index)
 
-    return QSize(d->thumbnailSize.width() + 2 * d->margin,
-                 d->thumbnailSize.height() + d->pageNumberHeight + 2 * d->margin);
+    return QSize(
+        d->thumbnailSize.width() + 2 * d->margin,
+        d->thumbnailSize.height() + d->pageNumberHeight + 2 * d->margin);
 }
 
-void ThumbnailDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
+void ThumbnailDelegate::paint(QPainter* painter,
+                              const QStyleOptionViewItem& option,
+                              const QModelIndex& index) const {
     if (!index.isValid()) {
         return;
     }
@@ -334,10 +345,12 @@ void ThumbnailDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
         }
 
         // 获取数据
-        QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
+        QPixmap thumbnail =
+            index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
         bool isLoading = index.data(ThumbnailModel::LoadingRole).toBool();
         bool hasError = index.data(ThumbnailModel::ErrorRole).toBool();
-        QString errorMessage = index.data(ThumbnailModel::ErrorMessageRole).toString();
+        QString errorMessage =
+            index.data(ThumbnailModel::ErrorMessageRole).toString();
         int pageNumber = index.data(ThumbnailModel::PageNumberRole).toInt();
 
         // 计算矩形
@@ -357,7 +370,8 @@ void ThumbnailDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
 
         // 绘制缩略图内容
         if (hasError) {
-            d->paintErrorIndicator(painter, thumbnailRect, errorMessage, option);
+            d->paintErrorIndicator(painter, thumbnailRect, errorMessage,
+                                   option);
         } else if (isLoading) {
             d->paintLoadingIndicator(painter, thumbnailRect, option);
         } else if (!thumbnail.isNull()) {
@@ -375,53 +389,43 @@ void ThumbnailDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
     d->recordPaintTime(paintTime);
 }
 
-void ThumbnailDelegate::setThumbnailSize(const QSize& size)
-{
+void ThumbnailDelegate::setThumbnailSize(const QSize& size) {
     if (d->thumbnailSize != size) {
         d->thumbnailSize = size;
         emit sizeHintChanged(QModelIndex());
     }
 }
 
-void ThumbnailDelegate::setMargins(int margin)
-{
+void ThumbnailDelegate::setMargins(int margin) {
     if (d->margin != margin) {
         d->margin = margin;
         emit sizeHintChanged(QModelIndex());
     }
 }
 
-void ThumbnailDelegate::setBorderRadius(int radius)
-{
+void ThumbnailDelegate::setBorderRadius(int radius) {
     d->borderRadius = radius;
 }
 
-void ThumbnailDelegate::setShadowEnabled(bool enabled)
-{
+void ThumbnailDelegate::setShadowEnabled(bool enabled) {
     d->shadowEnabled = enabled;
 }
 
-void ThumbnailDelegate::setAnimationEnabled(bool enabled)
-{
+void ThumbnailDelegate::setAnimationEnabled(bool enabled) {
     d->animationEnabled = enabled;
     if (!enabled) {
         d->cleanupAnimations();
     }
 }
 
-void ThumbnailDelegate::setLightTheme()
-{
-    d->setLightTheme();
-}
+void ThumbnailDelegate::setLightTheme() { d->setLightTheme(); }
 
-void ThumbnailDelegate::setDarkTheme()
-{
-    d->setDarkTheme();
-}
+void ThumbnailDelegate::setDarkTheme() { d->setDarkTheme(); }
 
-void ThumbnailDelegate::setCustomColors(const QColor& background, const QColor& border,
-                                       const QColor& text, const QColor& accent)
-{
+void ThumbnailDelegate::setCustomColors(const QColor& background,
+                                        const QColor& border,
+                                        const QColor& text,
+                                        const QColor& accent) {
     d->backgroundColor = background;
     d->borderColorNormal = border;
     d->borderColorHovered = accent.lighter(150);
@@ -431,69 +435,44 @@ void ThumbnailDelegate::setCustomColors(const QColor& background, const QColor& 
 }
 
 // Getter methods
-QSize ThumbnailDelegate::thumbnailSize() const
-{
-    return d->thumbnailSize;
-}
+QSize ThumbnailDelegate::thumbnailSize() const { return d->thumbnailSize; }
 
-int ThumbnailDelegate::margins() const
-{
-    return d->margin;
-}
+int ThumbnailDelegate::margins() const { return d->margin; }
 
-int ThumbnailDelegate::borderRadius() const
-{
-    return d->borderRadius;
-}
+int ThumbnailDelegate::borderRadius() const { return d->borderRadius; }
 
-bool ThumbnailDelegate::shadowEnabled() const
-{
-    return d->shadowEnabled;
-}
+bool ThumbnailDelegate::shadowEnabled() const { return d->shadowEnabled; }
 
-bool ThumbnailDelegate::animationEnabled() const
-{
-    return d->animationEnabled;
-}
+bool ThumbnailDelegate::animationEnabled() const { return d->animationEnabled; }
 
-bool ThumbnailDelegate::isRenderCacheEnabled() const
-{
+bool ThumbnailDelegate::isRenderCacheEnabled() const {
     return d->renderCacheEnabled;
 }
 
-bool ThumbnailDelegate::isHighQualityRenderingEnabled() const
-{
+bool ThumbnailDelegate::isHighQualityRenderingEnabled() const {
     return d->highQualityRendering;
 }
 
-bool ThumbnailDelegate::isAntiAliasingEnabled() const
-{
+bool ThumbnailDelegate::isAntiAliasingEnabled() const {
     return d->antiAliasingEnabled;
 }
 
-int ThumbnailDelegate::maxCacheSize() const
-{
-    return d->maxCacheSize;
-}
+int ThumbnailDelegate::maxCacheSize() const { return d->maxCacheSize; }
 
-double ThumbnailDelegate::averagePaintTime() const
-{
+double ThumbnailDelegate::averagePaintTime() const {
     return d->performanceStats.averagePaintTime();
 }
 
-double ThumbnailDelegate::cacheHitRate() const
-{
+double ThumbnailDelegate::cacheHitRate() const {
     return d->performanceStats.cacheHitRate();
 }
 
-int ThumbnailDelegate::totalPaintCalls() const
-{
+int ThumbnailDelegate::totalPaintCalls() const {
     return d->performanceStats.paintCalls.load();
 }
 
 // Performance and cache management methods
-void ThumbnailDelegate::setRenderCacheEnabled(bool enabled)
-{
+void ThumbnailDelegate::setRenderCacheEnabled(bool enabled) {
     if (d->renderCacheEnabled != enabled) {
         d->renderCacheEnabled = enabled;
         if (!enabled) {
@@ -502,23 +481,17 @@ void ThumbnailDelegate::setRenderCacheEnabled(bool enabled)
     }
 }
 
-void ThumbnailDelegate::setHighQualityRenderingEnabled(bool enabled)
-{
+void ThumbnailDelegate::setHighQualityRenderingEnabled(bool enabled) {
     d->highQualityRendering = enabled;
 }
 
-void ThumbnailDelegate::setAntiAliasingEnabled(bool enabled)
-{
+void ThumbnailDelegate::setAntiAliasingEnabled(bool enabled) {
     d->antiAliasingEnabled = enabled;
 }
 
-void ThumbnailDelegate::clearRenderCache()
-{
-    d->clearRenderCache();
-}
+void ThumbnailDelegate::clearRenderCache() { d->clearRenderCache(); }
 
-void ThumbnailDelegate::setMaxCacheSize(int size)
-{
+void ThumbnailDelegate::setMaxCacheSize(int size) {
     d->maxCacheSize = qBound(10, size, 200);
 
     // 如果当前缓存超过新的限制，清理一些条目
@@ -527,8 +500,7 @@ void ThumbnailDelegate::setMaxCacheSize(int size)
     }
 }
 
-void ThumbnailDelegate::resetPerformanceStats()
-{
+void ThumbnailDelegate::resetPerformanceStats() {
     d->performanceStats.paintCalls = 0;
     d->performanceStats.totalPaintTime = 0;
     d->performanceStats.cacheHits = 0;
@@ -536,8 +508,7 @@ void ThumbnailDelegate::resetPerformanceStats()
     d->performanceStats.sessionTimer.restart();
 }
 
-bool ThumbnailDelegate::eventFilter(QObject* object, QEvent* event)
-{
+bool ThumbnailDelegate::eventFilter(QObject* object, QEvent* event) {
     // 处理鼠标事件以触发动画
     if (auto* view = qobject_cast<QAbstractItemView*>(object)) {
         if (event->type() == QEvent::MouseMove) {
@@ -548,8 +519,7 @@ bool ThumbnailDelegate::eventFilter(QObject* object, QEvent* event)
     return QStyledItemDelegate::eventFilter(object, event);
 }
 
-void ThumbnailDelegate::onAnimationValueChanged()
-{
+void ThumbnailDelegate::onAnimationValueChanged() {
     // 触发重绘
     if (parent()) {
         if (auto* view = qobject_cast<QAbstractItemView*>(parent())) {
@@ -558,10 +528,10 @@ void ThumbnailDelegate::onAnimationValueChanged()
     }
 }
 
-void ThumbnailDelegate::onLoadingAnimationTimer()
-{
+void ThumbnailDelegate::onLoadingAnimationTimer() {
     // 更新加载动画状态
-    for (auto it = d->animationStates.begin(); it != d->animationStates.end(); ++it) {
+    for (auto it = d->animationStates.begin(); it != d->animationStates.end();
+         ++it) {
         Implementation::AnimationState* state = it.value();
         state->loadingAngle = (state->loadingAngle + 15) % 360;
     }
@@ -575,15 +545,15 @@ void ThumbnailDelegate::onLoadingAnimationTimer()
 }
 
 // Implementation class method definitions for helper methods
-QRect ThumbnailDelegate::Implementation::getThumbnailRect(const QRect& itemRect) const
-{
+QRect ThumbnailDelegate::Implementation::getThumbnailRect(
+    const QRect& itemRect) const {
     int x = itemRect.x() + margin;
     int y = itemRect.y() + margin;
     return QRect(x, y, thumbnailSize.width(), thumbnailSize.height());
 }
 
-QRect ThumbnailDelegate::Implementation::getPageNumberRect(const QRect& thumbnailRect) const
-{
+QRect ThumbnailDelegate::Implementation::getPageNumberRect(
+    const QRect& thumbnailRect) const {
     int x = thumbnailRect.x();
     int y = thumbnailRect.bottom() + 2;
     int width = thumbnailRect.width();
@@ -591,8 +561,7 @@ QRect ThumbnailDelegate::Implementation::getPageNumberRect(const QRect& thumbnai
 }
 
 // Essential Implementation class methods for basic functionality
-void ThumbnailDelegate::Implementation::clearRenderCache()
-{
+void ThumbnailDelegate::Implementation::clearRenderCache() {
     QMutexLocker locker(&cacheMutex);
 
     for (auto it = renderCache.begin(); it != renderCache.end(); ++it) {
@@ -601,29 +570,27 @@ void ThumbnailDelegate::Implementation::clearRenderCache()
     renderCache.clear();
 }
 
-void ThumbnailDelegate::Implementation::cleanupAnimations()
-{
+void ThumbnailDelegate::Implementation::cleanupAnimations() {
     for (auto it = animationStates.begin(); it != animationStates.end(); ++it) {
         delete it.value();
     }
     animationStates.clear();
 }
 
-void ThumbnailDelegate::Implementation::recordPaintTime(qint64 time) const
-{
+void ThumbnailDelegate::Implementation::recordPaintTime(qint64 time) const {
     performanceStats.paintCalls.fetch_add(1);
     performanceStats.totalPaintTime.fetch_add(time);
 }
 
-void ThumbnailDelegate::Implementation::cleanupExpiredCache()
-{
+void ThumbnailDelegate::Implementation::cleanupExpiredCache() {
     QMutexLocker locker(&cacheMutex);
 
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
     auto it = renderCache.begin();
     while (it != renderCache.end()) {
-        if (!it.value()->isValid || (currentTime - it.value()->timestamp) > CACHE_EXPIRY_TIME) {
+        if (!it.value()->isValid ||
+            (currentTime - it.value()->timestamp) > CACHE_EXPIRY_TIME) {
             delete it.value();
             it = renderCache.erase(it);
         } else {
@@ -633,23 +600,23 @@ void ThumbnailDelegate::Implementation::cleanupExpiredCache()
 }
 
 // Paint method implementations
-void ThumbnailDelegate::Implementation::paintThumbnail(QPainter* painter, const QRect& rect,
-                                                      const QPixmap& pixmap, const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::Implementation::paintThumbnail(
+    QPainter* painter, const QRect& rect, const QPixmap& pixmap,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
     painter->drawPixmap(rect, pixmap, pixmap.rect());
 }
 
-void ThumbnailDelegate::Implementation::paintBackground(QPainter* painter, const QRect& rect,
-                                                       const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::Implementation::paintBackground(
+    QPainter* painter, const QRect& rect,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
     painter->fillRect(rect, backgroundColor);
 }
 
-void ThumbnailDelegate::Implementation::paintBorder(QPainter* painter, const QRect& rect,
-                                                   const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::Implementation::paintBorder(
+    QPainter* painter, const QRect& rect,
+    const QStyleOptionViewItem& option) const {
     QColor borderColor = borderColorNormal;
 
     if (option.state & QStyle::State_Selected) {
@@ -669,19 +636,21 @@ void ThumbnailDelegate::Implementation::paintBorder(QPainter* painter, const QRe
     }
 }
 
-void ThumbnailDelegate::Implementation::paintShadow(QPainter* painter, const QRect& rect,
-                                                   const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::Implementation::paintShadow(
+    QPainter* painter, const QRect& rect,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
-    QRect shadowRect = rect.adjusted(-shadowOffset, -shadowOffset, shadowOffset, shadowOffset);
+    QRect shadowRect =
+        rect.adjusted(-shadowOffset, -shadowOffset, shadowOffset, shadowOffset);
     painter->fillRect(shadowRect, shadowColor);
 }
 
-void ThumbnailDelegate::Implementation::paintPageNumber(QPainter* painter, const QRect& rect,
-                                                       int pageNumber, const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::Implementation::paintPageNumber(
+    QPainter* painter, const QRect& rect, int pageNumber,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
-    if (rect.height() <= 0) return;
+    if (rect.height() <= 0)
+        return;
 
     painter->fillRect(rect, pageNumberBgColor);
     painter->setPen(pageNumberTextColor);
@@ -691,17 +660,18 @@ void ThumbnailDelegate::Implementation::paintPageNumber(QPainter* painter, const
     painter->drawText(rect, Qt::AlignCenter, pageText);
 }
 
-void ThumbnailDelegate::Implementation::paintLoadingIndicator(QPainter* painter, const QRect& rect,
-                                                             const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::Implementation::paintLoadingIndicator(
+    QPainter* painter, const QRect& rect,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
     painter->fillRect(rect, QColor(255, 255, 255, 200));
-    // Simplified loading indicator - full implementation would include animation
+    // Simplified loading indicator - full implementation would include
+    // animation
 }
 
-void ThumbnailDelegate::Implementation::paintErrorIndicator(QPainter* painter, const QRect& rect,
-                                                           const QString& errorMessage, const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::Implementation::paintErrorIndicator(
+    QPainter* painter, const QRect& rect, const QString& errorMessage,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
     Q_UNUSED(errorMessage)
     painter->fillRect(rect, QColor(255, 200, 200, 200));
@@ -709,22 +679,26 @@ void ThumbnailDelegate::Implementation::paintErrorIndicator(QPainter* painter, c
 }
 
 // Additional method implementations
-ThumbnailDelegate::Implementation::AnimationState* ThumbnailDelegate::Implementation::getAnimationState(const QModelIndex& index) const
-{
+ThumbnailDelegate::Implementation::AnimationState*
+ThumbnailDelegate::Implementation::getAnimationState(
+    const QModelIndex& index) const {
     Q_UNUSED(index)
-    return nullptr; // Simplified - full implementation would manage animation states
+    return nullptr;  // Simplified - full implementation would manage animation
+                     // states
 }
 
-void ThumbnailDelegate::Implementation::paintOptimized(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
+void ThumbnailDelegate::Implementation::paintOptimized(
+    QPainter* painter, const QStyleOptionViewItem& option,
+    const QModelIndex& index) const {
     Q_UNUSED(painter)
     Q_UNUSED(option)
     Q_UNUSED(index)
     // Simplified - full implementation would use caching
 }
 
-Qt::TransformationMode ThumbnailDelegate::Implementation::getOptimalTransformationMode(const QSize& sourceSize, const QSize& targetSize) const
-{
+Qt::TransformationMode
+ThumbnailDelegate::Implementation::getOptimalTransformationMode(
+    const QSize& sourceSize, const QSize& targetSize) const {
     Q_UNUSED(sourceSize)
     Q_UNUSED(targetSize)
     return Qt::SmoothTransformation;

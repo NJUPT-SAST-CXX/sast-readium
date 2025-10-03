@@ -11,8 +11,7 @@ class TextExtractor;
  * Search execution component
  * Handles the actual search logic and pattern matching
  */
-class SearchExecutor : public QObject
-{
+class SearchExecutor : public QObject {
     Q_OBJECT
 
 public:
@@ -25,16 +24,20 @@ public:
 
     // Search operations
     QList<SearchResult> searchInPage(int pageNumber, const QString& query);
-    QList<SearchResult> searchInPages(const QList<int>& pageNumbers, const QString& query);
-    QList<SearchResult> searchInText(const QString& text, const QString& query, int pageNumber = 0);
+    QList<SearchResult> searchInPages(const QList<int>& pageNumbers,
+                                      const QString& query);
+    QList<SearchResult> searchInText(const QString& text, const QString& query,
+                                     int pageNumber = 0);
 
     // Pattern management
     bool validateQuery(const QString& query) const;
     QRegularExpression createSearchPattern(const QString& query) const;
-    QRegularExpression createSearchPattern(const QString& query, const SearchOptions& options) const;
+    QRegularExpression createSearchPattern(const QString& query,
+                                           const SearchOptions& options) const;
 
     // Bounding rect calculation
-    QRectF calculateBoundingRect(int pageNumber, int textPosition, int textLength);
+    QRectF calculateBoundingRect(int pageNumber, int textPosition,
+                                 int textLength);
 
 signals:
     void searchProgress(int current, int total);

@@ -1,19 +1,19 @@
 #pragma once
 
-#include <QTabWidget>
-#include <QWidget>
 #include <QPropertyAnimation>
 #include <QSettings>
-#include "../viewer/PDFOutlineWidget.h"
-#include "../thumbnail/ThumbnailListView.h"
-#include "../../model/ThumbnailModel.h"
+#include <QTabWidget>
+#include <QWidget>
+#include <memory>
 #include "../../delegate/ThumbnailDelegate.h"
 #include "../../model/PDFOutlineModel.h"
-#include <memory>
+#include "../../model/ThumbnailModel.h"
+#include "../thumbnail/ThumbnailListView.h"
+#include "../viewer/PDFOutlineWidget.h"
 
 // 前向声明
 namespace Poppler {
-    class Document;
+class Document;
 }
 
 class SideBar : public QWidget {

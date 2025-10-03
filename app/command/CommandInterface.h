@@ -1,8 +1,8 @@
 #pragma once
 
+#include <QJsonObject>
 #include <QObject>
 #include <QString>
-#include <QJsonObject>
 
 /**
  * @brief CommandInterface - Base interface for all commands

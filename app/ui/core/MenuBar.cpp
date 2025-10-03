@@ -1,22 +1,30 @@
 #include "MenuBar.h"
 #include <QAction>
 #include <QActionGroup>
-#include <QMenu>
-#include <QFileInfo>
 #include <QDebug>
+#include <QDir>
 #include <QEvent>
+#include <QFileInfo>
+#include <QMenu>
+#include <QMessageBox>
+#include "../../managers/FileTypeIconManager.h"
 #include "../../managers/I18nManager.h"
 
 MenuBar::MenuBar(QWidget* parent)
-    : QMenuBar(parent)
-    , m_recentFilesManager(nullptr)
-    , m_recentFilesMenu(nullptr)
-    , m_clearRecentFilesAction(nullptr)
-{
+    : QMenuBar(parent),
+      m_recentFilesManager(nullptr),
+      m_recentFilesMenu(nullptr),
+      m_clearRecentFilesAction(nullptr) {
+    // Initialize shortcut array
+    for (int i = 0; i < 9; ++i) {
+        m_recentFileShortcuts[i] = nullptr;
+    }
+
     createFileMenu();
     createTabMenu();
     createViewMenu();
     createThemeMenu();
+    setupRecentFileShortcuts();
 }
 
 void MenuBar::createFileMenu() {
@@ -35,7 +43,8 @@ void MenuBar::createFileMenu() {
     QAction* saveAsAction = new QAction(tr("Save &As..."), this);
     saveAsAction->setShortcut(QKeySequence("Ctrl+Shift+S"));
 
-    QAction* documentPropertiesAction = new QAction(tr("Document &Properties"), this);
+    QAction* documentPropertiesAction =
+        new QAction(tr("Document &Properties"), this);
     documentPropertiesAction->setShortcut(QKeySequence("Ctrl+I"));
 
     QAction* exitAction = new QAction(tr("E&xit"), this);
@@ -115,14 +124,15 @@ void MenuBar::createViewMenu() {
     // Welcome screen control
     m_welcomeScreenToggleAction = new QAction(tr("Show &Welcome Screen"), this);
     m_welcomeScreenToggleAction->setCheckable(true);
-    m_welcomeScreenToggleAction->setChecked(true); // Default enabled
-    m_welcomeScreenToggleAction->setToolTip(tr("Toggle welcome screen display"));
+    m_welcomeScreenToggleAction->setChecked(true);  // Default enabled
+    m_welcomeScreenToggleAction->setToolTip(
+        tr("Toggle welcome screen display"));
 
     // Sidebar control
     QAction* toggleSideBarAction = new QAction(tr("Toggle &Sidebar"), this);
     toggleSideBarAction->setShortcut(QKeySequence("F9"));
     toggleSideBarAction->setCheckable(true);
-    toggleSideBarAction->setChecked(true); // Default show
+    toggleSideBarAction->setChecked(true);  // Default show
 
     QAction* showSideBarAction = new QAction(tr("Show Sidebar"), this);
     QAction* hideSideBarAction = new QAction(tr("Hide Sidebar"), this);
@@ -131,9 +141,10 @@ void MenuBar::createViewMenu() {
     QAction* singlePageAction = new QAction(tr("Single &Page View"), this);
     singlePageAction->setShortcut(QKeySequence("Ctrl+1"));
     singlePageAction->setCheckable(true);
-    singlePageAction->setChecked(true); // Default single page view
+    singlePageAction->setChecked(true);  // Default single page view
 
-    QAction* continuousScrollAction = new QAction(tr("&Continuous Scroll"), this);
+    QAction* continuousScrollAction =
+        new QAction(tr("&Continuous Scroll"), this);
     continuousScrollAction->setShortcut(QKeySequence("Ctrl+2"));
     continuousScrollAction->setCheckable(true);
 
@@ -156,7 +167,7 @@ void MenuBar::createViewMenu() {
     m_debugPanelToggleAction = new QAction(tr("Show &Debug Panel"), this);
     m_debugPanelToggleAction->setShortcut(QKeySequence("F12"));
     m_debugPanelToggleAction->setCheckable(true);
-    m_debugPanelToggleAction->setChecked(true); // Default show
+    m_debugPanelToggleAction->setChecked(true);  // Default show
     m_debugPanelToggleAction->setToolTip(tr("Toggle debug log panel display"));
 
     m_debugPanelClearAction = new QAction(tr("&Clear Debug Log"), this);
@@ -218,7 +229,7 @@ void MenuBar::createThemeMenu() {
 
     // Theme submenu
     QMenu* themeSubMenu = new QMenu(tr("&Theme"), this);
-    
+
     QAction* lightThemeAction = new QAction(tr("&Light"), this);
     lightThemeAction->setCheckable(true);
 
@@ -231,25 +242,25 @@ void MenuBar::createThemeMenu() {
 
     themeSubMenu->addAction(lightThemeAction);
     themeSubMenu->addAction(darkThemeAction);
-    
+
     // Language submenu
     QMenu* languageSubMenu = new QMenu(tr("&Language"), this);
-    
+
     QAction* englishAction = new QAction(tr("&English"), this);
     englishAction->setCheckable(true);
     englishAction->setData("en");
-    
+
     QAction* chineseAction = new QAction(tr("简体中文(&C)"), this);
     chineseAction->setCheckable(true);
     chineseAction->setData("zh");
-    
+
     QActionGroup* languageGroup = new QActionGroup(this);
     languageGroup->addAction(englishAction);
     languageGroup->addAction(chineseAction);
-    
+
     languageSubMenu->addAction(englishAction);
     languageSubMenu->addAction(chineseAction);
-    
+
     // Set current language as checked
     QString currentLang = I18nManager::instance().currentLanguageCode();
     if (currentLang == "zh") {
@@ -257,7 +268,7 @@ void MenuBar::createThemeMenu() {
     } else {
         englishAction->setChecked(true);
     }
-    
+
     // Add submenus to main menu
     themeMenu->addMenu(themeSubMenu);
     themeMenu->addMenu(languageSubMenu);
@@ -274,21 +285,20 @@ void MenuBar::createThemeMenu() {
             emit themeChanged("dark");
         }
     });
-    
+
     // Connect language signals
     connect(englishAction, &QAction::triggered, this, [this]() {
         I18nManager::instance().loadLanguage("en");
         emit languageChanged("en");
     });
-    
+
     connect(chineseAction, &QAction::triggered, this, [this]() {
         I18nManager::instance().loadLanguage("zh");
         emit languageChanged("zh");
     });
 }
 
-void MenuBar::setRecentFilesManager(RecentFilesManager* manager)
-{
+void MenuBar::setRecentFilesManager(RecentFilesManager* manager) {
     if (m_recentFilesManager) {
         disconnect(m_recentFilesManager, nullptr, this, nullptr);
     }
@@ -302,25 +312,57 @@ void MenuBar::setRecentFilesManager(RecentFilesManager* manager)
     }
 }
 
-void MenuBar::setWelcomeScreenEnabled(bool enabled)
-{
+void MenuBar::setWelcomeScreenEnabled(bool enabled) {
     if (m_welcomeScreenToggleAction) {
         m_welcomeScreenToggleAction->setChecked(enabled);
     }
 }
 
-void MenuBar::setupRecentFilesMenu()
-{
+void MenuBar::setupRecentFilesMenu() {
     m_recentFilesMenu = new QMenu(tr("&Recent Files"), this);
-    m_recentFilesMenu->setEnabled(false); // Initially disabled until there are files
+    m_recentFilesMenu->setEnabled(
+        false);  // Initially disabled until there are files
 
     m_clearRecentFilesAction = new QAction(tr("&Clear Recent Files"), this);
-    connect(m_clearRecentFilesAction, &QAction::triggered,
-            this, &MenuBar::onClearRecentFilesTriggered);
+    connect(m_clearRecentFilesAction, &QAction::triggered, this,
+            &MenuBar::onClearRecentFilesTriggered);
 }
 
-void MenuBar::updateRecentFilesMenu()
-{
+void MenuBar::setupRecentFileShortcuts() {
+    // Create keyboard shortcuts for first 9 recent files (Ctrl+Alt+1-9)
+    for (int i = 0; i < 9; ++i) {
+        QString shortcutKey = QString("Ctrl+Alt+%1").arg(i + 1);
+        m_recentFileShortcuts[i] =
+            new QShortcut(QKeySequence(shortcutKey), this);
+
+        // Connect each shortcut to open the corresponding recent file
+        int fileIndex = i;  // Capture index for lambda
+        connect(m_recentFileShortcuts[i], &QShortcut::activated, this,
+                [this, fileIndex]() {
+                    if (!m_recentFilesManager) {
+                        return;
+                    }
+
+                    QList<RecentFileInfo> recentFiles =
+                        m_recentFilesManager->getRecentFiles();
+                    if (fileIndex < recentFiles.size()) {
+                        const QString& filePath =
+                            recentFiles[fileIndex].filePath;
+
+                        // Check if file exists before opening
+                        QFileInfo fileInfo(filePath);
+                        if (fileInfo.exists()) {
+                            emit openRecentFileRequested(filePath);
+                        } else {
+                            // File doesn't exist, remove from list
+                            m_recentFilesManager->removeRecentFile(filePath);
+                        }
+                    }
+                });
+    }
+}
+
+void MenuBar::updateRecentFilesMenu() {
     if (!m_recentFilesMenu || !m_recentFilesManager) {
         return;
     }
@@ -332,7 +374,8 @@ void MenuBar::updateRecentFilesMenu()
 
     if (recentFiles.isEmpty()) {
         m_recentFilesMenu->setEnabled(false);
-        QAction* noFilesAction = m_recentFilesMenu->addAction(tr("No Recent Files"));
+        QAction* noFilesAction =
+            m_recentFilesMenu->addAction(tr("No Recent Files"));
         noFilesAction->setEnabled(false);
         return;
     }
@@ -343,18 +386,47 @@ void MenuBar::updateRecentFilesMenu()
     for (int i = 0; i < recentFiles.size(); ++i) {
         const RecentFileInfo& fileInfo = recentFiles[i];
 
-        // 创建显示文本：序号 + 文件名 + 路径
-        QString displayText = QString("&%1 %2").arg(i + 1).arg(fileInfo.fileName);
-        if (displayText.length() > 50) {
-            displayText = displayText.left(47) + "...";
+        // 创建显示文本：序号 + 智能截断的路径
+        QString displayText = QString("&%1 ").arg(i + 1);
+
+        // Intelligent path truncation: show filename + parent folder if too
+        // long
+        QFileInfo qFileInfo(fileInfo.filePath);
+        QString fileName = qFileInfo.fileName();
+        QString parentDir = qFileInfo.dir().dirName();
+
+        // Build display text: "...parentDir/filename.pdf"
+        QString pathDisplay;
+        if (!parentDir.isEmpty() && parentDir != ".") {
+            pathDisplay = QString("...%1/%2").arg(parentDir).arg(fileName);
+        } else {
+            pathDisplay = fileName;
+        }
+
+        displayText += pathDisplay;
+
+        // Truncate if still too long (max 60 chars)
+        if (displayText.length() > 60) {
+            displayText = displayText.left(57) + "...";
         }
 
         QAction* fileAction = m_recentFilesMenu->addAction(displayText);
         fileAction->setToolTip(fileInfo.filePath);
         fileAction->setData(fileInfo.filePath);
 
-        connect(fileAction, &QAction::triggered,
-                this, &MenuBar::onRecentFileTriggered);
+        // Add file type icon
+        QIcon fileIcon = FileTypeIconManager::instance().getFileTypeIcon(
+            fileInfo.filePath, 16);
+        fileAction->setIcon(fileIcon);
+
+        // Add keyboard shortcut hint for first 9 files
+        if (i < 9) {
+            fileAction->setShortcut(
+                QKeySequence(QString("Ctrl+Alt+%1").arg(i + 1)));
+        }
+
+        connect(fileAction, &QAction::triggered, this,
+                &MenuBar::onRecentFileTriggered);
     }
 
     // 添加分隔符和清空选项
@@ -362,8 +434,7 @@ void MenuBar::updateRecentFilesMenu()
     m_recentFilesMenu->addAction(m_clearRecentFilesAction);
 }
 
-void MenuBar::onRecentFileTriggered()
-{
+void MenuBar::onRecentFileTriggered() {
     QAction* action = qobject_cast<QAction*>(sender());
     if (action) {
         QString filePath = action->data().toString();
@@ -373,19 +444,27 @@ void MenuBar::onRecentFileTriggered()
             if (fileInfo.exists()) {
                 emit openRecentFileRequested(filePath);
             } else {
-                // 文件不存在，从列表中移除
+                // 文件不存在，显示用户友好的错误消息
+                QString fileName = fileInfo.fileName();
+                QMessageBox::warning(
+                    this, tr("File Not Found"),
+                    tr("The file \"%1\" could not be found.\n\n"
+                       "It may have been moved, renamed, or deleted.\n"
+                       "The file has been removed from the recent files list.")
+                        .arg(fileName));
+
+                // 从列表中移除
                 if (m_recentFilesManager) {
                     m_recentFilesManager->removeRecentFile(filePath);
                 }
-                qDebug() << "Recent file no longer exists:" << filePath;
             }
         }
     }
 }
 
-void MenuBar::retranslateUi()
-{
-    // Simplest approach: rebuild the menus so all tr() calls apply in new language
+void MenuBar::retranslateUi() {
+    // Simplest approach: rebuild the menus so all tr() calls apply in new
+    // language
     this->clear();
     createFileMenu();
     createTabMenu();
@@ -398,17 +477,28 @@ void MenuBar::retranslateUi()
     }
 }
 
-void MenuBar::changeEvent(QEvent* event)
-{
+void MenuBar::changeEvent(QEvent* event) {
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
     }
     QMenuBar::changeEvent(event);
 }
 
-void MenuBar::onClearRecentFilesTriggered()
-{
-    if (m_recentFilesManager) {
+void MenuBar::onClearRecentFilesTriggered() {
+    if (!m_recentFilesManager || !m_recentFilesManager->hasRecentFiles()) {
+        return;
+    }
+
+    // Show confirmation dialog
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this, tr("Clear Recent Files"),
+        tr("Are you sure you want to clear all recent files?\n\n"
+           "This action cannot be undone."),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No  // Default button
+    );
+
+    if (reply == QMessageBox::Yes) {
         m_recentFilesManager->clearRecentFiles();
     }
 }

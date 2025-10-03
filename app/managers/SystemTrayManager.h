@@ -1,9 +1,9 @@
 #pragma once
 
+#include <QAction>
+#include <QMenu>
 #include <QObject>
 #include <QSystemTrayIcon>
-#include <QMenu>
-#include <QAction>
 #include <memory>
 #include "../logging/SimpleLogging.h"
 
@@ -15,12 +15,12 @@ class SystemTrayManagerImpl;
 
 /**
  * @brief SystemTrayManager - Manages system tray functionality
- * 
+ *
  * This class provides comprehensive system tray integration following the
  * established manager pattern used throughout SAST Readium. It handles
  * system tray icon display, context menu management, window minimize/restore
  * functionality, and user notifications.
- * 
+ *
  * Features:
  * - Cross-platform system tray support with graceful fallback
  * - Context menu with restore and exit actions
@@ -94,7 +94,8 @@ public:
 
     /**
      * @brief Hide the main window to system tray
-     * @param showNotification true to show first-time notification if applicable
+     * @param showNotification true to show first-time notification if
+     * applicable
      */
     void hideMainWindow(bool showNotification = true);
 
@@ -115,11 +116,13 @@ public:
      * @param key The specific setting key that changed
      * @param value The new value
      */
-    void applySettingsChange(const QString& settingsGroup, const QString& key, const QVariant& value);
+    void applySettingsChange(const QString& settingsGroup, const QString& key,
+                             const QVariant& value);
 
     /**
      * @brief Check and handle runtime system tray availability changes
-     * This method can be called periodically to detect if system tray becomes available/unavailable
+     * This method can be called periodically to detect if system tray becomes
+     * available/unavailable
      */
     void checkSystemTrayAvailability();
 
@@ -130,7 +133,8 @@ public:
      * @param status The status to display (idle, processing, error, etc.)
      * @param message Optional status message for tooltip
      */
-    void setApplicationStatus(const QString& status, const QString& message = QString());
+    void setApplicationStatus(const QString& status,
+                              const QString& message = QString());
 
     /**
      * @brief Show a notification through the system tray
@@ -140,7 +144,7 @@ public:
      * @param timeout Display timeout in milliseconds
      */
     void showNotification(const QString& title, const QString& message,
-                         const QString& type = "info", int timeout = 5000);
+                          const QString& type = "info", int timeout = 5000);
 
     /**
      * @brief Update the dynamic tooltip with current application state
@@ -162,7 +166,8 @@ public:
 
     /**
      * @brief Set notification types that should be shown
-     * @param types Comma-separated list of notification types (document,status,error,all)
+     * @param types Comma-separated list of notification types
+     * (document,status,error,all)
      */
     void setNotificationTypes(const QString& types);
 
@@ -182,7 +187,8 @@ public slots:
     /**
      * @brief Handle main window close event
      * Called by MainWindow::closeEvent() to determine behavior
-     * @return true if the close event should be ignored (minimize to tray), false to allow normal close
+     * @return true if the close event should be ignored (minimize to tray),
+     * false to allow normal close
      */
     bool handleMainWindowCloseEvent();
 
@@ -233,7 +239,8 @@ signals:
      * @param status New status string
      * @param message Optional status message
      */
-    void applicationStatusChanged(const QString& status, const QString& message);
+    void applicationStatusChanged(const QString& status,
+                                  const QString& message);
 
     /**
      * @brief Emitted when a notification is shown
@@ -241,7 +248,8 @@ signals:
      * @param message Notification message
      * @param type Notification type
      */
-    void notificationShown(const QString& title, const QString& message, const QString& type);
+    void notificationShown(const QString& title, const QString& message,
+                           const QString& type);
 
     /**
      * @brief Emitted when recent file is requested to be opened
@@ -382,8 +390,6 @@ private:
      * @brief Update recent files menu with current files
      */
     void updateRecentFilesMenu();
-
-
 
     /**
      * @brief Create a default tray icon when application icon is not available

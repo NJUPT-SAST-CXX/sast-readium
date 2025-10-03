@@ -1,15 +1,14 @@
-#include <QtTest/QtTest>
 #include <QApplication>
-#include <QSignalSpy>
+#include <QCheckBox>
+#include <QKeyEvent>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QCheckBox>
-#include <QLabel>
-#include <QKeyEvent>
+#include <QSignalSpy>
+#include <QtTest/QtTest>
 #include "../../app/ui/widgets/SearchWidget.h"
 
-class SearchWidgetIntegrationTest : public QObject
-{
+class SearchWidgetIntegrationTest : public QObject {
     Q_OBJECT
 
 private slots:
@@ -23,49 +22,49 @@ private slots:
     void testSearchText();
     void testSearchOptions();
     void testSearchHistory();
-    
+
     // UI component tests
     void testSearchLineEdit();
     void testSearchButtons();
     void testOptionsCheckboxes();
     void testResultsLabel();
-    
+
     // Search operation tests
     void testPerformSearch();
     void testClearSearch();
     void testSearchNext();
     void testSearchPrevious();
-    
+
     // Search options tests
     void testCaseSensitive();
     void testWholeWords();
     void testRegularExpression();
     void testSearchDirection();
-    
+
     // Event handling tests
     void testKeyPressEvents();
     void testReturnKeySearch();
     void testEscapeKeyCancel();
-    
+
     // Signal emission tests
     void testSearchRequestedSignal();
     void testSearchClearedSignal();
     void testSearchOptionsChangedSignal();
-    
+
     // Results display tests
     void testSearchResults();
     void testResultsCount();
     void testCurrentResultIndex();
-    
+
     // History management tests
     void testSearchHistoryAdd();
     void testSearchHistoryNavigation();
     void testSearchHistoryClear();
-    
+
     // State management tests
     void testSearchState();
     void testWidgetVisibility();
-    
+
     // Integration tests
     void testSearchIntegration();
     void testFocusHandling();
@@ -73,7 +72,7 @@ private slots:
 private:
     SearchWidget* m_searchWidget;
     QWidget* m_parentWidget;
-    
+
     QLineEdit* getSearchLineEdit();
     QPushButton* getFindNextButton();
     QPushButton* getFindPreviousButton();
@@ -84,44 +83,36 @@ private:
     QLabel* getResultsLabel();
 };
 
-void SearchWidgetIntegrationTest::initTestCase()
-{
+void SearchWidgetIntegrationTest::initTestCase() {
     m_parentWidget = new QWidget();
     m_parentWidget->resize(600, 400);
     m_parentWidget->show();
 }
 
-void SearchWidgetIntegrationTest::cleanupTestCase()
-{
-    delete m_parentWidget;
-}
+void SearchWidgetIntegrationTest::cleanupTestCase() { delete m_parentWidget; }
 
-void SearchWidgetIntegrationTest::init()
-{
+void SearchWidgetIntegrationTest::init() {
     m_searchWidget = new SearchWidget(m_parentWidget);
     m_searchWidget->show();
     QTest::qWaitForWindowExposed(m_searchWidget);
 }
 
-void SearchWidgetIntegrationTest::cleanup()
-{
+void SearchWidgetIntegrationTest::cleanup() {
     delete m_searchWidget;
     m_searchWidget = nullptr;
 }
 
-void SearchWidgetIntegrationTest::testInitialization()
-{
+void SearchWidgetIntegrationTest::testInitialization() {
     // Test basic initialization
     QVERIFY(m_searchWidget != nullptr);
     QVERIFY(m_searchWidget->isVisible());
-    
+
     // Test initial state
     QVERIFY(!m_searchWidget->hasResults());
     QCOMPARE(m_searchWidget->getResultCount(), 0);
 }
 
-void SearchWidgetIntegrationTest::testSearchText()
-{
+void SearchWidgetIntegrationTest::testSearchText() {
     // Test search functionality using available methods
     QVERIFY(m_searchWidget->getSearchModel() != nullptr);
 
@@ -131,11 +122,10 @@ void SearchWidgetIntegrationTest::testSearchText()
 
     // Test focus search input
     m_searchWidget->focusSearchInput();
-    QVERIFY(true); // Should not crash
+    QVERIFY(true);  // Should not crash
 }
 
-void SearchWidgetIntegrationTest::testSearchOptions()
-{
+void SearchWidgetIntegrationTest::testSearchOptions() {
     // Test search options using available methods
     m_searchWidget->setFuzzySearchEnabled(true);
     m_searchWidget->setFuzzySearchEnabled(false);
@@ -148,11 +138,10 @@ void SearchWidgetIntegrationTest::testSearchOptions()
     // Test highlight colors
     m_searchWidget->setHighlightColors(QColor(255, 255, 0), QColor(255, 0, 0));
 
-    QVERIFY(true); // Should not crash
+    QVERIFY(true);  // Should not crash
 }
 
-void SearchWidgetIntegrationTest::testSearchHistory()
-{
+void SearchWidgetIntegrationTest::testSearchHistory() {
     // Test search history using available methods
     m_searchWidget->updateSearchHistory();
     m_searchWidget->loadSearchHistory();
@@ -161,77 +150,73 @@ void SearchWidgetIntegrationTest::testSearchHistory()
     QVERIFY(true);
 }
 
-void SearchWidgetIntegrationTest::testSearchLineEdit()
-{
+void SearchWidgetIntegrationTest::testSearchLineEdit() {
     QLineEdit* lineEdit = getSearchLineEdit();
     if (lineEdit) {
         // Test line edit functionality
         lineEdit->setText("test input");
         QCOMPARE(lineEdit->text(), QString("test input"));
-        
+
         lineEdit->clear();
         QVERIFY(lineEdit->text().isEmpty());
-        
+
         // Test placeholder text
         QVERIFY(!lineEdit->placeholderText().isEmpty());
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchButtons()
-{
+void SearchWidgetIntegrationTest::testSearchButtons() {
     QPushButton* nextButton = getFindNextButton();
     QPushButton* prevButton = getFindPreviousButton();
     QPushButton* clearButton = getClearButton();
-    
+
     if (nextButton) {
         QVERIFY(nextButton->isEnabled() || !nextButton->isEnabled());
         QVERIFY(!nextButton->text().isEmpty());
     }
-    
+
     if (prevButton) {
         QVERIFY(prevButton->isEnabled() || !prevButton->isEnabled());
         QVERIFY(!prevButton->text().isEmpty());
     }
-    
+
     if (clearButton) {
         QVERIFY(clearButton->isEnabled() || !clearButton->isEnabled());
         QVERIFY(!clearButton->text().isEmpty());
     }
 }
 
-void SearchWidgetIntegrationTest::testOptionsCheckboxes()
-{
+void SearchWidgetIntegrationTest::testOptionsCheckboxes() {
     QCheckBox* caseSensitiveBox = getCaseSensitiveCheckBox();
     QCheckBox* wholeWordsBox = getWholeWordsCheckBox();
     QCheckBox* regexBox = getRegexCheckBox();
-    
+
     if (caseSensitiveBox) {
         caseSensitiveBox->setChecked(true);
         QVERIFY(caseSensitiveBox->isChecked());
-        
+
         caseSensitiveBox->setChecked(false);
         QVERIFY(!caseSensitiveBox->isChecked());
     }
-    
+
     if (wholeWordsBox) {
         wholeWordsBox->setChecked(true);
         QVERIFY(wholeWordsBox->isChecked());
-        
+
         wholeWordsBox->setChecked(false);
         QVERIFY(!wholeWordsBox->isChecked());
     }
-    
+
     if (regexBox) {
         regexBox->setChecked(true);
         QVERIFY(regexBox->isChecked());
-        
+
         regexBox->setChecked(false);
         QVERIFY(!regexBox->isChecked());
     }
 }
 
-void SearchWidgetIntegrationTest::testResultsLabel()
-{
+void SearchWidgetIntegrationTest::testResultsLabel() {
     // Test results functionality
     if (m_searchWidget->hasResults()) {
         int resultCount = m_searchWidget->getResultCount();
@@ -239,14 +224,13 @@ void SearchWidgetIntegrationTest::testResultsLabel()
 
         SearchResult currentResult = m_searchWidget->getCurrentResult();
         // Should have valid result data
-        QVERIFY(true); // Basic functionality test
+        QVERIFY(true);  // Basic functionality test
     }
 }
 
-void SearchWidgetIntegrationTest::testPerformSearch()
-{
+void SearchWidgetIntegrationTest::testPerformSearch() {
     QSignalSpy searchSpy(m_searchWidget, &SearchWidget::searchRequested);
-    
+
     // Perform search using available methods
     m_searchWidget->performSearch();
     m_searchWidget->performRealTimeSearch();
@@ -255,8 +239,7 @@ void SearchWidgetIntegrationTest::testPerformSearch()
     QVERIFY(true);
 }
 
-void SearchWidgetIntegrationTest::testClearSearch()
-{
+void SearchWidgetIntegrationTest::testClearSearch() {
     QSignalSpy clearSpy(m_searchWidget, &SearchWidget::searchCleared);
 
     // Set some search text first using actual API
@@ -275,8 +258,7 @@ void SearchWidgetIntegrationTest::testClearSearch()
     QVERIFY(clearSpy.count() >= 1);
 }
 
-void SearchWidgetIntegrationTest::testSearchNext()
-{
+void SearchWidgetIntegrationTest::testSearchNext() {
     // Test navigation using actual SearchWidget API
     QLineEdit* searchInput = m_searchWidget->findChild<QLineEdit*>();
     if (searchInput) {
@@ -286,13 +268,12 @@ void SearchWidgetIntegrationTest::testSearchNext()
         // Test next result navigation if results exist
         if (m_searchWidget->hasResults()) {
             m_searchWidget->nextResult();
-            QVERIFY(true); // Should not crash
+            QVERIFY(true);  // Should not crash
         }
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchPrevious()
-{
+void SearchWidgetIntegrationTest::testSearchPrevious() {
     // Test navigation using actual SearchWidget API
     QLineEdit* searchInput = m_searchWidget->findChild<QLineEdit*>();
     if (searchInput) {
@@ -302,18 +283,19 @@ void SearchWidgetIntegrationTest::testSearchPrevious()
         // Test previous result navigation if results exist
         if (m_searchWidget->hasResults()) {
             m_searchWidget->previousResult();
-            QVERIFY(true); // Should not crash
+            QVERIFY(true);  // Should not crash
         }
     }
 }
 
-void SearchWidgetIntegrationTest::testCaseSensitive()
-{
+void SearchWidgetIntegrationTest::testCaseSensitive() {
     // Test case sensitive option using actual API
-    QCheckBox* caseSensitiveCheck = m_searchWidget->findChild<QCheckBox*>("m_caseSensitiveCheck");
+    QCheckBox* caseSensitiveCheck =
+        m_searchWidget->findChild<QCheckBox*>("m_caseSensitiveCheck");
     if (!caseSensitiveCheck) {
         // Try finding by text if object name doesn't work
-        QList<QCheckBox*> checkBoxes = m_searchWidget->findChildren<QCheckBox*>();
+        QList<QCheckBox*> checkBoxes =
+            m_searchWidget->findChildren<QCheckBox*>();
         for (QCheckBox* cb : checkBoxes) {
             if (cb->text().contains("Case Sensitive", Qt::CaseInsensitive)) {
                 caseSensitiveCheck = cb;
@@ -330,13 +312,14 @@ void SearchWidgetIntegrationTest::testCaseSensitive()
     }
 }
 
-void SearchWidgetIntegrationTest::testWholeWords()
-{
+void SearchWidgetIntegrationTest::testWholeWords() {
     // Test whole words option using actual API
-    QCheckBox* wholeWordsCheck = m_searchWidget->findChild<QCheckBox*>("m_wholeWordsCheck");
+    QCheckBox* wholeWordsCheck =
+        m_searchWidget->findChild<QCheckBox*>("m_wholeWordsCheck");
     if (!wholeWordsCheck) {
         // Try finding by text if object name doesn't work
-        QList<QCheckBox*> checkBoxes = m_searchWidget->findChildren<QCheckBox*>();
+        QList<QCheckBox*> checkBoxes =
+            m_searchWidget->findChildren<QCheckBox*>();
         for (QCheckBox* cb : checkBoxes) {
             if (cb->text().contains("Whole Words", Qt::CaseInsensitive)) {
                 wholeWordsCheck = cb;
@@ -353,15 +336,17 @@ void SearchWidgetIntegrationTest::testWholeWords()
     }
 }
 
-void SearchWidgetIntegrationTest::testRegularExpression()
-{
+void SearchWidgetIntegrationTest::testRegularExpression() {
     // Test regex option using actual API
-    QCheckBox* regexCheck = m_searchWidget->findChild<QCheckBox*>("m_regexCheck");
+    QCheckBox* regexCheck =
+        m_searchWidget->findChild<QCheckBox*>("m_regexCheck");
     if (!regexCheck) {
         // Try finding by text if object name doesn't work
-        QList<QCheckBox*> checkBoxes = m_searchWidget->findChildren<QCheckBox*>();
+        QList<QCheckBox*> checkBoxes =
+            m_searchWidget->findChildren<QCheckBox*>();
         for (QCheckBox* cb : checkBoxes) {
-            if (cb->text().contains("Regular Expression", Qt::CaseInsensitive) ||
+            if (cb->text().contains("Regular Expression",
+                                    Qt::CaseInsensitive) ||
                 cb->text().contains("Regex", Qt::CaseInsensitive)) {
                 regexCheck = cb;
                 break;
@@ -377,13 +362,14 @@ void SearchWidgetIntegrationTest::testRegularExpression()
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchDirection()
-{
+void SearchWidgetIntegrationTest::testSearchDirection() {
     // Test search direction using actual API
-    QCheckBox* backwardCheck = m_searchWidget->findChild<QCheckBox*>("m_searchBackwardCheck");
+    QCheckBox* backwardCheck =
+        m_searchWidget->findChild<QCheckBox*>("m_searchBackwardCheck");
     if (!backwardCheck) {
         // Try finding by text if object name doesn't work
-        QList<QCheckBox*> checkBoxes = m_searchWidget->findChildren<QCheckBox*>();
+        QList<QCheckBox*> checkBoxes =
+            m_searchWidget->findChildren<QCheckBox*>();
         for (QCheckBox* cb : checkBoxes) {
             if (cb->text().contains("Backward", Qt::CaseInsensitive)) {
                 backwardCheck = cb;
@@ -405,58 +391,54 @@ void SearchWidgetIntegrationTest::testSearchDirection()
     }
 }
 
-void SearchWidgetIntegrationTest::testKeyPressEvents()
-{
+void SearchWidgetIntegrationTest::testKeyPressEvents() {
     QLineEdit* lineEdit = getSearchLineEdit();
     if (lineEdit) {
         // Test key press events
         QKeyEvent enterEvent(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
         QApplication::sendEvent(lineEdit, &enterEvent);
-        
+
         QKeyEvent escapeEvent(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
         QApplication::sendEvent(lineEdit, &escapeEvent);
-        
+
         // Should handle key events
         QVERIFY(true);
     }
 }
 
-void SearchWidgetIntegrationTest::testReturnKeySearch()
-{
+void SearchWidgetIntegrationTest::testReturnKeySearch() {
     QSignalSpy searchSpy(m_searchWidget, &SearchWidget::searchRequested);
-    
+
     QLineEdit* lineEdit = getSearchLineEdit();
     if (lineEdit) {
         lineEdit->setText("test");
-        
+
         // Press Enter
         QKeyEvent enterEvent(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
         QApplication::sendEvent(lineEdit, &enterEvent);
-        
+
         // Should trigger search
         QVERIFY(searchSpy.count() >= 0);
     }
 }
 
-void SearchWidgetIntegrationTest::testEscapeKeyCancel()
-{
+void SearchWidgetIntegrationTest::testEscapeKeyCancel() {
     QSignalSpy clearSpy(m_searchWidget, &SearchWidget::searchCleared);
-    
+
     QLineEdit* lineEdit = getSearchLineEdit();
     if (lineEdit) {
         lineEdit->setText("test");
-        
+
         // Press Escape
         QKeyEvent escapeEvent(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
         QApplication::sendEvent(lineEdit, &escapeEvent);
-        
+
         // Should clear or cancel search
         QVERIFY(clearSpy.count() >= 0);
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchRequestedSignal()
-{
+void SearchWidgetIntegrationTest::testSearchRequestedSignal() {
     QSignalSpy searchSpy(m_searchWidget, &SearchWidget::searchRequested);
 
     // Trigger search using actual API
@@ -476,20 +458,19 @@ void SearchWidgetIntegrationTest::testSearchRequestedSignal()
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchClearedSignal()
-{
+void SearchWidgetIntegrationTest::testSearchClearedSignal() {
     QSignalSpy clearSpy(m_searchWidget, &SearchWidget::searchCleared);
-    
+
     // Emit clear signal
     emit m_searchWidget->searchCleared();
-    
+
     QCOMPARE(clearSpy.count(), 1);
 }
 
-void SearchWidgetIntegrationTest::testSearchOptionsChangedSignal()
-{
+void SearchWidgetIntegrationTest::testSearchOptionsChangedSignal() {
     // Test that changing options triggers search behavior
-    // Since searchOptionsChanged signal doesn't exist, test actual option changes
+    // Since searchOptionsChanged signal doesn't exist, test actual option
+    // changes
     QCheckBox* caseSensitiveCheck = m_searchWidget->findChild<QCheckBox*>();
     if (caseSensitiveCheck) {
         bool initialState = caseSensitiveCheck->isChecked();
@@ -500,8 +481,7 @@ void SearchWidgetIntegrationTest::testSearchOptionsChangedSignal()
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchResults()
-{
+void SearchWidgetIntegrationTest::testSearchResults() {
     // Test search results using actual API
     // The SearchWidget uses getResultCount() method
     int initialCount = m_searchWidget->getResultCount();
@@ -519,8 +499,7 @@ void SearchWidgetIntegrationTest::testSearchResults()
     }
 }
 
-void SearchWidgetIntegrationTest::testResultsCount()
-{
+void SearchWidgetIntegrationTest::testResultsCount() {
     // Test results count using actual API
     int count = m_searchWidget->getResultCount();
     QVERIFY(count >= 0);
@@ -529,13 +508,12 @@ void SearchWidgetIntegrationTest::testResultsCount()
     bool hasResults = m_searchWidget->hasResults();
     QCOMPARE(hasResults, count > 0);
 
-    // The SearchWidget doesn't have setResultsCount - it gets results from SearchModel
-    // So we just verify the getter works
+    // The SearchWidget doesn't have setResultsCount - it gets results from
+    // SearchModel So we just verify the getter works
     QVERIFY(true);
 }
 
-void SearchWidgetIntegrationTest::testCurrentResultIndex()
-{
+void SearchWidgetIntegrationTest::testCurrentResultIndex() {
     // Test current result using actual API
     // SearchWidget doesn't expose current result index directly
     // It uses the SearchModel internally
@@ -553,8 +531,7 @@ void SearchWidgetIntegrationTest::testCurrentResultIndex()
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchHistoryAdd()
-{
+void SearchWidgetIntegrationTest::testSearchHistoryAdd() {
     // Test search history using actual API
     // SearchWidget uses updateSearchHistory() and loadSearchHistory()
 
@@ -571,14 +548,13 @@ void SearchWidgetIntegrationTest::testSearchHistoryAdd()
 
         // Load history to verify
         m_searchWidget->loadSearchHistory();
-        QVERIFY(true); // Should not crash
+        QVERIFY(true);  // Should not crash
     } else {
         QSKIP("Search input not found");
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchHistoryNavigation()
-{
+void SearchWidgetIntegrationTest::testSearchHistoryNavigation() {
     // Test history navigation using actual API
     // SearchWidget has a QComboBox for history
     QComboBox* historyCombo = m_searchWidget->findChild<QComboBox*>();
@@ -599,8 +575,7 @@ void SearchWidgetIntegrationTest::testSearchHistoryNavigation()
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchHistoryClear()
-{
+void SearchWidgetIntegrationTest::testSearchHistoryClear() {
     // Test clearing history using actual API
     QComboBox* historyCombo = m_searchWidget->findChild<QComboBox*>();
     if (historyCombo) {
@@ -617,8 +592,7 @@ void SearchWidgetIntegrationTest::testSearchHistoryClear()
     }
 }
 
-void SearchWidgetIntegrationTest::testSearchState()
-{
+void SearchWidgetIntegrationTest::testSearchState() {
     // Test search state management using actual API
     QLineEdit* searchInput = m_searchWidget->findChild<QLineEdit*>();
     QCheckBox* caseSensitiveCheck = nullptr;
@@ -650,24 +624,22 @@ void SearchWidgetIntegrationTest::testSearchState()
     }
 }
 
-void SearchWidgetIntegrationTest::testWidgetVisibility()
-{
+void SearchWidgetIntegrationTest::testWidgetVisibility() {
     // Test widget visibility
     m_searchWidget->show();
     QVERIFY(m_searchWidget->isVisible());
-    
+
     m_searchWidget->hide();
     QVERIFY(!m_searchWidget->isVisible());
-    
+
     m_searchWidget->show();
     QVERIFY(m_searchWidget->isVisible());
 }
 
-void SearchWidgetIntegrationTest::testSearchIntegration()
-{
+void SearchWidgetIntegrationTest::testSearchIntegration() {
     // Test search integration
     QSignalSpy searchSpy(m_searchWidget, &SearchWidget::searchRequested);
-    
+
     QLineEdit* searchInput = m_searchWidget->findChild<QLineEdit*>();
     QCheckBox* caseSensitiveCheck = nullptr;
 
@@ -696,11 +668,10 @@ void SearchWidgetIntegrationTest::testSearchIntegration()
     }
 }
 
-void SearchWidgetIntegrationTest::testFocusHandling()
-{
+void SearchWidgetIntegrationTest::testFocusHandling() {
     // Test focus handling
     m_searchWidget->setFocus();
-    
+
     QLineEdit* lineEdit = getSearchLineEdit();
     if (lineEdit) {
         // Line edit should receive focus
@@ -708,13 +679,11 @@ void SearchWidgetIntegrationTest::testFocusHandling()
     }
 }
 
-QLineEdit* SearchWidgetIntegrationTest::getSearchLineEdit()
-{
+QLineEdit* SearchWidgetIntegrationTest::getSearchLineEdit() {
     return m_searchWidget->findChild<QLineEdit*>();
 }
 
-QPushButton* SearchWidgetIntegrationTest::getFindNextButton()
-{
+QPushButton* SearchWidgetIntegrationTest::getFindNextButton() {
     QList<QPushButton*> buttons = m_searchWidget->findChildren<QPushButton*>();
     for (QPushButton* button : buttons) {
         if (button->text().contains("Next", Qt::CaseInsensitive)) {
@@ -724,8 +693,7 @@ QPushButton* SearchWidgetIntegrationTest::getFindNextButton()
     return nullptr;
 }
 
-QPushButton* SearchWidgetIntegrationTest::getFindPreviousButton()
-{
+QPushButton* SearchWidgetIntegrationTest::getFindPreviousButton() {
     QList<QPushButton*> buttons = m_searchWidget->findChildren<QPushButton*>();
     for (QPushButton* button : buttons) {
         if (button->text().contains("Previous", Qt::CaseInsensitive)) {
@@ -735,8 +703,7 @@ QPushButton* SearchWidgetIntegrationTest::getFindPreviousButton()
     return nullptr;
 }
 
-QPushButton* SearchWidgetIntegrationTest::getClearButton()
-{
+QPushButton* SearchWidgetIntegrationTest::getClearButton() {
     QList<QPushButton*> buttons = m_searchWidget->findChildren<QPushButton*>();
     for (QPushButton* button : buttons) {
         if (button->text().contains("Clear", Qt::CaseInsensitive)) {
@@ -746,8 +713,7 @@ QPushButton* SearchWidgetIntegrationTest::getClearButton()
     return nullptr;
 }
 
-QCheckBox* SearchWidgetIntegrationTest::getCaseSensitiveCheckBox()
-{
+QCheckBox* SearchWidgetIntegrationTest::getCaseSensitiveCheckBox() {
     QList<QCheckBox*> checkboxes = m_searchWidget->findChildren<QCheckBox*>();
     for (QCheckBox* checkbox : checkboxes) {
         if (checkbox->text().contains("Case", Qt::CaseInsensitive)) {
@@ -757,8 +723,7 @@ QCheckBox* SearchWidgetIntegrationTest::getCaseSensitiveCheckBox()
     return nullptr;
 }
 
-QCheckBox* SearchWidgetIntegrationTest::getWholeWordsCheckBox()
-{
+QCheckBox* SearchWidgetIntegrationTest::getWholeWordsCheckBox() {
     QList<QCheckBox*> checkboxes = m_searchWidget->findChildren<QCheckBox*>();
     for (QCheckBox* checkbox : checkboxes) {
         if (checkbox->text().contains("Whole", Qt::CaseInsensitive)) {
@@ -768,8 +733,7 @@ QCheckBox* SearchWidgetIntegrationTest::getWholeWordsCheckBox()
     return nullptr;
 }
 
-QCheckBox* SearchWidgetIntegrationTest::getRegexCheckBox()
-{
+QCheckBox* SearchWidgetIntegrationTest::getRegexCheckBox() {
     QList<QCheckBox*> checkboxes = m_searchWidget->findChildren<QCheckBox*>();
     for (QCheckBox* checkbox : checkboxes) {
         if (checkbox->text().contains("Regex", Qt::CaseInsensitive)) {
@@ -779,8 +743,7 @@ QCheckBox* SearchWidgetIntegrationTest::getRegexCheckBox()
     return nullptr;
 }
 
-QLabel* SearchWidgetIntegrationTest::getResultsLabel()
-{
+QLabel* SearchWidgetIntegrationTest::getResultsLabel() {
     return m_searchWidget->findChild<QLabel*>();
 }
 

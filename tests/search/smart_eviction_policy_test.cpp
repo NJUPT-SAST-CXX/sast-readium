@@ -1,17 +1,17 @@
-#include <QtTest/QtTest>
+#include <QDateTime>
 #include <QObject>
 #include <QSignalSpy>
 #include <QStringList>
-#include <QDateTime>
+#include <QtTest/QtTest>
 #include "../../app/search/MemoryManager.h"
 #include "../TestUtilities.h"
 
 /**
  * Comprehensive tests for SmartEvictionPolicy implementation
- * Tests eviction strategies, access pattern analysis, and policy recommendations
+ * Tests eviction strategies, access pattern analysis, and policy
+ * recommendations
  */
-class SmartEvictionPolicyTest : public TestBase
-{
+class SmartEvictionPolicyTest : public TestBase {
     Q_OBJECT
 
 protected:
@@ -68,26 +68,24 @@ private slots:
 private:
     SmartEvictionPolicy* m_evictionPolicy;
     QStringList m_testItems;
-    
+
     // Helper methods
     void simulateAccessPattern(const QStringList& items, int accessCount);
     void simulateTimeBasedAccess(const QStringList& items, int intervalMs);
     QStringList createTestItems(int count);
-    void verifyEvictionOrder(const QStringList& selected, SmartEvictionPolicy::EvictionStrategy strategy);
+    void verifyEvictionOrder(const QStringList& selected,
+                             SmartEvictionPolicy::EvictionStrategy strategy);
 };
 
-void SmartEvictionPolicyTest::initTestCase()
-{
+void SmartEvictionPolicyTest::initTestCase() {
     qDebug() << "Starting SmartEvictionPolicy tests";
 }
 
-void SmartEvictionPolicyTest::cleanupTestCase()
-{
+void SmartEvictionPolicyTest::cleanupTestCase() {
     qDebug() << "SmartEvictionPolicy tests completed";
 }
 
-void SmartEvictionPolicyTest::init()
-{
+void SmartEvictionPolicyTest::init() {
     // Create the eviction policy object
     m_evictionPolicy = new SmartEvictionPolicy(this);
 
@@ -95,15 +93,13 @@ void SmartEvictionPolicyTest::init()
     m_testItems = createTestItems(10);
 }
 
-void SmartEvictionPolicyTest::cleanup()
-{
+void SmartEvictionPolicyTest::cleanup() {
     delete m_evictionPolicy;
     m_evictionPolicy = nullptr;
     m_testItems.clear();
 }
 
-void SmartEvictionPolicyTest::testEvictionStrategySettings()
-{
+void SmartEvictionPolicyTest::testEvictionStrategySettings() {
     // Minimal test - just verify we can run without crashing
     QVERIFY(true);
 
@@ -138,35 +134,34 @@ void SmartEvictionPolicyTest::testAdaptiveThreshold()
 /*
 void SmartEvictionPolicyTest::testStrategyChangeSignals()
 {
-    QSignalSpy strategySpy(m_evictionPolicy, &SmartEvictionPolicy::evictionStrategyChanged);
+    QSignalSpy strategySpy(m_evictionPolicy,
+&SmartEvictionPolicy::evictionStrategyChanged);
 
     // Change strategy should emit signal
     m_evictionPolicy->setEvictionStrategy(SmartEvictionPolicy::LFU);
     QCOMPARE(strategySpy.count(), 1);
-    QCOMPARE(strategySpy.first().at(0).value<SmartEvictionPolicy::EvictionStrategy>(), 
+    QCOMPARE(strategySpy.first().at(0).value<SmartEvictionPolicy::EvictionStrategy>(),
              SmartEvictionPolicy::LFU);
-    
+
     // Setting same strategy should not emit signal
     m_evictionPolicy->setEvictionStrategy(SmartEvictionPolicy::LFU);
     QCOMPARE(strategySpy.count(), 1); // No additional signal
 }
 */
 
-void SmartEvictionPolicyTest::testAccessRecording()
-{
+void SmartEvictionPolicyTest::testAccessRecording() {
     // Create a new policy instance to avoid Qt framework issues
     SmartEvictionPolicy localPolicy;
 
     // Test basic functionality without complex operations
-    QVERIFY(true); // Basic test to ensure method executes
+    QVERIFY(true);  // Basic test to ensure method executes
 
     // Test that the policy object is valid
     localPolicy.setEvictionStrategy(SmartEvictionPolicy::LRU);
-    QVERIFY(true); // Should not crash
+    QVERIFY(true);  // Should not crash
 }
 
-void SmartEvictionPolicyTest::testSelectItemsForEviction()
-{
+void SmartEvictionPolicyTest::testSelectItemsForEviction() {
     // Simplified test to avoid Qt framework crashes
     SmartEvictionPolicy localPolicy;
     QStringList testItems = {"item1", "item2", "item3"};
@@ -180,8 +175,7 @@ void SmartEvictionPolicyTest::testSelectItemsForEviction()
     QVERIFY(selected.size() <= testItems.size());
 }
 
-void SmartEvictionPolicyTest::testEvictionSelectionEmpty()
-{
+void SmartEvictionPolicyTest::testEvictionSelectionEmpty() {
     // Simplified test to avoid Qt framework crashes
     SmartEvictionPolicy localPolicy;
 
@@ -195,8 +189,7 @@ void SmartEvictionPolicyTest::testEvictionSelectionEmpty()
     QVERIFY(zeroTarget.isEmpty());
 }
 
-void SmartEvictionPolicyTest::testEvictionSelectionLarge()
-{
+void SmartEvictionPolicyTest::testEvictionSelectionLarge() {
     // Simplified test to avoid Qt framework crashes
     SmartEvictionPolicy localPolicy;
     QStringList testItems = {"item1", "item2", "item3"};
@@ -208,8 +201,7 @@ void SmartEvictionPolicyTest::testEvictionSelectionLarge()
     QVERIFY(largeTarget.size() <= testItems.size());
 }
 
-void SmartEvictionPolicyTest::testAnalyzeAccessPatterns()
-{
+void SmartEvictionPolicyTest::testAnalyzeAccessPatterns() {
     // Simplified test to avoid QSignalSpy crashes
     SmartEvictionPolicy localPolicy;
 
@@ -220,8 +212,7 @@ void SmartEvictionPolicyTest::testAnalyzeAccessPatterns()
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testGetRecommendedStrategy()
-{
+void SmartEvictionPolicyTest::testGetRecommendedStrategy() {
     // Simplified test to avoid crashes
     SmartEvictionPolicy localPolicy;
 
@@ -230,8 +221,7 @@ void SmartEvictionPolicyTest::testGetRecommendedStrategy()
     QVERIFY(!recommendation.isEmpty());
 }
 
-void SmartEvictionPolicyTest::testUpdateEvictionStrategy()
-{
+void SmartEvictionPolicyTest::testUpdateEvictionStrategy() {
     // Simplified test to avoid QSignalSpy crashes
     SmartEvictionPolicy localPolicy;
 
@@ -242,20 +232,17 @@ void SmartEvictionPolicyTest::testUpdateEvictionStrategy()
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testShouldEvictItem()
-{
+void SmartEvictionPolicyTest::testShouldEvictItem() {
     // Extremely minimal test to avoid crashes
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testEvictionRecording()
-{
+void SmartEvictionPolicyTest::testEvictionRecording() {
     // Extremely minimal test to avoid crashes
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testEmptyCandidates()
-{
+void SmartEvictionPolicyTest::testEmptyCandidates() {
     // Simplified test to avoid crashes
     SmartEvictionPolicy localPolicy;
 
@@ -265,26 +252,25 @@ void SmartEvictionPolicyTest::testEmptyCandidates()
 }
 
 // Helper methods implementation
-void SmartEvictionPolicyTest::simulateAccessPattern(const QStringList& items, int accessCount)
-{
+void SmartEvictionPolicyTest::simulateAccessPattern(const QStringList& items,
+                                                    int accessCount) {
     for (int i = 0; i < accessCount; ++i) {
         for (const QString& item : items) {
             m_evictionPolicy->recordAccess(item);
-            QTest::qWait(10); // Small delay to create time differences
+            QTest::qWait(10);  // Small delay to create time differences
         }
     }
 }
 
-void SmartEvictionPolicyTest::simulateTimeBasedAccess(const QStringList& items, int intervalMs)
-{
+void SmartEvictionPolicyTest::simulateTimeBasedAccess(const QStringList& items,
+                                                      int intervalMs) {
     for (const QString& item : items) {
         m_evictionPolicy->recordAccess(item);
         QTest::qWait(intervalMs);
     }
 }
 
-QStringList SmartEvictionPolicyTest::createTestItems(int count)
-{
+QStringList SmartEvictionPolicyTest::createTestItems(int count) {
     QStringList items;
     for (int i = 0; i < count; ++i) {
         items.append(QString("item_%1").arg(i));
@@ -292,40 +278,36 @@ QStringList SmartEvictionPolicyTest::createTestItems(int count)
     return items;
 }
 
-void SmartEvictionPolicyTest::verifyEvictionOrder(const QStringList& selected, SmartEvictionPolicy::EvictionStrategy strategy)
-{
+void SmartEvictionPolicyTest::verifyEvictionOrder(
+    const QStringList& selected,
+    SmartEvictionPolicy::EvictionStrategy strategy) {
     // Verify that the selected items follow the expected eviction order
     // Implementation depends on the specific strategy
     QVERIFY(!selected.isEmpty());
 }
 
 // Missing test method implementations
-void SmartEvictionPolicyTest::testLRUEviction()
-{
+void SmartEvictionPolicyTest::testLRUEviction() {
     // Extremely minimal test to avoid crashes
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testLFUEviction()
-{
+void SmartEvictionPolicyTest::testLFUEviction() {
     // Extremely minimal test to avoid crashes
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testAdaptiveEviction()
-{
+void SmartEvictionPolicyTest::testAdaptiveEviction() {
     // Extremely minimal test to avoid crashes
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testPredictiveEviction()
-{
+void SmartEvictionPolicyTest::testPredictiveEviction() {
     // Extremely minimal test to avoid crashes
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testAccessPatternTracking()
-{
+void SmartEvictionPolicyTest::testAccessPatternTracking() {
     // Simplified test to avoid QSignalSpy crashes
     SmartEvictionPolicy localPolicy;
 
@@ -336,32 +318,28 @@ void SmartEvictionPolicyTest::testAccessPatternTracking()
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testPatternAnalysisSignals()
-{
+void SmartEvictionPolicyTest::testPatternAnalysisSignals() {
     // Simplified test to avoid QSignalSpy crashes
     SmartEvictionPolicy localPolicy;
     localPolicy.analyzeAccessPatterns();
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testSequentialPatternDetection()
-{
+void SmartEvictionPolicyTest::testSequentialPatternDetection() {
     // Simplified test to avoid QSignalSpy crashes
     SmartEvictionPolicy localPolicy;
     localPolicy.analyzeAccessPatterns();
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testBurstPatternDetection()
-{
+void SmartEvictionPolicyTest::testBurstPatternDetection() {
     // Simplified test to avoid QSignalSpy crashes
     SmartEvictionPolicy localPolicy;
     localPolicy.analyzeAccessPatterns();
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testStrategyPerformanceTracking()
-{
+void SmartEvictionPolicyTest::testStrategyPerformanceTracking() {
     // Simplified test to avoid crashes
     SmartEvictionPolicy localPolicy;
     localPolicy.setEvictionStrategy(SmartEvictionPolicy::LRU);
@@ -374,36 +352,32 @@ void SmartEvictionPolicyTest::testStrategyPerformanceTracking()
     QVERIFY(selected.size() >= 0);
 }
 
-void SmartEvictionPolicyTest::testEvictionStrategyChangedSignal()
-{
+void SmartEvictionPolicyTest::testEvictionStrategyChangedSignal() {
     // Simplified test to avoid QSignalSpy crashes
     SmartEvictionPolicy localPolicy;
     localPolicy.setEvictionStrategy(SmartEvictionPolicy::LFU);
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testAccessPatternAnalyzedSignal()
-{
+void SmartEvictionPolicyTest::testAccessPatternAnalyzedSignal() {
     // Simplified test to avoid QSignalSpy crashes
     SmartEvictionPolicy localPolicy;
     localPolicy.analyzeAccessPatterns();
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testEvictionRecommendationSignal()
-{
+void SmartEvictionPolicyTest::testEvictionRecommendationSignal() {
     // Simplified test to avoid QSignalSpy crashes
     SmartEvictionPolicy localPolicy;
     localPolicy.analyzeAccessPatterns();
     QVERIFY(true);
 }
 
-void SmartEvictionPolicyTest::testInvalidThresholds()
-{
+void SmartEvictionPolicyTest::testInvalidThresholds() {
     // Simplified test to avoid crashes
     SmartEvictionPolicy localPolicy;
-    localPolicy.setAdaptiveThreshold(-1.0); // Invalid
-    localPolicy.setAdaptiveThreshold(2.0);  // Invalid (> 1.0)
+    localPolicy.setAdaptiveThreshold(-1.0);  // Invalid
+    localPolicy.setAdaptiveThreshold(2.0);   // Invalid (> 1.0)
 
     // Should handle gracefully
     QStringList candidates = {"item1", "item2", "item3"};
@@ -411,8 +385,7 @@ void SmartEvictionPolicyTest::testInvalidThresholds()
     QVERIFY(selected.size() <= 1);
 }
 
-void SmartEvictionPolicyTest::testConcurrentAccess()
-{
+void SmartEvictionPolicyTest::testConcurrentAccess() {
     // Simplified test to avoid crashes
     SmartEvictionPolicy localPolicy;
 
@@ -425,8 +398,6 @@ void SmartEvictionPolicyTest::testConcurrentAccess()
     QVERIFY(selected1.size() >= 0);
     QVERIFY(selected2.size() >= 0);
 }
-
-
 
 QTEST_MAIN(SmartEvictionPolicyTest)
 #include "smart_eviction_policy_test.moc"

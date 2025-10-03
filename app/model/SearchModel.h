@@ -1,16 +1,16 @@
 #pragma once
 
-#include <QObject>
+#include <poppler-qt6.h>
 #include <QAbstractListModel>
-#include <QString>
-#include <QList>
-#include <QRegularExpression>
 #include <QFuture>
 #include <QFutureWatcher>
+#include <QList>
+#include <QObject>
+#include <QRegularExpression>
+#include <QString>
 #include <QTimer>
-#include <poppler-qt6.h>
-#include "../utils/ErrorHandling.h"
 #include "../search/SearchConfiguration.h"
+#include "../utils/ErrorHandling.h"
 
 // SearchResult and SearchOptions now defined in SearchConfiguration.h
 
@@ -35,18 +35,24 @@ public:
 
     // QAbstractListModel interface
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    QVariant data(const QModelIndex& index,
+                  int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
     // Search operations
-    void startSearch(Poppler::Document* document, const QString& query, const SearchOptions& options = SearchOptions());
-    void startRealTimeSearch(Poppler::Document* document, const QString& query, const SearchOptions& options = SearchOptions());
+    void startSearch(Poppler::Document* document, const QString& query,
+                     const SearchOptions& options = SearchOptions());
+    void startRealTimeSearch(Poppler::Document* document, const QString& query,
+                             const SearchOptions& options = SearchOptions());
     void clearResults();
     void cancelSearch();
 
     // Advanced search operations
-    void startFuzzySearch(Poppler::Document* document, const QString& query, const SearchOptions& options = SearchOptions());
-    void startPageRangeSearch(Poppler::Document* document, const QString& query, int startPage, int endPage, const SearchOptions& options = SearchOptions());
+    void startFuzzySearch(Poppler::Document* document, const QString& query,
+                          const SearchOptions& options = SearchOptions());
+    void startPageRangeSearch(Poppler::Document* document, const QString& query,
+                              int startPage, int endPage,
+                              const SearchOptions& options = SearchOptions());
 
     // Search history management
     void addToSearchHistory(const QString& query);
@@ -101,13 +107,19 @@ private:
     void performSearch();
     void performRealTimeSearch();
     QList<SearchResult> searchInPage(Poppler::Page* page, int pageNumber,
-                                   const QString& query, const SearchOptions& options);
-    QString extractContext(const QString& pageText, int position, int length, int contextLength = 50);
-    QRegularExpression createSearchRegex(const QString& query, const SearchOptions& options);
+                                     const QString& query,
+                                     const SearchOptions& options);
+    QString extractContext(const QString& pageText, int position, int length,
+                           int contextLength = 50);
+    QRegularExpression createSearchRegex(const QString& query,
+                                         const SearchOptions& options);
 
     // Advanced search algorithms
-    QList<SearchResult> performFuzzySearch(const QString& query, const SearchOptions& options);
-    QList<SearchResult> performPageRangeSearch(const QString& query, int startPage, int endPage, const SearchOptions& options);
+    QList<SearchResult> performFuzzySearch(const QString& query,
+                                           const SearchOptions& options);
+    QList<SearchResult> performPageRangeSearch(const QString& query,
+                                               int startPage, int endPage,
+                                               const SearchOptions& options);
 
     QList<SearchResult> m_results;
     int m_currentResultIndex;

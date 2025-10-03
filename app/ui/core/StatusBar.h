@@ -1,40 +1,40 @@
 #pragma once
 
-#include <QLabel>
-#include <QStatusBar>
-#include <QString>
-#include <QLineEdit>
+#include <QDateTime>
+#include <QFrame>
+#include <QHBoxLayout>
 #include <QIntValidator>
+#include <QLabel>
+#include <QLineEdit>
 #include <QProgressBar>
 #include <QPropertyAnimation>
 #include <QPushButton>
-#include <QFrame>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
+#include <QStatusBar>
+#include <QString>
 #include <QTimer>
-#include <QDateTime>
+#include <QVBoxLayout>
 #include <memory>
 #include "../../factory/WidgetFactory.h"
 
 class ExpandableInfoPanel : public QWidget {
     Q_OBJECT
-    
+
 public:
     ExpandableInfoPanel(const QString& title, QWidget* parent = nullptr);
     void setContentWidget(QWidget* widget);
     void setExpanded(bool expanded, bool animated = true);
     bool isExpanded() const { return m_expanded; }
-    
+
 signals:
     void expandedChanged(bool expanded);
-    
+
 private:
     QPushButton* m_toggleButton;
     QWidget* m_contentWidget;
     QFrame* m_contentFrame;
     QPropertyAnimation* m_animation;
     bool m_expanded;
-    
+
     void updateToggleButton();
 };
 
@@ -45,25 +45,28 @@ public:
     StatusBar(WidgetFactory* factory, QWidget* parent = nullptr);
 
     // 状态信息更新接口
-    void setDocumentInfo(const QString& fileName, int currentPage, int totalPages, double zoomLevel);
+    void setDocumentInfo(const QString& fileName, int currentPage,
+                         int totalPages, double zoomLevel);
     void setPageInfo(int current, int total);
     void setZoomLevel(int percent);
     void setZoomLevel(double percent);
     void setFileName(const QString& fileName);
     void setMessage(const QString& message);
-    
+
     // 扩展的文档元数据
-    void setDocumentMetadata(const QString& title, const QString& author, 
-                            const QString& subject, const QString& keywords,
-                            const QDateTime& created, const QDateTime& modified);
+    void setDocumentMetadata(const QString& title, const QString& author,
+                             const QString& subject, const QString& keywords,
+                             const QDateTime& created,
+                             const QDateTime& modified);
     void setDocumentStatistics(int wordCount, int charCount, int pageCount);
-    void setDocumentSecurity(bool encrypted, bool copyAllowed, bool printAllowed);
-    
+    void setDocumentSecurity(bool encrypted, bool copyAllowed,
+                             bool printAllowed);
+
     // 消息显示增强
     void setErrorMessage(const QString& message, int timeout = 5000);
     void setSuccessMessage(const QString& message, int timeout = 3000);
     void setWarningMessage(const QString& message, int timeout = 4000);
-    
+
     // 搜索结果
     void setSearchResults(int currentMatch, int totalMatches);
     void clearSearchResults();
@@ -71,7 +74,7 @@ public:
     // 页码输入功能
     void enablePageInput(bool enabled);
     void setPageInputRange(int min, int max);
-    
+
     // 可展开面板控制
     void setCompactMode(bool compact);
     void expandAllPanels();
@@ -116,8 +119,8 @@ private:
     QString formatDateTime(const QDateTime& dateTime) const;
     QString formatFileName(const QString& fullPath) const;
     bool validateAndJumpToPage(const QString& input);
-    void animateWidget(QWidget* widget, const QString& property, 
-                       const QVariant& start, const QVariant& end, 
+    void animateWidget(QWidget* widget, const QString& property,
+                       const QVariant& start, const QVariant& end,
                        int duration = 200);
 
     // 主要区域控件
@@ -129,28 +132,28 @@ private:
     QLineEdit* m_zoomInputEdit;
     QLabel* m_clockLabel;
     QTimer* m_clockTimer;
-    
+
     // 消息显示
     QLabel* m_messageLabel;
     QTimer* m_messageTimer;
     QPropertyAnimation* m_messageAnimation;
-    
+
     // 加载进度
     QProgressBar* m_loadingProgressBar;
     QLabel* m_loadingMessageLabel;
     QPropertyAnimation* m_progressAnimation;
-    
+
     // 搜索
     QFrame* m_searchFrame;
     QLineEdit* m_searchInput;
     QLabel* m_searchResultsLabel;
-    
+
     // 可展开面板
     ExpandableInfoPanel* m_documentInfoPanel;
     ExpandableInfoPanel* m_statisticsPanel;
     ExpandableInfoPanel* m_securityPanel;
     ExpandableInfoPanel* m_quickActionsPanel;
-    
+
     // 文档信息控件
     QLabel* m_titleLabel;
     QLabel* m_authorLabel;
@@ -159,32 +162,32 @@ private:
     QLabel* m_createdLabel;
     QLabel* m_modifiedLabel;
     QLabel* m_fileSizeLabel;
-    
+
     // 统计信息控件
     QLabel* m_wordCountLabel;
     QLabel* m_charCountLabel;
     QLabel* m_pageCountLabel;
     QLabel* m_avgWordsPerPageLabel;
     QLabel* m_readingTimeLabel;
-    
+
     // 安全信息控件
     QLabel* m_encryptionLabel;
     QLabel* m_copyPermissionLabel;
     QLabel* m_printPermissionLabel;
     QLabel* m_modifyPermissionLabel;
-    
+
     // 快速操作按钮
     QPushButton* m_bookmarkBtn;
     QPushButton* m_annotateBtn;
     QPushButton* m_shareBtn;
     QPushButton* m_exportBtn;
-    
+
     // 状态变量
     int m_currentTotalPages;
     int m_currentPageNumber;
     QString m_currentFileName;
     bool m_compactMode;
-    
+
     // 保留兼容性的别名
     QLabel*& fileNameLabel = m_fileNameLabel;
     QLabel*& pageLabel = m_pageLabel;

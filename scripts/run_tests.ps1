@@ -22,7 +22,7 @@
 param(
     [ValidateSet("All", "Unit", "Integration", "Performance", "Controller", "Factory", "Smoke")]
     [string]$TestType = "All",
-    
+
     [switch]$Coverage,
     [switch]$Verbose,
     [switch]$Report,
@@ -69,113 +69,113 @@ function Run-CTest {
         [string]$TestRegex = "",
         [string]$Label = "tests"
     )
-    
+
     $ctestArgs = @(
         "--test-dir", $BuildPath,
         "--output-on-failure"
     )
-    
+
     if ($TestRegex) {
         $ctestArgs += "-R", $TestRegex
     }
-    
+
     if ($Filter) {
         $ctestArgs += "-R", $Filter
     }
-    
+
     if ($Verbose) {
         $ctestArgs += "--verbose"
     }
-    
+
     if ($Parallel) {
         $ctestArgs += "-j", (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
     }
-    
+
     if ($Debug) {
         $ctestArgs += "--debug"
     }
-    
+
     if ($Report) {
         $reportFile = Join-Path $ReportsDir "$Label`_$(Get-Date -Format 'yyyyMMdd_HHmmss').xml"
         $ctestArgs += "--output-junit", $reportFile
     }
-    
+
     Write-Info "`nRunning $Label..."
     Write-Info "Command: ctest $($ctestArgs -join ' ')"
-    
+
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    
+
     if ($Coverage) {
         # Run with coverage if available
         $env:LLVM_PROFILE_FILE = "$BuildPath/coverage-%p.profraw"
     }
-    
+
     & ctest $ctestArgs
     $exitCode = $LASTEXITCODE
-    
+
     $stopwatch.Stop()
     $elapsed = $stopwatch.Elapsed.ToString("mm\:ss\.fff")
-    
+
     if ($exitCode -eq 0) {
         Write-Success "✓ $Label completed successfully in $elapsed"
     } else {
         Write-Error "✗ $Label failed with exit code $exitCode"
     }
-    
+
     return $exitCode
 }
 
 # Function to generate coverage report
 function Generate-CoverageReport {
     if (-not $Coverage) { return }
-    
+
     Write-Info "`nGenerating coverage report..."
-    
+
     $coverageDir = Join-Path $ReportsDir "coverage"
     New-Item -ItemType Directory -Force -Path $coverageDir | Out-Null
-    
+
     # Check for coverage tools
     $llvmCov = Get-Command llvm-cov -ErrorAction SilentlyContinue
     $gcov = Get-Command gcov -ErrorAction SilentlyContinue
-    
+
     if ($llvmCov) {
         # LLVM coverage
         Push-Location $BuildPath
-        
+
         # Merge raw profiles
         & llvm-profdata merge -sparse coverage-*.profraw -o coverage.profdata
-        
+
         # Generate report
         $testExecutables = Get-ChildItem -Path "$BuildPath/tests/bin" -Filter "Test*.exe"
         foreach ($exe in $testExecutables) {
             & llvm-cov report $exe.FullName -instr-profile=coverage.profdata
         }
-        
+
         # Generate HTML report
         & llvm-cov show $testExecutables[0].FullName -instr-profile=coverage.profdata `
             -format=html -output-dir=$coverageDir
-        
+
         Pop-Location
         Write-Success "Coverage report generated at: $coverageDir\index.html"
-        
+
     } elseif ($gcov) {
         # GCC coverage
         Push-Location $BuildPath
-        
+
         & gcov -b -c *.gcda
-        
+
         $lcov = Get-Command lcov -ErrorAction SilentlyContinue
         if ($lcov) {
             & lcov --capture --directory . --output-file coverage.info
             & lcov --remove coverage.info '/usr/*' '*/test/*' --output-file coverage_filtered.info
-            
+
             $genhtml = Get-Command genhtml -ErrorAction SilentlyContinue
             if ($genhtml) {
                 & genhtml -o $coverageDir coverage_filtered.info
                 Write-Success "Coverage report generated at: $coverageDir\index.html"
             }
         }
-        
+
         Pop-Location
     } else {
         Write-Warning "No coverage tools found (llvm-cov or gcov)"
@@ -185,11 +185,11 @@ function Generate-CoverageReport {
 # Function to generate HTML test report
 function Generate-HtmlReport {
     if (-not $Report) { return }
-    
+
     Write-Info "`nGenerating HTML test report..."
-    
+
     $htmlReport = Join-Path $ReportsDir "test_report.html"
-    
+
     $html = @"
 <!DOCTYPE html>
 <html>
@@ -216,7 +216,7 @@ function Generate-HtmlReport {
 <body>
     <h1>SAST-Readium Test Report</h1>
     <div class="timestamp">Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</div>
-    
+
     <div class="summary">
         <h2>Test Summary</h2>
         <div class="metric">
@@ -232,7 +232,7 @@ function Generate-HtmlReport {
             <div class="metric-label">Coverage</div>
         </div>
     </div>
-    
+
     <div class="summary">
         <h2>Test Results</h2>
         <table>
@@ -243,21 +243,21 @@ function Generate-HtmlReport {
                 <th>Details</th>
             </tr>
 "@
-    
+
     # Add test results (would be populated from actual test output)
     $testResults = @(
         @{Suite="Unit Tests"; Status="Pass"; Duration="2.3s"; Details="All 45 tests passed"},
         @{Suite="Integration Tests"; Status="Pass"; Duration="5.1s"; Details="All 12 tests passed"},
         @{Suite="Performance Tests"; Status="Pass"; Duration="8.7s"; Details="All benchmarks met"}
     )
-    
+
     foreach ($result in $testResults) {
         $statusClass = switch ($result.Status) {
             "Pass" { "pass" }
             "Fail" { "fail" }
             default { "skip" }
         }
-        
+
         $html += @"
             <tr>
                 <td>$($result.Suite)</td>
@@ -267,11 +267,11 @@ function Generate-HtmlReport {
             </tr>
 "@
     }
-    
+
     $html += @"
         </table>
     </div>
-    
+
     <div class="summary">
         <h2>Environment</h2>
         <table>
@@ -284,10 +284,10 @@ function Generate-HtmlReport {
 </body>
 </html>
 "@
-    
+
     $html | Out-File -FilePath $htmlReport -Encoding UTF8
     Write-Success "HTML report generated at: $htmlReport"
-    
+
     # Open report in browser if available
     if (Get-Command Start-Process -ErrorAction SilentlyContinue) {
         Start-Process $htmlReport
@@ -302,42 +302,42 @@ try {
         "All" {
             $totalExitCode += Run-CTest -Label "all_tests"
         }
-        
+
         "Unit" {
             $totalExitCode += Run-CTest -TestRegex "^Test[^/]*$" -Label "unit_tests"
         }
-        
+
         "Integration" {
             $totalExitCode += Run-CTest -TestRegex "Integration" -Label "integration_tests"
         }
-        
+
         "Performance" {
             $totalExitCode += Run-CTest -TestRegex "Performance|Optimization" -Label "performance_tests"
         }
-        
+
         "Controller" {
             $totalExitCode += Run-CTest -TestRegex "ServiceLocator|StateManager|EventBus|Controller" -Label "controller_tests"
         }
-        
+
         "Factory" {
             $totalExitCode += Run-CTest -TestRegex "Factory|Builder" -Label "factory_tests"
         }
-        
+
         "Smoke" {
             $totalExitCode += Run-CTest -TestRegex "SmokeTest" -Label "smoke_test"
         }
     }
-    
+
     # Generate coverage report if requested
     if ($Coverage) {
         Generate-CoverageReport
     }
-    
+
     # Generate HTML report if requested
     if ($Report) {
         Generate-HtmlReport
     }
-    
+
 } catch {
     Write-Error "Test execution failed: $_"
     $totalExitCode = 1

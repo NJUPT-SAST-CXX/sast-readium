@@ -1,21 +1,20 @@
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QString>
-#include <QHash>
 #include <memory>
 
 namespace Poppler {
-    class Document;
-    class Page;
-}
+class Document;
+class Page;
+}  // namespace Poppler
 
 /**
  * Text extraction component for PDF documents
  * Handles efficient text extraction with caching
  */
-class TextExtractor : public QObject
-{
+class TextExtractor : public QObject {
     Q_OBJECT
 
 public:

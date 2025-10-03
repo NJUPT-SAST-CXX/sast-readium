@@ -48,7 +48,7 @@ else()
 endif()
 
 # Framework search paths
-set(CMAKE_FRAMEWORK_PATH 
+set(CMAKE_FRAMEWORK_PATH
     "/System/Library/Frameworks"
     "/Library/Frameworks"
     CACHE STRING "Framework search paths"

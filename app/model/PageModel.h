@@ -1,14 +1,14 @@
 #pragma once
 
+#include <QDateTime>
+#include <QList>
+#include <QMessageBox>
 #include <QObject>
 #include <QSharedPointer>
-#include <QStack>
-#include <QList>
-#include <QTimer>
-#include <QDateTime>
 #include <QSizeF>
+#include <QStack>
+#include <QTimer>
 #include "RenderModel.h"
-#include <QMessageBox>
 
 // Forward declarations
 class QTimer;
@@ -22,9 +22,17 @@ struct PageMetadata {
     QDateTime lastAccessed;
     QString cacheKey;
 
-    PageMetadata() : pageNumber(0), rotation(0.0), isLoaded(false), lastAccessed(QDateTime::currentDateTime()) {}
+    PageMetadata()
+        : pageNumber(0),
+          rotation(0.0),
+          isLoaded(false),
+          lastAccessed(QDateTime::currentDateTime()) {}
     PageMetadata(int page, const QSizeF& size = QSizeF(), double rot = 0.0)
-        : pageNumber(page), pageSize(size), rotation(rot), isLoaded(false), lastAccessed(QDateTime::currentDateTime()) {}
+        : pageNumber(page),
+          pageSize(size),
+          rotation(rot),
+          isLoaded(false),
+          lastAccessed(QDateTime::currentDateTime()) {}
 };
 
 // Page validation result
@@ -58,7 +66,8 @@ public:
     // Page validation and information
     virtual PageValidationResult validatePage(int pageNum) const;
     virtual bool isValidPage(int pageNum) const;
-    virtual QString getValidationErrorMessage(PageValidationResult result) const;
+    virtual QString getValidationErrorMessage(
+        PageValidationResult result) const;
 
     // Page metadata and properties
     PageMetadata getPageMetadata(int pageNum) const;
@@ -121,7 +130,7 @@ protected:
 
     // Performance tracking
     QDateTime _lastPageChangeTime;
-    QList<qint64> _pageLoadTimes; // in milliseconds
+    QList<qint64> _pageLoadTimes;  // in milliseconds
 
     // Error handling
     mutable QString _lastError;

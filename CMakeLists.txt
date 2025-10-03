@@ -43,5 +43,3 @@ setup_clangd_integration()
 
 # Print build configuration summary
 print_build_summary()
-
-

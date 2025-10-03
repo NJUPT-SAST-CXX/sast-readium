@@ -2,8 +2,10 @@
 #include <QTransform>
 #include <QtMath>
 
-void SearchResult::transformToWidgetCoordinates(double scaleFactor, int rotation,
-                                              const QSizeF& pageSize, const QSize& widgetSize) {
+void SearchResult::transformToWidgetCoordinates(double scaleFactor,
+                                                int rotation,
+                                                const QSizeF& pageSize,
+                                                const QSize& widgetSize) {
     if (boundingRect.isEmpty()) {
         widgetRect = QRectF();
         return;
@@ -12,7 +14,8 @@ void SearchResult::transformToWidgetCoordinates(double scaleFactor, int rotation
     // Start with PDF coordinates (in points, origin at bottom-left)
     QRectF pdfRect = boundingRect;
 
-    // Convert from PDF coordinate system (bottom-left origin) to Qt coordinate system (top-left origin)
+    // Convert from PDF coordinate system (bottom-left origin) to Qt coordinate
+    // system (top-left origin)
     QRectF qtRect;
     qtRect.setLeft(pdfRect.left());
     qtRect.setTop(pageSize.height() - pdfRect.bottom());
@@ -51,7 +54,8 @@ void SearchResult::transformToWidgetCoordinates(double scaleFactor, int rotation
 
     // Scale to widget coordinates
     double scaleX = static_cast<double>(widgetSize.width()) / pageSize.width();
-    double scaleY = static_cast<double>(widgetSize.height()) / pageSize.height();
+    double scaleY =
+        static_cast<double>(widgetSize.height()) / pageSize.height();
 
     // Apply uniform scaling (maintain aspect ratio)
     double uniformScale = qMin(scaleX, scaleY) * scaleFactor;
@@ -63,8 +67,10 @@ void SearchResult::transformToWidgetCoordinates(double scaleFactor, int rotation
 
     // Center the result if aspect ratios don't match
     if (scaleX != scaleY) {
-        double offsetX = (widgetSize.width() - pageSize.width() * uniformScale) / 2.0;
-        double offsetY = (widgetSize.height() - pageSize.height() * uniformScale) / 2.0;
+        double offsetX =
+            (widgetSize.width() - pageSize.width() * uniformScale) / 2.0;
+        double offsetY =
+            (widgetSize.height() - pageSize.height() * uniformScale) / 2.0;
         widgetRect.translate(offsetX, offsetY);
     }
 }

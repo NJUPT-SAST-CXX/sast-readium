@@ -1,13 +1,13 @@
 #pragma once
 
-#include <QWidget>
-#include <QVBoxLayout>
 #include <QStackedWidget>
-#include "../widgets/DocumentTabWidget.h"
-#include "../viewer/PDFViewer.h"
+#include <QVBoxLayout>
+#include <QWidget>
+#include "../../controller/DocumentController.h"
 #include "../../model/DocumentModel.h"
 #include "../../model/PDFOutlineModel.h"
-#include "../../controller/DocumentController.h"
+#include "../viewer/PDFViewer.h"
+#include "../widgets/DocumentTabWidget.h"
 
 class ViewWidget : public QWidget {
     Q_OBJECT
@@ -78,7 +78,6 @@ private slots:
     void onPDFPageChanged(int pageNumber);
     void onPDFZoomChanged(double zoomFactor);
 
-
 public slots:
     // RenderModel信号处理
     void onRenderPageDone(const QImage& image);
@@ -99,8 +98,8 @@ private:
     DocumentController* documentController;
     DocumentModel* documentModel;
     PDFOutlineModel* outlineModel;
-    QList<PDFViewer*> pdfViewers; // 每个文档对应一个PDFViewer
-    QList<PDFOutlineModel*> outlineModels; // 每个文档对应一个目录模型
+    QList<PDFViewer*> pdfViewers;           // 每个文档对应一个PDFViewer
+    QList<PDFOutlineModel*> outlineModels;  // 每个文档对应一个目录模型
 
     // 辅助方法
     PDFViewer* createPDFViewer();

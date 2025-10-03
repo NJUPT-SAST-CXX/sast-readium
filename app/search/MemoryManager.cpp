@@ -1,40 +1,45 @@
 #include "MemoryManager.h"
+#include <QCoreApplication>
+#include <QDebug>
+#include <QMutexLocker>
+#include <algorithm>
+#include "SearchConfiguration.h"
 #include "SearchEngine.h"
 #include "TextExtractor.h"
-#include "SearchConfiguration.h"
-#include <QMutexLocker>
-#include <QDebug>
-#include <QCoreApplication>
-#include <algorithm>
 
-class MemoryManager::Implementation
-{
+class MemoryManager::Implementation {
 public:
     Implementation(MemoryManager* q)
-        : q_ptr(q)
-        , optimizationLevel(Balanced)
-        , autoOptimizationEnabled(true)
-        , optimizationInterval(30) // 30 seconds
-        , predictiveOptimizationEnabled(true)
-        , optimizationTimer(new QTimer(q))
-        , statsUpdateTimer(new QTimer(q))
-    {
+        : q_ptr(q),
+          optimizationLevel(Balanced),
+          autoOptimizationEnabled(true),
+          optimizationInterval(30)  // 30 seconds
+          ,
+          predictiveOptimizationEnabled(true),
+          optimizationTimer(new QTimer(q)),
+          statsUpdateTimer(new QTimer(q)) {
         // Setup timers
         optimizationTimer->setSingleShot(false);
         statsUpdateTimer->setSingleShot(false);
-        
-        QObject::connect(optimizationTimer, &QTimer::timeout, q, &MemoryManager::performPeriodicOptimization);
-        QObject::connect(statsUpdateTimer, &QTimer::timeout, q, &MemoryManager::updateMemoryStats);
-        
+
+        QObject::connect(optimizationTimer, &QTimer::timeout, q,
+                         &MemoryManager::performPeriodicOptimization);
+        QObject::connect(statsUpdateTimer, &QTimer::timeout, q,
+                         &MemoryManager::updateMemoryStats);
+
         // Connect to cache manager signals
         CacheManager& cacheManager = CacheManager::instance();
-        QObject::connect(&cacheManager, &CacheManager::memoryPressureDetected, q, &MemoryManager::onMemoryPressureDetected);
-        QObject::connect(&cacheManager, &CacheManager::systemMemoryPressureDetected, q, &MemoryManager::onSystemMemoryPressure);
-        QObject::connect(&cacheManager, &CacheManager::memoryLimitExceeded, q, &MemoryManager::onCacheMemoryExceeded);
-        
+        QObject::connect(&cacheManager, &CacheManager::memoryPressureDetected,
+                         q, &MemoryManager::onMemoryPressureDetected);
+        QObject::connect(&cacheManager,
+                         &CacheManager::systemMemoryPressureDetected, q,
+                         &MemoryManager::onSystemMemoryPressure);
+        QObject::connect(&cacheManager, &CacheManager::memoryLimitExceeded, q,
+                         &MemoryManager::onCacheMemoryExceeded);
+
         // Start timers
         optimizationTimer->start(optimizationInterval * 1000);
-        statsUpdateTimer->start(5000); // Update stats every 5 seconds
+        statsUpdateTimer->start(5000);  // Update stats every 5 seconds
     }
 
     MemoryManager* q_ptr;
@@ -42,96 +47,97 @@ public:
     bool autoOptimizationEnabled;
     int optimizationInterval;
     bool predictiveOptimizationEnabled;
-    
+
     // Timers
     QTimer* optimizationTimer;
     QTimer* statsUpdateTimer;
-    
+
     // Registered components
     QList<SearchEngine*> searchEngines;
     QList<TextExtractor*> textExtractors;
-    
+
     // Statistics
     MemoryStats currentStats;
     QHash<QString, qint64> memoryUsageHistory;
     QHash<QString, int> accessPatterns;
-    
+
     // Thread safety
     mutable QMutex mutex;
-    
-    void updateOptimizationInterval()
-    {
+
+    void updateOptimizationInterval() {
         optimizationTimer->setInterval(optimizationInterval * 1000);
     }
-    
-    MemoryPressureLevel calculatePressureLevel(double pressure) const
-    {
-        if (pressure < 0.70) return Normal;
-        if (pressure < 0.85) return Warning;
+
+    MemoryPressureLevel calculatePressureLevel(double pressure) const {
+        if (pressure < 0.70)
+            return Normal;
+        if (pressure < 0.85)
+            return Warning;
         return Critical;
     }
-    
-    qint64 calculateTotalCacheMemory() const
-    {
+
+    qint64 calculateTotalCacheMemory() const {
         CacheManager& cacheManager = CacheManager::instance();
         return cacheManager.getTotalMemoryUsage();
     }
-    
-    void performOptimizationByLevel(OptimizationLevel level)
-    {
+
+    void performOptimizationByLevel(OptimizationLevel level) {
         CacheManager& cacheManager = CacheManager::instance();
-        
-        auto requestFractionalEviction = [&](CacheManager::CacheType type, double fraction) {
+
+        auto requestFractionalEviction = [&](CacheManager::CacheType type,
+                                             double fraction) {
             CacheManager::CacheStats stats = cacheManager.getCacheStats(type);
-            qint64 bytesToFree = static_cast<qint64>(stats.memoryUsage * fraction);
+            qint64 bytesToFree =
+                static_cast<qint64>(stats.memoryUsage * fraction);
             if (bytesToFree > 0) {
                 cacheManager.requestCacheEviction(type, bytesToFree);
             }
         };
-        
+
         switch (level) {
-        case Conservative:
-            // Only optimize if memory pressure is critical
-            if (currentStats.pressureLevel == Critical) {
-                cacheManager.enforceMemoryLimits();
-                cacheManager.handleMemoryPressure();
-            }
-            break;
-            
-        case Balanced:
-            // Optimize if memory pressure is warning or critical
-            if (currentStats.pressureLevel >= Warning) {
-                cacheManager.enforceMemoryLimits();
+            case Conservative:
+                // Only optimize if memory pressure is critical
+                if (currentStats.pressureLevel == Critical) {
+                    cacheManager.enforceMemoryLimits();
+                    cacheManager.handleMemoryPressure();
+                }
+                break;
+
+            case Balanced:
+                // Optimize if memory pressure is warning or critical
+                if (currentStats.pressureLevel >= Warning) {
+                    cacheManager.enforceMemoryLimits();
+                    cacheManager.analyzeUsagePatterns();
+                    cacheManager.optimizeCacheDistribution();
+                    if (currentStats.pressureLevel == Critical) {
+                        requestFractionalEviction(
+                            CacheManager::SEARCH_RESULT_CACHE, 0.15);
+                        requestFractionalEviction(CacheManager::PAGE_TEXT_CACHE,
+                                                  0.15);
+                    }
+                }
+                break;
+
+            case Aggressive:
+                // Always optimize
                 cacheManager.analyzeUsagePatterns();
                 cacheManager.optimizeCacheDistribution();
-                if (currentStats.pressureLevel == Critical) {
-                    requestFractionalEviction(CacheManager::SEARCH_RESULT_CACHE, 0.15);
-                    requestFractionalEviction(CacheManager::PAGE_TEXT_CACHE, 0.15);
+                cacheManager.handleMemoryPressure();
+                requestFractionalEviction(CacheManager::SEARCH_RESULT_CACHE,
+                                          0.25);
+                requestFractionalEviction(CacheManager::PAGE_TEXT_CACHE, 0.25);
+                requestFractionalEviction(CacheManager::SEARCH_HIGHLIGHT_CACHE,
+                                          0.25);
+                if (cacheManager.isMemoryCompressionEnabled()) {
+                    cacheManager.compressInactiveCaches();
                 }
-            }
-            break;
-            
-        case Aggressive:
-            // Always optimize
-            cacheManager.analyzeUsagePatterns();
-            cacheManager.optimizeCacheDistribution();
-            cacheManager.handleMemoryPressure();
-            requestFractionalEviction(CacheManager::SEARCH_RESULT_CACHE, 0.25);
-            requestFractionalEviction(CacheManager::PAGE_TEXT_CACHE, 0.25);
-            requestFractionalEviction(CacheManager::SEARCH_HIGHLIGHT_CACHE, 0.25);
-            if (cacheManager.isMemoryCompressionEnabled()) {
-                cacheManager.compressInactiveCaches();
-            }
-            break;
+                break;
         }
     }
 };
 
 MemoryManager::MemoryManager(QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<Implementation>(this))
-{
-}
+    : QObject(parent), d(std::make_unique<Implementation>(this)) {}
 
 MemoryManager::~MemoryManager() {}
 
@@ -139,40 +145,37 @@ MemoryAwareSearchResults::~MemoryAwareSearchResults() {}
 
 SmartEvictionPolicy::~SmartEvictionPolicy() {}
 
-void MemoryManager::setOptimizationLevel(OptimizationLevel level)
-{
+void MemoryManager::setOptimizationLevel(OptimizationLevel level) {
     QMutexLocker locker(&d->mutex);
     if (d->optimizationLevel != level) {
         d->optimizationLevel = level;
-        
+
         // Adjust optimization interval based on level
         switch (level) {
-        case Conservative:
-            d->optimizationInterval = 60; // 1 minute
-            break;
-        case Balanced:
-            d->optimizationInterval = 30; // 30 seconds
-            break;
-        case Aggressive:
-            d->optimizationInterval = 15; // 15 seconds
-            break;
+            case Conservative:
+                d->optimizationInterval = 60;  // 1 minute
+                break;
+            case Balanced:
+                d->optimizationInterval = 30;  // 30 seconds
+                break;
+            case Aggressive:
+                d->optimizationInterval = 15;  // 15 seconds
+                break;
         }
-        
+
         d->updateOptimizationInterval();
     }
 }
 
-MemoryManager::OptimizationLevel MemoryManager::getOptimizationLevel() const
-{
+MemoryManager::OptimizationLevel MemoryManager::getOptimizationLevel() const {
     QMutexLocker locker(&d->mutex);
     return d->optimizationLevel;
 }
 
-void MemoryManager::setAutoOptimizationEnabled(bool enabled)
-{
+void MemoryManager::setAutoOptimizationEnabled(bool enabled) {
     QMutexLocker locker(&d->mutex);
     d->autoOptimizationEnabled = enabled;
-    
+
     if (enabled) {
         d->optimizationTimer->start();
     } else {
@@ -180,191 +183,185 @@ void MemoryManager::setAutoOptimizationEnabled(bool enabled)
     }
 }
 
-bool MemoryManager::isAutoOptimizationEnabled() const
-{
+bool MemoryManager::isAutoOptimizationEnabled() const {
     QMutexLocker locker(&d->mutex);
     return d->autoOptimizationEnabled;
 }
 
-void MemoryManager::setOptimizationInterval(int seconds)
-{
+void MemoryManager::setOptimizationInterval(int seconds) {
     QMutexLocker locker(&d->mutex);
-    d->optimizationInterval = qMax(5, seconds); // Minimum 5 seconds
+    d->optimizationInterval = qMax(5, seconds);  // Minimum 5 seconds
     d->updateOptimizationInterval();
 }
 
-int MemoryManager::getOptimizationInterval() const
-{
+int MemoryManager::getOptimizationInterval() const {
     QMutexLocker locker(&d->mutex);
     return d->optimizationInterval;
 }
 
-MemoryManager::MemoryStats MemoryManager::getMemoryStats() const
-{
+MemoryManager::MemoryStats MemoryManager::getMemoryStats() const {
     QMutexLocker locker(&d->mutex);
     return d->currentStats;
 }
 
-MemoryManager::MemoryPressureLevel MemoryManager::getCurrentPressureLevel() const
-{
+MemoryManager::MemoryPressureLevel MemoryManager::getCurrentPressureLevel()
+    const {
     QMutexLocker locker(&d->mutex);
     return d->currentStats.pressureLevel;
 }
 
-qint64 MemoryManager::getAvailableMemory() const
-{
+qint64 MemoryManager::getAvailableMemory() const {
     CacheManager& cacheManager = CacheManager::instance();
     qint64 totalSystem = cacheManager.getSystemMemoryTotal();
     qint64 currentUsage = cacheManager.getSystemMemoryUsage();
-    
+
     return totalSystem - currentUsage;
 }
 
-double MemoryManager::getMemoryEfficiency() const
-{
+double MemoryManager::getMemoryEfficiency() const {
     CacheManager& cacheManager = CacheManager::instance();
-    CacheManager::CacheStats stats = cacheManager.getCacheStats(CacheManager::SEARCH_RESULT_CACHE);
-    
+    CacheManager::CacheStats stats =
+        cacheManager.getCacheStats(CacheManager::SEARCH_RESULT_CACHE);
+
     qint64 totalHits = stats.totalHits;
     qint64 totalMisses = stats.totalMisses;
     qint64 total = totalHits + totalMisses;
-    
+
     return total > 0 ? static_cast<double>(totalHits) / total : 0.0;
 }
 
-void MemoryManager::optimizeMemoryUsage()
-{
+void MemoryManager::optimizeMemoryUsage() {
     QMutexLocker locker(&d->mutex);
-    
+
     emit memoryOptimizationStarted(d->optimizationLevel);
-    
+
     qint64 memoryBefore = d->calculateTotalCacheMemory();
     d->performOptimizationByLevel(d->optimizationLevel);
     qint64 memoryAfter = d->calculateTotalCacheMemory();
-    
+
     qint64 memoryFreed = memoryBefore - memoryAfter;
     d->currentStats.optimizationCount++;
     d->currentStats.lastOptimization = QDateTime::currentDateTime();
-    
+
     emit memoryOptimizationCompleted(memoryFreed);
 }
 
-void MemoryManager::optimizeSearchCaches()
-{
+void MemoryManager::optimizeSearchCaches() {
     CacheManager& cacheManager = CacheManager::instance();
     auto stats = cacheManager.getCacheStats(CacheManager::SEARCH_RESULT_CACHE);
-    cacheManager.requestCacheEviction(CacheManager::SEARCH_RESULT_CACHE, static_cast<qint64>(stats.memoryUsage * 0.25));
+    cacheManager.requestCacheEviction(
+        CacheManager::SEARCH_RESULT_CACHE,
+        static_cast<qint64>(stats.memoryUsage * 0.25));
 }
 
-void MemoryManager::optimizeTextCaches()
-{
+void MemoryManager::optimizeTextCaches() {
     CacheManager& cacheManager = CacheManager::instance();
     auto stats = cacheManager.getCacheStats(CacheManager::PAGE_TEXT_CACHE);
-    cacheManager.requestCacheEviction(CacheManager::PAGE_TEXT_CACHE, static_cast<qint64>(stats.memoryUsage * 0.25));
+    cacheManager.requestCacheEviction(
+        CacheManager::PAGE_TEXT_CACHE,
+        static_cast<qint64>(stats.memoryUsage * 0.25));
 }
 
-void MemoryManager::optimizeHighlightCaches()
-{
+void MemoryManager::optimizeHighlightCaches() {
     CacheManager& cacheManager = CacheManager::instance();
-    auto stats = cacheManager.getCacheStats(CacheManager::SEARCH_HIGHLIGHT_CACHE);
-    cacheManager.requestCacheEviction(CacheManager::SEARCH_HIGHLIGHT_CACHE, static_cast<qint64>(stats.memoryUsage * 0.25));
+    auto stats =
+        cacheManager.getCacheStats(CacheManager::SEARCH_HIGHLIGHT_CACHE);
+    cacheManager.requestCacheEviction(
+        CacheManager::SEARCH_HIGHLIGHT_CACHE,
+        static_cast<qint64>(stats.memoryUsage * 0.25));
 }
 
-void MemoryManager::performEmergencyCleanup()
-{
+void MemoryManager::performEmergencyCleanup() {
     QMutexLocker locker(&d->mutex);
-    
+
     qint64 memoryBefore = d->calculateTotalCacheMemory();
-    
+
     // Aggressive cleanup - request eviction across caches
     CacheManager& cacheManager = CacheManager::instance();
-    auto req = [&](CacheManager::CacheType t){
+    auto req = [&](CacheManager::CacheType t) {
         auto s = cacheManager.getCacheStats(t);
-        cacheManager.requestCacheEviction(t, static_cast<qint64>(s.memoryUsage * 0.5));
+        cacheManager.requestCacheEviction(
+            t, static_cast<qint64>(s.memoryUsage * 0.5));
     };
     req(CacheManager::SEARCH_RESULT_CACHE);
     req(CacheManager::PAGE_TEXT_CACHE);
     req(CacheManager::SEARCH_HIGHLIGHT_CACHE);
     req(CacheManager::PDF_RENDER_CACHE);
     req(CacheManager::THUMBNAIL_CACHE);
-    
+
     qint64 memoryAfter = d->calculateTotalCacheMemory();
     qint64 memoryFreed = memoryBefore - memoryAfter;
-    
+
     emit emergencyCleanupTriggered(memoryFreed);
 }
 
-void MemoryManager::enablePredictiveOptimization(bool enabled)
-{
+void MemoryManager::enablePredictiveOptimization(bool enabled) {
     QMutexLocker locker(&d->mutex);
     d->predictiveOptimizationEnabled = enabled;
 }
 
-bool MemoryManager::isPredictiveOptimizationEnabled() const
-{
+bool MemoryManager::isPredictiveOptimizationEnabled() const {
     QMutexLocker locker(&d->mutex);
     return d->predictiveOptimizationEnabled;
 }
 
-void MemoryManager::analyzeMemoryUsagePatterns()
-{
+void MemoryManager::analyzeMemoryUsagePatterns() {
     // Analyze memory usage patterns and provide recommendations
     QMutexLocker locker(&d->mutex);
-    
+
     double efficiency = getMemoryEfficiency();
     if (efficiency < 0.5) {
-        emit optimizationRecommendation("Consider increasing cache sizes for better hit rates");
+        emit optimizationRecommendation(
+            "Consider increasing cache sizes for better hit rates");
     } else if (efficiency > 0.9 && d->currentStats.pressureLevel == Critical) {
-        emit optimizationRecommendation("High cache efficiency but memory pressure detected - consider reducing cache sizes");
+        emit optimizationRecommendation(
+            "High cache efficiency but memory pressure detected - consider "
+            "reducing cache sizes");
     }
 }
 
-void MemoryManager::predictMemoryNeeds()
-{
+void MemoryManager::predictMemoryNeeds() {
     // Implement predictive memory management based on usage patterns
-    if (!d->predictiveOptimizationEnabled) return;
-    
-    // This would analyze historical usage patterns and predict future memory needs
-    // For now, just trigger optimization if patterns suggest high memory usage
+    if (!d->predictiveOptimizationEnabled)
+        return;
+
+    // This would analyze historical usage patterns and predict future memory
+    // needs For now, just trigger optimization if patterns suggest high memory
+    // usage
     analyzeMemoryUsagePatterns();
 }
 
-void MemoryManager::registerSearchEngine(SearchEngine* engine)
-{
+void MemoryManager::registerSearchEngine(SearchEngine* engine) {
     if (engine && !d->searchEngines.contains(engine)) {
         QMutexLocker locker(&d->mutex);
         d->searchEngines.append(engine);
     }
 }
 
-void MemoryManager::registerTextExtractor(TextExtractor* extractor)
-{
+void MemoryManager::registerTextExtractor(TextExtractor* extractor) {
     if (extractor && !d->textExtractors.contains(extractor)) {
         QMutexLocker locker(&d->mutex);
         d->textExtractors.append(extractor);
     }
 }
 
-void MemoryManager::unregisterSearchEngine(SearchEngine* engine)
-{
+void MemoryManager::unregisterSearchEngine(SearchEngine* engine) {
     QMutexLocker locker(&d->mutex);
     d->searchEngines.removeAll(engine);
 }
 
-void MemoryManager::unregisterTextExtractor(TextExtractor* extractor)
-{
+void MemoryManager::unregisterTextExtractor(TextExtractor* extractor) {
     QMutexLocker locker(&d->mutex);
     d->textExtractors.removeAll(extractor);
 }
 
-void MemoryManager::onMemoryPressureDetected(double pressure)
-{
+void MemoryManager::onMemoryPressureDetected(double pressure) {
     MemoryPressureLevel level = d->calculatePressureLevel(pressure);
-    
+
     if (level != d->currentStats.pressureLevel) {
         d->currentStats.pressureLevel = level;
         emit memoryPressureChanged(level);
-        
+
         // Trigger optimization based on pressure level
         if (level >= Warning && d->autoOptimizationEnabled) {
             optimizeMemoryUsage();
@@ -372,88 +369,87 @@ void MemoryManager::onMemoryPressureDetected(double pressure)
     }
 }
 
-void MemoryManager::onSystemMemoryPressure(double systemPressure)
-{
+void MemoryManager::onSystemMemoryPressure(double systemPressure) {
     // Handle system-wide memory pressure
     if (systemPressure > 0.9 && d->autoOptimizationEnabled) {
         performEmergencyCleanup();
     }
 }
 
-void MemoryManager::onCacheMemoryExceeded(qint64 usage, qint64 limit)
-{
+void MemoryManager::onCacheMemoryExceeded(qint64 usage, qint64 limit) {
     // Handle cache memory limit exceeded
     if (d->autoOptimizationEnabled) {
         optimizeMemoryUsage();
     }
 }
 
-void MemoryManager::performPeriodicOptimization()
-{
+void MemoryManager::performPeriodicOptimization() {
     if (d->autoOptimizationEnabled) {
         optimizeMemoryUsage();
-        
+
         if (d->predictiveOptimizationEnabled) {
             predictMemoryNeeds();
         }
     }
 }
 
-void MemoryManager::updateMemoryStats()
-{
+void MemoryManager::updateMemoryStats() {
     QMutexLocker locker(&d->mutex);
-    
+
     CacheManager& cacheManager = CacheManager::instance();
-    
+
     d->currentStats.totalMemoryUsage = cacheManager.getTotalMemoryUsage();
     d->currentStats.systemMemoryUsage = cacheManager.getSystemMemoryUsage();
     d->currentStats.systemMemoryTotal = cacheManager.getSystemMemoryTotal();
     d->currentStats.memoryPressure = cacheManager.getSystemMemoryPressure();
-    d->currentStats.pressureLevel = d->calculatePressureLevel(d->currentStats.memoryPressure);
-    
+    d->currentStats.pressureLevel =
+        d->calculatePressureLevel(d->currentStats.memoryPressure);
+
     // Get individual cache memory usage
-    auto searchStats = cacheManager.getCacheStats(CacheManager::SEARCH_RESULT_CACHE);
+    auto searchStats =
+        cacheManager.getCacheStats(CacheManager::SEARCH_RESULT_CACHE);
     auto textStats = cacheManager.getCacheStats(CacheManager::PAGE_TEXT_CACHE);
-    auto highlightStats = cacheManager.getCacheStats(CacheManager::SEARCH_HIGHLIGHT_CACHE);
-    
+    auto highlightStats =
+        cacheManager.getCacheStats(CacheManager::SEARCH_HIGHLIGHT_CACHE);
+
     d->currentStats.searchCacheMemory = searchStats.memoryUsage;
     d->currentStats.textCacheMemory = textStats.memoryUsage;
     d->currentStats.highlightCacheMemory = highlightStats.memoryUsage;
-    
+
     emit memoryStatsUpdated(d->currentStats);
 }
 
-void MemoryManager::checkMemoryPressure()
-{
+void MemoryManager::checkMemoryPressure() {
     updateMemoryStats();
-    
-    if (d->currentStats.pressureLevel >= Warning && d->autoOptimizationEnabled) {
+
+    if (d->currentStats.pressureLevel >= Warning &&
+        d->autoOptimizationEnabled) {
         optimizeMemoryUsage();
     }
 }
 
 // Complete implementations for MemoryAwareSearchResults and SmartEvictionPolicy
-#include "SearchConfiguration.h"
+#include <QDateTime>
+#include <QHash>
 #include <QMutex>
 #include <QMutexLocker>
-#include <QHash>
-#include <QDateTime>
 #include <QTimer>
 #include <algorithm>
+#include "SearchConfiguration.h"
 
 // Implementation classes
 class MemoryAwareSearchResults::ResultsImplementation {
 public:
     ResultsImplementation(QObject* parent = nullptr)
-        : maxMemoryUsage(50 * 1024 * 1024) // 50MB default
-        , currentMemoryUsage(0)
-        , lazyLoadingEnabled(false)
-        , memoryTimer(nullptr)
-    {
+        : maxMemoryUsage(50 * 1024 * 1024)  // 50MB default
+          ,
+          currentMemoryUsage(0),
+          lazyLoadingEnabled(false),
+          memoryTimer(nullptr) {
         // Initialize memory monitoring timer with proper parent
         if (parent) {
             memoryTimer = new QTimer(parent);
-            memoryTimer->setInterval(5000); // Check every 5 seconds
+            memoryTimer->setInterval(5000);  // Check every 5 seconds
             memoryTimer->setSingleShot(false);
         }
     }
@@ -467,7 +463,7 @@ public:
 
     // Data members
     QList<SearchResult> results;
-    QHash<int, bool> loadedPages; // Track which result pages are loaded
+    QHash<int, bool> loadedPages;  // Track which result pages are loaded
     mutable QMutex mutex;
 
     // Memory management
@@ -491,7 +487,7 @@ public:
         qint64 size = 0;
         size += result.matchedText.size() * sizeof(QChar);
         size += result.contextText.size() * sizeof(QChar);
-        size += sizeof(SearchResult); // Base object size
+        size += sizeof(SearchResult);  // Base object size
         return size;
     }
 
@@ -508,7 +504,8 @@ public:
     }
 
     void evictOldestResults(qint64 targetMemoryReduction) {
-        if (results.isEmpty()) return;
+        if (results.isEmpty())
+            return;
 
         // Sort results by access time (if we had access tracking)
         // For now, remove from the end (LIFO approach)
@@ -525,15 +522,14 @@ public:
 class SmartEvictionPolicy::PolicyImplementation {
 public:
     PolicyImplementation(QObject* parent = nullptr)
-        : currentStrategy(SmartEvictionPolicy::LRU)
-        , adaptiveThreshold(0.75)
-        , analysisTimer(nullptr)
-        , parentObject(parent)
-    {
+        : currentStrategy(SmartEvictionPolicy::LRU),
+          adaptiveThreshold(0.75),
+          analysisTimer(nullptr),
+          parentObject(parent) {
         // Create timer with proper parent to avoid Qt meta-object system issues
         if (parent) {
             analysisTimer = new QTimer(parent);
-            analysisTimer->setInterval(30000); // Analyze every 30 seconds
+            analysisTimer->setInterval(30000);  // Analyze every 30 seconds
             analysisTimer->setSingleShot(false);
         }
     }
@@ -566,7 +562,7 @@ public:
 
     // Pattern analysis
     struct AccessPattern {
-        QString patternType; // "sequential", "random", "burst", "periodic"
+        QString patternType;  // "sequential", "random", "burst", "periodic"
         double confidence;
         QDateTime detectedAt;
         QVariantMap parameters;
@@ -587,7 +583,7 @@ public:
     double calculateLRUScore(const QString& itemId) const {
         auto it = accessHistory.find(itemId);
         if (it == accessHistory.end()) {
-            return 0.0; // Never accessed, highest eviction priority
+            return 0.0;  // Never accessed, highest eviction priority
         }
 
         qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
@@ -599,14 +595,15 @@ public:
         }
 
         // Higher score = more recently used = lower eviction priority
-        double denominator = 1.0 + static_cast<double>(timeSinceLastAccess) / 1000.0;
+        double denominator =
+            1.0 + static_cast<double>(timeSinceLastAccess) / 1000.0;
         return 1.0 / denominator;
     }
 
     double calculateLFUScore(const QString& itemId) const {
         auto it = accessHistory.find(itemId);
         if (it == accessHistory.end()) {
-            return 0.0; // Never accessed
+            return 0.0;  // Never accessed
         }
 
         // Higher access count = lower eviction priority
@@ -624,14 +621,16 @@ public:
         qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
         // Calculate LRU score directly
-        qint64 timeSinceLastAccess = qMax(qint64(0), currentTime - info.lastAccess);
-        double lruScore = 1.0 / (1.0 + static_cast<double>(timeSinceLastAccess) / 1000.0);
+        qint64 timeSinceLastAccess =
+            qMax(qint64(0), currentTime - info.lastAccess);
+        double lruScore =
+            1.0 / (1.0 + static_cast<double>(timeSinceLastAccess) / 1000.0);
 
         // Calculate LFU score directly
         double lfuScore = static_cast<double>(info.accessCount);
 
         // Calculate pattern score directly
-        double patternScore = 0.5; // Default neutral score
+        double patternScore = 0.5;  // Default neutral score
         if (info.isFrequent && info.averageInterval > 0) {
             if (timeSinceLastAccess < info.averageInterval * 1.5) {
                 patternScore = 1.0;
@@ -655,11 +654,11 @@ public:
 
             // If item is accessed regularly and we're within expected interval
             if (timeSinceLastAccess < it->averageInterval * 1.5) {
-                return 1.0; // High score, don't evict
+                return 1.0;  // High score, don't evict
             }
         }
 
-        return 0.5; // Neutral score
+        return 0.5;  // Neutral score
     }
 
     double calculatePredictiveScore(const QString& itemId) const {
@@ -674,11 +673,14 @@ public:
         qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
         // Calculate factors directly without recursive calls
-        qint64 timeSinceLastAccess = qMax(qint64(0), currentTime - info.lastAccess);
-        double recencyFactor = 1.0 / (1.0 + static_cast<double>(timeSinceLastAccess) / 1000.0);
-        double frequencyFactor = static_cast<double>(info.accessCount) / 10.0; // Normalize
+        qint64 timeSinceLastAccess =
+            qMax(qint64(0), currentTime - info.lastAccess);
+        double recencyFactor =
+            1.0 / (1.0 + static_cast<double>(timeSinceLastAccess) / 1000.0);
+        double frequencyFactor =
+            static_cast<double>(info.accessCount) / 10.0;  // Normalize
 
-        double patternFactor = 0.5; // Default neutral score
+        double patternFactor = 0.5;  // Default neutral score
         if (info.isFrequent && info.averageInterval > 0) {
             if (timeSinceLastAccess < info.averageInterval * 1.5) {
                 patternFactor = 1.0;
@@ -717,21 +719,18 @@ public:
             it->lastAccess = currentTime;
 
             // Determine if item is frequently accessed
-            it->isFrequent = (it->accessCount >= 5 && it->averageInterval < 60000); // < 1 minute
+            it->isFrequent = (it->accessCount >= 5 &&
+                              it->averageInterval < 60000);  // < 1 minute
         }
     }
 };
 
 // Constructors (create the PIMPL)
 MemoryAwareSearchResults::MemoryAwareSearchResults(QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<ResultsImplementation>(this)) {
-}
+    : QObject(parent), d(std::make_unique<ResultsImplementation>(this)) {}
 
 SmartEvictionPolicy::SmartEvictionPolicy(QObject* parent)
-    : QObject(parent)
-    , d(std::make_unique<PolicyImplementation>(this)) {
-}
+    : QObject(parent), d(std::make_unique<PolicyImplementation>(this)) {}
 
 // MemoryAwareSearchResults method implementations
 void MemoryAwareSearchResults::addResults(const QList<SearchResult>& results) {
@@ -745,7 +744,8 @@ void MemoryAwareSearchResults::addResults(const QList<SearchResult>& results) {
 
     // Check if we need to free memory first
     if (d->currentMemoryUsage + additionalMemory > d->maxMemoryUsage) {
-        qint64 memoryToFree = (d->currentMemoryUsage + additionalMemory) - d->maxMemoryUsage;
+        qint64 memoryToFree =
+            (d->currentMemoryUsage + additionalMemory) - d->maxMemoryUsage;
         d->evictOldestResults(memoryToFree);
         emit memoryOptimized(memoryToFree);
     }
@@ -768,7 +768,8 @@ void MemoryAwareSearchResults::clearResults() {
     emit resultsCleared();
 }
 
-QList<SearchResult> MemoryAwareSearchResults::getResults(int start, int count) const {
+QList<SearchResult> MemoryAwareSearchResults::getResults(int start,
+                                                         int count) const {
     QMutexLocker locker(&d->mutex);
 
     if (start < 0 || start >= d->results.size()) {
@@ -783,10 +784,11 @@ QList<SearchResult> MemoryAwareSearchResults::getResults(int start, int count) c
     // Handle lazy loading
     if (d->lazyLoadingEnabled) {
         // Check if requested range is loaded
-        int pageId = start / 100; // Assume 100 results per page
+        int pageId = start / 100;  // Assume 100 results per page
         if (!d->loadedPages.value(pageId, false)) {
             // Request lazy loading
-            const_cast<MemoryAwareSearchResults*>(this)->preloadResults(start, actualCount);
+            const_cast<MemoryAwareSearchResults*>(this)->preloadResults(
+                start, actualCount);
         }
     }
 
@@ -826,10 +828,11 @@ void MemoryAwareSearchResults::optimizeMemoryUsage() {
     QMutexLocker locker(&d->mutex);
 
     if (d->currentMemoryUsage <= d->maxMemoryUsage) {
-        return; // No optimization needed
+        return;  // No optimization needed
     }
 
-    qint64 memoryToFree = d->currentMemoryUsage - (d->maxMemoryUsage * 0.8); // Target 80% of max
+    qint64 memoryToFree =
+        d->currentMemoryUsage - (d->maxMemoryUsage * 0.8);  // Target 80% of max
     qint64 initialMemory = d->currentMemoryUsage;
 
     d->evictOldestResults(memoryToFree);
@@ -852,13 +855,16 @@ void MemoryAwareSearchResults::enableLazyLoading(bool enabled) {
             MemoryAwareSearchResults::ResultsImplementation::LazyPage page;
             page.startIndex = i * pageSize;
             page.count = qMin(pageSize, totalResults - page.startIndex);
-            page.isLoaded = true; // Currently loaded results are marked as loaded
+            page.isLoaded =
+                true;  // Currently loaded results are marked as loaded
             page.memorySize = 0;
             page.lastAccess = QDateTime::currentDateTime();
 
-            for (int j = page.startIndex; j < page.startIndex + page.count; ++j) {
+            for (int j = page.startIndex; j < page.startIndex + page.count;
+                 ++j) {
                 if (j < d->results.size()) {
-                    page.memorySize += d->calculateResultMemoryUsage(d->results[j]);
+                    page.memorySize +=
+                        d->calculateResultMemoryUsage(d->results[j]);
                 }
             }
 
@@ -886,7 +892,8 @@ void MemoryAwareSearchResults::preloadResults(int start, int count) {
 
     for (int pageId = startPage; pageId <= endPage; ++pageId) {
         if (!d->loadedPages.value(pageId, false)) {
-            // Simulate loading (in real implementation, this would load from storage)
+            // Simulate loading (in real implementation, this would load from
+            // storage)
             d->loadedPages[pageId] = true;
 
             if (d->lazyPages.contains(pageId)) {
@@ -909,7 +916,8 @@ void SmartEvictionPolicy::setEvictionStrategy(EvictionStrategy strategy) {
     }
 }
 
-SmartEvictionPolicy::EvictionStrategy SmartEvictionPolicy::getEvictionStrategy() const {
+SmartEvictionPolicy::EvictionStrategy SmartEvictionPolicy::getEvictionStrategy()
+    const {
     QMutexLocker locker(&d->mutex);
     return d->currentStrategy;
 }
@@ -924,7 +932,8 @@ double SmartEvictionPolicy::getAdaptiveThreshold() const {
     return d->adaptiveThreshold;
 }
 
-QStringList SmartEvictionPolicy::selectItemsForEviction(const QStringList& candidates, int targetCount) {
+QStringList SmartEvictionPolicy::selectItemsForEviction(
+    const QStringList& candidates, int targetCount) {
     QMutexLocker locker(&d->mutex);
 
     if (candidates.isEmpty() || targetCount <= 0) {
@@ -956,10 +965,11 @@ QStringList SmartEvictionPolicy::selectItemsForEviction(const QStringList& candi
     }
 
     // Sort by score (lower score = higher eviction priority)
-    std::sort(scoredItems.begin(), scoredItems.end(),
-              [](const QPair<QString, double>& a, const QPair<QString, double>& b) {
-                  return a.second < b.second;
-              });
+    std::sort(
+        scoredItems.begin(), scoredItems.end(),
+        [](const QPair<QString, double>& a, const QPair<QString, double>& b) {
+            return a.second < b.second;
+        });
 
     // Select items for eviction
     QStringList itemsToEvict;
@@ -977,7 +987,8 @@ QStringList SmartEvictionPolicy::selectItemsForEviction(const QStringList& candi
     return itemsToEvict;
 }
 
-bool SmartEvictionPolicy::shouldEvictItem(const QString& itemId, qint64 lastAccess, int accessCount) {
+bool SmartEvictionPolicy::shouldEvictItem(const QString& itemId,
+                                          qint64 lastAccess, int accessCount) {
     QMutexLocker locker(&d->mutex);
 
     // Update our internal access tracking with provided data
@@ -1043,7 +1054,8 @@ void SmartEvictionPolicy::analyzeAccessPatterns() {
 
     // Analyze temporal patterns
     QList<qint64> accessTimes;
-    for (auto it = d->accessHistory.begin(); it != d->accessHistory.end(); ++it) {
+    for (auto it = d->accessHistory.begin(); it != d->accessHistory.end();
+         ++it) {
         accessTimes.append(it->lastAccess);
     }
 
@@ -1053,14 +1065,14 @@ void SmartEvictionPolicy::analyzeAccessPatterns() {
     if (accessTimes.size() > 1) {
         qint64 averageInterval = 0;
         for (int i = 1; i < accessTimes.size(); ++i) {
-            averageInterval += accessTimes[i] - accessTimes[i-1];
+            averageInterval += accessTimes[i] - accessTimes[i - 1];
         }
         averageInterval /= (accessTimes.size() - 1);
 
         // Check if intervals are relatively consistent
         int consistentIntervals = 0;
         for (int i = 1; i < accessTimes.size(); ++i) {
-            qint64 interval = accessTimes[i] - accessTimes[i-1];
+            qint64 interval = accessTimes[i] - accessTimes[i - 1];
             if (qAbs(interval - averageInterval) < averageInterval * 0.3) {
                 consistentIntervals++;
             }
@@ -1069,7 +1081,8 @@ void SmartEvictionPolicy::analyzeAccessPatterns() {
         if (consistentIntervals >= accessTimes.size() * 0.7) {
             PolicyImplementation::AccessPattern pattern;
             pattern.patternType = "sequential";
-            pattern.confidence = static_cast<double>(consistentIntervals) / accessTimes.size();
+            pattern.confidence =
+                static_cast<double>(consistentIntervals) / accessTimes.size();
             pattern.detectedAt = QDateTime::currentDateTime();
             pattern.parameters["averageInterval"] = averageInterval;
             d->detectedPatterns.append(pattern);
@@ -1079,9 +1092,10 @@ void SmartEvictionPolicy::analyzeAccessPatterns() {
     // Detect burst pattern (many accesses in short time)
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
     int recentAccesses = 0;
-    qint64 burstWindow = 10000; // 10 seconds
+    qint64 burstWindow = 10000;  // 10 seconds
 
-    for (auto it = d->accessHistory.begin(); it != d->accessHistory.end(); ++it) {
+    for (auto it = d->accessHistory.begin(); it != d->accessHistory.end();
+         ++it) {
         if (currentTime - it->lastAccess < burstWindow) {
             recentAccesses++;
         }
@@ -1090,7 +1104,8 @@ void SmartEvictionPolicy::analyzeAccessPatterns() {
     if (recentAccesses >= d->accessHistory.size() * 0.5) {
         PolicyImplementation::AccessPattern pattern;
         pattern.patternType = "burst";
-        pattern.confidence = static_cast<double>(recentAccesses) / d->accessHistory.size();
+        pattern.confidence =
+            static_cast<double>(recentAccesses) / d->accessHistory.size();
         pattern.detectedAt = QDateTime::currentDateTime();
         pattern.parameters["burstWindow"] = burstWindow;
         pattern.parameters["burstCount"] = recentAccesses;
@@ -1100,8 +1115,8 @@ void SmartEvictionPolicy::analyzeAccessPatterns() {
     // Emit analysis results
     for (const auto& pattern : d->detectedPatterns) {
         emit accessPatternAnalyzed(QString("%1 (confidence: %2)")
-                                 .arg(pattern.patternType)
-                                 .arg(pattern.confidence, 0, 'f', 2));
+                                       .arg(pattern.patternType)
+                                       .arg(pattern.confidence, 0, 'f', 2));
     }
 }
 
@@ -1112,16 +1127,19 @@ void SmartEvictionPolicy::updateEvictionStrategy() {
     auto& currentStats = d->strategyStats[d->currentStrategy];
     double currentAccuracy = 0.0;
     if (currentStats.totalPredictions > 0) {
-        currentAccuracy = static_cast<double>(currentStats.correctPredictions) / currentStats.totalPredictions;
+        currentAccuracy = static_cast<double>(currentStats.correctPredictions) /
+                          currentStats.totalPredictions;
     }
 
     // Find best performing strategy
     EvictionStrategy bestStrategy = d->currentStrategy;
     double bestAccuracy = currentAccuracy;
 
-    for (auto it = d->strategyStats.begin(); it != d->strategyStats.end(); ++it) {
-        if (it->totalPredictions > 10) { // Minimum sample size
-            double accuracy = static_cast<double>(it->correctPredictions) / it->totalPredictions;
+    for (auto it = d->strategyStats.begin(); it != d->strategyStats.end();
+         ++it) {
+        if (it->totalPredictions > 10) {  // Minimum sample size
+            double accuracy = static_cast<double>(it->correctPredictions) /
+                              it->totalPredictions;
             if (accuracy > bestAccuracy) {
                 bestAccuracy = accuracy;
                 bestStrategy = it.key();
@@ -1130,11 +1148,13 @@ void SmartEvictionPolicy::updateEvictionStrategy() {
     }
 
     // Switch strategy if we found a better one
-    if (bestStrategy != d->currentStrategy && bestAccuracy > currentAccuracy + 0.1) {
+    if (bestStrategy != d->currentStrategy &&
+        bestAccuracy > currentAccuracy + 0.1) {
         setEvictionStrategy(bestStrategy);
-        emit evictionRecommendation(QString("Switched to %1 strategy (accuracy: %2)")
-                                   .arg(bestStrategy)
-                                   .arg(bestAccuracy, 0, 'f', 2));
+        emit evictionRecommendation(
+            QString("Switched to %1 strategy (accuracy: %2)")
+                .arg(bestStrategy)
+                .arg(bestAccuracy, 0, 'f', 2));
     }
 }
 
@@ -1143,7 +1163,7 @@ QString SmartEvictionPolicy::getRecommendedStrategy() const {
 
     // Analyze detected patterns and recommend strategy
     if (d->detectedPatterns.isEmpty()) {
-        return "LRU"; // Default recommendation
+        return "LRU";  // Default recommendation
     }
 
     // Look for dominant pattern
@@ -1168,5 +1188,3 @@ QString SmartEvictionPolicy::getRecommendedStrategy() const {
         return "Adaptive";
     }
 }
-
-

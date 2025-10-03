@@ -38,7 +38,7 @@ if(CLANG_WINDOWS_MODE STREQUAL "MSVC")
     # Clang-cl flags (MSVC compatible)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /EHsc /utf-8")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /utf-8")
-    
+
     # MSVC-style optimization flags
     set(CMAKE_C_FLAGS_DEBUG "/Od /Zi /RTC1")
     set(CMAKE_CXX_FLAGS_DEBUG "/Od /Zi /RTC1")
@@ -52,7 +52,7 @@ else()
     # Standard Clang flags
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fms-compatibility")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fms-compatibility")
-    
+
     # Standard optimization flags
     set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
@@ -62,7 +62,7 @@ else()
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
     set(CMAKE_C_FLAGS_MINSIZEREL "-Os -DNDEBUG")
     set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG")
-    
+
     # Linker flags for standard Clang
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--subsystem,windows")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")

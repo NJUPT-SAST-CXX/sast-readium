@@ -1,27 +1,26 @@
 #include "SearchWidget.h"
-#include <QShortcut>
-#include <QKeySequence>
-#include <QMessageBox>
 #include <QApplication>
-#include <QStyle>
 #include <QDebug>
 #include <QEvent>
+#include <QKeySequence>
+#include <QMessageBox>
+#include <QShortcut>
+#include <QStyle>
 
 SearchWidget::SearchWidget(QWidget* parent)
-    : QWidget(parent)
-    , m_searchModel(new SearchModel(this))
-    , m_document(nullptr)
-    , m_searchTimer(new QTimer(this))
-    , m_optionsVisible(false)
-{
+    : QWidget(parent),
+      m_searchModel(new SearchModel(this)),
+      m_document(nullptr),
+      m_searchTimer(new QTimer(this)),
+      m_optionsVisible(false) {
     setupUI();
     setupConnections();
     setupShortcuts();
-    
+
     // Configure search timer for debounced search
     m_searchTimer->setSingleShot(true);
-    m_searchTimer->setInterval(300); // 300ms delay
-    
+    m_searchTimer->setInterval(300);  // 300ms delay
+
     setSearchInProgress(false);
     showSearchOptions(false);
 }
@@ -38,7 +37,8 @@ void SearchWidget::setupUI() {
     m_searchHistoryCombo = new QComboBox();
     m_searchHistoryCombo->setEditable(true);
     m_searchHistoryCombo->setInsertPolicy(QComboBox::NoInsert);
-    m_searchHistoryCombo->lineEdit()->setPlaceholderText(tr("Search document content..."));
+    m_searchHistoryCombo->lineEdit()->setPlaceholderText(
+        tr("Search document content..."));
     m_searchHistoryCombo->lineEdit()->setClearButtonEnabled(true);
 
     // Use the combo box line edit as our search input
@@ -65,11 +65,11 @@ void SearchWidget::setupUI() {
 
     // Navigation layout
     m_navigationLayout = new QHBoxLayout();
-    
+
     m_previousButton = new QPushButton(tr("Previous"));
     m_nextButton = new QPushButton(tr("Next"));
     m_resultInfoLabel = new QLabel("0 / 0");
-    
+
     m_navigationLayout->addWidget(m_previousButton);
     m_navigationLayout->addWidget(m_nextButton);
     m_navigationLayout->addStretch();
@@ -152,9 +152,11 @@ void SearchWidget::setupUI() {
     // Highlight color controls
     QHBoxLayout* colorLayout = new QHBoxLayout();
     m_highlightColorButton = new QPushButton(tr("Highlight Color"));
-    m_highlightColorButton->setStyleSheet("background-color: #FFFF00; color: black;");
+    m_highlightColorButton->setStyleSheet(
+        "background-color: #FFFF00; color: black;");
     m_currentHighlightColorButton = new QPushButton(tr("Current Result Color"));
-    m_currentHighlightColorButton->setStyleSheet("background-color: #FF6600; color: white;");
+    m_currentHighlightColorButton->setStyleSheet(
+        "background-color: #FF6600; color: white;");
 
     colorLayout->addWidget(new QLabel(tr("Highlight Colors:")));
     colorLayout->addWidget(m_highlightColorButton);
@@ -175,65 +177,95 @@ void SearchWidget::setupUI() {
 
 void SearchWidget::setupConnections() {
     // Search input and controls
-    connect(m_searchInput, &QLineEdit::textChanged, this, &SearchWidget::onSearchTextChanged);
-    connect(m_searchInput, &QLineEdit::returnPressed, this, &SearchWidget::performSearch);
-    connect(m_searchButton, &QPushButton::clicked, this, &SearchWidget::performSearch);
-    connect(m_optionsButton, &QPushButton::toggled, this, &SearchWidget::toggleSearchOptions);
-    connect(m_closeButton, &QPushButton::clicked, this, &SearchWidget::searchClosed);
+    connect(m_searchInput, &QLineEdit::textChanged, this,
+            &SearchWidget::onSearchTextChanged);
+    connect(m_searchInput, &QLineEdit::returnPressed, this,
+            &SearchWidget::performSearch);
+    connect(m_searchButton, &QPushButton::clicked, this,
+            &SearchWidget::performSearch);
+    connect(m_optionsButton, &QPushButton::toggled, this,
+            &SearchWidget::toggleSearchOptions);
+    connect(m_closeButton, &QPushButton::clicked, this,
+            &SearchWidget::searchClosed);
 
     // Search history
-    connect(m_searchHistoryCombo, QOverload<const QString&>::of(&QComboBox::currentTextChanged),
-            this, &SearchWidget::onSearchHistorySelected);
-    connect(m_clearHistoryButton, &QPushButton::clicked, this, &SearchWidget::onClearHistoryClicked);
+    connect(m_searchHistoryCombo,
+            QOverload<const QString&>::of(&QComboBox::currentTextChanged), this,
+            &SearchWidget::onSearchHistorySelected);
+    connect(m_clearHistoryButton, &QPushButton::clicked, this,
+            &SearchWidget::onClearHistoryClicked);
 
     // Navigation
-    connect(m_previousButton, &QPushButton::clicked, this, &SearchWidget::previousResult);
-    connect(m_nextButton, &QPushButton::clicked, this, &SearchWidget::nextResult);
+    connect(m_previousButton, &QPushButton::clicked, this,
+            &SearchWidget::previousResult);
+    connect(m_nextButton, &QPushButton::clicked, this,
+            &SearchWidget::nextResult);
 
     // Results view
-    connect(m_resultsView, &QListView::clicked, this, &SearchWidget::onResultClicked);
-    connect(m_resultsView, &QListView::doubleClicked, this, &SearchWidget::onResultClicked);
+    connect(m_resultsView, &QListView::clicked, this,
+            &SearchWidget::onResultClicked);
+    connect(m_resultsView, &QListView::doubleClicked, this,
+            &SearchWidget::onResultClicked);
 
     // Advanced search options
-    connect(m_fuzzySearchCheck, &QCheckBox::toggled, this, &SearchWidget::onFuzzySearchToggled);
-    connect(m_pageRangeCheck, &QCheckBox::toggled, this, &SearchWidget::onPageRangeToggled);
-    connect(m_startPageSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &SearchWidget::onPageRangeChanged);
-    connect(m_endPageSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &SearchWidget::onPageRangeChanged);
+    connect(m_fuzzySearchCheck, &QCheckBox::toggled, this,
+            &SearchWidget::onFuzzySearchToggled);
+    connect(m_pageRangeCheck, &QCheckBox::toggled, this,
+            &SearchWidget::onPageRangeToggled);
+    connect(m_startPageSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
+            &SearchWidget::onPageRangeChanged);
+    connect(m_endPageSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
+            &SearchWidget::onPageRangeChanged);
 
     // Highlight color controls
-    connect(m_highlightColorButton, &QPushButton::clicked, this, &SearchWidget::onHighlightColorClicked);
-    connect(m_currentHighlightColorButton, &QPushButton::clicked, this, &SearchWidget::onCurrentHighlightColorClicked);
+    connect(m_highlightColorButton, &QPushButton::clicked, this,
+            &SearchWidget::onHighlightColorClicked);
+    connect(m_currentHighlightColorButton, &QPushButton::clicked, this,
+            &SearchWidget::onCurrentHighlightColorClicked);
 
     // Search model signals
-    connect(m_searchModel, &SearchModel::searchStarted, this, &SearchWidget::onSearchStarted);
-    connect(m_searchModel, &SearchModel::searchFinished, this, &SearchWidget::onSearchFinished);
-    connect(m_searchModel, &SearchModel::searchError, this, &SearchWidget::onSearchError);
-    connect(m_searchModel, &SearchModel::currentResultChanged, this, &SearchWidget::onCurrentResultChanged);
+    connect(m_searchModel, &SearchModel::searchStarted, this,
+            &SearchWidget::onSearchStarted);
+    connect(m_searchModel, &SearchModel::searchFinished, this,
+            &SearchWidget::onSearchFinished);
+    connect(m_searchModel, &SearchModel::searchError, this,
+            &SearchWidget::onSearchError);
+    connect(m_searchModel, &SearchModel::currentResultChanged, this,
+            &SearchWidget::onCurrentResultChanged);
 
     // Real-time search progress signals
-    connect(m_searchModel, &SearchModel::realTimeSearchProgress, this, &SearchWidget::updateSearchProgress);
+    connect(m_searchModel, &SearchModel::realTimeSearchProgress, this,
+            &SearchWidget::updateSearchProgress);
 
     // Search timer for real-time search
-    connect(m_searchTimer, &QTimer::timeout, this, &SearchWidget::performRealTimeSearch);
+    connect(m_searchTimer, &QTimer::timeout, this,
+            &SearchWidget::performRealTimeSearch);
 
     // Real-time search signals
-    connect(m_searchModel, &SearchModel::realTimeSearchStarted, this, &SearchWidget::onRealTimeSearchStarted);
-    connect(m_searchModel, &SearchModel::realTimeResultsUpdated, this, &SearchWidget::onRealTimeResultsUpdated);
-    connect(m_searchModel, &SearchModel::realTimeSearchProgress, this, &SearchWidget::onRealTimeSearchProgress);
+    connect(m_searchModel, &SearchModel::realTimeSearchStarted, this,
+            &SearchWidget::onRealTimeSearchStarted);
+    connect(m_searchModel, &SearchModel::realTimeResultsUpdated, this,
+            &SearchWidget::onRealTimeResultsUpdated);
+    connect(m_searchModel, &SearchModel::realTimeSearchProgress, this,
+            &SearchWidget::onRealTimeSearchProgress);
 }
 
 void SearchWidget::setupShortcuts() {
     m_findShortcut = new QShortcut(QKeySequence::Find, this);
-    connect(m_findShortcut, &QShortcut::activated, this, &SearchWidget::focusSearchInput);
+    connect(m_findShortcut, &QShortcut::activated, this,
+            &SearchWidget::focusSearchInput);
 
     m_findNextShortcut = new QShortcut(QKeySequence::FindNext, this);
-    connect(m_findNextShortcut, &QShortcut::activated, this, &SearchWidget::nextResult);
+    connect(m_findNextShortcut, &QShortcut::activated, this,
+            &SearchWidget::nextResult);
 
     m_findPreviousShortcut = new QShortcut(QKeySequence::FindPrevious, this);
-    connect(m_findPreviousShortcut, &QShortcut::activated, this, &SearchWidget::previousResult);
+    connect(m_findPreviousShortcut, &QShortcut::activated, this,
+            &SearchWidget::previousResult);
 
     m_escapeShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
-    connect(m_escapeShortcut, &QShortcut::activated, this, &SearchWidget::searchClosed);
+    connect(m_escapeShortcut, &QShortcut::activated, this,
+            &SearchWidget::searchClosed);
 }
 
 void SearchWidget::setDocument(Poppler::Document* document) {
@@ -271,13 +303,9 @@ void SearchWidget::showSearchOptions(bool show) {
     m_optionsButton->setChecked(show);
 }
 
-bool SearchWidget::hasResults() const {
-    return m_searchModel->rowCount() > 0;
-}
+bool SearchWidget::hasResults() const { return m_searchModel->rowCount() > 0; }
 
-int SearchWidget::getResultCount() const {
-    return m_searchModel->rowCount();
-}
+int SearchWidget::getResultCount() const { return m_searchModel->rowCount(); }
 
 SearchResult SearchWidget::getCurrentResult() const {
     int currentIndex = m_searchModel->getCurrentResultIndex();
@@ -302,7 +330,8 @@ void SearchWidget::performSearch() {
     if (options.fuzzySearch) {
         m_searchModel->startFuzzySearch(m_document, query, options);
     } else if (options.startPage >= 0 && options.endPage >= 0) {
-        m_searchModel->startPageRangeSearch(m_document, query, options.startPage, options.endPage, options);
+        m_searchModel->startPageRangeSearch(
+            m_document, query, options.startPage, options.endPage, options);
     } else {
         m_searchModel->startSearch(m_document, query, options);
     }
@@ -336,7 +365,8 @@ void SearchWidget::nextResult() {
         // Update status with current position
         int currentIndex = m_searchModel->getCurrentResultIndex();
         int totalResults = m_searchModel->getResults().size();
-        m_statusLabel->setText(tr("Result %1 / %2").arg(currentIndex + 1).arg(totalResults));
+        m_statusLabel->setText(
+            tr("Result %1 / %2").arg(currentIndex + 1).arg(totalResults));
     }
 }
 
@@ -355,7 +385,8 @@ void SearchWidget::previousResult() {
         // Update status with current position
         int currentIndex = m_searchModel->getCurrentResultIndex();
         int totalResults = m_searchModel->getResults().size();
-        m_statusLabel->setText(tr("Result %1 / %2").arg(currentIndex + 1).arg(totalResults));
+        m_statusLabel->setText(
+            tr("Result %1 / %2").arg(currentIndex + 1).arg(totalResults));
     }
 }
 
@@ -416,7 +447,7 @@ void SearchWidget::onSearchError(const QString& error) {
 void SearchWidget::onCurrentResultChanged(int index) {
     updateNavigationButtons();
     updateResultsInfo();
-    
+
     // Update selection in results view
     if (index >= 0 && index < m_searchModel->rowCount()) {
         QModelIndex modelIndex = m_searchModel->index(index);
@@ -436,7 +467,7 @@ void SearchWidget::updateNavigationButtons() {
 void SearchWidget::updateResultsInfo() {
     int current = m_searchModel->getCurrentResultIndex() + 1;
     int total = m_searchModel->rowCount();
-    
+
     if (total > 0) {
         m_resultInfoLabel->setText(QString("%1 / %2").arg(current).arg(total));
     } else {
@@ -457,10 +488,10 @@ SearchOptions SearchWidget::getSearchOptions() const {
 
     // Page range options
     if (m_pageRangeCheck->isChecked()) {
-        options.startPage = m_startPageSpin->value() - 1; // Convert to 0-based
-        options.endPage = m_endPageSpin->value() - 1;     // Convert to 0-based
+        options.startPage = m_startPageSpin->value() - 1;  // Convert to 0-based
+        options.endPage = m_endPageSpin->value() - 1;      // Convert to 0-based
     } else {
-        options.startPage = -1; // Search all pages
+        options.startPage = -1;  // Search all pages
         options.endPage = -1;
     }
 
@@ -472,7 +503,7 @@ void SearchWidget::setSearchInProgress(bool inProgress) {
     m_progressBar->setVisible(inProgress);
 
     if (inProgress) {
-        m_progressBar->setRange(0, 0); // Indeterminate progress
+        m_progressBar->setRange(0, 0);  // Indeterminate progress
     }
 }
 
@@ -482,19 +513,21 @@ void SearchWidget::onRealTimeSearchStarted() {
     m_statusLabel->setText(tr("Real-time searching..."));
 }
 
-void SearchWidget::onRealTimeResultsUpdated(const QList<SearchResult>& results) {
+void SearchWidget::onRealTimeResultsUpdated(
+    const QList<SearchResult>& results) {
     // Update navigation buttons and result info
     updateNavigationButtons();
     updateResultsInfo();
 
     // Emit signal to update highlights in the viewer
     if (!results.isEmpty()) {
-        emit resultSelected(results.first()); // Select first result by default
+        emit resultSelected(results.first());  // Select first result by default
     }
 }
 
 void SearchWidget::onRealTimeSearchProgress(int currentPage, int totalPages) {
-    m_statusLabel->setText(tr("Search progress: %1/%2 pages").arg(currentPage).arg(totalPages));
+    m_statusLabel->setText(
+        tr("Search progress: %1/%2 pages").arg(currentPage).arg(totalPages));
 }
 
 // Navigation helper methods
@@ -504,7 +537,8 @@ void SearchWidget::navigateToCurrentResult() {
     }
 
     int currentIndex = m_searchModel->getCurrentResultIndex();
-    if (currentIndex >= 0 && currentIndex < m_searchModel->getResults().size()) {
+    if (currentIndex >= 0 &&
+        currentIndex < m_searchModel->getResults().size()) {
         SearchResult result = m_searchModel->getResult(currentIndex);
         emit navigateToResult(result.pageNumber, result.boundingRect);
         emit resultSelected(result);
@@ -513,25 +547,26 @@ void SearchWidget::navigateToCurrentResult() {
 
 void SearchWidget::retranslateUi() {
     // Update all UI text with new translations
-    m_searchHistoryCombo->lineEdit()->setPlaceholderText(tr("Search document content..."));
+    m_searchHistoryCombo->lineEdit()->setPlaceholderText(
+        tr("Search document content..."));
     m_searchButton->setText(tr("Search"));
     m_clearHistoryButton->setText(tr("Clear History"));
     m_clearHistoryButton->setToolTip(tr("Clear search history"));
     m_optionsButton->setText(tr("Options"));
     m_closeButton->setToolTip(tr("Close search"));
-    
+
     m_previousButton->setText(tr("Previous"));
     m_nextButton->setText(tr("Next"));
-    
+
     m_optionsGroup->setTitle(tr("Search Options"));
     m_caseSensitiveCheck->setText(tr("Case Sensitive"));
     m_wholeWordsCheck->setText(tr("Whole Words"));
     m_regexCheck->setText(tr("Regular Expression"));
     m_searchBackwardCheck->setText(tr("Search Backward"));
-    
+
     m_fuzzySearchCheck->setText(tr("Fuzzy Search"));
     m_fuzzyThresholdLabel->setText(tr("Fuzzy Threshold:"));
-    
+
     m_pageRangeGroup->setTitle(tr("Page Range"));
     m_pageRangeCheck->setText(tr("Limit Search Range"));
     m_pageRangeLabel->setText(tr("From Page:"));
@@ -540,19 +575,19 @@ void SearchWidget::retranslateUi() {
     if (toLabel) {
         toLabel->setText(tr("To Page:"));
     }
-    
+
     m_statusLabel->setText(tr("Ready to search"));
     m_searchProgressLabel->setText(tr("Search Progress:"));
-    
+
     m_highlightColorButton->setText(tr("Highlight Color"));
     m_currentHighlightColorButton->setText(tr("Current Result Color"));
-    
+
     // Update highlight color label if it exists
     QLabel* colorLabel = findChild<QLabel*>("highlightColorsLabel");
     if (colorLabel) {
         colorLabel->setText(tr("Highlight Colors:"));
     }
-    
+
     updateResultsInfo();
 }
 
@@ -562,7 +597,6 @@ void SearchWidget::changeEvent(QEvent* event) {
     }
     QWidget::changeEvent(event);
 }
-
 
 // Advanced search feature implementations
 void SearchWidget::onFuzzySearchToggled(bool enabled) {
@@ -615,8 +649,9 @@ void SearchWidget::setPageRangeEnabled(bool enabled) {
 }
 
 void SearchWidget::setPageRange(int startPage, int endPage) {
-    m_startPageSpin->setValue(startPage + 1); // Convert from 0-based to 1-based
-    m_endPageSpin->setValue(endPage + 1);     // Convert from 0-based to 1-based
+    m_startPageSpin->setValue(startPage +
+                              1);          // Convert from 0-based to 1-based
+    m_endPageSpin->setValue(endPage + 1);  // Convert from 0-based to 1-based
 }
 
 void SearchWidget::updateSearchHistory() {
@@ -625,20 +660,21 @@ void SearchWidget::updateSearchHistory() {
     m_searchHistoryCombo->addItems(history);
 }
 
-void SearchWidget::loadSearchHistory() {
-    updateSearchHistory();
-}
+void SearchWidget::loadSearchHistory() { updateSearchHistory(); }
 
 // Enhanced UI feature implementations
-void SearchWidget::setHighlightColors(const QColor& normalColor, const QColor& currentColor) {
+void SearchWidget::setHighlightColors(const QColor& normalColor,
+                                      const QColor& currentColor) {
     // Update button styles to show current colors
-    m_highlightColorButton->setStyleSheet(QString("background-color: %1; color: %2;")
-        .arg(normalColor.name())
-        .arg(normalColor.lightness() > 128 ? "black" : "white"));
+    m_highlightColorButton->setStyleSheet(
+        QString("background-color: %1; color: %2;")
+            .arg(normalColor.name())
+            .arg(normalColor.lightness() > 128 ? "black" : "white"));
 
-    m_currentHighlightColorButton->setStyleSheet(QString("background-color: %1; color: %2;")
-        .arg(currentColor.name())
-        .arg(currentColor.lightness() > 128 ? "black" : "white"));
+    m_currentHighlightColorButton->setStyleSheet(
+        QString("background-color: %1; color: %2;")
+            .arg(currentColor.name())
+            .arg(currentColor.lightness() > 128 ? "black" : "white"));
 }
 
 void SearchWidget::showSearchProgress(bool show) {
@@ -650,23 +686,25 @@ void SearchWidget::updateSearchProgress(int current, int total) {
     if (total > 0) {
         m_searchProgressBar->setRange(0, total);
         m_searchProgressBar->setValue(current);
-        m_searchProgressLabel->setText(QString("搜索进度: %1/%2 页").arg(current).arg(total));
+        m_searchProgressLabel->setText(
+            QString("搜索进度: %1/%2 页").arg(current).arg(total));
     } else {
-        m_searchProgressBar->setRange(0, 0); // Indeterminate
+        m_searchProgressBar->setRange(0, 0);  // Indeterminate
         m_searchProgressLabel->setText("正在搜索...");
     }
 }
 
 void SearchWidget::setSearchResultInfo(int currentResult, int totalResults) {
     if (totalResults > 0) {
-        m_resultInfoLabel->setText(QString("%1 / %2").arg(currentResult + 1).arg(totalResults));
+        m_resultInfoLabel->setText(
+            QString("%1 / %2").arg(currentResult + 1).arg(totalResults));
     } else {
         m_resultInfoLabel->setText("0 / 0");
     }
 }
 
 void SearchWidget::onHighlightColorClicked() {
-    QColor currentColor = QColor("#FFFF00"); // Default yellow
+    QColor currentColor = QColor("#FFFF00");  // Default yellow
 
     // Parse current color from button style
     QString style = m_highlightColorButton->styleSheet();
@@ -676,11 +714,13 @@ void SearchWidget::onHighlightColorClicked() {
         currentColor = QColor(match.captured(1));
     }
 
-    QColor newColor = QColorDialog::getColor(currentColor, this, "选择普通高亮颜色");
+    QColor newColor =
+        QColorDialog::getColor(currentColor, this, "选择普通高亮颜色");
     if (newColor.isValid()) {
-        m_highlightColorButton->setStyleSheet(QString("background-color: %1; color: %2;")
-            .arg(newColor.name())
-            .arg(newColor.lightness() > 128 ? "black" : "white"));
+        m_highlightColorButton->setStyleSheet(
+            QString("background-color: %1; color: %2;")
+                .arg(newColor.name())
+                .arg(newColor.lightness() > 128 ? "black" : "white"));
 
         // Emit signal to update highlighting
         emit highlightColorsChanged(newColor, this->getCurrentHighlightColor());
@@ -688,7 +728,7 @@ void SearchWidget::onHighlightColorClicked() {
 }
 
 void SearchWidget::onCurrentHighlightColorClicked() {
-    QColor currentColor = QColor("#FF6600"); // Default orange
+    QColor currentColor = QColor("#FF6600");  // Default orange
 
     // Parse current color from button style
     QString style = m_currentHighlightColorButton->styleSheet();
@@ -698,11 +738,13 @@ void SearchWidget::onCurrentHighlightColorClicked() {
         currentColor = QColor(match.captured(1));
     }
 
-    QColor newColor = QColorDialog::getColor(currentColor, this, "选择当前结果高亮颜色");
+    QColor newColor =
+        QColorDialog::getColor(currentColor, this, "选择当前结果高亮颜色");
     if (newColor.isValid()) {
-        m_currentHighlightColorButton->setStyleSheet(QString("background-color: %1; color: %2;")
-            .arg(newColor.name())
-            .arg(newColor.lightness() > 128 ? "black" : "white"));
+        m_currentHighlightColorButton->setStyleSheet(
+            QString("background-color: %1; color: %2;")
+                .arg(newColor.name())
+                .arg(newColor.lightness() > 128 ? "black" : "white"));
 
         // Emit signal to update highlighting
         emit highlightColorsChanged(this->getNormalHighlightColor(), newColor);
@@ -716,7 +758,7 @@ QColor SearchWidget::getNormalHighlightColor() const {
     if (match.hasMatch()) {
         return QColor(match.captured(1));
     }
-    return QColor("#FFFF00"); // Default yellow
+    return QColor("#FFFF00");  // Default yellow
 }
 
 QColor SearchWidget::getCurrentHighlightColor() const {
@@ -726,7 +768,5 @@ QColor SearchWidget::getCurrentHighlightColor() const {
     if (match.hasMatch()) {
         return QColor(match.captured(1));
     }
-    return QColor("#FF6600"); // Default orange
+    return QColor("#FF6600");  // Default orange
 }
-
-
