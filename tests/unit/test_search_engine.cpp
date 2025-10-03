@@ -528,10 +528,12 @@ void TestSearchEngineNew::testBackgroundSearchCancellation()
     m_searchEngine->setBackgroundProcessingEnabled(true);
     
     QSignalSpy cancelledSpy(m_searchEngine, &SearchEngine::searchCancelled);
-    
+
     // Start a long search
-    m_searchEngine->search(".*", SearchOptions{.useRegex = true});
-    
+    SearchOptions regexOptions;
+    regexOptions.useRegex = true;
+    m_searchEngine->search(".*", regexOptions);
+
     // Cancel while in progress
     QTest::qWait(10);
     m_searchEngine->cancelSearch();
@@ -879,4 +881,4 @@ bool TestSearchEngineNew::waitForSignal(QSignalSpy& spy, int timeout)
 }
 
 QTEST_MAIN(TestSearchEngineNew)
-#include "test_search_engine_new.moc"
+#include "test_search_engine.moc"

@@ -52,11 +52,13 @@ The project now uses 6 essential CMake presets that cover all major development 
 ### Quick Start
 
 1. **List available presets:**
+
    ```bash
    cmake --list-presets=configure
    ```
 
 2. **Configure for your platform:**
+
    ```bash
    cmake --preset Debug-Unix        # Linux/macOS
    cmake --preset Debug-Windows     # Windows with vcpkg
@@ -64,11 +66,13 @@ The project now uses 6 essential CMake presets that cover all major development 
    ```
 
 3. **Build:**
+
    ```bash
    cmake --build --preset Debug-Unix  # Use your chosen preset
    ```
 
 4. **Configure clangd:**
+
    ```bash
    ./scripts/clangd-config.sh --auto              # Unix/Linux/macOS
    .\scripts\clangd-config.ps1 -Auto              # Windows PowerShell

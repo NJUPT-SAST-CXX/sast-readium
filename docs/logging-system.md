@@ -307,11 +307,13 @@ If you're migrating from Qt's built-in logging system:
 5. Use formatted logging instead of stream operators
 
 ### Before (Qt logging)
+
 ```cpp
 qDebug() << "Processing file:" << filename << "size:" << size;
 ```
 
 ### After (spdlog)
+
 ```cpp
 LOG_DEBUG("Processing file: {} size: {}", filename, size);
 ```

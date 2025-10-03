@@ -30,9 +30,10 @@ public:
     LoggingManager::LoggingConfiguration config;
     bool usingModernConfig = false;  // Track which config system is active
     bool initialized = false;
+    bool asyncInitialized = false;  // Track if async thread pool is initialized
     mutable QMutex mutex;
 
-    // Timers
+    // Timers (using raw pointers with parent ownership - Qt will delete them)
     QTimer* flushTimer = nullptr;
     QTimer* statisticsTimer = nullptr;
 
@@ -46,6 +47,7 @@ public:
     QTextEdit* qtLogWidget = nullptr;
 
     // Private methods
+    void initializeAsyncLogging();
     void initializeLogger();
     void initializeLoggerFromModernConfig();  // New method for modern config
     void initializeQtBridge();
@@ -157,7 +159,9 @@ LoggingManager::LoggingConfiguration LoggingManager::convertFromLoggingConfig(co
     legacyConfig.enableQtWidgetLogging = false;
 
     for (const auto& sink : sinkConfigs) {
-        if (!sink.enabled) continue;
+        if (!sink.enabled) {
+            continue;
+        }
 
         if (sink.type == "console") {
             legacyConfig.enableConsoleLogging = true;
@@ -212,6 +216,11 @@ void LoggingManager::initialize(const LoggingConfiguration& config)
     d->statistics.initializationTime = QDateTime::currentDateTime();
 
     try {
+        // Initialize async logging if enabled (must be done before creating loggers)
+        if (d->config.enableAsyncLogging) {
+            d->initializeAsyncLogging();
+        }
+
         // Create log directory if needed
         d->createLogDirectory();
 
@@ -270,6 +279,11 @@ void LoggingManager::initialize(const LoggingConfig& config)
     d->statistics.initializationTime = QDateTime::currentDateTime();
 
     try {
+        // Initialize async logging if enabled (must be done before creating loggers)
+        if (d->config.enableAsyncLogging) {
+            d->initializeAsyncLogging();
+        }
+
         // Create log directory if needed
         d->createLogDirectory();
 
@@ -327,16 +341,16 @@ void LoggingManager::shutdown()
     // Disconnect signals
     d->disconnectSignals();
 
-    // Stop timers
-    if (d->flushTimer) {
+    // Stop timers (Qt will delete them as they have 'this' as parent)
+    if (d->flushTimer != nullptr) {
         d->flushTimer->stop();
-        delete d->flushTimer;
+        d->flushTimer->deleteLater();
         d->flushTimer = nullptr;
     }
 
-    if (d->statisticsTimer) {
+    if (d->statisticsTimer != nullptr) {
         d->statisticsTimer->stop();
-        delete d->statisticsTimer;
+        d->statisticsTimer->deleteLater();
         d->statisticsTimer = nullptr;
     }
     
@@ -347,11 +361,17 @@ void LoggingManager::shutdown()
     if (d->config.enableQtMessageHandlerRedirection) {
         QtSpdlogBridge::instance().restoreDefaultMessageHandler();
     }
-    
-    // Shutdown spdlog
-    spdlog::shutdown();
+
+    // Shutdown spdlog (this also shuts down async thread pool)
+    // Note: spdlog::shutdown() can be called multiple times safely
+    try {
+        spdlog::shutdown();
+    } catch (...) {
+        // Suppress any exceptions during shutdown
+    }
 
     d->initialized = false;
+    d->asyncInitialized = false;
     emit loggingShutdown();
 }
 
@@ -381,6 +401,32 @@ QtSpdlogBridge& LoggingManager::getQtBridge()
 const QtSpdlogBridge& LoggingManager::getQtBridge() const
 {
     return QtSpdlogBridge::instance();
+}
+
+void LoggingManager::Implementation::initializeAsyncLogging()
+{
+    if (asyncInitialized) {
+        return; // Already initialized
+    }
+
+    try {
+        // Initialize spdlog's thread pool for async logging
+        // Default: queue size from config (or 8192), 1 worker thread for message ordering
+        size_t queueSize = config.asyncQueueSize > 0 ? config.asyncQueueSize : 8192;
+        size_t threadCount = 1; // Single thread to preserve message ordering
+
+        spdlog::init_thread_pool(queueSize, threadCount);
+        asyncInitialized = true;
+
+        // Note: Async loggers will be created using spdlog::async_factory
+        // This is handled by the Logger class when creating sinks
+    } catch (const spdlog::spdlog_ex& ex) {
+        // If async initialization fails, log error and continue with sync logging
+        // The error will be logged once the logger is initialized
+        config.enableAsyncLogging = false;
+        asyncInitialized = false;
+        Q_UNUSED(ex);
+    }
 }
 
 void LoggingManager::initializeLogger()

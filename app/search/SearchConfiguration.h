@@ -57,37 +57,31 @@ struct SearchOptions {
 /**
  * Comprehensive search result with enhanced features
  * Unified structure combining all search result functionality
+ *
+ * Note: This class uses a single set of member variables with descriptive names.
+ * The old "alias" approach (text/matchedText, etc.) was removed because C++ reference
+ * members prevent the class from being copyable/movable, which breaks QList usage.
  */
 class SearchResult {
 public:
     SearchResult() = default;
-    SearchResult(int page, const QString& text, const QString& context,
-                 const QRectF& rect, int position, int length)
+    SearchResult(int page, const QString& textMatch, const QString& contextMatch,
+                 const QRectF& rect, int position, int len)
         : pageNumber(page)
-        , matchedText(text)
-        , contextText(context)
+        , matchedText(textMatch)
+        , contextText(contextMatch)
         , boundingRect(rect)
         , textPosition(position)
-        , textLength(length)
-        , text(text)  // Alias for compatibility
-        , context(context)  // Alias for compatibility
-        , startIndex(position)  // Alias for compatibility
-        , length(length)  // Alias for compatibility
+        , textLength(len)
         , isCurrentResult(false) {}
 
     // Primary properties
     int pageNumber = -1;
-    QString matchedText;
-    QString contextText;
+    QString matchedText;        // The matched text
+    QString contextText;        // Context around the match
     QRectF boundingRect;        // PDF coordinates from Poppler
-    int textPosition = 0;
-    int textLength = 0;
-
-    // Compatibility aliases (for SearchModel compatibility)
-    QString text;               // Alias for matchedText
-    QString context;            // Alias for contextText
-    int startIndex = 0;         // Alias for textPosition
-    int length = 0;             // Alias for textLength
+    int textPosition = 0;       // Position in the page text
+    int textLength = 0;         // Length of the matched text
 
     // Enhanced features
     QRectF widgetRect;          // Transformed widget coordinates for highlighting

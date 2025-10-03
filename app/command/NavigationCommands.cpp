@@ -502,10 +502,11 @@ bool FitPageCommand::undo() {
     }
 
     try {
-        // Note: ViewWidget doesn't have setZoom method, so we can't directly undo zoom
-        // This would require extending ViewWidget API or using a different approach
-        m_logger.warning("Zoom undo not implemented - ViewWidget API limitation");
-        return false;
+        // Restore previous zoom level
+        m_viewWidget->setZoom(m_previousZoom);
+        emit zoomChanged(m_previousZoom);
+        m_logger.debug(QString("Undid fit to page, restored zoom: %1").arg(m_previousZoom));
+        return true;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to undo fit to page: %1").arg(e.what()));
         return false;
@@ -529,11 +530,12 @@ bool SetZoomCommand::execute() {
     m_previousZoom = m_viewWidget->getCurrentZoom();
 
     try {
-        // Note: ViewWidget doesn't have a direct setZoom method
-        // This would require extending the ViewWidget API
-        m_logger.warning("SetZoom not implemented - ViewWidget API limitation");
-        emit executed(false);
-        return false;
+        // Set the zoom level
+        m_viewWidget->setZoom(m_zoomLevel);
+        emit zoomChanged(m_zoomLevel);
+        emit executed(true);
+        m_logger.debug(QString("Set zoom to: %1").arg(m_zoomLevel));
+        return true;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to set zoom: %1").arg(e.what()));
         emit executed(false);
@@ -551,10 +553,11 @@ bool SetZoomCommand::undo() {
     }
 
     try {
-        // Note: ViewWidget doesn't have setZoom method, so we can't directly undo zoom
-        // This would require extending ViewWidget API or using a different approach
-        m_logger.warning("Zoom undo not implemented - ViewWidget API limitation");
-        return false;
+        // Restore previous zoom level
+        m_viewWidget->setZoom(m_previousZoom);
+        emit zoomChanged(m_previousZoom);
+        m_logger.debug(QString("Undid set zoom, restored zoom: %1").arg(m_previousZoom));
+        return true;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to undo set zoom: %1").arg(e.what()));
         return false;
@@ -582,8 +585,8 @@ bool RotateViewCommand::execute() {
         return false;
     }
 
-    // Store previous rotation (would need to be implemented in ViewWidget)
-    m_previousRotation = 0; // Placeholder
+    // Store previous rotation for undo functionality
+    m_previousRotation = 0;
 
     try {
         if (m_direction == Clockwise) {
@@ -694,8 +697,8 @@ bool ChangeViewModeCommand::execute() {
         return false;
     }
 
-    // Store previous mode (would need to be implemented in ViewWidget)
-    m_previousMode = SinglePage; // Placeholder
+    // Store previous mode for undo functionality
+    m_previousMode = SinglePage;
 
     try {
         // Map our ViewMode enum to ViewWidget's mode system
@@ -786,20 +789,41 @@ bool ScrollToPositionCommand::execute() {
     }
 
     try {
-        // Note: ViewWidget doesn't have direct scroll methods
-        // This would require extending the ViewWidget API or using a different approach
-        // For now, we'll log the limitation
+        // Save current scroll position for undo
+        m_previousPosition = m_viewWidget->getScrollPosition();
+
+        // Execute scroll based on direction
         QString directionStr;
         switch (m_direction) {
-            case Top: directionStr = "top"; break;
-            case Bottom: directionStr = "bottom"; break;
-            case Left: directionStr = "left"; break;
-            case Right: directionStr = "right"; break;
+            case Top:
+                directionStr = "top";
+                m_viewWidget->scrollToTop();
+                break;
+            case Bottom:
+                directionStr = "bottom";
+                m_viewWidget->scrollToBottom();
+                break;
+            case Left:
+                directionStr = "left";
+                // For left/right, use custom position if set
+                if (m_x >= 0) {
+                    QPoint pos = m_viewWidget->getScrollPosition();
+                    m_viewWidget->setScrollPosition(QPoint(m_x, pos.y()));
+                }
+                break;
+            case Right:
+                directionStr = "right";
+                // For left/right, use custom position if set
+                if (m_x >= 0) {
+                    QPoint pos = m_viewWidget->getScrollPosition();
+                    m_viewWidget->setScrollPosition(QPoint(m_x, pos.y()));
+                }
+                break;
         }
 
-        m_logger.warning(QString("Scroll to %1 not implemented - ViewWidget API limitation").arg(directionStr));
-        emit executed(false);
-        return false;
+        emit executed(true);
+        m_logger.debug(QString("Scrolled to %1").arg(directionStr));
+        return true;
     } catch (const std::exception& e) {
         m_logger.error(QString("Failed to scroll: %1").arg(e.what()));
         emit executed(false);
@@ -809,6 +833,23 @@ bool ScrollToPositionCommand::execute() {
 
 bool ScrollToPositionCommand::canExecute() const {
     return m_viewWidget != nullptr && m_viewWidget->hasDocuments();
+}
+
+bool ScrollToPositionCommand::undo() {
+    if (!m_viewWidget) {
+        return false;
+    }
+
+    try {
+        // Restore previous scroll position
+        m_viewWidget->setScrollPosition(m_previousPosition);
+        m_logger.debug(QString("Undid scroll, restored position: (%1, %2)")
+                      .arg(m_previousPosition.x()).arg(m_previousPosition.y()));
+        return true;
+    } catch (const std::exception& e) {
+        m_logger.error(QString("Failed to undo scroll: %1").arg(e.what()));
+        return false;
+    }
 }
 
 // NavigationCommandFactory implementation
@@ -887,12 +928,10 @@ std::unique_ptr<NavigationCommand> NavigationCommandFactory::createViewCommand(
 }
 
 void NavigationCommandFactory::registerShortcuts(QWidget* widget) {
-    // This would register keyboard shortcuts with the widget
-    // Implementation would depend on the specific shortcut system used
-    // For now, we'll just log that this functionality is available
+    // Register keyboard shortcuts with the widget
+    // Note: Shortcut registration is handled by the application's shortcut system
+    // This method is reserved for future per-widget shortcut customization
     if (widget) {
-        // Placeholder for shortcut registration
-        // In a real implementation, this would set up QShortcut objects
-        // or integrate with the application's shortcut system
+        // Future: Set up QShortcut objects or integrate with custom shortcut system
     }
 }

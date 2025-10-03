@@ -7,7 +7,7 @@
 #include "../TestUtilities.h"
 
 /**
- * Comprehensive tests for SearchSuggestionEngine class (from MultiSearchEngine.cpp)
+ * Comprehensive tests for SearchSuggestionEngine class (from SearchFeaturesExtensions.cpp)
  * Tests Trie data structure, search suggestions, and model training
  */
 class MultiSearchEngineTest : public TestBase

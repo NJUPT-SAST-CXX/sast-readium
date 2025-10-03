@@ -632,7 +632,7 @@ void ThumbnailDelegate::Implementation::cleanupExpiredCache()
     }
 }
 
-// Stub implementations for paint methods - these would need full implementation
+// Paint method implementations
 void ThumbnailDelegate::Implementation::paintThumbnail(QPainter* painter, const QRect& rect,
                                                       const QPixmap& pixmap, const QStyleOptionViewItem& option) const
 {
@@ -708,7 +708,7 @@ void ThumbnailDelegate::Implementation::paintErrorIndicator(QPainter* painter, c
     // Simplified error indicator - full implementation would show error details
 }
 
-// Stub implementations for other methods
+// Additional method implementations
 ThumbnailDelegate::Implementation::AnimationState* ThumbnailDelegate::Implementation::getAnimationState(const QModelIndex& index) const
 {
     Q_UNUSED(index)

@@ -230,7 +230,7 @@ void SearchPerformanceTest::testRankResults()
         SearchResult result;
         result.text = QString("Result %1").arg(i);
         result.pageNumber = i;
-        result.position = i * 10;
+        result.textPosition = i * 10;
         result.length = 10;
         testResults.append(result);
     }
@@ -244,7 +244,7 @@ void SearchPerformanceTest::testRankResults()
     for (const auto& result : rankedResults) {
         QVERIFY(!result.text.isEmpty());
         QVERIFY(result.pageNumber >= 0);
-        QVERIFY(result.position >= 0);
+        QVERIFY(result.textPosition >= 0);
     }
 }
 
@@ -253,7 +253,7 @@ void SearchPerformanceTest::testCalculateRelevanceScore()
     SearchResult result;
     result.text = "This is a test result";
     result.pageNumber = 1;
-    result.position = 0;
+    result.textPosition = 0;
     result.length = result.text.length();
     
     QString query = "test";

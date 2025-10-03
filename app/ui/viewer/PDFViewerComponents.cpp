@@ -1,4 +1,4 @@
-#include "PDFViewerEnhancements.h"
+#include "PDFViewerComponents.h"
 #include <QApplication>
 #include <QWheelEvent>
 #include <QMouseEvent>

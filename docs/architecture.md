@@ -79,6 +79,7 @@ cmdMgr.redo();
   - `InitializationCommand` - Application startup sequence
 
 **Benefits:**
+
 - Full undo/redo support
 - Macro recording capability
 - Command history and replay
@@ -99,12 +100,14 @@ auto* docController = ServiceLocator::instance().getService<DocumentController>(
 ```
 
 **Key Features:**
+
 - Lazy service initialization
 - Automatic lifecycle management
 - Type-safe service retrieval
 - Signal-based lifecycle notifications
 
 **Benefits:**
+
 - Loose coupling between components
 - Easy testing with mock services
 - Centralized dependency management
@@ -128,12 +131,14 @@ EventBus::instance().publish("document_opened", filename);
 ```
 
 **Key Features:**
+
 - Synchronous and asynchronous delivery
 - Event filtering and priority
 - Thread-safe event processing
 - Event history and replay
 
 **Benefits:**
+
 - Decoupled component communication
 - Easy to add new event handlers
 - Testable event flows
@@ -168,6 +173,7 @@ auto* nextButton = widgetFactory.createButton(actionID::next, "Next");
   - Command integration
 
 **Benefits:**
+
 - Consistent object creation
 - Centralized configuration
 - Easy to modify creation logic
@@ -192,6 +198,7 @@ PluginManager::instance().loadPlugin("path/to/plugin.so");
 ```
 
 **Key Features:**
+
 - Dynamic plugin loading
 - Plugin lifecycle management
 - Dependency resolution
@@ -233,6 +240,7 @@ Delegates handle specialized rendering and interaction:
 High-performance PDF text search:
 
 **Components:**
+
 - `SearchEngine` - Core search functionality
 - `IncrementalSearchManager` - Real-time incremental search
 - `BackgroundProcessor` - Asynchronous search operations
@@ -241,6 +249,7 @@ High-performance PDF text search:
 - `MemoryManager` - Memory-aware result caching
 
 **Features:**
+
 - Multi-threaded search
 - Incremental search with live results
 - Memory-aware caching
@@ -252,12 +261,14 @@ High-performance PDF text search:
 Efficient PDF rendering pipeline:
 
 **Components:**
+
 - `DocumentModel` - Document state management
 - `RenderModel` - Rendering coordination
 - `ThumbnailModel` - Thumbnail generation and caching
 - `AsyncDocumentLoader` - Background document loading
 
 **Features:**
+
 - Asynchronous rendering
 - Multi-resolution caching
 - GPU fallback rendering
@@ -269,12 +280,14 @@ Efficient PDF rendering pipeline:
 Intelligent multi-level caching:
 
 **Components:**
+
 - `CacheManager` - Unified cache interface
 - `PDFCacheManager` - PDF-specific caching
 - `SearchResultCache` - Search result persistence
 - `PageTextCache` - Extracted text caching
 
 **Features:**
+
 - Multiple eviction strategies (LRU, LFU, size-based)
 - Memory pressure handling
 - Persistent cache support
@@ -285,12 +298,14 @@ Intelligent multi-level caching:
 High-performance logging based on spdlog:
 
 **Components:**
+
 - `Logger` - Main logging interface
 - `LoggingManager` - Configuration and management
 - `QtSpdlogBridge` - Qt integration
 - `SimpleLogging` - Simplified API
 
 **Features:**
+
 - Multiple sinks (console, file, rotating file, Qt widget)
 - Runtime configuration
 - Qt message redirection
@@ -498,4 +513,3 @@ See [Thread Safety Guidelines](thread-safety-guidelines.md) for detailed informa
 - [Logging System](logging-system.md) - Logging system guide
 - [Thread Safety Guidelines](thread-safety-guidelines.md) - Thread safety best practices
 - [Testing Guide](../tests/README.md) - Testing infrastructure and guidelines
-

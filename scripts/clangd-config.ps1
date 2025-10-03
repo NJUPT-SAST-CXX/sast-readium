@@ -138,8 +138,7 @@ CompileFlags:
   Remove:
     - -W*
     - -fcoroutines-ts
-
-CompilationDatabase: $($BuildDirectory -replace '\\', '/')
+  CompilationDatabase: $($BuildDirectory -replace '\\', '/')
 
 Index:
   Background: Build

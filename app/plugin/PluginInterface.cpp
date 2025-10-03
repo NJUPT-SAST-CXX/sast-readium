@@ -87,7 +87,7 @@ EventBus* PluginBase::eventBus() {
 }
 
 CommandManager* PluginBase::commandManager() {
-    return &CommandManager::instance();
+    return &GlobalCommandManager::instance();
 }
 
 ConfigurationManager* PluginBase::configurationManager() {
@@ -138,21 +138,21 @@ QString PluginContext::pluginConfigPath(const QString& pluginName) const {
 // MenuExtensionPoint Implementation
 // ============================================================================
 
-bool MenuExtensionPoint::accepts(IPlugin* plugin) const {
+bool MenuExtensionPoint::accepts(IPluginInterface* plugin) const {
     if (!plugin) {
         return false;
     }
-    
+
     // Check if plugin provides menu extension capability
     QStringList provides = plugin->provides();
     return provides.contains("menu") || provides.contains("ui.menu");
 }
 
-void MenuExtensionPoint::extend(IPlugin* plugin) {
+void MenuExtensionPoint::extend(IPluginInterface* plugin) {
     if (!plugin) {
         return;
     }
-    
+
     // This would integrate with the application's menu system
     // For now, this is a placeholder that would need to be implemented
     // based on the specific menu framework being used
@@ -163,21 +163,21 @@ void MenuExtensionPoint::extend(IPlugin* plugin) {
 // ToolbarExtensionPoint Implementation
 // ============================================================================
 
-bool ToolbarExtensionPoint::accepts(IPlugin* plugin) const {
+bool ToolbarExtensionPoint::accepts(IPluginInterface* plugin) const {
     if (!plugin) {
         return false;
     }
-    
+
     // Check if plugin provides toolbar extension capability
     QStringList provides = plugin->provides();
     return provides.contains("toolbar") || provides.contains("ui.toolbar");
 }
 
-void ToolbarExtensionPoint::extend(IPlugin* plugin) {
+void ToolbarExtensionPoint::extend(IPluginInterface* plugin) {
     if (!plugin) {
         return;
     }
-    
+
     // This would integrate with the application's toolbar system
     // For now, this is a placeholder that would need to be implemented
     // based on the specific toolbar framework being used
@@ -188,23 +188,23 @@ void ToolbarExtensionPoint::extend(IPlugin* plugin) {
 // DocumentHandlerExtensionPoint Implementation
 // ============================================================================
 
-bool DocumentHandlerExtensionPoint::accepts(IPlugin* plugin) const {
+bool DocumentHandlerExtensionPoint::accepts(IPluginInterface* plugin) const {
     if (!plugin) {
         return false;
     }
-    
+
     // Check if plugin provides document handler capability
     QStringList provides = plugin->provides();
-    return provides.contains("document.handler") || 
+    return provides.contains("document.handler") ||
            provides.contains("document.type") ||
            provides.contains("file.handler");
 }
 
-void DocumentHandlerExtensionPoint::extend(IPlugin* plugin) {
+void DocumentHandlerExtensionPoint::extend(IPluginInterface* plugin) {
     if (!plugin) {
         return;
     }
-    
+
     // This would integrate with the application's document handling system
     // For now, this is a placeholder that would need to be implemented
     // based on the specific document framework being used

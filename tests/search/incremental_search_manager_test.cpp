@@ -109,7 +109,7 @@ SearchResult IncrementalSearchManagerTest::createTestResult(const QString& text,
     SearchResult result;
     result.text = text;
     result.pageNumber = page;
-    result.position = position;
+    result.textPosition = position;
     result.length = text.length();
     return result;
 }
@@ -163,7 +163,7 @@ void IncrementalSearchManagerTest::testScheduleSearch()
     QCOMPARE(scheduledSpy.count(), 1);
     
     // Wait for search to be triggered
-    QVERIFY(waitForSignal(m_manager, &IncrementalSearchManager::searchTriggered, 2000));
+    QVERIFY(waitForSignal(m_manager, SIGNAL(searchTriggered(QString,SearchOptions)), 2000));
     QCOMPARE(triggeredSpy.count(), 1);
     
     // Verify the triggered query
@@ -197,7 +197,7 @@ void IncrementalSearchManagerTest::testHasScheduledSearch()
     QVERIFY(m_manager->hasScheduledSearch());
     
     // Wait for search to trigger
-    QVERIFY(waitForSignal(m_manager, &IncrementalSearchManager::searchTriggered, 2000));
+    QVERIFY(waitForSignal(m_manager, SIGNAL(searchTriggered(QString,SearchOptions)), 2000));
     QVERIFY(!m_manager->hasScheduledSearch());
 }
 
@@ -268,7 +268,7 @@ void IncrementalSearchManagerTest::testDelayTiming()
     QSignalSpy triggeredSpy(m_manager, &IncrementalSearchManager::searchTriggered);
     m_manager->scheduleSearch("timing test", m_defaultOptions);
     
-    QVERIFY(waitForSignal(m_manager, &IncrementalSearchManager::searchTriggered, 1000));
+    QVERIFY(waitForSignal(m_manager, SIGNAL(searchTriggered(QString,SearchOptions)), 1000));
     
     qint64 elapsed = timer.elapsed();
     QVERIFY(elapsed >= 180); // Allow some tolerance
@@ -287,7 +287,7 @@ void IncrementalSearchManagerTest::testMultipleScheduling()
     m_manager->scheduleSearch("third", m_defaultOptions);
     
     // Only the last search should be triggered
-    QVERIFY(waitForSignal(m_manager, &IncrementalSearchManager::searchTriggered, 2000));
+    QVERIFY(waitForSignal(m_manager, SIGNAL(searchTriggered(QString,SearchOptions)), 2000));
     QCOMPARE(triggeredSpy.count(), 1);
     
     QList<QVariant> arguments = triggeredSpy.takeFirst();

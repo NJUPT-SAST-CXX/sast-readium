@@ -33,16 +33,31 @@ public:
 
     // Private methods
     void createLogger();
-    spdlog::level::level_enum toSpdlogLevel(Logger::LogLevel level) const;
-    Logger::LogLevel fromSpdlogLevel(spdlog::level::level_enum level) const;
-    Logger::LoggerConfig convertFromLoggingConfig(const LoggingConfig& modernConfig) const;
+    static spdlog::level::level_enum toSpdlogLevel(Logger::LogLevel level);
+    static Logger::LogLevel fromSpdlogLevel(spdlog::level::level_enum level);
+    static Logger::LoggerConfig convertFromLoggingConfig(const LoggingConfig& modernConfig);
 };
 
 Logger::Logger() : d(std::make_unique<Implementation>())
 {
 }
 
-Logger::~Logger() = default;
+Logger::~Logger()
+{
+    // Ensure proper cleanup of spdlog resources
+    if (d && d->initialized) {
+        try {
+            // Flush all pending log messages
+            if (d->logger) {
+                d->logger->flush();
+            }
+            // Note: spdlog::shutdown() should be called by LoggingManager
+            // to avoid double-shutdown issues
+        } catch (...) {
+            // Suppress exceptions in destructor
+        }
+    }
+}
 
 Logger& Logger::instance()
 {
@@ -109,7 +124,7 @@ void Logger::initialize(const LoggingConfig& config)
     }
 
     // Convert LoggingConfig to LoggerConfig and initialize
-    LoggerConfig loggerConfig = d->convertFromLoggingConfig(config);
+    LoggerConfig loggerConfig = Implementation::convertFromLoggingConfig(config);
     initialize(loggerConfig);
 }
 
@@ -121,12 +136,24 @@ void Logger::Implementation::createLogger()
         return;
     }
 
+    // Check if logger already exists and drop it to avoid registration conflicts
+    auto existing = spdlog::get("sast-readium");
+    if (existing) {
+        spdlog::drop("sast-readium");
+    }
+
     logger = std::make_shared<spdlog::logger>("sast-readium", sinks.begin(), sinks.end());
     logger->set_level(spdlog::level::trace); // Set to lowest level, actual filtering done per sink
     logger->flush_on(spdlog::level::warn); // Auto-flush on warnings and errors
 
     // Register with spdlog
-    spdlog::register_logger(logger);
+    try {
+        spdlog::register_logger(logger);
+    } catch (const spdlog::spdlog_ex& ex) {
+        // Logger might already be registered, which is fine
+        // Just use the existing logger instance
+        Q_UNUSED(ex);
+    }
 }
 
 void Logger::setLogLevel(LogLevel level)
@@ -135,7 +162,7 @@ void Logger::setLogLevel(LogLevel level)
     d->config.level = level;
 
     if (d->logger) {
-        d->logger->set_level(d->toSpdlogLevel(level));
+        d->logger->set_level(Implementation::toSpdlogLevel(level));
     }
 }
 
@@ -151,16 +178,18 @@ void Logger::setPattern(const QString& pattern)
 
 void Logger::addConsoleSink()
 {
+    QMutexLocker locker(&d->mutex);
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    console_sink->set_level(d->toSpdlogLevel(d->config.level));
+    console_sink->set_level(Implementation::toSpdlogLevel(d->config.level));
     d->sinks.push_back(console_sink);
 }
 
 void Logger::addFileSink(const QString& filename)
 {
+    QMutexLocker locker(&d->mutex);
     try {
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename.toStdString(), true);
-        file_sink->set_level(d->toSpdlogLevel(d->config.level));
+        file_sink->set_level(Implementation::toSpdlogLevel(d->config.level));
         d->sinks.push_back(file_sink);
     } catch (const std::exception& e) {
         // If we can't create file sink, log error to console
@@ -172,10 +201,11 @@ void Logger::addFileSink(const QString& filename)
 
 void Logger::addRotatingFileSink(const QString& filename, size_t maxSize, size_t maxFiles)
 {
+    QMutexLocker locker(&d->mutex);
     try {
         auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
             filename.toStdString(), maxSize, maxFiles);
-        rotating_sink->set_level(d->toSpdlogLevel(d->config.level));
+        rotating_sink->set_level(Implementation::toSpdlogLevel(d->config.level));
         d->sinks.push_back(rotating_sink);
     } catch (const std::exception& e) {
         // If we can't create rotating file sink, log error to console
@@ -187,21 +217,22 @@ void Logger::addRotatingFileSink(const QString& filename, size_t maxSize, size_t
 
 void Logger::addQtWidgetSink(QTextEdit* widget)
 {
-    if (!widget) {
+    if (widget == nullptr) {
         return;
     }
 
+    QMutexLocker locker(&d->mutex);
     d->qtWidget = widget;
 
     try {
         // qt_sink requires QObject* and meta method name (signal name)
         // The second parameter should be the name of a Qt signal that accepts a QString
         auto qt_sink = std::make_shared<spdlog::sinks::qt_sink_mt>(widget, "append");
-        qt_sink->set_level(d->toSpdlogLevel(d->config.level));
+        qt_sink->set_level(Implementation::toSpdlogLevel(d->config.level));
         d->sinks.push_back(qt_sink);
 
         // Connect Qt signal for additional processing if needed
-        connect(this, &Logger::logMessage, this, [this](const QString& message, int level) {
+        connect(this, &Logger::logMessage, this, [](const QString& message, int level) {
             // Additional Qt-specific processing can be added here
             Q_UNUSED(message)
             Q_UNUSED(level)
@@ -225,7 +256,7 @@ void Logger::setQtWidget(QTextEdit* widget)
     // Remove existing Qt widget sink if any
     removeSink(SinkType::QtWidget);
 
-    if (widget) {
+    if (widget != nullptr) {
         addQtWidgetSink(widget);
 
         // Recreate logger with new sinks
@@ -255,7 +286,7 @@ void Logger::removeSink(SinkType type)
     }
 }
 
-spdlog::level::level_enum Logger::Implementation::toSpdlogLevel(Logger::LogLevel level) const
+spdlog::level::level_enum Logger::Implementation::toSpdlogLevel(Logger::LogLevel level)
 {
     switch (level) {
         case Logger::LogLevel::Trace: return spdlog::level::trace;
@@ -269,7 +300,7 @@ spdlog::level::level_enum Logger::Implementation::toSpdlogLevel(Logger::LogLevel
     }
 }
 
-Logger::LogLevel Logger::Implementation::fromSpdlogLevel(spdlog::level::level_enum level) const
+Logger::LogLevel Logger::Implementation::fromSpdlogLevel(spdlog::level::level_enum level)
 {
     switch (level) {
         case spdlog::level::trace: return Logger::LogLevel::Trace;
@@ -331,7 +362,7 @@ std::shared_ptr<spdlog::logger> Logger::getSpdlogLogger() const
     return d->logger;
 }
 
-Logger::LoggerConfig Logger::Implementation::convertFromLoggingConfig(const LoggingConfig& modernConfig) const
+Logger::LoggerConfig Logger::Implementation::convertFromLoggingConfig(const LoggingConfig& modernConfig)
 {
     LoggerConfig loggerConfig;
 
@@ -350,7 +381,9 @@ Logger::LoggerConfig Logger::Implementation::convertFromLoggingConfig(const Logg
     loggerConfig.qtWidget = nullptr;
 
     for (const auto& sink : sinkConfigs) {
-        if (!sink.enabled) continue;
+        if (!sink.enabled) {
+            continue;
+        }
 
         if (sink.type == "console") {
             loggerConfig.enableConsole = true;

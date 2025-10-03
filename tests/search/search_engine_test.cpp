@@ -239,7 +239,7 @@ void SearchEngineTest::createTestPdf()
     painter.drawText(100, 300, "Some words appear multiple times: test, document, text.");
     painter.end();
 
-    m_testDocument = Poppler::Document::load(m_testPdfPath);
+    m_testDocument = Poppler::Document::load(m_testPdfPath).release();
     QVERIFY(m_testDocument != nullptr);
 }
 

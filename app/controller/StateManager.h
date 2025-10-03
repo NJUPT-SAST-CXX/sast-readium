@@ -6,6 +6,7 @@
 #include <QString>
 #include <QJsonObject>
 #include <QMutex>
+#include <QTimer>
 #include <memory>
 #include <functional>
 #include "../logging/SimpleLogging.h"

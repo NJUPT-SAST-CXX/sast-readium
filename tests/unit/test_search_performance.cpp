@@ -3,6 +3,7 @@
 #include <QElapsedTimer>
 #include <QRandomGenerator>
 #include <QDebug>
+#include <QtConcurrent>
 #include "../../app/search/SearchPerformance.h"
 
 class TestSearchPerformance : public QObject
@@ -42,14 +43,14 @@ private slots:
     void testConcurrentSearchPerformance();
 
 private:
-    SearchPerformanceOptimizer* optimizer;
+    SearchPerformance* optimizer;
     QString generateLargeText(int size);
     QStringList generateTestCorpus(int documentCount, int avgSize);
 };
 
 void TestSearchPerformance::initTestCase()
 {
-    optimizer = new SearchPerformanceOptimizer();
+    optimizer = new SearchPerformance();
     optimizer->initializeMemoryPool(1024 * 1024); // 1MB pool
     optimizer->enablePredictiveCache(true);
 }
@@ -122,15 +123,15 @@ void TestSearchPerformance::testAlgorithmSelection()
 {
     // Test short pattern selection
     auto algorithm1 = optimizer->selectOptimalAlgorithm("test", 1000);
-    QVERIFY(algorithm1 == SearchPerformanceOptimizer::KMP);
+    QVERIFY(algorithm1 == SearchPerformance::KMP);
     
     // Test long pattern with large text
     auto algorithm2 = optimizer->selectOptimalAlgorithm("performance optimization", 100000);
-    QVERIFY(algorithm2 == SearchPerformanceOptimizer::BoyerMoore);
+    QVERIFY(algorithm2 == SearchPerformance::BoyerMoore);
     
     // Test medium pattern
     auto algorithm3 = optimizer->selectOptimalAlgorithm("algorithm", 50000);
-    QVERIFY(algorithm3 == SearchPerformanceOptimizer::BoyerMoore);
+    QVERIFY(algorithm3 == SearchPerformance::BoyerMoore);
 }
 
 void TestSearchPerformance::testParallelSearchPerformance()

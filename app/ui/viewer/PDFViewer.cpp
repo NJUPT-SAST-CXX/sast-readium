@@ -2089,6 +2089,70 @@ void PDFViewer::setRotation(int degrees) {
     }
 }
 
+// Scroll position control for undo/redo support
+QPoint PDFViewer::getScrollPosition() const {
+    if (currentViewMode == PDFViewMode::ContinuousScroll && continuousScrollArea) {
+        QScrollBar* hBar = continuousScrollArea->horizontalScrollBar();
+        QScrollBar* vBar = continuousScrollArea->verticalScrollBar();
+        if (hBar && vBar) {
+            return QPoint(hBar->value(), vBar->value());
+        }
+    } else if (currentViewMode == PDFViewMode::SinglePage && singlePageScrollArea) {
+        QScrollBar* hBar = singlePageScrollArea->horizontalScrollBar();
+        QScrollBar* vBar = singlePageScrollArea->verticalScrollBar();
+        if (hBar && vBar) {
+            return QPoint(hBar->value(), vBar->value());
+        }
+    }
+    return QPoint(0, 0);
+}
+
+void PDFViewer::setScrollPosition(const QPoint& position) {
+    if (currentViewMode == PDFViewMode::ContinuousScroll && continuousScrollArea) {
+        QScrollBar* hBar = continuousScrollArea->horizontalScrollBar();
+        QScrollBar* vBar = continuousScrollArea->verticalScrollBar();
+        if (hBar && vBar) {
+            hBar->setValue(position.x());
+            vBar->setValue(position.y());
+        }
+    } else if (currentViewMode == PDFViewMode::SinglePage && singlePageScrollArea) {
+        QScrollBar* hBar = singlePageScrollArea->horizontalScrollBar();
+        QScrollBar* vBar = singlePageScrollArea->verticalScrollBar();
+        if (hBar && vBar) {
+            hBar->setValue(position.x());
+            vBar->setValue(position.y());
+        }
+    }
+}
+
+void PDFViewer::scrollToTop() {
+    if (currentViewMode == PDFViewMode::ContinuousScroll && continuousScrollArea) {
+        QScrollBar* vBar = continuousScrollArea->verticalScrollBar();
+        if (vBar) {
+            vBar->setValue(vBar->minimum());
+        }
+    } else if (currentViewMode == PDFViewMode::SinglePage && singlePageScrollArea) {
+        QScrollBar* vBar = singlePageScrollArea->verticalScrollBar();
+        if (vBar) {
+            vBar->setValue(vBar->minimum());
+        }
+    }
+}
+
+void PDFViewer::scrollToBottom() {
+    if (currentViewMode == PDFViewMode::ContinuousScroll && continuousScrollArea) {
+        QScrollBar* vBar = continuousScrollArea->verticalScrollBar();
+        if (vBar) {
+            vBar->setValue(vBar->maximum());
+        }
+    } else if (currentViewMode == PDFViewMode::SinglePage && singlePageScrollArea) {
+        QScrollBar* vBar = singlePageScrollArea->verticalScrollBar();
+        if (vBar) {
+            vBar->setValue(vBar->maximum());
+        }
+    }
+}
+
 void PDFViewer::updateContinuousViewRotation() {
     if (!document || currentViewMode != PDFViewMode::ContinuousScroll) {
         return;
@@ -2349,8 +2413,8 @@ int PDFViewer::findSearchResultIndex(const SearchResult& target) {
     for (int i = 0; i < m_allSearchResults.size(); ++i) {
         const SearchResult& result = m_allSearchResults[i];
         if (result.pageNumber == target.pageNumber &&
-            result.startIndex == target.startIndex &&
-            result.length == target.length) {
+            result.textPosition == target.textPosition &&
+            result.textLength == target.textLength) {
             return i;
         }
     }
@@ -2906,7 +2970,7 @@ void PDFViewer::updatePageLoadState(int pageNumber, PageLoadState state) {
                     label->setText(QString("Loading page %1...").arg(pageNumber + 1));
                     break;
                 case Loaded:
-                    // Placeholder will be replaced by actual widget
+                    // Page is loaded - placeholder widget is replaced by actual page widget
                     break;
                 case LoadError:
                     label->setText(QString("Error loading page %1").arg(pageNumber + 1));

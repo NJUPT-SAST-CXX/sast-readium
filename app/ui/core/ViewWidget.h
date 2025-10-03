@@ -44,6 +44,15 @@ public:
     int getCurrentPageCount() const;
     double getCurrentZoom() const;
 
+    // Zoom control for undo/redo support
+    void setZoom(double zoomFactor);
+
+    // Scroll position control for undo/redo support
+    QPoint getScrollPosition() const;
+    void setScrollPosition(const QPoint& position);
+    void scrollToTop();
+    void scrollToBottom();
+
 protected:
     void setupUI();
     void setupConnections();

@@ -49,19 +49,19 @@ QVariant SearchModel::data(const QModelIndex& index, int role) const {
     
     switch (role) {
         case Qt::DisplayRole:
-            return QString("Page %1: %2").arg(result.pageNumber + 1).arg(result.context);
+            return QString("Page %1: %2").arg(result.pageNumber + 1).arg(result.contextText);
         case PageNumberRole:
             return result.pageNumber;
         case TextRole:
-            return result.text;
+            return result.matchedText;
         case ContextRole:
-            return result.context;
+            return result.contextText;
         case BoundingRectRole:
             return result.boundingRect;
         case StartIndexRole:
-            return result.startIndex;
+            return result.textPosition;
         case LengthRole:
-            return result.length;
+            return result.textLength;
         default:
             return QVariant();
     }
@@ -506,10 +506,10 @@ QList<SearchResult> SearchModel::performFuzzySearch(const QString& query, const 
                     if (position >= 0) {
                         SearchResult result;
                         result.pageNumber = i;
-                        result.text = word;
-                        result.context = extractContext(pageText, position, word.length());
-                        result.startIndex = position;
-                        result.length = word.length();
+                        result.matchedText = word;
+                        result.contextText = extractContext(pageText, position, word.length());
+                        result.textPosition = position;
+                        result.textLength = word.length();
                         result.isCurrentResult = false;
 
                         // Get bounding box for the word

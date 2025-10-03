@@ -8,6 +8,13 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QDir>
+#include <QPrinter>
+#include <QPrintDialog>
+#include <QPrintPreviewDialog>
+#include <QPainter>
+#include <QPageSize>
+#include <QPageLayout>
+#include <poppler/qt6/poppler-qt6.h>
 
 // DocumentCommand base class implementation
 DocumentCommand::DocumentCommand(DocumentController* controller, const QString& name, QObject* parent)
@@ -368,6 +375,210 @@ ExportDocumentCommand::ExportDocumentCommand(DocumentController* controller, Exp
     setActionId(ActionMap::exportFile);
 }
 
+// Helper method to export PDF (simple file copy)
+bool ExportDocumentCommand::exportToPDF(Poppler::Document* document, const QString& sourcePath, const QString& outputPath) {
+    Q_UNUSED(document);
+
+    try {
+        // Validate paths
+        if (sourcePath.isEmpty() || outputPath.isEmpty()) {
+            m_logger.error("Invalid source or output path for PDF export");
+            return false;
+        }
+
+        // Check if source file exists
+        if (!QFile::exists(sourcePath)) {
+            m_logger.error(QString("Source file does not exist: %1").arg(sourcePath));
+            return false;
+        }
+
+        // Remove destination file if it exists
+        if (QFile::exists(outputPath)) {
+            if (!QFile::remove(outputPath)) {
+                m_logger.error(QString("Failed to remove existing file: %1").arg(outputPath));
+                return false;
+            }
+        }
+
+        // Copy file
+        if (!QFile::copy(sourcePath, outputPath)) {
+            m_logger.error(QString("Failed to copy PDF from %1 to %2").arg(sourcePath).arg(outputPath));
+            return false;
+        }
+
+        m_logger.info(QString("Successfully exported PDF to: %1").arg(outputPath));
+        return true;
+
+    } catch (const std::exception& e) {
+        m_logger.error(QString("Exception during PDF export: %1").arg(e.what()));
+        return false;
+    }
+}
+
+// Helper method to export to images
+bool ExportDocumentCommand::exportToImages(Poppler::Document* document, const QString& outputPath, int totalPages) {
+    try {
+        // Determine output format from file extension
+        QFileInfo fileInfo(outputPath);
+        QString extension = fileInfo.suffix().toLower();
+        const char* format = "PNG"; // Default
+
+        if (extension == "jpg" || extension == "jpeg") {
+            format = "JPEG";
+        } else if (extension == "png") {
+            format = "PNG";
+        } else {
+            m_logger.warning(QString("Unknown image format '%1', using PNG").arg(extension));
+        }
+
+        // Get options for page range
+        int startPage = 0;
+        int endPage = totalPages - 1;
+
+        if (m_options.contains("startPage")) {
+            startPage = m_options["startPage"].toInt();
+        }
+        if (m_options.contains("endPage")) {
+            endPage = m_options["endPage"].toInt();
+        }
+
+        // Validate page range
+        startPage = qBound(0, startPage, totalPages - 1);
+        endPage = qBound(startPage, endPage, totalPages - 1);
+
+        // Get DPI from options or use default
+        double dpi = 150.0; // Default DPI for export
+        if (m_options.contains("dpi")) {
+            dpi = m_options["dpi"].toDouble();
+            dpi = qBound(72.0, dpi, 600.0); // Limit DPI range
+        }
+
+        m_logger.info(QString("Exporting pages %1-%2 to %3 at %4 DPI")
+                     .arg(startPage + 1).arg(endPage + 1).arg(format).arg(dpi));
+
+        // Export each page
+        int pageCount = endPage - startPage + 1;
+        for (int i = startPage; i <= endPage; ++i) {
+            // Emit progress
+            emit this->progress(i - startPage + 1, pageCount);
+            emit statusMessage(QString("Exporting page %1 of %2...").arg(i - startPage + 1).arg(pageCount));
+
+            // Get page
+            std::unique_ptr<Poppler::Page> page(document->page(i));
+            if (!page) {
+                m_logger.warning(QString("Failed to load page %1, skipping").arg(i + 1));
+                continue;
+            }
+
+            // Render page to image
+            QImage pageImage = page->renderToImage(dpi, dpi);
+            if (pageImage.isNull()) {
+                m_logger.warning(QString("Failed to render page %1, skipping").arg(i + 1));
+                continue;
+            }
+
+            // Generate output filename
+            QString pageOutputPath;
+            if (pageCount == 1) {
+                // Single page - use the provided path directly
+                pageOutputPath = outputPath;
+            } else {
+                // Multiple pages - append page number
+                QString baseName = fileInfo.completeBaseName();
+                QString dirPath = fileInfo.absolutePath();
+                pageOutputPath = QString("%1/%2_page_%3.%4")
+                                .arg(dirPath)
+                                .arg(baseName)
+                                .arg(i + 1, 4, 10, QChar('0'))
+                                .arg(extension);
+            }
+
+            // Save image
+            if (!pageImage.save(pageOutputPath, format)) {
+                m_logger.error(QString("Failed to save image: %1").arg(pageOutputPath));
+                return false;
+            }
+
+            m_logger.debug(QString("Exported page %1 to: %2").arg(i + 1).arg(pageOutputPath));
+        }
+
+        m_logger.info(QString("Successfully exported %1 pages to images").arg(pageCount));
+        return true;
+
+    } catch (const std::exception& e) {
+        m_logger.error(QString("Exception during image export: %1").arg(e.what()));
+        return false;
+    }
+}
+
+// Helper method to export to text
+bool ExportDocumentCommand::exportToText(Poppler::Document* document, const QString& outputPath, int totalPages) {
+    try {
+        // Open output file
+        QFile outputFile(outputPath);
+        if (!outputFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            m_logger.error(QString("Failed to open output file: %1").arg(outputPath));
+            return false;
+        }
+
+        QTextStream out(&outputFile);
+        out.setEncoding(QStringConverter::Utf8);
+
+        // Get page range from options
+        int startPage = 0;
+        int endPage = totalPages - 1;
+
+        if (m_options.contains("startPage")) {
+            startPage = m_options["startPage"].toInt();
+        }
+        if (m_options.contains("endPage")) {
+            endPage = m_options["endPage"].toInt();
+        }
+
+        // Validate page range
+        startPage = qBound(0, startPage, totalPages - 1);
+        endPage = qBound(startPage, endPage, totalPages - 1);
+
+        m_logger.info(QString("Extracting text from pages %1-%2").arg(startPage + 1).arg(endPage + 1));
+
+        // Extract text from each page
+        int pageCount = endPage - startPage + 1;
+        for (int i = startPage; i <= endPage; ++i) {
+            // Emit progress
+            emit this->progress(i - startPage + 1, pageCount);
+            emit statusMessage(QString("Extracting text from page %1 of %2...").arg(i - startPage + 1).arg(pageCount));
+
+            // Get page
+            std::unique_ptr<Poppler::Page> page(document->page(i));
+            if (!page) {
+                m_logger.warning(QString("Failed to load page %1, skipping").arg(i + 1));
+                out << QString("[Page %1: Failed to load]\n\n").arg(i + 1);
+                continue;
+            }
+
+            // Extract text
+            QString pageText = page->text(QRectF());
+            if (pageText.isEmpty()) {
+                m_logger.debug(QString("Page %1 has no text").arg(i + 1));
+                out << QString("[Page %1: No text content]\n\n").arg(i + 1);
+            } else {
+                // Write page header and text
+                out << QString("========== Page %1 ==========\n").arg(i + 1);
+                out << pageText;
+                out << "\n\n";
+            }
+        }
+
+        outputFile.close();
+        m_logger.info(QString("Successfully exported text to: %1").arg(outputPath));
+        return true;
+
+    } catch (const std::exception& e) {
+        m_logger.error(QString("Exception during text export: %1").arg(e.what()));
+        return false;
+    }
+}
+
 bool ExportDocumentCommand::execute() {
     if (!controller()) {
         setErrorMessage("DocumentController is null");
@@ -429,20 +640,58 @@ bool ExportDocumentCommand::execute() {
             }
         }
 
-        // Note: Actual export implementation would depend on the document format
-        // and available export libraries. For now, we'll log the limitation.
-        QString formatStr;
-        switch (m_format) {
-            case PDF: formatStr = "PDF"; break;
-            case Images: formatStr = "Images"; break;
-            case Text: formatStr = "Text"; break;
-            case HTML: formatStr = "HTML"; break;
+        // Get the Poppler document
+        Poppler::Document* document = model->getCurrentDocument();
+        if (!document) {
+            setErrorMessage("Failed to get document for export");
+            m_logger.error("Document pointer is null");
+            emit executed(false);
+            return false;
         }
 
-        m_logger.warning(QString("Export to %1 not implemented - requires export library integration").arg(formatStr));
-        setErrorMessage(QString("Export to %1 format not yet implemented").arg(formatStr));
-        emit executed(false);
-        return false;
+        int totalPages = document->numPages();
+        if (totalPages == 0) {
+            setErrorMessage("Document has no pages to export");
+            m_logger.error("Document has no pages");
+            emit executed(false);
+            return false;
+        }
+
+        // Perform export based on format
+        bool success = false;
+        QString formatStr;
+
+        switch (m_format) {
+            case PDF:
+                formatStr = "PDF";
+                success = exportToPDF(document, model->getCurrentFilePath(), outputPath);
+                break;
+            case Images:
+                formatStr = "Images";
+                success = exportToImages(document, outputPath, totalPages);
+                break;
+            case Text:
+                formatStr = "Text";
+                success = exportToText(document, outputPath, totalPages);
+                break;
+            case HTML:
+                formatStr = "HTML";
+                m_logger.warning("Export to HTML not implemented - requires HTML export library");
+                setErrorMessage("Export to HTML format not yet implemented");
+                emit executed(false);
+                return false;
+        }
+
+        if (success) {
+            m_logger.info(QString("Successfully exported to %1: %2").arg(formatStr).arg(outputPath));
+            emit statusMessage(QString("Successfully exported to %1").arg(formatStr));
+            emit executed(true);
+            return true;
+        } else {
+            setErrorMessage(QString("Failed to export to %1").arg(formatStr));
+            emit executed(false);
+            return false;
+        }
 
     } catch (const std::exception& e) {
         setErrorMessage(QString("Exception while exporting document: %1").arg(e.what()));
@@ -488,16 +737,160 @@ bool PrintDocumentCommand::execute() {
     }
 
     try {
-        // Note: Actual printing implementation would depend on Qt's printing framework
-        // and the document rendering system. For now, we'll log the limitation.
-        m_logger.warning("Print functionality not implemented - requires QPrinter integration");
-        setErrorMessage("Print functionality not yet implemented");
-        emit executed(false);
-        return false;
+        // Get the Poppler document
+        Poppler::Document* document = model->getCurrentDocument();
+        if (!document) {
+            setErrorMessage("Failed to get document for printing");
+            m_logger.error("Document pointer is null");
+            emit executed(false);
+            return false;
+        }
+
+        int totalPages = document->numPages();
+        if (totalPages == 0) {
+            setErrorMessage("Document has no pages to print");
+            m_logger.error("Document has no pages");
+            emit executed(false);
+            return false;
+        }
+
+        // Create printer
+        QPrinter printer(QPrinter::HighResolution);
+        printer.setOutputFormat(QPrinter::NativeFormat);
+        printer.setColorMode(QPrinter::Color);
+
+        // Set page range from options or use all pages
+        int startPage = (m_startPage >= 0) ? m_startPage : 0;
+        int endPage = (m_endPage >= 0 && m_endPage < totalPages) ? m_endPage : totalPages - 1;
+
+        // Validate page range
+        if (startPage > endPage || startPage < 0 || endPage >= totalPages) {
+            setErrorMessage(QString("Invalid page range: %1-%2 (document has %3 pages)")
+                          .arg(startPage + 1).arg(endPage + 1).arg(totalPages));
+            m_logger.error(QString("Invalid page range: %1-%2").arg(startPage).arg(endPage));
+            emit executed(false);
+            return false;
+        }
+
+        // Apply print options from m_printOptions if provided
+        if (m_printOptions.contains("copies")) {
+            printer.setCopyCount(m_printOptions["copies"].toInt());
+        }
+        if (m_printOptions.contains("orientation")) {
+            QString orientation = m_printOptions["orientation"].toString();
+            if (orientation == "landscape") {
+                printer.setPageOrientation(QPageLayout::Landscape);
+            } else {
+                printer.setPageOrientation(QPageLayout::Portrait);
+            }
+        }
+        if (m_printOptions.contains("colorMode")) {
+            QString colorMode = m_printOptions["colorMode"].toString();
+            if (colorMode == "grayscale") {
+                printer.setColorMode(QPrinter::GrayScale);
+            }
+        }
+
+        // Show print dialog
+        QPrintDialog printDialog(&printer, nullptr);
+        printDialog.setWindowTitle(tr("Print Document"));
+
+        // Set page range in dialog
+        printDialog.setMinMax(1, totalPages);
+        if (startPage >= 0 && endPage >= 0) {
+            printDialog.setFromTo(startPage + 1, endPage + 1);
+        }
+
+        if (printDialog.exec() != QDialog::Accepted) {
+            m_logger.debug("User cancelled print operation");
+            emit executed(false);
+            return false;
+        }
+
+        // Get updated page range from dialog
+        if (printDialog.printRange() == QAbstractPrintDialog::PageRange) {
+            startPage = printDialog.fromPage() - 1;
+            endPage = printDialog.toPage() - 1;
+        }
+
+        m_logger.info(QString("Printing pages %1-%2 of %3")
+                     .arg(startPage + 1).arg(endPage + 1).arg(totalPages));
+
+        // Start printing
+        QPainter painter;
+        if (!painter.begin(&printer)) {
+            setErrorMessage("Failed to start printing");
+            m_logger.error("QPainter::begin() failed");
+            emit executed(false);
+            return false;
+        }
+
+        // Configure rendering for high quality
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setRenderHint(QPainter::TextAntialiasing, true);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+
+        // Print each page
+        int pageCount = endPage - startPage + 1;
+        for (int i = startPage; i <= endPage; ++i) {
+            // Emit progress
+            int progress = ((i - startPage + 1) * 100) / pageCount;
+            emit this->progress(i - startPage + 1, pageCount);
+            emit statusMessage(QString("Printing page %1 of %2...").arg(i - startPage + 1).arg(pageCount));
+
+            // Get page
+            std::unique_ptr<Poppler::Page> page(document->page(i));
+            if (!page) {
+                m_logger.warning(QString("Failed to load page %1, skipping").arg(i + 1));
+                continue;
+            }
+
+            // Render page to image at high resolution (300 DPI)
+            QImage pageImage = page->renderToImage(300.0, 300.0);
+            if (pageImage.isNull()) {
+                m_logger.warning(QString("Failed to render page %1, skipping").arg(i + 1));
+                continue;
+            }
+
+            // Scale image to fit printer page
+            QRect pageRect = printer.pageRect(QPrinter::DevicePixel).toRect();
+            QImage scaledImage = pageImage.scaled(pageRect.size(),
+                                                  Qt::KeepAspectRatio,
+                                                  Qt::SmoothTransformation);
+
+            // Center image on page
+            int x = (pageRect.width() - scaledImage.width()) / 2;
+            int y = (pageRect.height() - scaledImage.height()) / 2;
+
+            painter.drawImage(x, y, scaledImage);
+
+            // New page for next iteration (except for last page)
+            if (i < endPage) {
+                if (!printer.newPage()) {
+                    setErrorMessage(QString("Failed to create new page at page %1").arg(i + 2));
+                    m_logger.error(QString("QPrinter::newPage() failed at page %1").arg(i + 1));
+                    painter.end();
+                    emit executed(false);
+                    return false;
+                }
+            }
+        }
+
+        painter.end();
+
+        m_logger.info(QString("Successfully printed %1 pages").arg(pageCount));
+        emit statusMessage(QString("Successfully printed %1 pages").arg(pageCount));
+        emit executed(true);
+        return true;
 
     } catch (const std::exception& e) {
         setErrorMessage(QString("Exception while printing document: %1").arg(e.what()));
         m_logger.error(QString("Exception while printing document: %1").arg(e.what()));
+        emit executed(false);
+        return false;
+    } catch (...) {
+        setErrorMessage("Unknown exception occurred during printing");
+        m_logger.error("Unknown exception during printing");
         emit executed(false);
         return false;
     }

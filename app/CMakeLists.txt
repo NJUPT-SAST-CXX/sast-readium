@@ -49,6 +49,23 @@ set_target_properties(app_lib PROPERTIES
     CXX_EXTENSIONS OFF
 )
 
+# Configure precompiled headers for faster builds
+# Include frequently used Qt and STL headers
+target_precompile_headers(app_lib PRIVATE
+    <QWidget>
+    <QString>
+    <QList>
+    <QVector>
+    <QMap>
+    <QHash>
+    <QDebug>
+    <memory>
+    <vector>
+    <string>
+    <algorithm>
+    "logging/Logger.h"
+)
+
 # Create executable with platform-specific configuration
 if(WIN32)
     add_executable(app "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")

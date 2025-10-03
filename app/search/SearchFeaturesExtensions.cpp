@@ -149,6 +149,34 @@ void SearchSuggestionEngine::updateQueryFrequency(const QString& query, int freq
     d->queryFrequency[query] = frequency;
 }
 
+int SearchSuggestionEngine::getQueryFrequency(const QString& query) const
+{
+    return d->queryFrequency.value(query, 0);
+}
+
+QStringList SearchSuggestionEngine::getMostFrequentQueries(int count) const
+{
+    // Get all queries and sort by frequency
+    QList<QPair<QString, int>> sortedQueries;
+    for (auto it = d->queryFrequency.begin(); it != d->queryFrequency.end(); ++it) {
+        sortedQueries.append(qMakePair(it.key(), it.value()));
+    }
+
+    // Sort by frequency (descending)
+    std::sort(sortedQueries.begin(), sortedQueries.end(),
+        [](const QPair<QString, int>& a, const QPair<QString, int>& b) {
+            return a.second > b.second;
+        });
+
+    // Extract top queries
+    QStringList result;
+    for (int i = 0; i < qMin(count, sortedQueries.size()); ++i) {
+        result.append(sortedQueries[i].first);
+    }
+
+    return result;
+}
+
 QStringList SearchSuggestionEngine::ngramSuggestions(const QString& partialQuery, int n, int maxSuggestions)
 {
     QStringList suggestions;

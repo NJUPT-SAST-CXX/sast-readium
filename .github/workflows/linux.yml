@@ -72,7 +72,14 @@ jobs:
         run: |
           # Use cached package lists if available
           sudo apt update
-          sudo apt install -y ${{ matrix.packages }}
+          sudo apt install -y ${{ matrix.packages }} ccache
+
+      # ccache for faster rebuilds
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.cache_key }}-ccache
+          max-size: 500M
 
       - name: Verify dependencies
         run: |

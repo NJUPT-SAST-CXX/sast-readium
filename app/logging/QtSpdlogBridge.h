@@ -5,6 +5,7 @@
 #include <QTextStream>
 #include <QHash>
 #include <QLoggingCategory>
+#include <QMutex>
 #include <functional>
 #include <memory>
 #include "Logger.h"
@@ -91,6 +92,7 @@ private:
         bool categoryFilteringEnabled = true;
         QtMessageHandler previousHandler = nullptr;
         QHash<QString, QString> categoryMappings;
+        mutable QMutex mutex;  // Thread-safety for message handler operations
 
         // Private methods
         Logger::LogLevel qtMsgTypeToLogLevel(QtMsgType type) const;

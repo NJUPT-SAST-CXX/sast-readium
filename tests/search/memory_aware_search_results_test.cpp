@@ -468,13 +468,7 @@ SearchResult MemoryAwareSearchResultsTest::createTestResult(const QString& text,
     result.textPosition = position;
     result.textLength = text.length();
     result.boundingRect = QRectF(position, page * 10, text.length() * 8, 12);
-    
-    // Set compatibility aliases
-    result.text = text;
-    result.context = result.contextText;
-    result.startIndex = position;
-    result.length = text.length();
-    
+
     return result;
 }
 

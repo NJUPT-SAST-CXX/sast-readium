@@ -3,6 +3,7 @@
 #include <QSignalSpy>
 #include <QList>
 #include "../../app/search/MemoryManager.h"
+#include "../../app/search/SearchConfiguration.h"
 #include "../TestUtilities.h"
 
 /**
@@ -135,7 +136,7 @@ SearchResult MemoryManagerStubsTest::createTestResult(const QString& text, int p
     SearchResult result;
     result.text = text;
     result.pageNumber = page;
-    result.position = position;
+    result.textPosition = position;
     result.length = text.length();
     return result;
 }
@@ -431,7 +432,7 @@ void MemoryManagerStubsTest::verifyResultsIntegrity(const QList<SearchResult>& r
     for (const SearchResult& result : results) {
         QVERIFY(!result.text.isEmpty());
         QVERIFY(result.pageNumber > 0);
-        QVERIFY(result.position >= 0);
+        QVERIFY(result.textPosition >= 0);
         QVERIFY(result.length > 0);
     }
 }

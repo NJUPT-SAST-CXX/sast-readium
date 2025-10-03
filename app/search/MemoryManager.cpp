@@ -491,8 +491,6 @@ public:
         qint64 size = 0;
         size += result.matchedText.size() * sizeof(QChar);
         size += result.contextText.size() * sizeof(QChar);
-        size += result.text.size() * sizeof(QChar);
-        size += result.context.size() * sizeof(QChar);
         size += sizeof(SearchResult); // Base object size
         return size;
     }

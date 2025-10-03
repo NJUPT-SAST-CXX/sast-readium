@@ -245,7 +245,7 @@ void ViewDelegate::adjustSplitterSizes() {
                   .arg(leftWidth).arg(rightWidth));
 }
 
-// Stub implementations for remaining ViewDelegate methods
+// ViewDelegate method implementations
 void ViewDelegate::saveLayoutState()
 {
     QSettings settings;
@@ -414,7 +414,7 @@ void MainViewDelegate::zoomOut()
     setZoomLevel(d->zoomLevel * 0.8);
 }
 
-// Stub implementations for other MainViewDelegate methods
+// MainViewDelegate method implementations
 void MainViewDelegate::setRenderQuality(int quality) { d->renderQuality = qBound(1, quality, 100); }
 void MainViewDelegate::setAntiAliasing(bool enabled) { d->antiAliasing = enabled; }
 void MainViewDelegate::setSmoothPixmapTransform(bool enabled) { d->smoothTransform = enabled; }
@@ -424,10 +424,36 @@ void MainViewDelegate::setSinglePageMode() { d->currentViewMode = "single"; }
 void MainViewDelegate::setContinuousMode() { d->currentViewMode = "continuous"; }
 void MainViewDelegate::setFacingPagesMode() { d->currentViewMode = "facing"; }
 void MainViewDelegate::setBookViewMode() { d->currentViewMode = "book"; }
-void MainViewDelegate::scrollToTop() { d->logger.debug("Scroll to top"); }
-void MainViewDelegate::scrollToBottom() { d->logger.debug("Scroll to bottom"); }
-void MainViewDelegate::scrollToPage(int page) { emit pageChanged(page); }
-void MainViewDelegate::centerOnPage(int page) { emit pageChanged(page); }
+
+void MainViewDelegate::scrollToTop() {
+    d->logger.debug("Scroll to top");
+    if (d->viewWidget) {
+        d->viewWidget->scrollToTop();
+    }
+}
+
+void MainViewDelegate::scrollToBottom() {
+    d->logger.debug("Scroll to bottom");
+    if (d->viewWidget) {
+        d->viewWidget->scrollToBottom();
+    }
+}
+
+void MainViewDelegate::scrollToPage(int page) {
+    d->logger.debug(QString("Scroll to page: %1").arg(page));
+    if (d->viewWidget) {
+        d->viewWidget->goToPage(page);
+    }
+    emit pageChanged(page);
+}
+
+void MainViewDelegate::centerOnPage(int page) {
+    d->logger.debug(QString("Center on page: %1").arg(page));
+    if (d->viewWidget) {
+        d->viewWidget->goToPage(page);
+    }
+    emit pageChanged(page);
+}
 void MainViewDelegate::enableTextSelection(bool enable) { d->textSelectionEnabled = enable; }
 void MainViewDelegate::enableAnnotations(bool enable) { d->annotationsEnabled = enable; }
 void MainViewDelegate::setHighlightCurrentPage(bool highlight) { d->highlightCurrentPage = highlight; }
@@ -456,7 +482,7 @@ void SideBarDelegate::setPreferredWidth(int width)
     d->logger.debug(QString("Preferred width: %1").arg(d->preferredWidth));
 }
 
-// Stub implementations for other SideBarDelegate methods
+// SideBarDelegate method implementations
 void SideBarDelegate::showTab(int index) { d->currentTab = index; emit tabChanged(index); }
 void SideBarDelegate::showTab(const QString& name) { d->logger.debug(QString("Showing tab: %1").arg(name)); }
 void SideBarDelegate::enableTab(int index, bool enable) { Q_UNUSED(index) Q_UNUSED(enable) }

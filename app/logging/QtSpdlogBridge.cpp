@@ -42,6 +42,8 @@ void QtSpdlogBridge::initialize()
 
 void QtSpdlogBridge::installMessageHandler()
 {
+    QMutexLocker locker(&d->mutex);
+
     if (d->handlerInstalled) {
         return;
     }
@@ -52,6 +54,8 @@ void QtSpdlogBridge::installMessageHandler()
 
 void QtSpdlogBridge::restoreDefaultMessageHandler()
 {
+    QMutexLocker locker(&d->mutex);
+
     if (!d->handlerInstalled) {
         return;
     }
@@ -134,16 +138,19 @@ QString QtSpdlogBridge::Implementation::formatQtMessage(QtMsgType type, const QM
 
 void QtSpdlogBridge::setQtCategoryFilteringEnabled(bool enabled)
 {
+    QMutexLocker locker(&d->mutex);
     d->categoryFilteringEnabled = enabled;
 }
 
 void QtSpdlogBridge::addCategoryMapping(const QString& category, const QString& spdlogLogger)
 {
+    QMutexLocker locker(&d->mutex);
     d->categoryMappings[category] = spdlogLogger.isEmpty() ? category : spdlogLogger;
 }
 
 void QtSpdlogBridge::removeCategoryMapping(const QString& category)
 {
+    QMutexLocker locker(&d->mutex);
     d->categoryMappings.remove(category);
 }
 

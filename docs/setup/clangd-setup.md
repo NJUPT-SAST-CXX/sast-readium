@@ -136,13 +136,17 @@ The scripts work with the simplified preset system:
 
 1. Install the clangd extension
 2. Configure your project with a preset:
+
    ```bash
    cmake --preset Debug-Unix  # or your platform preset
    ```
+
 3. Update clangd configuration:
+
    ```bash
    ./scripts/clangd-config.sh --auto
    ```
+
 4. Restart VS Code or reload the window
 
 ### CLion
@@ -150,9 +154,11 @@ The scripts work with the simplified preset system:
 1. Open the project in CLion
 2. Configure CMake with your preferred preset
 3. Run the clangd configuration script:
+
    ```bash
    ./scripts/clangd-config.sh --auto
    ```
+
 4. CLion will automatically detect the compilation database
 
 ### Other IDEs
@@ -162,6 +168,7 @@ Any IDE that supports clangd can use the generated `.clangd` configuration:
 1. Configure the project: `cmake --preset Debug-Unix`
 2. Update clangd: `./scripts/clangd-config.sh --auto`
 3. Point your IDE to the project root directory
+
 ## Configuration Options
 
 ### Force Override
@@ -223,6 +230,7 @@ Diagnostics:
 ### Common Issues
 
 **clangd not working:**
+
 ```bash
 # List available configurations
 ./scripts/clangd-config.sh --list
@@ -230,12 +238,14 @@ Diagnostics:
 ```
 
 **No build directories found:**
+
 ```bash
 # Configure project first
 cmake --preset Debug-Unix  # or your platform preset
 ```
 
 **Wrong build directory:**
+
 ```bash
 # Auto-detect the correct one
 ./scripts/clangd-config.sh --auto
@@ -243,6 +253,7 @@ cmake --preset Debug-Unix  # or your platform preset
 ```
 
 **Script execution errors on Windows:**
+
 - Ensure PowerShell execution policy allows script execution
 - Try running PowerShell as administrator
 

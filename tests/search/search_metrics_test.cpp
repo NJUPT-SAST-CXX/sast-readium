@@ -342,7 +342,7 @@ void SearchMetricsTest::testPercentile()
     QVERIFY(p95 >= 225.0);
 }
 
-SearchMetricsTest::SearchMetrics::Metric SearchMetricsTest::createTestMetric(const QString& query, qint64 duration, int resultCount, bool cacheHit)
+SearchMetrics::Metric SearchMetricsTest::createTestMetric(const QString& query, qint64 duration, int resultCount, bool cacheHit)
 {
     SearchMetrics::Metric metric;
     metric.query = query;

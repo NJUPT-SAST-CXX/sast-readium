@@ -27,17 +27,17 @@ void CommandFactory::initializeActionMap() {
     m_actionMap["openFile"] = ActionMap::openFile;
     m_actionMap["closeFile"] = ActionMap::closeFile;
     m_actionMap["saveAs"] = ActionMap::saveAs;
-    m_actionMap["print"] = ActionMap::print;
-    m_actionMap["reload"] = ActionMap::reload;
-    m_actionMap["properties"] = ActionMap::properties;
+    m_actionMap["printFile"] = ActionMap::printFile;
+    m_actionMap["reloadFile"] = ActionMap::reloadFile;
+    m_actionMap["showDocumentMetadata"] = ActionMap::showDocumentMetadata;
     m_actionMap["nextPage"] = ActionMap::nextPage;
     m_actionMap["previousPage"] = ActionMap::previousPage;
     m_actionMap["firstPage"] = ActionMap::firstPage;
     m_actionMap["lastPage"] = ActionMap::lastPage;
     m_actionMap["zoomIn"] = ActionMap::zoomIn;
     m_actionMap["zoomOut"] = ActionMap::zoomOut;
-    m_actionMap["fitWidth"] = ActionMap::fitWidth;
-    m_actionMap["fitPage"] = ActionMap::fitPage;
+    m_actionMap["fitToWidth"] = ActionMap::fitToWidth;
+    m_actionMap["fitToPage"] = ActionMap::fitToPage;
 }
 
 std::unique_ptr<DocumentCommand> CommandFactory::createDocumentCommand(ActionMap action) {
@@ -59,13 +59,13 @@ std::unique_ptr<DocumentCommand> CommandFactory::createDocumentCommand(ActionMap
         case ActionMap::saveAs:
             command = createSaveAsCommand();
             break;
-        case ActionMap::print:
+        case ActionMap::printFile:
             command = createPrintCommand();
             break;
-        case ActionMap::reload:
+        case ActionMap::reloadFile:
             command = createReloadCommand();
             break;
-        case ActionMap::properties:
+        case ActionMap::showDocumentMetadata:
             command = createPropertiesCommand();
             break;
         default:
@@ -251,8 +251,20 @@ std::unique_ptr<NavigationCommand> CommandFactory::createViewModeCommand(const Q
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
-    
-    return NavigationCommandFactory::createViewModeCommand(mode, m_viewWidget);
+
+    // Map mode string to ChangeViewModeCommand::ViewMode
+    if (mode == "single-page") {
+        return std::make_unique<ChangeViewModeCommand>(m_viewWidget, ChangeViewModeCommand::SinglePage);
+    } else if (mode == "continuous") {
+        return std::make_unique<ChangeViewModeCommand>(m_viewWidget, ChangeViewModeCommand::Continuous);
+    } else if (mode == "facing-pages") {
+        return std::make_unique<ChangeViewModeCommand>(m_viewWidget, ChangeViewModeCommand::FacingPages);
+    } else if (mode == "book-view") {
+        return std::make_unique<ChangeViewModeCommand>(m_viewWidget, ChangeViewModeCommand::BookView);
+    }
+
+    m_logger.warning(QString("Unknown view mode: %1").arg(mode));
+    return nullptr;
 }
 
 std::unique_ptr<NavigationCommand> CommandFactory::createRotateCommand(bool clockwise) {
@@ -260,8 +272,9 @@ std::unique_ptr<NavigationCommand> CommandFactory::createRotateCommand(bool cloc
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
-    
-    return NavigationCommandFactory::createRotateCommand(clockwise, m_viewWidget);
+
+    auto direction = clockwise ? RotateViewCommand::Clockwise : RotateViewCommand::CounterClockwise;
+    return std::make_unique<RotateViewCommand>(m_viewWidget, direction);
 }
 
 std::unique_ptr<NavigationCommand> CommandFactory::createFullscreenCommand() {
@@ -269,8 +282,16 @@ std::unique_ptr<NavigationCommand> CommandFactory::createFullscreenCommand() {
         m_logger.error("ViewWidget not set");
         return nullptr;
     }
-    
-    return NavigationCommandFactory::createFullscreenCommand(m_viewWidget);
+
+    // ToggleFullscreenCommand needs a QWidget (main window), not ViewWidget
+    // For now, use the viewWidget's parent window
+    QWidget* mainWindow = m_viewWidget->window();
+    if (!mainWindow) {
+        m_logger.error("Cannot get main window from ViewWidget");
+        return nullptr;
+    }
+
+    return std::make_unique<ToggleFullscreenCommand>(mainWindow);
 }
 
 void CommandFactory::registerCommandType(const QString& typeName, CommandCreator creator) {

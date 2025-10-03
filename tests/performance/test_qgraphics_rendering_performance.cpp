@@ -830,4 +830,4 @@ void TestRenderingPerformance::benchmarkImageConversion() {
 }
 
 QTEST_MAIN(TestRenderingPerformance)
-#include "test_rendering_performance_new.moc"
+#include "test_qgraphics_rendering_performance.moc"

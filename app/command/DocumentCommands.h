@@ -13,6 +13,10 @@ class DocumentController;
 class DocumentModel;
 class QWidget;
 
+namespace Poppler {
+    class Document;
+}
+
 /**
  * @brief Base class for document-related commands
  * 
@@ -181,8 +185,13 @@ public:
     
     bool execute() override;
     bool canExecute() const override;
-    
+
 private:
+    // Helper methods for different export formats
+    bool exportToPDF(Poppler::Document* document, const QString& sourcePath, const QString& outputPath);
+    bool exportToImages(Poppler::Document* document, const QString& outputPath, int totalPages);
+    bool exportToText(Poppler::Document* document, const QString& outputPath, int totalPages);
+
     ExportFormat m_format;
     QString m_outputPath;
     QVariantMap m_options;

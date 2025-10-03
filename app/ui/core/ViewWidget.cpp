@@ -501,3 +501,56 @@ void ViewWidget::onRenderPageDone(const QImage& image) {
         }
     }
 }
+
+// Zoom control for undo/redo support
+void ViewWidget::setZoom(double zoomFactor) {
+    int currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
+        PDFViewer* currentViewer = pdfViewers[currentIndex];
+        if (currentViewer) {
+            currentViewer->setZoom(zoomFactor);
+        }
+    }
+}
+
+// Scroll position control for undo/redo support
+QPoint ViewWidget::getScrollPosition() const {
+    int currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
+        PDFViewer* currentViewer = pdfViewers[currentIndex];
+        if (currentViewer) {
+            return currentViewer->getScrollPosition();
+        }
+    }
+    return QPoint(0, 0);
+}
+
+void ViewWidget::setScrollPosition(const QPoint& position) {
+    int currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
+        PDFViewer* currentViewer = pdfViewers[currentIndex];
+        if (currentViewer) {
+            currentViewer->setScrollPosition(position);
+        }
+    }
+}
+
+void ViewWidget::scrollToTop() {
+    int currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
+        PDFViewer* currentViewer = pdfViewers[currentIndex];
+        if (currentViewer) {
+            currentViewer->scrollToTop();
+        }
+    }
+}
+
+void ViewWidget::scrollToBottom() {
+    int currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
+        PDFViewer* currentViewer = pdfViewers[currentIndex];
+        if (currentViewer) {
+            currentViewer->scrollToBottom();
+        }
+    }
+}

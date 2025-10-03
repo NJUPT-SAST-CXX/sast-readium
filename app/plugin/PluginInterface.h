@@ -14,56 +14,55 @@ class CommandManager;
 class ConfigurationManager;
 
 /**
- * @brief IPlugin - Interface for all plugins
- * 
+ * @brief IPluginInterface - Base interface for all plugins
+ *
  * This interface defines the contract that all plugins must implement
  * to be loaded and managed by the plugin system.
+ *
+ * Note: This is a pure C++ interface. For Qt plugin interfaces, see
+ * IPlugin in PluginManager.h which inherits from QObject.
  */
-class IPlugin {
+class IPluginInterface {
 public:
-    virtual ~IPlugin() = default;
-    
+    virtual ~IPluginInterface() = default;
+
     // Plugin lifecycle
     virtual bool initialize() = 0;
     virtual void shutdown() = 0;
     virtual bool isInitialized() const = 0;
-    
+
     // Plugin metadata
     virtual QString name() const = 0;
     virtual QString version() const = 0;
     virtual QString description() const = 0;
     virtual QString author() const = 0;
     virtual QStringList dependencies() const = 0;
-    
+
     // Plugin capabilities
     virtual QStringList provides() const = 0;
-    virtual QStringList requires() const = 0;
-    
+    virtual QStringList requiredPlugins() const = 0;
+
     // Configuration
     virtual void configure(const QJsonObject& config) = 0;
     virtual QJsonObject configuration() const = 0;
-    
+
     // Plugin API version
     virtual int apiVersion() const = 0;
 };
 
-// Qt plugin interface
-Q_DECLARE_INTERFACE(IPlugin, "org.sast.readium.IPlugin/1.0")
-
 /**
  * @brief PluginBase - Base implementation for plugins
- * 
+ *
  * Provides common functionality for plugin implementations.
  */
-class PluginBase : public QObject, public IPlugin {
+class PluginBase : public QObject, public IPluginInterface {
     Q_OBJECT
-    Q_INTERFACES(IPlugin)
 
 public:
     explicit PluginBase(QObject* parent = nullptr);
     ~PluginBase() override;
-    
-    // IPlugin implementation
+
+    // IPluginInterface implementation
     bool initialize() override;
     void shutdown() override;
     bool isInitialized() const override { return m_initialized; }
@@ -75,7 +74,7 @@ public:
     QStringList dependencies() const override { return m_metadata.dependencies; }
     
     QStringList provides() const override { return m_capabilities.provides; }
-    QStringList requires() const override { return m_capabilities.requires; }
+    QStringList requiredPlugins() const override { return m_capabilities.requiredPlugins; }
     
     void configure(const QJsonObject& config) override;
     QJsonObject configuration() const override { return m_configuration; }
@@ -111,7 +110,7 @@ protected:
     // Plugin capabilities
     struct Capabilities {
         QStringList provides;
-        QStringList requires;
+        QStringList requiredPlugins;
     } m_capabilities;
     
     // Configuration
@@ -130,8 +129,8 @@ protected:
 class IPluginFactory {
 public:
     virtual ~IPluginFactory() = default;
-    
-    virtual std::unique_ptr<IPlugin> createPlugin() = 0;
+
+    virtual std::unique_ptr<IPluginInterface> createPlugin() = 0;
     virtual QString pluginName() const = 0;
     virtual bool canCreate() const = 0;
 };
@@ -184,21 +183,21 @@ private:
 class IPluginHost {
 public:
     virtual ~IPluginHost() = default;
-    
+
     // Plugin management
     virtual bool loadPlugin(const QString& path) = 0;
     virtual bool unloadPlugin(const QString& name) = 0;
-    virtual IPlugin* getPlugin(const QString& name) = 0;
-    virtual QList<IPlugin*> getPlugins() const = 0;
-    
+    virtual IPluginInterface* getPlugin(const QString& name) = 0;
+    virtual QList<IPluginInterface*> getPlugins() const = 0;
+
     // Plugin discovery
     virtual void scanPluginDirectory(const QString& directory) = 0;
     virtual QStringList availablePlugins() const = 0;
-    
+
     // Plugin lifecycle
     virtual bool initializePlugin(const QString& name) = 0;
     virtual void shutdownPlugin(const QString& name) = 0;
-    
+
     // Plugin communication
     virtual bool sendPluginMessage(const QString& from, const QString& to, const QVariant& message) = 0;
     virtual void broadcastPluginMessage(const QString& from, const QVariant& message) = 0;
@@ -210,11 +209,11 @@ public:
 class IExtensionPoint {
 public:
     virtual ~IExtensionPoint() = default;
-    
+
     virtual QString id() const = 0;
     virtual QString description() const = 0;
-    virtual bool accepts(IPlugin* plugin) const = 0;
-    virtual void extend(IPlugin* plugin) = 0;
+    virtual bool accepts(IPluginInterface* plugin) const = 0;
+    virtual void extend(IPluginInterface* plugin) = 0;
 };
 
 /**
@@ -224,8 +223,8 @@ class MenuExtensionPoint : public IExtensionPoint {
 public:
     QString id() const override { return "org.sast.readium.menu"; }
     QString description() const override { return "Extends application menus"; }
-    bool accepts(IPlugin* plugin) const override;
-    void extend(IPlugin* plugin) override;
+    bool accepts(IPluginInterface* plugin) const override;
+    void extend(IPluginInterface* plugin) override;
 };
 
 /**
@@ -235,8 +234,8 @@ class ToolbarExtensionPoint : public IExtensionPoint {
 public:
     QString id() const override { return "org.sast.readium.toolbar"; }
     QString description() const override { return "Extends application toolbar"; }
-    bool accepts(IPlugin* plugin) const override;
-    void extend(IPlugin* plugin) override;
+    bool accepts(IPluginInterface* plugin) const override;
+    void extend(IPluginInterface* plugin) override;
 };
 
 /**
@@ -246,6 +245,6 @@ class DocumentHandlerExtensionPoint : public IExtensionPoint {
 public:
     QString id() const override { return "org.sast.readium.document_handler"; }
     QString description() const override { return "Adds support for new document types"; }
-    bool accepts(IPlugin* plugin) const override;
-    void extend(IPlugin* plugin) override;
+    bool accepts(IPluginInterface* plugin) const override;
+    void extend(IPluginInterface* plugin) override;
 };

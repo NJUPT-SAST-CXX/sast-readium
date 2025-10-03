@@ -127,7 +127,16 @@ jobs:
             mingw-w64-${{ matrix.arch }}-qt6-tools
             mingw-w64-${{ matrix.arch }}-poppler-qt6
             mingw-w64-${{ matrix.arch }}-pkg-config
+            mingw-w64-${{ matrix.arch }}-ccache
             git
+
+      # ccache for faster rebuilds
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.cache_key }}-ccache
+          max-size: 500M
+          variant: sccache
 
       - name: Verify dependencies
         run: |

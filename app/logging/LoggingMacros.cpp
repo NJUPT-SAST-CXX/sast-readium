@@ -31,9 +31,17 @@ public:
 
 // Note: QThread is already included via LoggingMacros.h
 
+// Platform-specific includes for memory usage
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <psapi.h>
+#elif defined(Q_OS_MACOS)
+#include <mach/mach.h>
+#include <mach/task.h>
+#include <mach/mach_init.h>
+#elif defined(Q_OS_LINUX)
+#include <QRegularExpression>
+#include <QTextStream>
 #endif
 
 // Static member initialization
@@ -353,19 +361,3 @@ void logSeparator(const QString& title, char separator)
 }
 
 } // namespace LoggingUtils
-
-// ============================================================================
-// Platform-specific includes for memory usage
-// ============================================================================
-
-#ifdef Q_OS_WIN
-#include <windows.h>
-#include <psapi.h>
-#elif defined(Q_OS_MACOS)
-#include <mach/mach.h>
-#include <mach/task.h>
-#include <mach/mach_init.h>
-#elif defined(Q_OS_LINUX)
-#include <QRegularExpression>
-#include <QTextStream>
-#endif

@@ -55,14 +55,14 @@ Complete documentation for the Xmake build system:
 
 ## Choosing a Build System
 
-### Use CMake if:
+### Use CMake if
 
 - You need maximum stability and platform support
 - You're working in a production environment
 - You prefer the established CMake ecosystem
 - You need the most comprehensive configuration options
 
-### Use Xmake if:
+### Use Xmake if
 
 - You prefer simpler, more readable configuration files
 - You want built-in package management

@@ -5,11 +5,13 @@ This document explains the clangd configuration used in this project to resolve 
 ## Problem Description
 
 When using clangd with Qt projects, you may encounter warnings like:
+
 ```
 No header providing "Qt::AlignCenter" is directly included (fixes available)clangdmissing-includes
 ```
 
 This happens because:
+
 1. Qt constants like `Qt::AlignCenter` are defined in headers that are transitively included
 2. clangd's strict include checking doesn't recognize transitive includes as valid
 3. The `misc-include-cleaner` ClangTidy check is overly aggressive with Qt headers
@@ -19,6 +21,7 @@ This happens because:
 The `.clangd` configuration file has been updated to resolve these issues:
 
 ### 1. Disabled Strict Missing Includes
+
 ```yaml
 Diagnostics:
   UnusedIncludes: Relaxed
@@ -32,6 +35,7 @@ Diagnostics:
 - `UnusedIncludes: Relaxed` - Less aggressive about unused includes
 
 ### 2. Added Qt-Specific Compiler Defines
+
 ```yaml
 CompileFlags:
   Add:
@@ -44,6 +48,7 @@ CompileFlags:
 These defines help clangd understand which Qt modules are available and improve symbol resolution.
 
 ### 3. Disabled Problematic ClangTidy Checks
+
 ```yaml
 Diagnostics:
   ClangTidy:
@@ -54,6 +59,7 @@ Diagnostics:
 The `misc-include-cleaner` check is particularly problematic with Qt because it doesn't understand Qt's header structure.
 
 ### 4. Enhanced Completion
+
 ```yaml
 Completion:
   AllScopes: true
@@ -62,6 +68,7 @@ Completion:
 This improves symbol completion by searching in all available scopes, which is helpful for Qt's namespace structure.
 
 ### 5. Warning Suppression
+
 ```yaml
 CompileFlags:
   Add:
@@ -104,17 +111,21 @@ Completion:
 After modifying the `.clangd` file, you need to restart the clangd language server:
 
 ### Method 1: VSCode Command Palette
+
 1. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
 2. Type "clangd: Restart language server"
 3. Press Enter
 
 ### Method 2: Reload Window
+
 1. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
 2. Type "Developer: Reload Window"
 3. Press Enter
 
 ### Method 3: Use Scripts
+
 Run the provided restart scripts:
+
 ```bash
 # PowerShell (Windows)
 powershell -ExecutionPolicy Bypass -File scripts/restart-clangd.ps1
@@ -137,20 +148,26 @@ After restarting clangd, the following warnings should be resolved:
 If you prefer to keep strict include checking, you can alternatively:
 
 ### Option 1: Add Explicit Includes
+
 Add the specific Qt headers that define the constants:
+
 ```cpp
 #include <QtCore/Qt>  // For Qt::AlignCenter, Qt::transparent, etc.
 ```
 
 ### Option 2: Selective Suppression
+
 Use more targeted suppression in specific files:
+
 ```cpp
 // clang-diagnostic-missing-includes
 Qt::AlignCenter  // This line won't trigger warnings
 ```
 
 ### Option 3: Custom Include Mapping
+
 Create a custom include mapping file (advanced):
+
 ```yaml
 # In .clangd
 Diagnostics:
@@ -161,21 +178,27 @@ Diagnostics:
 ## Troubleshooting
 
 ### Issue: Warnings Still Appear
+
 **Solution**: Ensure you've restarted the clangd language server after configuration changes.
 
 ### Issue: Compilation Database Not Found
+
 **Solution**: Make sure `compile_commands.json` exists in the build directory:
+
 ```bash
 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
 ```
 
 ### Issue: Qt Headers Not Found
+
 **Solution**: Verify Qt installation and CMake configuration:
+
 ```cmake
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui Svg)
 ```
 
 ### Issue: Configuration Not Taking Effect
+
 **Solution**: Check `.clangd` file syntax and restart VSCode completely.
 
 ## Best Practices

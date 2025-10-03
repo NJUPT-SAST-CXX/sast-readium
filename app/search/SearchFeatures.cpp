@@ -153,21 +153,21 @@ QList<SearchResult> SearchFeatures::wildcardSearch(const QString& text, const QS
     
     while (iterator.hasNext()) {
         QRegularExpressionMatch match = iterator.next();
-        
+
         SearchResult result;
         result.pageNumber = pageNumber;
         result.matchedText = match.captured();
         result.textPosition = match.capturedStart();
         result.textLength = match.capturedLength();
-        
+
         // Extract context
         int contextStart = qMax(0, result.textPosition - 50);
         int contextEnd = qMin(text.length(), result.textPosition + result.textLength + 50);
         result.contextText = text.mid(contextStart, contextEnd - contextStart);
-        
+
         results.append(result);
     }
-    
+
     return results;
 }
 
@@ -184,12 +184,12 @@ QList<SearchResult> SearchFeatures::phraseSearch(const QString& text, const QStr
             result.matchedText = phrase;
             result.textPosition = position;
             result.textLength = phrase.length();
-            
+
             // Extract context
             int contextStart = qMax(0, position - 50);
             int contextEnd = qMin(text.length(), position + phrase.length() + 50);
             result.contextText = text.mid(contextStart, contextEnd - contextStart);
-            
+
             results.append(result);
             position += phrase.length();
         }

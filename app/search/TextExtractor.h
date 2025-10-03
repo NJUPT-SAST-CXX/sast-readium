@@ -25,6 +25,7 @@ public:
     // Document management
     void setDocument(Poppler::Document* document);
     void clearDocument();
+    Poppler::Document* getDocument() const;
 
     // Text extraction
     QString extractPageText(int pageNumber);

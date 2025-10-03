@@ -607,10 +607,6 @@ private:
  * @{
  */
 
-/** @brief Mark code location that needs logging migration */
-#define TODO_MIGRATE_LOGGING() \
-    LOG_WARNING("TODO: Migrate logging in {}:{}", __FILE__, __LINE__)
-
 /** @brief Disable Qt logging temporarily during migration */
 #define DISABLE_QT_LOGGING_TEMPORARILY()                                  \
     static bool _qt_logging_disabled = []() {                             \

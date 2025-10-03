@@ -80,7 +80,10 @@ public:
     void watchKey(const QString& key);
     void unwatchKey(const QString& key);
     bool isWatching(const QString& key) const;
-    
+
+    // Configuration introspection
+    QStringList allKeys() const;
+
 signals:
     void configurationChanged(const QString& key, const QVariant& value);
     void configurationChanged(ConfigGroup group, const QString& key, const QVariant& value);

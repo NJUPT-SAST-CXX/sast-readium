@@ -386,7 +386,7 @@ MemoryManager::MemoryStats MemoryManagerTest::createMockStats()
     stats.textCacheMemory = 1024 * 1024 * 15; // 15MB
     stats.highlightCacheMemory = 1024 * 1024 * 10; // 10MB
     stats.systemMemoryUsage = 1024 * 1024 * 1024; // 1GB
-    stats.systemMemoryTotal = 1024 * 1024 * 1024 * 4; // 4GB
+    stats.systemMemoryTotal = int64_t(1024) * 1024 * 1024 * 4; // 4GB
     stats.memoryPressure = 0.25;
     stats.pressureLevel = MemoryManager::Normal;
     stats.optimizationCount = 5;

@@ -147,9 +147,63 @@ StateChange::StateChange(const State& oldState, const State& newState, const QSt
 {}
 
 QStringList StateChange::changedPaths() const {
-    // Simple implementation - compare JSON objects
     QStringList paths;
-    // This is a simplified version - a full implementation would recursively compare
+
+    // Helper function for recursive comparison
+    std::function<void(const QJsonValue&, const QJsonValue&, const QString&)> compareValues;
+
+    compareValues = [&](const QJsonValue& value1, const QJsonValue& value2, const QString& currentPath) {
+        if (value1.type() != value2.type()) {
+            paths.append(currentPath);
+            return;
+        }
+
+        switch (value1.type()) {
+        case QJsonValue::Object: {
+            QJsonObject obj1 = value1.toObject();
+            QJsonObject obj2 = value2.toObject();
+
+            // Find all keys from both objects
+            QSet<QString> allKeys;
+            for (const QString& key : obj1.keys()) {
+                allKeys.insert(key);
+            }
+            for (const QString& key : obj2.keys()) {
+                allKeys.insert(key);
+            }
+
+            for (const QString& key : allKeys) {
+                QString newPath = currentPath.isEmpty() ? key : currentPath + "." + key;
+                compareValues(obj1.value(key), obj2.value(key), newPath);
+            }
+            break;
+        }
+        case QJsonValue::Array: {
+            QJsonArray arr1 = value1.toArray();
+            QJsonArray arr2 = value2.toArray();
+
+            if (arr1.size() != arr2.size()) {
+                paths.append(currentPath);
+            } else {
+                for (int i = 0; i < arr1.size(); ++i) {
+                    QString newPath = currentPath + "[" + QString::number(i) + "]";
+                    compareValues(arr1[i], arr2[i], newPath);
+                }
+            }
+            break;
+        }
+        default:
+            // For simple types, direct comparison
+            if (value1 != value2) {
+                paths.append(currentPath);
+            }
+            break;
+        }
+    };
+
+    // Start comparison from root
+    compareValues(m_oldState.toJson(), m_newState.toJson(), "");
+
     return paths;
 }
 

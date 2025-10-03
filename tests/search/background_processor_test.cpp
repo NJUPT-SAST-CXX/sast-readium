@@ -162,7 +162,7 @@ void BackgroundProcessorTest::testExecuteAsync()
     });
     
     // Wait for task completion
-    QVERIFY(waitForSignal(m_processor, &BackgroundProcessor::taskFinished, 1000));
+    QVERIFY(waitForSignal(m_processor, SIGNAL(taskFinished()), 1000));
     
     QVERIFY(taskExecuted);
     QCOMPARE(taskStartedSpy.count(), 1);

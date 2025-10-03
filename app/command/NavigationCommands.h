@@ -357,15 +357,17 @@ public:
     
     void setDirection(ScrollDirection dir) { m_direction = dir; }
     void setPosition(int x, int y) { m_x = x; m_y = y; }
-    
+
     bool execute() override;
     bool canExecute() const override;
-    
+    bool undo() override;
+
 private:
     ViewWidget* m_viewWidget;
     ScrollDirection m_direction;
     int m_x = 0;
     int m_y = 0;
+    QPoint m_previousPosition;
 };
 
 /**

@@ -224,7 +224,7 @@ void TextExtractorTest::testExtractEmptyPage()
     // Don't draw anything - empty page
     painter.end();
 
-    Poppler::Document* emptyDoc = Poppler::Document::load(emptyPdfPath);
+    Poppler::Document* emptyDoc = Poppler::Document::load(emptyPdfPath).release();
     QVERIFY(emptyDoc != nullptr);
     
     m_extractor->setDocument(emptyDoc);
@@ -412,7 +412,7 @@ void TextExtractorTest::createTestPdf()
     
     painter.end();
 
-    m_testDocument = Poppler::Document::load(m_testPdfPath);
+    m_testDocument = Poppler::Document::load(m_testPdfPath).release();
     QVERIFY(m_testDocument != nullptr);
     QVERIFY(m_testDocument->numPages() >= 1);
 }

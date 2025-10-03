@@ -218,6 +218,12 @@ public:
     void resetRotation();
     void setRotation(int degrees);
 
+    // 滚动操作 (for undo/redo support)
+    QPoint getScrollPosition() const;
+    void setScrollPosition(const QPoint& position);
+    void scrollToTop();
+    void scrollToBottom();
+
     // 主题切换
     void toggleTheme();
 

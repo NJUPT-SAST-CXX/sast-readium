@@ -131,10 +131,10 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_search_components.cpp)
     )
 endif()
 
-# Search Engine New Tests
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_search_engine_new.cpp)
-    create_test_target(test_search_engine_new
-        SOURCES unit/test_search_engine_new.cpp
+# Search Engine Tests
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_search_engine.cpp)
+    create_test_target(test_search_engine
+        SOURCES unit/test_search_engine.cpp
         TIMEOUT 300
     )
 endif()
@@ -167,14 +167,6 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_search_integration.cpp)
     )
 endif()
 
-# Search Integration New Tests
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_search_integration_new.cpp)
-    create_test_target(test_search_integration_new
-        SOURCES integration/test_search_integration_new.cpp
-        TIMEOUT 600
-    )
-endif()
-
 # Rendering Mode Switch Tests
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_rendering_mode_switch.cpp)
     create_test_target(test_rendering_mode_switch
@@ -199,14 +191,6 @@ endif()
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/state_manager_test.cpp)
     create_test_target(state_manager_test
         SOURCES controller/state_manager_test.cpp controller/ControllerTestMocks.cpp
-        TIMEOUT 300
-    )
-endif()
-
-# State Manager New Tests
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/state_manager_test_new.cpp)
-    create_test_target(state_manager_test_new
-        SOURCES controller/state_manager_test_new.cpp controller/ControllerTestMocks.cpp
         TIMEOUT 300
     )
 endif()
@@ -383,14 +367,6 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/smart_eviction_policy_test.cpp)
     )
 endif()
 
-# Smart Eviction Policy Minimal Tests
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/smart_eviction_policy_test_minimal.cpp)
-    create_test_target(smart_eviction_policy_test_minimal
-        SOURCES search/smart_eviction_policy_test_minimal.cpp
-        TIMEOUT 300
-    )
-endif()
-
 # ============================================================================
 # Command Tests
 # ============================================================================
@@ -439,14 +415,6 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/model_factory_test.cpp)
     )
 endif()
 
-# Model Factory New Tests
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/model_factory_test_new.cpp)
-    create_test_target(model_factory_test_new
-        SOURCES factory/model_factory_test_new.cpp
-        TIMEOUT 300
-    )
-endif()
-
 # ============================================================================
 # Performance Tests
 # ============================================================================
@@ -459,13 +427,13 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/performance/test_rendering_performance.cpp
     )
 endif()
 
-# Rendering Performance New Tests (requires QGraphics PDF support)
-if(ENABLE_QGRAPHICS_PDF_SUPPORT AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/performance/test_rendering_performance_new.cpp)
-    create_test_target(test_rendering_performance_new
-        SOURCES performance/test_rendering_performance_new.cpp
+# QGraphics Rendering Performance Tests (requires QGraphics PDF support)
+if(ENABLE_QGRAPHICS_PDF_SUPPORT AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/performance/test_qgraphics_rendering_performance.cpp)
+    create_test_target(test_qgraphics_rendering_performance
+        SOURCES performance/test_qgraphics_rendering_performance.cpp
         TIMEOUT 600
     )
-    message(STATUS "Rendering performance new tests enabled (requires QGraphics PDF support)")
+    message(STATUS "QGraphics rendering performance tests enabled (requires QGraphics PDF support)")
 endif()
 
 # Search Optimizations Tests
@@ -660,14 +628,6 @@ endif()
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/logging/logging_stubs_test.cpp)
     create_test_target(logging_stubs_test
         SOURCES logging/logging_stubs_test.cpp
-        TIMEOUT 300
-    )
-endif()
-
-# Logging Stubs Minimal Tests
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/logging/logging_stubs_test_minimal.cpp)
-    create_test_target(logging_stubs_test_minimal
-        SOURCES logging/logging_stubs_test_minimal.cpp
         TIMEOUT 300
     )
 endif()

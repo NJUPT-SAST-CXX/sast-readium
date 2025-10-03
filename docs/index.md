@@ -65,6 +65,7 @@ SAST Readium is a Qt6-based PDF reader application that provides:
 ## Key Features
 
 ### Architecture Patterns
+
 - **Command Pattern**: Full undo/redo support with `CommandManager`
 - **Service Locator**: Dependency injection for loose coupling
 - **Event Bus**: Decoupled publish-subscribe communication
@@ -72,6 +73,7 @@ SAST Readium is a Qt6-based PDF reader application that provides:
 - **Plugin System**: Extensibility through `PluginInterface` and `PluginManager`
 
 ### Core Functionality
+
 - PDF viewing with zoom, rotation, and navigation
 - Advanced search with incremental search and error recovery
 - Chrome-style thumbnails with virtual scrolling
@@ -81,6 +83,7 @@ SAST Readium is a Qt6-based PDF reader application that provides:
 - Light and dark themes
 
 ### Developer Experience
+
 - Comprehensive test suite (100+ tests)
 - Automatic clangd configuration
 - Cross-compilation support

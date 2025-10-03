@@ -167,12 +167,6 @@ void SearchConfigurationTest::testSearchResultConstruction()
     QCOMPARE(result2.boundingRect, QRectF(10, 10, 50, 20));
     QCOMPARE(result2.textPosition, 10);
     QCOMPARE(result2.textLength, 4);
-    
-    // Test compatibility aliases
-    QCOMPARE(result2.text, result2.matchedText);
-    QCOMPARE(result2.context, result2.contextText);
-    QCOMPARE(result2.startIndex, result2.textPosition);
-    QCOMPARE(result2.length, result2.textLength);
 }
 
 void SearchConfigurationTest::testSearchResultValidation()
@@ -212,18 +206,20 @@ void SearchConfigurationTest::testSearchResultTransformation()
 void SearchConfigurationTest::testSearchResultCompatibility()
 {
     SearchResult result(1, "test", "This is a test", QRectF(10, 10, 50, 20), 10, 4);
-    
-    // Test that aliases work correctly
-    QCOMPARE(result.text, result.matchedText);
-    QCOMPARE(result.context, result.contextText);
-    QCOMPARE(result.startIndex, result.textPosition);
-    QCOMPARE(result.length, result.textLength);
-    
-    // Test modification through aliases
-    result.text = "modified";
+
+    // Test that the constructor properly initializes all members
+    QCOMPARE(result.matchedText, QString("test"));
+    QCOMPARE(result.contextText, QString("This is a test"));
+    QCOMPARE(result.textPosition, 10);
+    QCOMPARE(result.textLength, 4);
+    QCOMPARE(result.pageNumber, 1);
+    QCOMPARE(result.boundingRect, QRectF(10, 10, 50, 20));
+
+    // Test modification
+    result.matchedText = "modified";
     QCOMPARE(result.matchedText, QString("modified"));
-    
-    result.context = "modified context";
+
+    result.contextText = "modified context";
     QCOMPARE(result.contextText, QString("modified context"));
 }
 

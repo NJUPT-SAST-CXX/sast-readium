@@ -15,17 +15,20 @@ The debugging configuration supports multiple platforms and debuggers:
 ### Windows
 
 #### Option 1: Visual Studio (MSVC)
+
 - Visual Studio 2019/2022 with C++ development tools
 - Qt6 development libraries (MSVC build)
 - CMake 3.16+
 
 #### Option 2: MinGW-w64 (MSYS2)
+
 - MSYS2 with MinGW-w64 toolchain
 - Qt6 development libraries (MinGW build)
 - GDB debugger: `pacman -S mingw-w64-x86_64-gdb`
 - CMake and Ninja: `pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja`
 
 #### Option 3: LLDB (Optional)
+
 - LLVM/Clang toolchain with LLDB
 - Can be installed via MSYS2: `pacman -S mingw-w64-x86_64-lldb`
 
@@ -81,11 +84,13 @@ brew install gdb
 Set these environment variables for better cross-platform support:
 
 ### Windows (MSYS2)
+
 ```bash
 export MSYS2_ROOT="C:/msys64"  # or your MSYS2 installation path
 ```
 
 ### All Platforms
+
 ```bash
 export Qt6_DIR="/path/to/qt6/lib/cmake/Qt6"  # Adjust to your Qt6 installation
 ```
@@ -104,6 +109,7 @@ Install these essential extensions:
 The setup includes three main configuration files:
 
 ### 1. `.vscode/launch.json`
+
 Contains debugging configurations for all platforms:
 
 - **(Windows) Debug with MSVC** - Uses Visual Studio debugger
@@ -116,6 +122,7 @@ Contains debugging configurations for all platforms:
 - **Cross-platform utility configurations** - Flexible debugging options
 
 ### 2. `.vscode/tasks.json`
+
 Build tasks for all platforms with debug symbol generation:
 
 - **Configure/Build Debug (Windows MSVC)** - MSVC with `/Zi` debug symbols
@@ -124,6 +131,7 @@ Build tasks for all platforms with debug symbol generation:
 - **Configure/Build Debug (macOS)** - Clang with `-g` debug symbols
 
 ### 3. `.vscode/c_cpp_properties.json`
+
 IntelliSense configurations for each platform with proper include paths and compiler settings.
 
 ## Usage Instructions
@@ -138,24 +146,28 @@ IntelliSense configurations for each platform with proper include paths and comp
 ### Platform-Specific Setup
 
 #### Windows with MSVC
+
 1. Open project in VSCode
 2. Select "Windows-MSVC" configuration in C/C++ properties
 3. Use "(Windows) Debug with MSVC" launch configuration
 4. Ensure Visual Studio is installed and cl.exe is in PATH
 
 #### Windows with MinGW
+
 1. Set MSYS2_ROOT environment variable
 2. Update MinGW GDB path when prompted
 3. Select "Windows-MinGW" configuration in C/C++ properties
 4. Use "(Windows) Debug with MinGW-w64 GDB" launch configuration
 
 #### Linux
+
 1. Install required packages (see Prerequisites)
 2. Select "Linux" configuration in C/C++ properties
 3. Use "(Linux) Debug with GDB" or "(Linux) Debug with LLDB"
 4. Build directory will be `build/Debug-Linux`
 
 #### macOS
+
 1. Install Xcode and Homebrew dependencies
 2. Select "macOS" configuration in C/C++ properties
 3. Use "(macOS) Debug with LLDB" (recommended) or "(macOS) Debug with GDB"
@@ -164,17 +176,20 @@ IntelliSense configurations for each platform with proper include paths and comp
 ## Debugging Features
 
 ### Breakpoints
+
 - **Line breakpoints**: Click in gutter or press F9
 - **Conditional breakpoints**: Right-click breakpoint, add condition
 - **Function breakpoints**: Debug console: `break function_name`
 
 ### Variable Inspection
+
 - **Variables panel**: Shows local variables and their values
 - **Watch expressions**: Add custom expressions to monitor
 - **Hover inspection**: Hover over variables in code
 - **Qt visualizers**: Custom display for Qt types (QString, QList, etc.)
 
 ### Advanced Features
+
 - **Call stack navigation**: See function call hierarchy
 - **Memory inspection**: View raw memory contents
 - **Disassembly view**: See generated assembly code
@@ -185,21 +200,25 @@ IntelliSense configurations for each platform with proper include paths and comp
 ### Common Issues
 
 #### "Debugger not found"
+
 - Ensure debugger is installed and in PATH
 - Update debugger path in launch configuration
 - For MinGW: Set correct path in input prompt
 
 #### "Debug symbols not found"
+
 - Verify debug build configuration
 - Check that `-g` (GCC/Clang) or `/Zi` (MSVC) flags are used
 - Rebuild with debug configuration
 
 #### "Qt types not displaying properly"
+
 - Ensure qt.natvis file is present in .vscode folder
 - For GDB: Install Qt pretty printers
 - Check visualizerFile setting in launch configuration
 
 #### "Build task failed"
+
 - Verify CMake and build tools are installed
 - Check Qt6 installation and paths
 - Review CMakeLists.txt for missing dependencies
@@ -207,16 +226,19 @@ IntelliSense configurations for each platform with proper include paths and comp
 ### Platform-Specific Issues
 
 #### Windows
+
 - **MSVC not found**: Install Visual Studio with C++ tools
 - **MinGW path issues**: Use forward slashes in paths
 - **Permission errors**: Run VSCode as administrator if needed
 
 #### Linux
+
 - **GDB permission denied**: May need to adjust ptrace_scope
 - **Qt not found**: Install qt6-base-dev package
 - **Missing libraries**: Check ldd output for missing dependencies
 
 #### macOS
+
 - **Code signing required**: GDB may need code signing on macOS
 - **Homebrew paths**: Ensure /opt/homebrew/bin is in PATH
 - **Xcode license**: Accept Xcode license agreement

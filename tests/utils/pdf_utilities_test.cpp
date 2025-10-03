@@ -361,7 +361,8 @@ QString PDFUtilitiesTest::createTestPdf(const QString& content) {
 }
 
 Poppler::Document* PDFUtilitiesTest::openTestDocument(const QString& filePath) {
-    return Poppler::Document::load(filePath);
+    auto doc = Poppler::Document::load(filePath);
+    return doc.release(); // Release ownership to return raw pointer
 }
 
 QPixmap PDFUtilitiesTest::createTestImage(int width, int height) {

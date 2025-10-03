@@ -214,6 +214,8 @@ public:
     
     void addQueryToModel(const QString& query, int frequency = 1);
     void updateQueryFrequency(const QString& query, int frequency);
+    int getQueryFrequency(const QString& query) const;
+    QStringList getMostFrequentQueries(int count = 10) const;
     
     // N-gram based suggestions
     QStringList ngramSuggestions(const QString& partialQuery, int n = 3, int maxSuggestions = 5);

@@ -98,6 +98,11 @@ void TextExtractor::clearDocument()
     clearCache();
 }
 
+Poppler::Document* TextExtractor::getDocument() const
+{
+    return m_d->document;
+}
+
 QString TextExtractor::extractPageText(int pageNumber)
 {
     return m_d->extractPageTextInternal(pageNumber);

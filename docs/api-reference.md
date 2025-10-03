@@ -600,4 +600,3 @@ signals:
 - [Logging System](logging-system.md) - Logging system documentation
 - [Thread Safety Guidelines](thread-safety-guidelines.md) - Thread safety best practices
 - [Testing Guide](../tests/README.md) - Testing infrastructure
-

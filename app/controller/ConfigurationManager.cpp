@@ -285,6 +285,10 @@ void ConfigurationManager::notifyChange(ConfigGroup group, const QString& key, c
     emit configurationChanged(group, key, value);
 }
 
+QStringList ConfigurationManager::allKeys() const {
+    return m_settings->allKeys();
+}
+
 // ConfigurationValidator implementation
 ConfigurationValidator::ConfigurationValidator(ConfigurationManager* manager)
     : m_manager(manager)
@@ -373,8 +377,11 @@ void ConfigurationProfile::applyTo(ConfigurationManager* manager) {
 
 void ConfigurationProfile::loadFrom(ConfigurationManager* manager) {
     m_values.clear();
-    // This would need access to all keys in the manager
-    // For now, we'll leave this as a placeholder
+    // Load all configuration keys from the manager
+    QStringList keys = manager->allKeys();
+    for (const QString& key : keys) {
+        m_values[key] = manager->getValue(key);
+    }
 }
 
 QByteArray ConfigurationProfile::serialize() const {

@@ -152,8 +152,7 @@ CompileFlags:
   Remove:
     - -W*
     - -fcoroutines-ts
-
-CompilationDatabase: $build_dir
+  CompilationDatabase: $build_dir
 
 Index:
   Background: Build

@@ -148,7 +148,7 @@ Internal macro to find Qt6 dependencies with appropriate mode.
 Note: Using macro instead of function to ensure Qt variables are in global scope.
 #]=======================================================================]
 macro(_find_qt_dependencies)
-    set(QT_COMPONENTS Core Gui Widgets OpenGLWidgets Svg LinguistTools Concurrent TextToSpeech Core5Compat)
+    set(QT_COMPONENTS Core Gui Widgets OpenGLWidgets Svg LinguistTools Concurrent TextToSpeech Core5Compat PrintSupport)
 
     # Add Test component if building tests
     if(BUILD_TESTING)
@@ -221,16 +221,17 @@ Returns a list of common library targets in output_var.
 function(get_common_libraries output_var)
     set(common_libs
         Qt6::Core
-        Qt6::Gui  
+        Qt6::Gui
         Qt6::Widgets
         Qt6::OpenGLWidgets
         Qt6::Svg
         Qt6::Concurrent
         Qt6::Core5Compat
+        Qt6::PrintSupport
         PkgConfig::POPPLER_QT6
         spdlog::spdlog
     )
-    
+
     set(${output_var} ${common_libs} PARENT_SCOPE)
 endfunction()
 
