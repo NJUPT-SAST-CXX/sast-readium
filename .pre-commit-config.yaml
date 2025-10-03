@@ -1,21 +1,22 @@
-# Pre-commit configuration for DeclarativeUI
+# Pre-commit configuration for SAST Readium
+# C++/Qt6/CMake project with comprehensive code quality checks
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 
 repos:
   # Pre-commit hooks for general file maintenance
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       # Remove trailing whitespace
       - id: trailing-whitespace
-        exclude: '\.patch$'
+        exclude: '\.(patch|pdf)$'
       # Ensure files end with newline
       - id: end-of-file-fixer
-        exclude: '\.patch$'
-      # Check for large files (>500KB)
+        exclude: '\.(patch|pdf)$'
+      # Check for large files (>5MB for PDF handling)
       - id: check-added-large-files
-        args: ["--maxkb=500"]
+        args: ["--maxkb=5120"]
       # Check for merge conflicts
       - id: check-merge-conflict
       # Check YAML syntax
@@ -27,26 +28,41 @@ repos:
       # Check XML syntax
       - id: check-xml
         files: \.xml$
+      # Check TOML syntax
+      - id: check-toml
+        files: \.toml$
       # Prevent committing to main/master
       - id: no-commit-to-branch
         args: ["--branch", "main", "--branch", "master"]
+      # Check for executable files that should have shebangs
+      - id: check-executables-have-shebangs
+      # Check for case conflicts that might cause issues on case-insensitive filesystems
+      - id: check-case-conflict
+      # Check for broken symlinks
+      - id: check-symlinks
+      # Sort requirements files
+      - id: requirements-txt-fixer
+        files: requirements.*\.txt$
 
   # C++ code formatting with clang-format
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v17.0.6
+    rev: v18.1.1
     hooks:
       - id: clang-format
-        files: \.(cpp|hpp|cc|cxx|c|h)$
+        files: \.(cpp|hpp|cc|cxx|c|h|cppm|hppm|ixx|txx)$
         exclude: |
           (?x)^(
               build/.*|
               .*_autogen/.*|
               .*\.moc$|
               .*moc_.*\.cpp$|
-              .*ui_.*\.h$
+              .*ui_.*\.h$|
+              .*qrc_.*\.cpp$|
+              vcpkg_installed/.*
           )$
+        args: [--style=file, --fallback-style=none]
 
-  # CMake formatting
+  # CMake formatting and linting
   - repo: https://github.com/cheshirekow/cmake-format-precommit
     rev: v0.6.13
     hooks:
@@ -54,28 +70,77 @@ repos:
         files: (CMakeLists\.txt|\.cmake)$
         args: [--line-width=100, --tab-size=4]
         additional_dependencies: [PyYAML]
-    #  - id: cmake-lint
-    #    files: (CMakeLists\.txt|\.cmake)$
-    #    args: [--line-width=100]
-    #    additional_dependencies: [PyYAML]
+      - id: cmake-lint
+        files: (CMakeLists\.txt|\.cmake)$
+        args: [--line-width=100]
+        additional_dependencies: [PyYAML]
 
-  # Python formatting for build scripts (if any)
+  # C++ static analysis with clang-tidy
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: clang-tidy
+        files: \.(cpp|hpp|cc|cxx|c|h)$
+        exclude: |
+          (?x)^(
+              build/.*|
+              tests/.*|
+              .*_autogen/.*|
+              .*\.moc$|
+              .*moc_.*\.cpp$|
+              .*ui_.*\.h$|
+              .*qrc_.*\.cpp$
+          )$
+        args: [--warnings-as-errors=*]
+        additional_dependencies:
+          - clang-tidy
+
+  # Python formatting for build scripts and utilities
   - repo: https://github.com/psf/black
-    rev: 23.12.1
+    rev: 24.10.0
     hooks:
       - id: black
         files: \.py$
         language_version: python3
+        args: [--line-length=88]
 
-  # For some reason, this hook is not working as expected
+  # Python linting and import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        files: \.py$
+        args: [--profile=black]
+
+  # Shell script formatting and checking
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.8.0-1
+    hooks:
+      - id: shfmt
+        files: \.(sh|bash)$
+        args: [-w, -s, -i=4]
+
+  # Check for secrets in commits (optional - requires manual setup)
+  # - repo: https://github.com/Yelp/detect-secrets
+  #   rev: v1.5.0
+  #   hooks:
+  #     - id: detect-secrets
+  #       args: [--baseline, .secrets.baseline]
+  #       exclude: |
+  #         (?x)^(
+  #             .*\.pdf$|
+  #             .*\.log$|
+  #             build/.*
+  #         )$
+
   # Markdown formatting and linting
-  #- repo: https://github.com/igorshubovych/markdownlint-cli
-  #  rev: v0.38.0
-  #  hooks:
-  #    - id: markdownlint
-  #      args: ['--fix']
-  #      files: \.md$
-  #      exclude: 'CHANGELOG\.md'
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+        files: \.md$
+        exclude: 'CHANGELOG\.md'
 
 # Configuration for different CI environments
 ci:
@@ -87,5 +152,5 @@ ci:
   autoupdate_branch: ""
   autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
   autoupdate_schedule: weekly
-  skip: [cppcheck] # Skip cppcheck in CI as it can be slow
+  skip: [clang-tidy] # Skip clang-tidy in CI as it can be slow
   submodules: false
