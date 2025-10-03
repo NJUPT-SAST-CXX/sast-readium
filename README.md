@@ -5,6 +5,7 @@ A Qt6-based PDF reader application with comprehensive build support for multiple
 ## Features
 
 ### Core Functionality
+
 - **PDF Viewing**: High-quality PDF rendering with zoom, rotation, and navigation
 - **Search Functionality**: Advanced text search with highlighting, incremental search, and error recovery
 - **Bookmarks**: Create, manage, and navigate bookmarks
@@ -15,6 +16,7 @@ A Qt6-based PDF reader application with comprehensive build support for multiple
 - **Theme Support**: Light and dark theme options with modern UI design
 
 ### Architecture & Design Patterns
+
 - **Command Pattern**: Undo/redo support with `CommandManager` for all operations
 - **Service Locator**: Dependency injection with `ServiceLocator` for loose coupling
 - **Event Bus**: Decoupled communication with publish-subscribe pattern
@@ -22,12 +24,14 @@ A Qt6-based PDF reader application with comprehensive build support for multiple
 - **Plugin System**: Extensibility through `PluginInterface` and `PluginManager`
 
 ### Performance & Quality
+
 - **Advanced Logging**: High-performance spdlog-based logging with Qt integration
 - **Memory Management**: Smart caching with multiple eviction strategies and memory pressure handling
 - **Performance Optimizations**: Asynchronous rendering, preloading, and virtual scrolling
 - **Comprehensive Testing**: 100+ unit and integration tests with dedicated test utilities
 
 ### Developer Experience
+
 - **Cross-platform Support**: Windows, Linux, macOS with multiple build environments
 - **Multiple Build Environments**:
   - **System packages** for native Linux/macOS builds (recommended)
@@ -39,9 +43,9 @@ A Qt6-based PDF reader application with comprehensive build support for multiple
 
 ## Build System
 
-The project uses **CMake** as the unified build system with simplified configuration presets for different platforms and environments.
+The project uses **CMake** as the unified build system with simplified configuration presets for different platforms.
 
-The project uses a **tiered dependency management approach** that prioritizes system packages for better performance and reliability, with vcpkg as a cross-platform alternative for consistent dependency versions. See [Dependency Management Guide](docs/getting-started/dependency-management.md) for detailed information.
+The project uses a **tiered dependency management approach** that prioritizes system packages for better performance and reliability, with vcpkg as a cross-platform alternative for consistent dependency versions. See the [Dependency Management Guide](docs/getting-started/dependency-management.md) for detailed information.
 
 ### Linux/macOS (Recommended - System Packages)
 
@@ -100,11 +104,11 @@ cmake --preset=Release-Windows
 cmake --build --preset=Release-Windows
 ```
 
-**Note**: vcpkg builds are slower but provide consistent dependency versions across platforms. Use when system packages are unavailable or insufficient, or when you need identical dependency versions across different platforms.
+**Note**: vcpkg builds are slower but provide consistent dependency versions across platforms. Use when system packages are unavailable or when you need identical dependency versions across different platforms.
 
 ## Available Build Presets
 
-The simplified CMake configuration provides multiple build presets for different platforms and dependency management approaches:
+The simplified CMake configuration provides multiple build presets for different platforms and dependency approaches:
 
 **System Package Builds (Recommended):**
 
@@ -252,6 +256,30 @@ cmake --preset Debug-MSYS2 -DENABLE_CLANGD_CONFIG=OFF
 
 ## Development Environment
 
+### Pre-commit Hooks
+
+The project uses pre-commit hooks to ensure code quality and consistency:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install the hooks
+pre-commit install
+
+# Run hooks manually on all files
+pre-commit run --all-files
+```
+
+The hooks include:
+
+- **Code formatting**: clang-format for C++, black for Python, cmake-format for CMake files
+- **Static analysis**: clang-tidy for C++ code quality
+- **File hygiene**: trailing whitespace removal, proper line endings, large file detection
+- **Documentation**: markdownlint for documentation files
+
+See [Pre-commit Setup Guide](docs/pre-commit-setup.md) for detailed configuration and usage.
+
 ### clangd Integration
 
 The project includes automatic clangd configuration for enhanced IDE support:
@@ -283,24 +311,28 @@ make dev            # Setup development environment
 ## Documentation
 
 ### Getting Started
+
 - [Documentation Index](docs/index.md) - Main documentation hub
 - [MSYS2 Build Guide](docs/setup/msys2-build.md) - Comprehensive MSYS2 setup and build instructions (Recommended)
-- [Dependency Management Guide](docs/getting-started/dependency-management.md) - Detailed dependency management information
+- [Dependency Management Guide](docs/getting-started/dependency-management.md) - Detailed dependency management
 - [Platform Support](docs/getting-started/platform-support.md) - Supported platforms and architectures
 
-### Build System
+### Build System Documentation
+
 - [Build System Comparison](docs/build-systems/build-system-comparison.md) - CMake vs xmake feature comparison
 - [CMake Modules Documentation](cmake/README.md) - Detailed CMake module documentation
 - [Migration Guide](docs/MIGRATION-GUIDE.md) - Guide for migrating to the new build system
 - [clangd Setup Guide](docs/setup/clangd-setup.md) - IDE integration and clangd configuration
 
 ### Architecture & Features
+
 - [Architecture Guide](docs/architecture.md) - Comprehensive architecture documentation
 - [Logging System](docs/logging-system.md) - Logging system documentation and usage
 - [Thumbnail System](docs/features/thumbnail-system.md) - Chrome-style thumbnail system
 - [Thread Safety Guidelines](docs/thread-safety-guidelines.md) - Thread safety best practices
 
 ### Advanced Topics
+
 - [API Reference](docs/api-reference.md) - API documentation for core components
 - [PDF Performance Optimizations](docs/PDF_Performance_Optimizations.md) - Performance optimization techniques
 - [QGraphics PDF Support](docs/QGraphics_PDF_Support.md) - QGraphics-based PDF rendering
@@ -308,17 +340,19 @@ make dev            # Setup development environment
 ## Dependencies
 
 ### Required
+
 - **Qt6** (Core, Gui, Widgets, Svg, LinguistTools, TextToSpeech)
 - **Poppler-Qt6** for PDF rendering
 - **spdlog** for high-performance logging
 - **CMake** 3.28+ and **Ninja** for building
 
 ### Optional
+
 - **vcpkg** for cross-platform dependency management
 - **MSYS2** for Windows Unix-like development environment
 - **Clang** for alternative compiler support
 
-See [Dependency Management Guide](docs/getting-started/dependency-management.md) for detailed installation instructions.
+See the [Dependency Management Guide](docs/getting-started/dependency-management.md) for detailed installation instructions.
 
 ## Changelog
 
