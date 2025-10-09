@@ -107,9 +107,6 @@ target("sast-readium")
     -- Add Qt rules for MOC processing
     add_rules("qt.widgetapp")
 
-
-    add_links("Qt6Core", "Qt6Gui", "Qt6Widgets", "Qt6Svg", "Qt6Concurrent")
-
     if is_plat("macosx") then
         print("macOS: Using Frameworks path  (homebrew)")
 
@@ -136,50 +133,62 @@ target("sast-readium")
     end
 
     local moc_headers = {
-        "app/MainWindow.h",
+        "app/cache/PDFCacheManager.h",
+        "app/cache/UnifiedCacheSystem.h",
+        "app/command/Commands.h",
+        "app/controller/DocumentController.h",
+        "app/controller/PageController.h",
+        "app/delegate/PageNavigationDelegate.h",
+        "app/delegate/ThumbnailDelegate.h",
+        "app/factory/WidgetFactory.h",
+        "app/managers/StyleManager.h",
+        "app/managers/FileTypeIconManager.h",
+        "app/managers/RecentFilesManager.h",
         "app/model/DocumentModel.h",
         "app/model/PageModel.h",
         "app/model/RenderModel.h",
         "app/model/PDFOutlineModel.h",
-        "app/controller/DocumentController.h",
-        "app/controller/PageController.h",
-        "app/managers/StyleManager.h",
-        "app/managers/FileTypeIconManager.h",
-        "app/managers/RecentFilesManager.h",
+        "app/model/ThumbnailModel.h",
+        "app/model/AsyncDocumentLoader.h",
+        "app/model/SearchModel.h",
+        "app/model/BookmarkModel.h",
+        "app/model/AnnotationModel.h",
+        "app/plugin/PluginManager.h",
+        "app/ui/core/ViewWidget.h",
+        "app/ui/core/StatusBar.h",
+        "app/ui/core/SideBar.h",
+        "app/ui/core/MenuBar.h",
+        "app/ui/core/ToolBar.h",
+        "app/ui/core/RightSideBar.h",
+        "app/ui/dialogs/DocumentMetadataDialog.h",
+        "app/ui/dialogs/DocumentComparison.h",
+        "app/ui/managers/WelcomeScreenManager.h",
+        "app/ui/thumbnail/ThumbnailListView.h",
+        "app/ui/thumbnail/ThumbnailGenerator.h",
+        "app/ui/thumbnail/ThumbnailWidget.h",
+        "app/ui/thumbnail/ThumbnailContextMenu.h",
+        "app/ui/viewer/PDFPrerenderer.h",
+        "app/ui/viewer/PDFAnimations.h",
+        "app/ui/viewer/PDFViewerEnhancements.h",
+        "app/ui/viewer/QGraphicsPDFViewer.h",
         "app/ui/viewer/PDFViewer.h",
         "app/ui/viewer/PDFOutlineWidget.h",
         "app/ui/widgets/DocumentTabWidget.h",
         "app/ui/widgets/SearchWidget.h",
         "app/ui/widgets/BookmarkWidget.h",
         "app/ui/widgets/AnnotationToolbar.h",
-        "app/ui/thumbnail/ThumbnailModel.h",
-        "app/ui/thumbnail/ThumbnailDelegate.h",
-        "app/ui/thumbnail/ThumbnailListView.h",
-        "app/ui/thumbnail/ThumbnailGenerator.h",
-        "app/model/AsyncDocumentLoader.h",
-        "app/ui/dialogs/DocumentMetadataDialog.h",
-        "app/ui/dialogs/DocumentComparison.h",
-        "app/ui/core/ViewWidget.h",
-        "app/ui/core/StatusBar.h",
-        "app/ui/core/SideBar.h",
-        "app/ui/core/MenuBar.h",
-        "app/ui/core/ToolBar.h",
-        "app/factory/WidgetFactory.h",
-        "app/model/SearchModel.h",
-        "app/model/BookmarkModel.h",
-        "app/model/AnnotationModel.h",
-        "app/ui/viewer/PDFPrerenderer.h",
-        "app/ui/viewer/PDFAnimations.h",
-        "app/ui/viewer/PDFViewerEnhancements.h",
-        "app/ui/viewer/QGraphicsPDFViewer.h",
-        "app/command/Commands.h",
-        "app/cache/PDFCacheManager.h",
-        "app/plugin/PluginManager.h",
-        "app/delegate/PageNavigationDelegate.h",
+        "app/ui/widgets/DebugLogPanel.h",
+        "app/ui/widgets/RecentFileListWidget.h",
+        "app/ui/widgets/WelcomeWidget.h",
         "app/utils/DocumentAnalyzer.h",
-        "app/ui/thumbnail/ThumbnailWidget.h",
-        "app/ui/thumbnail/ThumbnailContextMenu.h",
-        "app/view/Views.h"
+        "app/utils/Logger.h",
+        "app/utils/LoggingConfig.h",
+        "app/utils/LoggingMacros.h",
+        "app/utils/LoggingManager.h",
+        "app/utils/PDFUtilities.h",
+        "app/utils/QtSpdlogBridge.h",
+        "app/view/Views.h",
+        "app/MainWindow.h"
     }
     add_files(moc_headers)
 
@@ -277,6 +286,11 @@ target("sast-readium")
         add_defines("MACOS")
         -- macOS-specific settings
         add_frameworks("CoreFoundation", "CoreServices")
+
+        local qt_base = "/opt/homebrew/opt/qt"
+        add_frameworks("QtCore", "QtGui", "QtWidgets", "QtSvg", "QtConcurrent")
+        add_linkdirs(path.join(qt_base, "lib"))
+        add_includedirs(path.join(qt_base, "include"))
     end
 
     -- Translation files (Qt rules disabled to avoid assertion errors)
