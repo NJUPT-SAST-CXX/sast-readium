@@ -218,7 +218,7 @@ target("sast-readium")
 
     -- Include directories
     add_includedirs(".", "app", "$(builddir)")
-    add_includedirs("app/**")
+    add_headerfiles(moc_headers)
 
     -- Compiler settings
     set_languages("cxx20")
@@ -321,6 +321,17 @@ target("sast-readium")
         os.cp("assets/styles", path.join(targetdir, "styles"))
         print("Copied assets/styles to %s", path.join(targetdir, "styles"))
     end)
+
+    local qt_base = get_config("qt_path")
+    if not qt_base or qt_base == "" then
+        -- :D
+        qt_base = "D:/Program/Qt/6.8.3/mingw_64"
+    end
+
+    add_includedirs(path.join(qt_base, "include"))
+    add_includedirs(path.join(qt_base, "include", "QtSvg"))
+    add_linkdirs(path.join(qt_base, "lib"))
+    add_links("Qt6Core", "Qt6Gui", "Qt6Widgets", "Qt6Svg")
 
 target_end()
 
