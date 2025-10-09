@@ -1,13 +1,13 @@
 #pragma once
 
-#include <QObject>
-#include <QPixmap>
-#include <QIcon>
-#include <QHash>
-#include <QString>
 #include <QFileInfo>
-#include <QSvgRenderer>
+#include <QHash>
+#include <QIcon>
+#include <QObject>
 #include <QPainter>
+#include <QPixmap>
+#include <QString>
+#include <QSvgRenderer>
 
 /**
  * File Type Icon Manager
@@ -49,11 +49,11 @@ private:
     // Cache management
     mutable QHash<QString, QPixmap> m_iconCache;
     mutable QHash<QString, QString> m_extensionToIconMap;
-    
+
     // Settings
     int m_defaultIconSize;
     QString m_iconBasePath;
-    
+
     // Supported file types mapping
     void initializeExtensionMapping();
     QHash<QString, QString> m_fileTypeMapping;

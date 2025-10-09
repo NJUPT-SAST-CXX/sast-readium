@@ -23,26 +23,26 @@ function Write-TestLog {
 
 function Test-ClangdFile {
     Write-TestLog "Testing .clangd file..." "INFO"
-    
+
     if (-not (Test-Path $ClangdFile)) {
         Write-TestLog ".clangd file not found" "FAIL"
         return $false
     }
-    
+
     $content = Get-Content $ClangdFile -Raw
-    
+
     # Check for CompilationDatabase
     if ($content -notmatch "CompilationDatabase:") {
         Write-TestLog "CompilationDatabase not found in .clangd" "FAIL"
         return $false
     }
-    
+
     # Check for Remove section
     if ($content -notmatch "Remove:") {
         Write-TestLog "Remove section not found in .clangd" "FAIL"
         return $false
     }
-    
+
     # Check for C++20 modules flags removal
     $requiredRemovals = @("-fmodules-ts", "-fmodule-mapper=", "-fdeps-format=")
     foreach ($removal in $requiredRemovals) {
@@ -51,25 +51,25 @@ function Test-ClangdFile {
             return $false
         }
     }
-    
+
     Write-TestLog ".clangd file is correctly configured" "PASS"
     return $true
 }
 
 function Test-CompileCommands {
     Write-TestLog "Testing compile_commands.json..." "INFO"
-    
+
     # Extract build directory from .clangd
     $content = Get-Content $ClangdFile -Raw
     if ($content -match "CompilationDatabase:\s*(.+)") {
         $buildDir = $matches[1].Trim()
         $compileCommandsPath = Join-Path $ProjectRoot $buildDir "compile_commands.json"
-        
+
         if (-not (Test-Path $compileCommandsPath)) {
             Write-TestLog "compile_commands.json not found at $compileCommandsPath" "FAIL"
             return $false
         }
-        
+
         # Check if file is valid JSON
         try {
             $json = Get-Content $compileCommandsPath -Raw | ConvertFrom-Json
@@ -77,23 +77,23 @@ function Test-CompileCommands {
                 Write-TestLog "compile_commands.json is empty" "FAIL"
                 return $false
             }
-            
+
             # Check for problematic flags
             $jsonString = Get-Content $compileCommandsPath -Raw
             $problematicFlags = @("-fmodules-ts", "-fmodule-mapper=", "-fdeps-format=")
             $foundProblematic = $false
-            
+
             foreach ($flag in $problematicFlags) {
                 if ($jsonString -match [regex]::Escape($flag)) {
                     Write-TestLog "Found problematic flag $flag in compile_commands.json (this is expected)" "INFO"
                     $foundProblematic = $true
                 }
             }
-            
+
             if ($foundProblematic) {
                 Write-TestLog "Problematic flags found in compile_commands.json - .clangd Remove section should filter them" "INFO"
             }
-            
+
             Write-TestLog "compile_commands.json is valid with $($json.Count) entries" "PASS"
             return $true
         }
@@ -110,13 +110,13 @@ function Test-CompileCommands {
 
 function Test-Scripts {
     Write-TestLog "Testing configuration scripts..." "INFO"
-    
+
     $scripts = @(
         "scripts/update-clangd-config.ps1",
         "scripts/update-clangd-config.bat",
         "scripts/update-clangd-config.sh"
     )
-    
+
     $allExist = $true
     foreach ($script in $scripts) {
         $scriptPath = Join-Path $ProjectRoot $script
@@ -125,31 +125,31 @@ function Test-Scripts {
             $allExist = $false
         }
     }
-    
+
     if ($allExist) {
         Write-TestLog "All configuration scripts are present" "PASS"
         return $true
     }
-    
+
     return $false
 }
 
 function Test-CMakeOption {
     Write-TestLog "Testing CMake ENABLE_CLANGD_CONFIG option..." "INFO"
-    
+
     # Look for CMakeCache.txt in common build directories
     $buildDirs = @("build/Debug-MSYS2", "build/Release-MSYS2", "build/Debug", "build/Release")
-    
+
     foreach ($buildDir in $buildDirs) {
         $cacheFile = Join-Path $ProjectRoot $buildDir "CMakeCache.txt"
         if (Test-Path $cacheFile) {
             $cacheContent = Get-Content $cacheFile
             $clangdOption = $cacheContent | Where-Object { $_ -match "^ENABLE_CLANGD_CONFIG:BOOL=(.+)$" }
-            
+
             if ($clangdOption) {
                 $enabled = $matches[1]
                 Write-TestLog "Found ENABLE_CLANGD_CONFIG=$enabled in $buildDir" "INFO"
-                
+
                 if ($enabled -eq "ON") {
                     Write-TestLog "clangd auto-configuration is enabled" "PASS"
                 } else {
@@ -159,7 +159,7 @@ function Test-CMakeOption {
             }
         }
     }
-    
+
     Write-TestLog "No CMake cache found - run cmake configuration first" "WARN"
     return $false
 }

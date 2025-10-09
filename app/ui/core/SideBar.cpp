@@ -1,22 +1,22 @@
 #include "SideBar.h"
-#include "../thumbnail/ThumbnailListView.h"
-#include "../../model/ThumbnailModel.h"
-#include "../../delegate/ThumbnailDelegate.h"
+#include <QApplication>
+#include <QDebug>
+#include <QEasingCurve>
+#include <QLabel>
+#include <QListView>
+#include <QPropertyAnimation>
+#include <QSettings>
+#include <QSize>
+#include <QTabWidget>
+#include <QTreeView>
+#include <QVBoxLayout>
+#include <QWidget>
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-#include <QLabel>
-#include <QListView>
-#include <QTreeView>
-#include <QVBoxLayout>
-#include <QApplication>
-#include <QDebug>
-#include <QPropertyAnimation>
-#include <QSize>
-#include <QWidget>
-#include <QTabWidget>
-#include <QEasingCurve>
-#include <QSettings>
+#include "../../delegate/ThumbnailDelegate.h"
+#include "../../model/ThumbnailModel.h"
+#include "../thumbnail/ThumbnailListView.h"
 
 // 定义静态常量
 const int SideBar::minimumWidth;
@@ -25,9 +25,14 @@ const int SideBar::defaultWidth;
 const int SideBar::animationDuration;
 
 SideBar::SideBar(QWidget* parent)
-    : QWidget(parent), animation(nullptr), settings(nullptr), outlineWidget(nullptr),
-      thumbnailView(nullptr), isCurrentlyVisible(true), preferredWidth(defaultWidth), lastWidth(defaultWidth) {
-
+    : QWidget(parent),
+      animation(nullptr),
+      settings(nullptr),
+      outlineWidget(nullptr),
+      thumbnailView(nullptr),
+      isCurrentlyVisible(true),
+      preferredWidth(defaultWidth),
+      lastWidth(defaultWidth) {
     // 初始化缩略图组件
     thumbnailModel = std::make_unique<ThumbnailModel>(this);
     thumbnailDelegate = std::make_unique<ThumbnailDelegate>(this);
@@ -76,10 +81,10 @@ QWidget* SideBar::createThumbnailsTab() {
     thumbnailDelegate->setThumbnailSize(defaultSize);
 
     // 连接信号
-    connect(thumbnailView, &ThumbnailListView::pageClicked,
-            this, &SideBar::pageClicked);
-    connect(thumbnailView, &ThumbnailListView::pageDoubleClicked,
-            this, &SideBar::pageDoubleClicked);
+    connect(thumbnailView, &ThumbnailListView::pageClicked, this,
+            &SideBar::pageClicked);
+    connect(thumbnailView, &ThumbnailListView::pageDoubleClicked, this,
+            &SideBar::pageDoubleClicked);
 
     thumbLayout->addWidget(thumbnailView);
 
@@ -102,16 +107,16 @@ void SideBar::initAnimation() {
     animation->setDuration(animationDuration);
     animation->setEasingCurve(QEasingCurve::InOutCubic);
 
-    connect(animation, &QPropertyAnimation::finished, this, &SideBar::onAnimationFinished);
+    connect(animation, &QPropertyAnimation::finished, this,
+            &SideBar::onAnimationFinished);
 }
 
 void SideBar::initSettings() {
-    settings = new QSettings(QApplication::organizationName(), QApplication::applicationName(), this);
+    settings = new QSettings(QApplication::organizationName(),
+                             QApplication::applicationName(), this);
 }
 
-bool SideBar::isVisible() const {
-    return isCurrentlyVisible;
-}
+bool SideBar::isVisible() const { return isCurrentlyVisible; }
 
 void SideBar::setVisible(bool visible, bool animated) {
     if (isCurrentlyVisible == visible) {
@@ -142,7 +147,8 @@ void SideBar::toggleVisibility(bool animated) {
 }
 
 void SideBar::show(bool animated) {
-    if (isCurrentlyVisible) return;
+    if (isCurrentlyVisible)
+        return;
 
     isCurrentlyVisible = true;
     QWidget::setVisible(true);
@@ -158,9 +164,10 @@ void SideBar::show(bool animated) {
 }
 
 void SideBar::hide(bool animated) {
-    if (!isCurrentlyVisible) return;
+    if (!isCurrentlyVisible)
+        return;
 
-    lastWidth = width(); // 记住当前宽度
+    lastWidth = width();  // 记住当前宽度
     isCurrentlyVisible = false;
 
     if (animated && animation) {
@@ -174,9 +181,7 @@ void SideBar::hide(bool animated) {
     }
 }
 
-int SideBar::getPreferredWidth() const {
-    return preferredWidth;
-}
+int SideBar::getPreferredWidth() const { return preferredWidth; }
 
 void SideBar::setPreferredWidth(int width) {
     preferredWidth = qBound(minimumWidth, width, maximumWidth);
@@ -200,7 +205,7 @@ void SideBar::restoreState() {
         preferredWidth = settings->value("SideBar/width", defaultWidth).toInt();
         preferredWidth = qBound(minimumWidth, preferredWidth, maximumWidth);
 
-        setVisible(isCurrentlyVisible, false); // 恢复时不使用动画
+        setVisible(isCurrentlyVisible, false);  // 恢复时不使用动画
     }
 }
 

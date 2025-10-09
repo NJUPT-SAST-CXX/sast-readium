@@ -7,7 +7,6 @@
 #include <QPushButton>
 #include "controller/PageController.h"
 
-
 class Controller;
 class Command;
 

@@ -50,11 +50,11 @@ endif()
 # Function to create a test executable
 function(create_test_executable TEST_NAME TEST_SOURCE)
     add_executable(${TEST_NAME} ${TEST_SOURCE})
-    
+
     target_include_directories(${TEST_NAME} PRIVATE ${COMMON_INCLUDE_DIRS})
     target_link_libraries(${TEST_NAME} PRIVATE ${COMMON_LIBRARIES})
     target_compile_definitions(${TEST_NAME} PRIVATE ${COMMON_DEFINITIONS})
-    
+
     # Link against main application sources (needed for testing)
     target_sources(${TEST_NAME} PRIVATE
         # Core viewer sources
@@ -86,15 +86,15 @@ function(create_test_executable TEST_NAME TEST_SOURCE)
         # QGraphics sources (conditionally compiled)
         ../app/ui/viewer/QGraphicsPDFViewer.cpp
     )
-    
+
     # Set output directory
     set_target_properties(${TEST_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/${ARGV2}
     )
-    
+
     # Add to CTest
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
-    
+
     # Set test properties
     set_tests_properties(${TEST_NAME} PROPERTIES
         TIMEOUT 300  # 5 minutes timeout
@@ -104,29 +104,29 @@ endfunction()
 
 # Unit Tests
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/unit/test_qgraphics_components.cpp)
-    create_test_executable(test_qgraphics_components 
-        unit/test_qgraphics_components.cpp 
+    create_test_executable(test_qgraphics_components
+        unit/test_qgraphics_components.cpp
         unit)
 endif()
 
 # Integration Tests
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_rendering_mode_switch.cpp)
-    create_test_executable(test_rendering_mode_switch 
-        integration/test_rendering_mode_switch.cpp 
+    create_test_executable(test_rendering_mode_switch
+        integration/test_rendering_mode_switch.cpp
         integration)
 endif()
 
 # Performance Tests
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/performance/test_rendering_performance.cpp)
-    create_test_executable(test_rendering_performance 
-        performance/test_rendering_performance.cpp 
+    create_test_executable(test_rendering_performance
+        performance/test_rendering_performance.cpp
         performance)
 endif()
 
 # Real World Tests
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/real_world/test_real_pdf_documents.cpp)
-    create_test_executable(test_real_pdf_documents 
-        real_world/test_real_pdf_documents.cpp 
+    create_test_executable(test_real_pdf_documents
+        real_world/test_real_pdf_documents.cpp
         real_world)
 endif()
 

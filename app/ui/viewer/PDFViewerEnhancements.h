@@ -1,20 +1,20 @@
 #pragma once
 
-#include <QWidget>
+#include <poppler-qt6.h>
+#include <QCache>
+#include <QFutureWatcher>
 #include <QLabel>
+#include <QMutex>
+#include <QPainter>
 #include <QPixmap>
 #include <QTimer>
-#include <QCache>
-#include <QMutex>
-#include <QFutureWatcher>
-#include <QPainter>
-#include <poppler-qt6.h>
+#include <QWidget>
 
 /**
- * High-quality PDF page widget with improved rendering quality and performance optimizations
+ * High-quality PDF page widget with improved rendering quality and performance
+ * optimizations
  */
-class HighQualityPDFPageWidget : public QLabel
-{
+class HighQualityPDFPageWidget : public QLabel {
     Q_OBJECT
 
 public:
@@ -22,10 +22,11 @@ public:
     ~HighQualityPDFPageWidget();
 
     // Same interface as original PDFPageWidget for drop-in replacement
-    void setPage(Poppler::Page* page, Poppler::Document* document = nullptr, double scaleFactor = 1.0, int rotation = 0);
+    void setPage(Poppler::Page* page, Poppler::Document* document = nullptr,
+                 double scaleFactor = 1.0, int rotation = 0);
     void setScaleFactor(double factor);
     void setRotation(int degrees);
-    
+
     double getScaleFactor() const { return m_currentScaleFactor; }
     int getRotation() const { return m_currentRotation; }
 
@@ -45,23 +46,23 @@ private:
     void renderPageAsync();
     void updateDisplay();
     void showPlaceholder(const QString& text = "Loading...");
-    
+
     // Page state
     Poppler::Page* m_currentPage;
-    Poppler::Document* m_document; // Keep reference to document
+    Poppler::Document* m_document;  // Keep reference to document
     double m_currentScaleFactor;
     int m_currentRotation;
-    
+
     // Rendering
     QFutureWatcher<QPixmap>* m_renderWatcher;
     QTimer* m_renderTimer;
     QPixmap m_renderedPixmap;
     bool m_isRendering;
-    
+
     // Interaction
     bool m_isDragging;
     QPoint m_lastPanPoint;
-    
+
     // Performance settings
     static constexpr int RENDER_DELAY_MS = 100;
     static constexpr double MIN_SCALE = 0.1;
@@ -74,8 +75,7 @@ signals:
 /**
  * High-performance render task for PDF pages
  */
-struct HighQualityRenderTask
-{
+struct HighQualityRenderTask {
     Poppler::Page* page;
     Poppler::Document* document;
     double scaleFactor;
@@ -83,7 +83,7 @@ struct HighQualityRenderTask
     bool highQuality;
 
     QPixmap render() const;
-    
+
 private:
     void configureDocument(Poppler::Document* doc) const;
     double calculateDPI(double scale, bool highQuality) const;
@@ -92,11 +92,9 @@ private:
 /**
  * Thread-safe cache for rendered PDF pages
  */
-class PDFRenderCache
-{
+class PDFRenderCache {
 public:
-    struct CacheKey
-    {
+    struct CacheKey {
         int pageNumber;
         double scaleFactor;
         int rotation;
@@ -109,7 +107,7 @@ public:
     friend size_t qHash(const CacheKey& key, size_t seed);
 
     static PDFRenderCache& instance();
-    
+
     void insert(const CacheKey& key, const QPixmap& pixmap);
     QPixmap get(const CacheKey& key);
     bool contains(const CacheKey& key) const;
@@ -125,15 +123,14 @@ private:
 /**
  * Performance monitoring for PDF rendering
  */
-class PDFPerformanceMonitor
-{
+class PDFPerformanceMonitor {
 public:
     static PDFPerformanceMonitor& instance();
-    
+
     void recordRenderTime(int pageNumber, qint64 milliseconds);
     void recordCacheHit(int pageNumber);
     void recordCacheMiss(int pageNumber);
-    
+
     double getAverageRenderTime() const;
     double getCacheHitRate() const;
     void reset();
@@ -149,43 +146,45 @@ private:
 /**
  * Utility functions for PDF rendering
  */
-namespace PDFRenderUtils
-{
-    void configureRenderHints(QPainter& painter, bool highQuality = true);
-    QPixmap renderPageHighQuality(Poppler::Page* page, double scaleFactor, int rotation = 0);
-    QPixmap renderPageFast(Poppler::Page* page, double scaleFactor, int rotation = 0);
-    double calculateOptimalDPI(double scaleFactor, bool highQuality = true);
-    void optimizeDocument(Poppler::Document* document);
-}
+namespace PDFRenderUtils {
+void configureRenderHints(QPainter& painter, bool highQuality = true);
+QPixmap renderPageHighQuality(Poppler::Page* page, double scaleFactor,
+                              int rotation = 0);
+QPixmap renderPageFast(Poppler::Page* page, double scaleFactor,
+                       int rotation = 0);
+double calculateOptimalDPI(double scaleFactor, bool highQuality = true);
+void optimizeDocument(Poppler::Document* document);
+}  // namespace PDFRenderUtils
 
 /**
  * Advanced PDF viewer with performance enhancements
  */
-class AdvancedPDFViewer : public QWidget
-{
+class AdvancedPDFViewer : public QWidget {
     Q_OBJECT
 
 public:
     explicit AdvancedPDFViewer(QWidget* parent = nullptr);
-    
+
     // Same interface as original for compatibility
     void setDocument(Poppler::Document* document);
     void setCurrentPage(int pageNumber);
     void setZoomFactor(double factor);
     void setRotation(int degrees);
-    
+
     // Enhanced features
     void enableHighQualityRendering(bool enable);
     void setRenderingThreads(int threads);
     void setCacheSize(int maxItems);
-    
+
     // Performance monitoring
-    PDFPerformanceMonitor& performanceMonitor() { return PDFPerformanceMonitor::instance(); }
+    PDFPerformanceMonitor& performanceMonitor() {
+        return PDFPerformanceMonitor::instance();
+    }
 
 private:
     void setupUI();
     void updateCurrentPage();
-    
+
     HighQualityPDFPageWidget* m_pageWidget;
     Poppler::Document* m_document;
     int m_currentPage;

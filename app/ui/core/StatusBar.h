@@ -1,12 +1,12 @@
 #pragma once
 
-#include <QLabel>
-#include <QStatusBar>
-#include <QString>
-#include <QLineEdit>
 #include <QIntValidator>
+#include <QLabel>
+#include <QLineEdit>
 #include <QProgressBar>
 #include <QPropertyAnimation>
+#include <QStatusBar>
+#include <QString>
 #include "../../factory/WidgetFactory.h"
 
 class StatusBar : public QStatusBar {
@@ -16,7 +16,8 @@ public:
     StatusBar(WidgetFactory* factory, QWidget* parent = nullptr);
 
     // 状态信息更新接口
-    void setDocumentInfo(const QString& fileName, int currentPage, int totalPages, double zoomLevel);
+    void setDocumentInfo(const QString& fileName, int currentPage,
+                         int totalPages, double zoomLevel);
     void setPageInfo(int current, int total);
     void setZoomLevel(int percent);
     void setZoomLevel(double percent);

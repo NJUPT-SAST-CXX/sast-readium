@@ -1,23 +1,22 @@
 #pragma once
 
+#include <poppler/qt6/poppler-qt6.h>
 #include <QDialog>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QFrame>
 #include <QGridLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPushButton>
-#include <QGroupBox>
-#include <QScrollArea>
-#include <QFrame>
-#include <QWidget>
-#include <QString>
 #include <QObject>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QString>
+#include <QVBoxLayout>
+#include <QWidget>
 #include <QtGlobal>
-#include <poppler/qt6/poppler-qt6.h>
 
-class DocumentMetadataDialog : public QDialog
-{
+class DocumentMetadataDialog : public QDialog {
     Q_OBJECT
 
 public:
@@ -35,10 +34,11 @@ private:
     void setupConnections();
     void applyCurrentTheme();
     void clearMetadata();
-    void populateBasicInfo(const QString& filePath, Poppler::Document* document);
+    void populateBasicInfo(const QString& filePath,
+                           Poppler::Document* document);
     void populateDocumentProperties(Poppler::Document* document);
     void populateSecurityInfo(Poppler::Document* document);
-    
+
     QString formatDateTime(const QString& dateTimeStr);
     QString formatFileSize(qint64 bytes);
 
@@ -47,7 +47,7 @@ private:
     QScrollArea* m_scrollArea;
     QWidget* m_contentWidget;
     QVBoxLayout* m_contentLayout;
-    
+
     // 基本信息组
     QGroupBox* m_basicInfoGroup;
     QGridLayout* m_basicInfoLayout;
@@ -55,7 +55,7 @@ private:
     QLineEdit* m_filePathEdit;
     QLineEdit* m_fileSizeEdit;
     QLineEdit* m_pageCountEdit;
-    
+
     // 文档属性组
     QGroupBox* m_propertiesGroup;
     QGridLayout* m_propertiesLayout;
@@ -67,7 +67,7 @@ private:
     QLineEdit* m_producerEdit;
     QLineEdit* m_creationDateEdit;
     QLineEdit* m_modificationDateEdit;
-    
+
     // 安全信息组
     QGroupBox* m_securityGroup;
     QGridLayout* m_securityLayout;
@@ -75,11 +75,11 @@ private:
     QLineEdit* m_canExtractTextEdit;
     QLineEdit* m_canPrintEdit;
     QLineEdit* m_canModifyEdit;
-    
+
     // 按钮
     QHBoxLayout* m_buttonLayout;
     QPushButton* m_closeButton;
-    
+
     // 当前文档信息
     QString m_currentFilePath;
     Poppler::Document* m_currentDocument;

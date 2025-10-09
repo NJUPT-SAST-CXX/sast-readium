@@ -1,9 +1,9 @@
 #include <config.h>
 #include <QApplication>
 #include "MainWindow.h"
-#include "utils/LoggingManager.h"
 #include "utils/LoggingConfig.h"
 #include "utils/LoggingMacros.h"
+#include "utils/LoggingManager.h"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -11,13 +11,14 @@ int main(int argc, char** argv) {
     // Initialize logging system early
     LoggingConfigBuilder configBuilder;
     configBuilder.useDevelopmentPreset()
-                 .setGlobalLevel(Logger::LogLevel::Debug)
-                 .addConsoleSink("console", Logger::LogLevel::Debug)
-                 .addCategory("main", Logger::LogLevel::Debug)
-                 .addCategory("ui", Logger::LogLevel::Info);
+        .setGlobalLevel(Logger::LogLevel::Debug)
+        .addConsoleSink("console", Logger::LogLevel::Debug)
+        .addCategory("main", Logger::LogLevel::Debug)
+        .addCategory("ui", Logger::LogLevel::Info);
 
     auto loggingConfig = configBuilder.buildUnique();
-    LoggingManager::instance().initialize(LoggingManager::LoggingConfiguration{});
+    LoggingManager::instance().initialize(
+        LoggingManager::LoggingConfiguration{});
 
     LOG_INFO("Starting SAST Readium application");
     LOG_INFO("Application name: {}", PROJECT_NAME);

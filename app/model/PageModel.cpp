@@ -2,10 +2,14 @@
 #include "RenderModel.h"
 
 PageModel::PageModel(int totalPages, QObject* parent)
-    : QObject(parent), _totalPages(totalPages), _currentPage(1) {} // 页数从1开始计数
+    : QObject(parent),
+      _totalPages(totalPages),
+      _currentPage(1) {}  // 页数从1开始计数
 
 PageModel::PageModel(RenderModel* renderModel, QObject* parent)
-    : _renderModel(renderModel), _currentPage(1), _totalPages(renderModel->getPageCount()) {}
+    : _renderModel(renderModel),
+      _currentPage(1),
+      _totalPages(renderModel->getPageCount()) {}
 
 int PageModel::currentPage() const { return _currentPage; }
 
@@ -42,6 +46,8 @@ void PageModel::updateInfo(Poppler::Document* document) {
     _currentPage = 1;
     if (_renderModel && _totalPages > 0) {
         // 文档加载后，自动渲染首页
-        _renderModel->renderPage(_currentPage - 1); // poppler::document从0开始计数，但为方便page从1开始计数，此处需要-1
+        _renderModel->renderPage(
+            _currentPage -
+            1);  // poppler::document从0开始计数，但为方便page从1开始计数，此处需要-1
     }
 }

@@ -69,10 +69,10 @@ find_valid_build_dirs() {
 # Function to update .clangd configuration
 update_clangd_config() {
     local target_build_dir="$1"
-    
+
     log_message "INFO" "Updating .clangd configuration..."
     log_message "INFO" "Target build directory: $target_build_dir"
-    
+
     # Check if .clangd file exists
     if [[ ! -f "$CLANGD_FILE" ]]; then
         log_message "INFO" ".clangd file not found, creating new one..."
@@ -107,7 +107,7 @@ EOF
         log_message "INFO" "Created new .clangd file with build directory: $target_build_dir"
         return
     fi
-    
+
     # Update existing .clangd file
     # Use sed to replace the CompilationDatabase line
     if command -v sed >/dev/null 2>&1; then
@@ -219,18 +219,18 @@ fi
 if [[ "$AUTO_MODE" == true ]]; then
     log_message "INFO" "Auto-detecting build directory..."
     valid_dirs=($(find_valid_build_dirs))
-    
+
     if [[ ${#valid_dirs[@]} -eq 0 ]]; then
         log_message "ERROR" "No valid build directories found with compile_commands.json"
         echo "Please run cmake configuration first, for example:"
         echo "  cmake --preset Debug"
         exit 1
     fi
-    
+
     # Use the first valid directory (or prefer Debug if available)
     preferred_order=("build/Debug" "build/Release" "build/Debug-MSYS2" "build/Release-MSYS2")
     selected_dir="${valid_dirs[0]}"
-    
+
     for preferred in "${preferred_order[@]}"; do
         for valid in "${valid_dirs[@]}"; do
             if [[ "$valid" == "$preferred" ]]; then
@@ -239,7 +239,7 @@ if [[ "$AUTO_MODE" == true ]]; then
             fi
         done
     done
-    
+
     # Check if clangd configuration is enabled (unless forced)
     full_build_path="$PROJECT_ROOT/$selected_dir"
     if [[ "$FORCE" != true ]] && ! check_clangd_config_enabled "$full_build_path"; then
@@ -259,7 +259,7 @@ fi
 if [[ -n "$BUILD_DIR" ]]; then
     full_build_path="$PROJECT_ROOT/$BUILD_DIR"
     compile_commands_path="$full_build_path/compile_commands.json"
-    
+
     if [[ ! -f "$compile_commands_path" ]]; then
         log_message "ERROR" "compile_commands.json not found in: $BUILD_DIR"
         echo "Available directories:"

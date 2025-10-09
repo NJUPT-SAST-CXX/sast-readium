@@ -91,7 +91,8 @@ void PreloadTask::run() {
                                   Qt::QueuedConnection);
 
     } catch (...) {
-        LOG_WARNING("PreloadTask: Exception during preload of page {}", m_pageNumber);
+        LOG_WARNING("PreloadTask: Exception during preload of page {}",
+                    m_pageNumber);
     }
 }
 
@@ -128,8 +129,9 @@ PDFCacheManager::PDFCacheManager(QObject* parent)
     // Load settings
     loadSettings();
 
-    LOG_DEBUG("PDFCacheManager initialized with max memory: {} bytes, max items: {}",
-              m_maxMemoryUsage, m_maxItems);
+    LOG_DEBUG(
+        "PDFCacheManager initialized with max memory: {} bytes, max items: {}",
+        m_maxMemoryUsage, m_maxItems);
 }
 
 bool PDFCacheManager::insert(const QString& key, const QVariant& data,
@@ -242,7 +244,8 @@ QString PDFCacheManager::getTextContent(int pageNumber) {
 
 void PDFCacheManager::enablePreloading(bool enabled) {
     m_preloadingEnabled = enabled;
-    LOG_DEBUG("PDFCacheManager: Preloading {}", enabled ? "enabled" : "disabled");
+    LOG_DEBUG("PDFCacheManager: Preloading {}",
+              enabled ? "enabled" : "disabled");
 }
 
 void PDFCacheManager::preloadPages(const QList<int>& pageNumbers,
@@ -272,7 +275,8 @@ void PDFCacheManager::preloadAroundPage(int centerPage, int radius) {
 
 void PDFCacheManager::setPreloadingStrategy(const QString& strategy) {
     m_preloadingStrategy = strategy;
-    LOG_DEBUG("PDFCacheManager: Preloading strategy set to {}", strategy.toStdString());
+    LOG_DEBUG("PDFCacheManager: Preloading strategy set to {}",
+              strategy.toStdString());
 }
 
 QString PDFCacheManager::generateKey(int pageNumber, CacheItemType type,

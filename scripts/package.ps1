@@ -78,7 +78,7 @@ REQUIREMENTS:
 function Test-Build {
     $BuildPath = Join-Path $BuildDir "$BuildType-Windows"
     $AppPath = Join-Path $BuildPath "app\app.exe"
-    
+
     if (-not (Test-Path $AppPath)) {
         Write-Error "Build not found at $AppPath"
         Write-Error "Please build the project first:"
@@ -86,7 +86,7 @@ function Test-Build {
         Write-Error "  cmake --build --preset=$BuildType-Windows"
         exit 1
     }
-    
+
     Write-Success "Found build at $AppPath"
     return $BuildPath
 }
@@ -105,37 +105,37 @@ function Clear-Packaging {
 # Create MSI package using WiX
 function New-MsiPackage {
     param([string]$BuildPath)
-    
+
     Write-Status "Creating MSI package..."
-    
+
     # Check for WiX toolset
     $WixPath = Get-Command "candle.exe" -ErrorAction SilentlyContinue
     if (-not $WixPath) {
         Write-Error "WiX Toolset not found. Please install from https://wixtoolset.org/"
         return $false
     }
-    
+
     $MsiDir = Join-Path $PackageDir "msi"
     New-Item -ItemType Directory -Path $MsiDir -Force | Out-Null
-    
+
     # Create WiX source file
     $WixSource = @"
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="$AppDisplayName" Language="1033" Version="$Version" 
+  <Product Id="*" Name="$AppDisplayName" Language="1033" Version="$Version"
            Manufacturer="SAST Team" UpgradeCode="12345678-1234-1234-1234-123456789012">
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
     <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
     <MediaTemplate EmbedCab="yes" />
-    
+
     <Feature Id="ProductFeature" Title="$AppDisplayName" Level="1">
       <ComponentGroupRef Id="ProductComponents" />
     </Feature>
-    
+
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <UIRef Id="WixUI_InstallDir" />
   </Product>
-  
+
   <Fragment>
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder">
@@ -146,7 +146,7 @@ function New-MsiPackage {
       </Directory>
     </Directory>
   </Fragment>
-  
+
   <Fragment>
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <Component Id="MainExecutable" Guid="*">
@@ -159,24 +159,24 @@ function New-MsiPackage {
         <File Id="Qt6Svg" Source="$BuildPath\app\Qt6Svg.dll" />
       </Component>
       <Component Id="StartMenuShortcut" Guid="*">
-        <Shortcut Id="ApplicationStartMenuShortcut" 
-                  Name="$AppDisplayName" 
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="$AppDisplayName"
                   Description="Qt6-based PDF reader"
-                  Target="[#AppExe]" 
+                  Target="[#AppExe]"
                   WorkingDirectory="INSTALLFOLDER"
                   Directory="ApplicationProgramsFolder" />
         <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-        <RegistryValue Root="HKCU" Key="Software\SAST\$AppName" 
+        <RegistryValue Root="HKCU" Key="Software\SAST\$AppName"
                        Name="installed" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
     </ComponentGroup>
   </Fragment>
 </Wix>
 "@
-    
+
     $WixFile = Join-Path $MsiDir "installer.wxs"
     $WixSource | Out-File -FilePath $WixFile -Encoding UTF8
-    
+
     # Compile and link
     Push-Location $MsiDir
     try {
@@ -185,14 +185,14 @@ function New-MsiPackage {
             Write-Error "WiX compilation failed"
             return $false
         }
-        
+
         $MsiFile = Join-Path $ProjectRoot "$AppName-$Version-x64.msi"
         & light.exe "installer.wixobj" -o $MsiFile -ext WixUIExtension
         if ($LASTEXITCODE -ne 0) {
             Write-Error "WiX linking failed"
             return $false
         }
-        
+
         Write-Success "Created $MsiFile"
         return $true
     }
@@ -204,27 +204,27 @@ function New-MsiPackage {
 # Create portable ZIP package
 function New-PortablePackage {
     param([string]$BuildPath)
-    
+
     Write-Status "Creating portable package..."
-    
+
     $PortableDir = Join-Path $PackageDir "portable"
     $AppDir = Join-Path $PortableDir $AppDisplayName
     New-Item -ItemType Directory -Path $AppDir -Force | Out-Null
-    
+
     # Copy application files
     $AppFiles = Join-Path $BuildPath "app\*"
     Copy-Item $AppFiles -Destination $AppDir -Recurse -Force
-    
+
     # Create launcher script
     $LauncherScript = @"
 @echo off
 cd /d "%~dp0"
 start "" "$AppDisplayName\app.exe" %*
 "@
-    
+
     $LauncherFile = Join-Path $PortableDir "$AppName.bat"
     $LauncherScript | Out-File -FilePath $LauncherFile -Encoding ASCII
-    
+
     # Create README
     $ReadmeContent = @"
 $AppDisplayName $Version - Portable Edition
@@ -242,13 +242,13 @@ System Requirements:
 
 For more information, visit: https://github.com/SAST-Readium/sast-readium
 "@
-    
+
     $ReadmeFile = Join-Path $PortableDir "README.txt"
     $ReadmeContent | Out-File -FilePath $ReadmeFile -Encoding UTF8
-    
+
     # Create ZIP archive
     $ZipFile = Join-Path $ProjectRoot "$AppName-$Version-portable.zip"
-    
+
     if (Get-Command "7z" -ErrorAction SilentlyContinue) {
         # Use 7-Zip if available
         & 7z a -tzip $ZipFile "$PortableDir\*"
@@ -256,7 +256,7 @@ For more information, visit: https://github.com/SAST-Readium/sast-readium
         # Use PowerShell built-in compression
         Compress-Archive -Path "$PortableDir\*" -DestinationPath $ZipFile -Force
     }
-    
+
     Write-Success "Created $ZipFile"
     return $true
 }
@@ -267,20 +267,20 @@ function Main {
         Show-Usage
         exit 0
     }
-    
+
     Write-Status "$AppDisplayName Packaging Script"
     Write-Status "=============================="
-    
+
     # Auto-detect package type
     if ($PackageType -eq "auto") {
         $PackageType = "msi"
     }
-    
+
     $BuildPath = Test-Build
     Clear-Packaging
-    
+
     $Success = $true
-    
+
     # Create packages based on requested types
     switch ($PackageType) {
         "msi" {
@@ -298,7 +298,7 @@ function Main {
             exit 1
         }
     }
-    
+
     if ($Success) {
         Write-Success "Packaging completed successfully!"
         Write-Status "Generated packages:"

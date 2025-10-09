@@ -1,50 +1,46 @@
 #pragma once
 
-#include <QWidget>
-#include <QScrollArea>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QPushButton>
-#include <QSpinBox>
-#include <QSlider>
-#include <QPixmap>
-#include <QTimer>
-#include <QComboBox>
-#include <QStackedWidget>
-#include <QShortcut>
-#include <QList>
-#include <QColor>
-#include <QPainter>
-#include <QObject>
-#include <QHash>
-#include <QtGlobal>
-#include "../../model/SearchModel.h"
-#include <QPropertyAnimation>
-#include <QGraphicsOpacityEffect>
-#include <QGraphicsDropShadowEffect>
-#include <QGestureEvent>
-#include <QSwipeGesture>
-#include <QPinchGesture>
-#include <QPanGesture>
-#include <QTouchEvent>
-#include <QEasingCurve>
+#include <poppler/qt6/poppler-qt6.h>
 #include <QCache>
-#include <QMutex>
-#include <QEvent>
-#include <QMouseEvent>
-#include <QWheelEvent>
-#include <QPaintEvent>
-#include <QPoint>
-#include <QObject>
-#include <QHash>
-#include <QtGlobal>
+#include <QColor>
+#include <QComboBox>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QEasingCurve>
+#include <QEvent>
+#include <QGestureEvent>
+#include <QGraphicsDropShadowEffect>
+#include <QGraphicsOpacityEffect>
+#include <QHBoxLayout>
+#include <QHash>
+#include <QLabel>
+#include <QList>
 #include <QMimeData>
+#include <QMouseEvent>
+#include <QMutex>
+#include <QObject>
+#include <QPaintEvent>
+#include <QPainter>
+#include <QPanGesture>
+#include <QPinchGesture>
+#include <QPixmap>
+#include <QPoint>
+#include <QPropertyAnimation>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QShortcut>
+#include <QSlider>
+#include <QSpinBox>
+#include <QStackedWidget>
+#include <QSwipeGesture>
+#include <QTimer>
+#include <QTouchEvent>
 #include <QUrl>
-#include <poppler/qt6/poppler-qt6.h>
+#include <QVBoxLayout>
+#include <QWheelEvent>
+#include <QWidget>
+#include <QtGlobal>
 #include "../../model/DocumentModel.h"
 #include "../../model/SearchModel.h"
 #include "PDFAnimations.h"
@@ -52,21 +48,21 @@
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
 #include "QGraphicsPDFViewer.h"
 #endif
-#include "PDFPrerenderer.h"
 #include "../widgets/SearchWidget.h"
+#include "PDFPrerenderer.h"
 
 // 页面查看模式枚举
 enum class PDFViewMode {
-    SinglePage,      // 单页视图
-    ContinuousScroll // 连续滚动视图
+    SinglePage,       // 单页视图
+    ContinuousScroll  // 连续滚动视图
 };
 
 // 缩放类型枚举
 enum class ZoomType {
-    FixedValue,      // 固定缩放值
-    FitWidth,        // 适应宽度
-    FitHeight,       // 适应高度
-    FitPage          // 适应整页
+    FixedValue,  // 固定缩放值
+    FitWidth,    // 适应宽度
+    FitHeight,   // 适应高度
+    FitPage      // 适应整页
 };
 
 class PDFPageWidget : public QLabel {
@@ -74,18 +70,20 @@ class PDFPageWidget : public QLabel {
 
 public:
     PDFPageWidget(QWidget* parent = nullptr);
-    void setPage(Poppler::Page* page, double scaleFactor = 1.0, int rotation = 0);
+    void setPage(Poppler::Page* page, double scaleFactor = 1.0,
+                 int rotation = 0);
     void setScaleFactor(double factor);
     void setRotation(int degrees);
     double getScaleFactor() const { return currentScaleFactor; }
     int getRotation() const { return currentRotation; }
-    void renderPage(); // Make public for refresh functionality
+    void renderPage();  // Make public for refresh functionality
 
     // Search highlight management
     void setSearchResults(const QList<SearchResult>& results);
     void clearSearchHighlights();
     void setCurrentSearchResult(int index);
-    void updateHighlightColors(const QColor& normalColor, const QColor& currentColor);
+    void updateHighlightColors(const QColor& normalColor,
+                               const QColor& currentColor);
     bool hasSearchResults() const { return !m_searchResults.isEmpty(); }
 
 protected:
@@ -107,7 +105,6 @@ protected:
     void dropEvent(QDropEvent* event) override;
 
 private:
-
     Poppler::Page* currentPage;
     double currentScaleFactor;
     int currentRotation;
@@ -136,11 +133,11 @@ class PDFViewer : public QWidget {
 public:
     PDFViewer(QWidget* parent = nullptr, bool enableStyling = true);
     ~PDFViewer() = default;
-    
+
     // 文档操作
     void setDocument(Poppler::Document* document);
     void clearDocument();
-    
+
     // 页面导航
     void goToPage(int pageNumber);
     void nextPage();
@@ -148,7 +145,7 @@ public:
     void firstPage();
     void lastPage();
     bool goToPageWithValidation(int pageNumber, bool showMessage = true);
-    
+
     // 缩放操作
     void zoomIn();
     void zoomOut();
@@ -187,7 +184,7 @@ public:
     void removeBookmark();
     void toggleBookmark();
     bool hasBookmarkForCurrentPage() const;
-    
+
     // 查看模式操作
     void setViewMode(PDFViewMode mode);
     PDFViewMode getViewMode() const { return currentViewMode; }
@@ -206,7 +203,8 @@ public:
     void setQGraphicsRenderingEnabled(bool enabled);
     bool isQGraphicsRenderingEnabled() const;
     void setQGraphicsHighQualityRendering(bool enabled);
-    void setQGraphicsViewMode(int mode); // 0=SinglePage, 1=ContinuousPage, etc.
+    void setQGraphicsViewMode(
+        int mode);  // 0=SinglePage, 1=ContinuousPage, etc.
 #endif
 
 protected:
@@ -234,7 +232,8 @@ protected:
 
     // 缓存管理方法
     QPixmap getCachedPage(int pageNumber, double zoomFactor, int rotation);
-    void setCachedPage(int pageNumber, const QPixmap& pixmap, double zoomFactor, int rotation);
+    void setCachedPage(int pageNumber, const QPixmap& pixmap, double zoomFactor,
+                       int rotation);
     void clearPageCache();
     void cleanupCache();
 
@@ -275,7 +274,7 @@ private:
     QScrollArea* continuousScrollArea;
     QWidget* continuousWidget;
     QVBoxLayout* continuousLayout;
-    
+
     // 工具栏控件
     QPushButton* firstPageBtn;
     QPushButton* prevPageBtn;
@@ -283,7 +282,7 @@ private:
     QLabel* pageCountLabel;
     QPushButton* nextPageBtn;
     QPushButton* lastPageBtn;
-    
+
     QPushButton* zoomInBtn;
     QPushButton* zoomOutBtn;
     QSlider* zoomSlider;
@@ -304,14 +303,14 @@ private:
 
     // 搜索控件
     SearchWidget* searchWidget;
-    
+
     // 文档数据
     Poppler::Document* document;
     int currentPageNumber;
     double currentZoomFactor;
     PDFViewMode currentViewMode;
     ZoomType currentZoomType;
-    int currentRotation; // 当前旋转角度（0, 90, 180, 270）
+    int currentRotation;  // 当前旋转角度（0, 90, 180, 270）
 
     // 缩放控制
     QTimer* zoomTimer;
@@ -324,8 +323,8 @@ private:
     // 虚拟化渲染
     int visiblePageStart;
     int visiblePageEnd;
-    int renderBuffer; // 预渲染缓冲区大小
-    QTimer* scrollTimer; // 滚动防抖定时器
+    int renderBuffer;     // 预渲染缓冲区大小
+    QTimer* scrollTimer;  // 滚动防抖定时器
 
     // 动画效果
     QPropertyAnimation* fadeAnimation;

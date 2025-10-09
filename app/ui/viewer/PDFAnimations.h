@@ -1,29 +1,28 @@
 #pragma once
 
+#include <QColor>
+#include <QEasingCurve>
+#include <QGraphicsBlurEffect>
+#include <QGraphicsOpacityEffect>
+#include <QLabel>
+#include <QList>
+#include <QObject>
+#include <QPainter>
+#include <QParallelAnimationGroup>
+#include <QPixmap>
+#include <QPoint>
+#include <QPropertyAnimation>
+#include <QSequentialAnimationGroup>
+#include <QTimer>
+#include <QWidget>
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-#include <QObject>
-#include <QPropertyAnimation>
-#include <QSequentialAnimationGroup>
-#include <QParallelAnimationGroup>
-#include <QEasingCurve>
-#include <QGraphicsOpacityEffect>
-#include <QGraphicsBlurEffect>
-#include <QWidget>
-#include <QLabel>
-#include <QTimer>
-#include <QList>
-#include <QPoint>
-#include <QColor>
-#include <QPixmap>
-#include <QPainter>
 
 /**
  * Animation manager for PDF viewer with smooth transitions and effects
  */
-class PDFAnimationManager : public QObject
-{
+class PDFAnimationManager : public QObject {
     Q_OBJECT
 
 public:
@@ -43,23 +42,27 @@ public:
     ~PDFAnimationManager();
 
     // Zoom animations
-    void animateZoom(QWidget* target, double fromScale, double toScale, int duration = 300);
-    void animateZoomWithCenter(QWidget* target, double fromScale, double toScale, 
-                              const QPoint& center, int duration = 300);
+    void animateZoom(QWidget* target, double fromScale, double toScale,
+                     int duration = 300);
+    void animateZoomWithCenter(QWidget* target, double fromScale,
+                               double toScale, const QPoint& center,
+                               int duration = 300);
 
     // Page transition animations
-    void animatePageTransition(QWidget* fromPage, QWidget* toPage, 
-                              AnimationType type = AnimationType::SlideLeft, 
-                              int duration = 400);
+    void animatePageTransition(QWidget* fromPage, QWidget* toPage,
+                               AnimationType type = AnimationType::SlideLeft,
+                               int duration = 400);
 
     // Fade animations
     void animateFadeIn(QWidget* target, int duration = 250);
     void animateFadeOut(QWidget* target, int duration = 250);
-    void animateFadeTransition(QWidget* fromWidget, QWidget* toWidget, int duration = 300);
+    void animateFadeTransition(QWidget* fromWidget, QWidget* toWidget,
+                               int duration = 300);
 
     // UI feedback animations
     void animateButtonPress(QWidget* button);
-    void animateHighlight(QWidget* target, const QColor& color = QColor(255, 255, 0, 100));
+    void animateHighlight(QWidget* target,
+                          const QColor& color = QColor(255, 255, 0, 100));
     void animateShake(QWidget* target);
     void animatePulse(QWidget* target);
 
@@ -69,8 +72,10 @@ public:
 
     // Utility functions
     void setDefaultDuration(int duration) { m_defaultDuration = duration; }
-    void setDefaultEasing(QEasingCurve::Type easing) { m_defaultEasing = easing; }
-    
+    void setDefaultEasing(QEasingCurve::Type easing) {
+        m_defaultEasing = easing;
+    }
+
     bool isAnimating() const { return m_activeAnimations > 0; }
     void stopAllAnimations();
 
@@ -96,8 +101,7 @@ signals:
 /**
  * Smooth zoom animation widget that handles scaling with proper center point
  */
-class SmoothZoomWidget : public QWidget
-{
+class SmoothZoomWidget : public QWidget {
     Q_OBJECT
     Q_PROPERTY(double scaleFactor READ scaleFactor WRITE setScaleFactor)
 
@@ -107,7 +111,8 @@ public:
     double scaleFactor() const { return m_scaleFactor; }
     void setScaleFactor(double factor);
 
-    void animateToScale(double targetScale, const QPoint& center = QPoint(), int duration = 300);
+    void animateToScale(double targetScale, const QPoint& center = QPoint(),
+                        int duration = 300);
     void setContent(QWidget* content);
 
 protected:
@@ -133,8 +138,7 @@ signals:
 /**
  * Page transition widget with various animation effects
  */
-class PageTransitionWidget : public QWidget
-{
+class PageTransitionWidget : public QWidget {
     Q_OBJECT
 
 public:
@@ -153,8 +157,9 @@ public:
     explicit PageTransitionWidget(QWidget* parent = nullptr);
 
     void setCurrentWidget(QWidget* widget);
-    void transitionTo(QWidget* newWidget, TransitionType type = TransitionType::SlideLeft, 
-                     int duration = 400);
+    void transitionTo(QWidget* newWidget,
+                      TransitionType type = TransitionType::SlideLeft,
+                      int duration = 400);
 
     TransitionType currentTransition() const { return m_currentTransition; }
     bool isTransitioning() const { return m_isTransitioning; }
@@ -176,10 +181,10 @@ private:
     QWidget* m_nextWidget;
     TransitionType m_currentTransition;
     bool m_isTransitioning;
-    
+
     QPropertyAnimation* m_transitionAnimation;
     double m_transitionProgress;
-    
+
     QPixmap m_currentPixmap;
     QPixmap m_nextPixmap;
 
@@ -191,18 +196,11 @@ signals:
 /**
  * Loading animation widget with various spinner types
  */
-class LoadingAnimationWidget : public QWidget
-{
+class LoadingAnimationWidget : public QWidget {
     Q_OBJECT
 
 public:
-    enum class LoadingType {
-        Spinner,
-        Dots,
-        Bars,
-        Ring,
-        Pulse
-    };
+    enum class LoadingType { Spinner, Dots, Bars, Ring, Pulse };
 
     explicit LoadingAnimationWidget(QWidget* parent = nullptr);
 
@@ -236,8 +234,7 @@ private:
 /**
  * Utility class for creating common animation effects
  */
-class AnimationUtils
-{
+class AnimationUtils {
 public:
     // Easing curve presets
     static QEasingCurve smoothEasing() { return QEasingCurve::OutCubic; }
@@ -251,12 +248,19 @@ public:
     static constexpr int SLOW_DURATION = 500;
 
     // Create common animations
-    static QPropertyAnimation* createFadeAnimation(QWidget* target, double from, double to, int duration = NORMAL_DURATION);
-    static QPropertyAnimation* createMoveAnimation(QWidget* target, const QPoint& from, const QPoint& to, int duration = NORMAL_DURATION);
-    static QPropertyAnimation* createScaleAnimation(QObject* target, const QByteArray& property, double from, double to, int duration = NORMAL_DURATION);
+    static QPropertyAnimation* createFadeAnimation(
+        QWidget* target, double from, double to,
+        int duration = NORMAL_DURATION);
+    static QPropertyAnimation* createMoveAnimation(
+        QWidget* target, const QPoint& from, const QPoint& to,
+        int duration = NORMAL_DURATION);
+    static QPropertyAnimation* createScaleAnimation(
+        QObject* target, const QByteArray& property, double from, double to,
+        int duration = NORMAL_DURATION);
 
     // Utility functions
     static QPixmap grabWidget(QWidget* widget);
-    static void applyDropShadow(QWidget* widget, const QColor& color = QColor(0, 0, 0, 80));
+    static void applyDropShadow(QWidget* widget,
+                                const QColor& color = QColor(0, 0, 0, 80));
     static void removeEffects(QWidget* widget);
 };

@@ -213,7 +213,7 @@ jobs:
         run: |
           # Install required build tools
           choco install ninja -y
-          
+
           # Refresh environment
           refreshenv
 
@@ -283,7 +283,7 @@ jobs:
     runs-on: windows-latest
     needs: [build-msys2, build-msvc]
     if: always()
-    
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -295,25 +295,25 @@ jobs:
         run: |
           $summary = @"
           # Windows Build Summary
-          
+
           ## Build Strategy
           - **Primary**: MSYS2 with system packages (faster, preferred)
           - **Fallback**: MSVC with vcpkg (when needed)
           - **Architecture Support**: x64 (UCRT64, CLANG64, MINGW64), ARM64 (CLANGARM64, MSVC), x86 (MINGW32)
-          
+
           ## Artifacts Generated
-          
+
           "@
-          
+
           Get-ChildItem -Path "artifacts" -Directory | ForEach-Object {
             $artifactName = $_.Name
             $fileCount = (Get-ChildItem -Path $_.FullName -Recurse -File).Count
             $totalSize = [math]::Round((Get-ChildItem -Path $_.FullName -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
             $summary += "- **$artifactName**: $fileCount files, $totalSize MB`n"
           }
-          
+
           $summary += @"
-          
+
           ## Platform Coverage
           ✅ Windows x64 UCRT64 (recommended, modern UCRT runtime)
           ✅ Windows x64 CLANG64 (LLVM/Clang toolchain with UCRT)
@@ -335,7 +335,7 @@ jobs:
           - Parallel builds with optimal job count
           - Shallow git clones for faster checkout
           - Conditional builds (legacy/ARM64 only on request)
-          
+
           "@
-          
+
           $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8

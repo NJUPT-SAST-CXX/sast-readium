@@ -1,39 +1,50 @@
 #pragma once
 
-#include <QObject>
+#include <poppler-qt6.h>
 #include <QAbstractListModel>
-#include <QString>
-#include <QList>
-#include <QRegularExpression>
 #include <QFuture>
 #include <QFutureWatcher>
+#include <QList>
+#include <QObject>
+#include <QRegularExpression>
+#include <QString>
 #include <QTimer>
-#include <poppler-qt6.h>
 
 /**
- * Represents a single search result with enhanced coordinate transformation support
+ * Represents a single search result with enhanced coordinate transformation
+ * support
  */
 struct SearchResult {
     int pageNumber;
     QString text;
     QString context;
-    QRectF boundingRect;        // PDF coordinates from Poppler
+    QRectF boundingRect;  // PDF coordinates from Poppler
     int startIndex;
     int length;
-    QRectF widgetRect;          // Transformed widget coordinates for highlighting
-    bool isCurrentResult;       // Whether this is the currently selected result
+    QRectF widgetRect;     // Transformed widget coordinates for highlighting
+    bool isCurrentResult;  // Whether this is the currently selected result
 
-    SearchResult() : pageNumber(-1), startIndex(-1), length(0), isCurrentResult(false) {}
+    SearchResult()
+        : pageNumber(-1), startIndex(-1), length(0), isCurrentResult(false) {}
     SearchResult(int page, const QString& txt, const QString& ctx,
-                const QRectF& rect, int start, int len)
-        : pageNumber(page), text(txt), context(ctx), boundingRect(rect),
-          startIndex(start), length(len), isCurrentResult(false) {}
+                 const QRectF& rect, int start, int len)
+        : pageNumber(page),
+          text(txt),
+          context(ctx),
+          boundingRect(rect),
+          startIndex(start),
+          length(len),
+          isCurrentResult(false) {}
 
     // Transform PDF coordinates to widget coordinates
-    void transformToWidgetCoordinates(double scaleFactor, int rotation, const QSizeF& pageSize, const QSize& widgetSize);
+    void transformToWidgetCoordinates(double scaleFactor, int rotation,
+                                      const QSizeF& pageSize,
+                                      const QSize& widgetSize);
 
     // Check if the result is valid for highlighting
-    bool isValidForHighlight() const { return pageNumber >= 0 && !boundingRect.isEmpty(); }
+    bool isValidForHighlight() const {
+        return pageNumber >= 0 && !boundingRect.isEmpty();
+    }
 };
 
 /**
@@ -46,7 +57,7 @@ struct SearchOptions {
     bool searchBackward = false;
     int maxResults = 1000;
     QString highlightColor = "#FFFF00";
-    
+
     SearchOptions() = default;
 };
 
@@ -71,12 +82,15 @@ public:
 
     // QAbstractListModel interface
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    QVariant data(const QModelIndex& index,
+                  int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
     // Search operations
-    void startSearch(Poppler::Document* document, const QString& query, const SearchOptions& options = SearchOptions());
-    void startRealTimeSearch(Poppler::Document* document, const QString& query, const SearchOptions& options = SearchOptions());
+    void startSearch(Poppler::Document* document, const QString& query,
+                     const SearchOptions& options = SearchOptions());
+    void startRealTimeSearch(Poppler::Document* document, const QString& query,
+                             const SearchOptions& options = SearchOptions());
     void clearResults();
     void cancelSearch();
 
@@ -117,9 +131,12 @@ private:
     void performSearch();
     void performRealTimeSearch();
     QList<SearchResult> searchInPage(Poppler::Page* page, int pageNumber,
-                                   const QString& query, const SearchOptions& options);
-    QString extractContext(const QString& pageText, int position, int length, int contextLength = 50);
-    QRegularExpression createSearchRegex(const QString& query, const SearchOptions& options);
+                                     const QString& query,
+                                     const SearchOptions& options);
+    QString extractContext(const QString& pageText, int position, int length,
+                           int contextLength = 50);
+    QRegularExpression createSearchRegex(const QString& query,
+                                         const SearchOptions& options);
 
     QList<SearchResult> m_results;
     int m_currentResultIndex;

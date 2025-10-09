@@ -1,12 +1,12 @@
 #pragma once
 
-#include <QToolBar>
 #include <QAction>
-#include <QToolButton>
-#include <QSpinBox>
-#include <QLabel>
-#include <QComboBox>
 #include <QButtonGroup>
+#include <QComboBox>
+#include <QLabel>
+#include <QSpinBox>
+#include <QToolBar>
+#include <QToolButton>
 #include "../../controller/tool.hpp"
 
 class ToolBar : public QToolBar {

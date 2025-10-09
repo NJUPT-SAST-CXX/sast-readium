@@ -30,7 +30,7 @@ Write-Host "1. Checking VSCode configuration files..." -ForegroundColor Yellow
 
 $configFiles = @(
     ".vscode/launch.json",
-    ".vscode/tasks.json", 
+    ".vscode/tasks.json",
     ".vscode/c_cpp_properties.json",
     ".vscode/qt.natvis"
 )
@@ -38,7 +38,7 @@ $configFiles = @(
 foreach ($file in $configFiles) {
     if (Test-Path $file) {
         Write-Host "   ✓ $file exists" -ForegroundColor Green
-        
+
         # Validate JSON files
         if ($file.EndsWith(".json")) {
             try {

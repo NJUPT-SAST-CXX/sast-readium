@@ -1,19 +1,19 @@
 #include "RightSideBar.h"
-#include "../../managers/StyleManager.h"
-#include "../widgets/DebugLogPanel.h"
+#include <QApplication>
+#include <QDebug>
+#include <QEasingCurve>
+#include <QLabel>
+#include <QPropertyAnimation>
+#include <QSettings>
+#include <QSize>
+#include <QTabWidget>
+#include <QVBoxLayout>
+#include <QWidget>
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QApplication>
-#include <QDebug>
-#include <QPropertyAnimation>
-#include <QSize>
-#include <QWidget>
-#include <QTabWidget>
-#include <QEasingCurve>
-#include <QSettings>
+#include "../../managers/StyleManager.h"
+#include "../widgets/DebugLogPanel.h"
 
 // 定义静态常量
 const int RightSideBar::minimumWidth;
@@ -22,9 +22,13 @@ const int RightSideBar::defaultWidth;
 const int RightSideBar::animationDuration;
 
 RightSideBar::RightSideBar(QWidget* parent)
-    : QWidget(parent), animation(nullptr), settings(nullptr), debugLogPanel(nullptr),
-      isCurrentlyVisible(true), preferredWidth(defaultWidth), lastWidth(defaultWidth) {
-
+    : QWidget(parent),
+      animation(nullptr),
+      settings(nullptr),
+      debugLogPanel(nullptr),
+      isCurrentlyVisible(true),
+      preferredWidth(defaultWidth),
+      lastWidth(defaultWidth) {
     initSettings();
     initWindow();
     initContent();
@@ -74,7 +78,8 @@ QWidget* RightSideBar::createPropertiesTab() {
     layout->addWidget(titleLabel);
 
     // 占位内容
-    QLabel* placeholderLabel = new QLabel("文档属性信息将在此显示", propertiesTab);
+    QLabel* placeholderLabel =
+        new QLabel("文档属性信息将在此显示", propertiesTab);
     placeholderLabel->setStyleSheet("color: gray; font-size: 10px;");
     placeholderLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(placeholderLabel);
@@ -108,7 +113,8 @@ QWidget* RightSideBar::createDebugTab() {
     // Create the debug log panel
     debugLogPanel = new DebugLogPanel();
 
-    // The DebugLogPanel is already a complete widget, so we can return it directly
+    // The DebugLogPanel is already a complete widget, so we can return it
+    // directly
     return debugLogPanel;
 }
 
@@ -117,17 +123,13 @@ void RightSideBar::initAnimation() {
     animation->setDuration(animationDuration);
     animation->setEasingCurve(QEasingCurve::OutCubic);
 
-    connect(animation, &QPropertyAnimation::finished,
-            this, &RightSideBar::onAnimationFinished);
+    connect(animation, &QPropertyAnimation::finished, this,
+            &RightSideBar::onAnimationFinished);
 }
 
-void RightSideBar::initSettings() {
-    settings = new QSettings(this);
-}
+void RightSideBar::initSettings() { settings = new QSettings(this); }
 
-bool RightSideBar::isVisible() const {
-    return isCurrentlyVisible;
-}
+bool RightSideBar::isVisible() const { return isCurrentlyVisible; }
 
 void RightSideBar::setVisible(bool visible, bool animated) {
     if (visible) {
@@ -142,7 +144,8 @@ void RightSideBar::toggleVisibility(bool animated) {
 }
 
 void RightSideBar::show(bool animated) {
-    if (isCurrentlyVisible) return;
+    if (isCurrentlyVisible)
+        return;
 
     isCurrentlyVisible = true;
     QWidget::setVisible(true);
@@ -158,9 +161,10 @@ void RightSideBar::show(bool animated) {
 }
 
 void RightSideBar::hide(bool animated) {
-    if (!isCurrentlyVisible) return;
+    if (!isCurrentlyVisible)
+        return;
 
-    lastWidth = width(); // 记住当前宽度
+    lastWidth = width();  // 记住当前宽度
     isCurrentlyVisible = false;
 
     if (animated && animation) {
@@ -174,9 +178,7 @@ void RightSideBar::hide(bool animated) {
     }
 }
 
-int RightSideBar::getPreferredWidth() const {
-    return preferredWidth;
-}
+int RightSideBar::getPreferredWidth() const { return preferredWidth; }
 
 void RightSideBar::setPreferredWidth(int width) {
     preferredWidth = qBound(minimumWidth, width, maximumWidth);
@@ -188,7 +190,8 @@ void RightSideBar::setPreferredWidth(int width) {
 }
 
 void RightSideBar::saveState() {
-    if (!settings) return;
+    if (!settings)
+        return;
 
     settings->beginGroup("RightSideBar");
     settings->setValue("visible", isCurrentlyVisible);
@@ -197,7 +200,8 @@ void RightSideBar::saveState() {
 }
 
 void RightSideBar::restoreState() {
-    if (!settings) return;
+    if (!settings)
+        return;
 
     settings->beginGroup("RightSideBar");
     bool visible = settings->value("visible", true).toBool();
@@ -205,7 +209,7 @@ void RightSideBar::restoreState() {
     settings->endGroup();
 
     setPreferredWidth(width);
-    setVisible(visible, false); // 恢复状态时不使用动画
+    setVisible(visible, false);  // 恢复状态时不使用动画
 }
 
 void RightSideBar::onAnimationFinished() {
@@ -244,12 +248,12 @@ void RightSideBar::applyTheme() {
             background-color: %6;
         }
     )")
-    .arg(STYLE.borderColor().name())
-    .arg(STYLE.backgroundColor().name())
-    .arg(STYLE.surfaceColor().name())
-    .arg(STYLE.textSecondaryColor().name())
-    .arg(STYLE.textColor().name())
-    .arg(STYLE.hoverColor().name());
+                                 .arg(STYLE.borderColor().name())
+                                 .arg(STYLE.backgroundColor().name())
+                                 .arg(STYLE.surfaceColor().name())
+                                 .arg(STYLE.textSecondaryColor().name())
+                                 .arg(STYLE.textColor().name())
+                                 .arg(STYLE.hoverColor().name());
 
     if (tabWidget) {
         tabWidget->setStyleSheet(tabWidgetStyle);
@@ -265,7 +269,7 @@ void RightSideBar::applyTheme() {
             color: %3;
         }
     )")
-    .arg(STYLE.backgroundColor().name())
-    .arg(STYLE.borderColor().name())
-    .arg(STYLE.textColor().name()));
+                      .arg(STYLE.backgroundColor().name())
+                      .arg(STYLE.borderColor().name())
+                      .arg(STYLE.textColor().name()));
 }

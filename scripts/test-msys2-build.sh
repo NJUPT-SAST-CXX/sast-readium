@@ -32,21 +32,21 @@ print_error() {
 check_executable() {
     local file="$1"
     local description="$2"
-    
+
     if [[ -f "$file" ]]; then
         print_success "$description found: $file"
-        
+
         # Check if it's executable
         if [[ -x "$file" ]]; then
             print_success "$description is executable"
         else
             print_warning "$description is not executable"
         fi
-        
+
         # Show file size
         local size=$(du -h "$file" | cut -f1)
         print_status "File size: $size"
-        
+
         return 0
     else
         print_error "$description not found: $file"
@@ -58,13 +58,13 @@ check_executable() {
 test_dependencies() {
     local exe="$1"
     local description="$2"
-    
+
     print_status "Testing dependencies for $description..."
-    
+
     if command -v ldd &>/dev/null; then
         print_status "Checking shared library dependencies:"
         ldd "$exe" | head -20  # Show first 20 dependencies
-        
+
         # Check for missing dependencies
         if ldd "$exe" | grep -q "not found"; then
             print_error "Missing dependencies found!"
@@ -76,7 +76,7 @@ test_dependencies() {
     else
         print_warning "ldd not available, skipping dependency check"
     fi
-    
+
     return 0
 }
 
@@ -84,9 +84,9 @@ test_dependencies() {
 test_executable() {
     local exe="$1"
     local description="$2"
-    
+
     print_status "Testing $description functionality..."
-    
+
     # Test --help flag (if supported)
     if "$exe" --help &>/dev/null; then
         print_success "$description responds to --help"
@@ -95,7 +95,7 @@ test_executable() {
     else
         print_warning "$description doesn't respond to help flags (this may be normal for GUI apps)"
     fi
-    
+
     # Test --version flag (if supported)
     if "$exe" --version &>/dev/null; then
         print_success "$description responds to --version"
@@ -104,7 +104,7 @@ test_executable() {
     else
         print_warning "$description doesn't respond to version flags (this may be normal for GUI apps)"
     fi
-    
+
     return 0
 }
 
@@ -112,27 +112,27 @@ test_executable() {
 test_build_config() {
     local build_type="$1"
     local use_vcpkg="$2"
-    
+
     local build_dir="build/${build_type}-MSYS2"
     local config_name="${build_type} with system packages"
-    
+
     if [[ "$use_vcpkg" == "true" ]]; then
         build_dir="build/${build_type}-MSYS2-vcpkg"
         config_name="${build_type} with vcpkg"
     fi
-    
+
     print_status "Testing build configuration: $config_name"
     print_status "Build directory: $build_dir"
-    
+
     # Check if build directory exists
     if [[ ! -d "$build_dir" ]]; then
         print_error "Build directory not found: $build_dir"
         print_status "Run the build first: ./scripts/build-msys2.sh -t $build_type $([ "$use_vcpkg" == "true" ] && echo "-v")"
         return 1
     fi
-    
+
     local success=true
-    
+
     # Test main executable
     local main_exe="$build_dir/app/app.exe"
     if ! check_executable "$main_exe" "Main application"; then
@@ -144,7 +144,7 @@ test_build_config() {
         test_executable "$main_exe" "Main application"
     fi
 
-    
+
     # Check for Qt deployment
     local qt_libs_dir="$build_dir/app"
     if [[ -d "$qt_libs_dir" ]]; then
@@ -155,7 +155,7 @@ test_build_config() {
             print_warning "No Qt DLLs found in app directory"
         fi
     fi
-    
+
     # Check for assets
     local styles_dir="$build_dir/app/styles"
     if [[ -d "$styles_dir" ]]; then
@@ -165,13 +165,13 @@ test_build_config() {
     else
         print_warning "Styles directory not found: $styles_dir"
     fi
-    
+
     if [[ "$success" == "true" ]]; then
         print_success "Build configuration test passed: $config_name"
     else
         print_error "Build configuration test failed: $config_name"
     fi
-    
+
     return $([[ "$success" == "true" ]] && echo 0 || echo 1)
 }
 
@@ -201,7 +201,7 @@ EOF
 main() {
     local test_type="all"
     local test_vcpkg="both"
-    
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -232,26 +232,26 @@ main() {
                 ;;
         esac
     done
-    
+
     print_status "MSYS2 Build Test for SAST Readium"
     echo "=================================="
-    
+
     # Check MSYS2 environment
     if [[ -z "$MSYSTEM" ]]; then
         print_error "Not running in MSYS2 environment"
         print_error "Please start MSYS2 and run this script from there"
         exit 1
     fi
-    
+
     print_status "MSYS2 environment: $MSYSTEM"
     print_status "Test type: $test_type"
     print_status "Test vcpkg: $test_vcpkg"
     echo
-    
+
     local overall_success=true
     local tests_run=0
     local tests_passed=0
-    
+
     # Determine which build types to test
     local build_types=()
     if [[ "$test_type" == "all" ]]; then
@@ -259,7 +259,7 @@ main() {
     else
         build_types=("$test_type")
     fi
-    
+
     # Determine which vcpkg modes to test
     local vcpkg_modes=()
     case "$test_vcpkg" in
@@ -273,14 +273,14 @@ main() {
             vcpkg_modes=("true")
             ;;
     esac
-    
+
     # Run tests
     for build_type in "${build_types[@]}"; do
         for use_vcpkg in "${vcpkg_modes[@]}"; do
             echo
             echo "----------------------------------------"
             tests_run=$((tests_run + 1))
-            
+
             if test_build_config "$build_type" "$use_vcpkg"; then
                 tests_passed=$((tests_passed + 1))
             else
@@ -288,14 +288,14 @@ main() {
             fi
         done
     done
-    
+
     echo
     echo "=================================="
     print_status "Test Summary:"
     echo "Tests run: $tests_run"
     echo "Tests passed: $tests_passed"
     echo "Tests failed: $((tests_run - tests_passed))"
-    
+
     if [[ "$overall_success" == "true" ]]; then
         print_success "All MSYS2 build tests passed!"
         exit 0

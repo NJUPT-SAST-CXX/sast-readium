@@ -1,22 +1,21 @@
 #include "PDFOutlineWidget.h"
 #include <QApplication>
+#include <QBrush>
 #include <QClipboard>
+#include <QColor>
+#include <QContextMenuEvent>
 #include <QDebug>
 #include <QFont>
-#include <QBrush>
-#include <QColor>
-#include <QTreeWidgetItemIterator>
 #include <QKeyEvent>
-#include <QContextMenuEvent>
+#include <QTreeWidgetItemIterator>
 
 // 自定义数据角色
-enum {
-    PageNumberRole = Qt::UserRole + 1,
-    NodePtrRole = Qt::UserRole + 2
-};
+enum { PageNumberRole = Qt::UserRole + 1, NodePtrRole = Qt::UserRole + 2 };
 
 PDFOutlineWidget::PDFOutlineWidget(QWidget* parent)
-    : QTreeWidget(parent), outlineModel(nullptr), currentHighlightedItem(nullptr) {
+    : QTreeWidget(parent),
+      outlineModel(nullptr),
+      currentHighlightedItem(nullptr) {
     setupUI();
     setupContextMenu();
     setupConnections();
@@ -29,7 +28,7 @@ void PDFOutlineWidget::setupUI() {
     setAlternatingRowColors(true);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setSelectionBehavior(QAbstractItemView::SelectRows);
-    
+
     // 设置样式
     setStyleSheet(
         "QTreeWidget {"
@@ -47,9 +46,8 @@ void PDFOutlineWidget::setupUI() {
         "}"
         "QTreeWidget::item:hover {"
         "    background-color: #e3f2fd;"
-        "}"
-    );
-    
+        "}");
+
     // 设置空状态显示
     QTreeWidgetItem* emptyItem = new QTreeWidgetItem(this);
     emptyItem->setText(0, "无目录信息");
@@ -62,11 +60,11 @@ void PDFOutlineWidget::setupUI() {
 
 void PDFOutlineWidget::setupContextMenu() {
     contextMenu = new QMenu(this);
-    
+
     expandAllAction = new QAction("展开全部", this);
     collapseAllAction = new QAction("折叠全部", this);
     copyTitleAction = new QAction("复制标题", this);
-    
+
     contextMenu->addAction(expandAllAction);
     contextMenu->addAction(collapseAllAction);
     contextMenu->addSeparator();
@@ -74,26 +72,34 @@ void PDFOutlineWidget::setupContextMenu() {
 }
 
 void PDFOutlineWidget::setupConnections() {
-    connect(this, &QTreeWidget::itemClicked, this, &PDFOutlineWidget::onItemClicked);
-    connect(this, &QTreeWidget::itemDoubleClicked, this, &PDFOutlineWidget::onItemDoubleClicked);
-    connect(this, &QTreeWidget::itemSelectionChanged, this, &PDFOutlineWidget::onItemSelectionChanged);
-    
-    connect(expandAllAction, &QAction::triggered, this, &PDFOutlineWidget::onExpandAllRequested);
-    connect(collapseAllAction, &QAction::triggered, this, &PDFOutlineWidget::onCollapseAllRequested);
-    connect(copyTitleAction, &QAction::triggered, this, &PDFOutlineWidget::onCopyTitleRequested);
+    connect(this, &QTreeWidget::itemClicked, this,
+            &PDFOutlineWidget::onItemClicked);
+    connect(this, &QTreeWidget::itemDoubleClicked, this,
+            &PDFOutlineWidget::onItemDoubleClicked);
+    connect(this, &QTreeWidget::itemSelectionChanged, this,
+            &PDFOutlineWidget::onItemSelectionChanged);
+
+    connect(expandAllAction, &QAction::triggered, this,
+            &PDFOutlineWidget::onExpandAllRequested);
+    connect(collapseAllAction, &QAction::triggered, this,
+            &PDFOutlineWidget::onCollapseAllRequested);
+    connect(copyTitleAction, &QAction::triggered, this,
+            &PDFOutlineWidget::onCopyTitleRequested);
 }
 
 void PDFOutlineWidget::setOutlineModel(PDFOutlineModel* model) {
     if (outlineModel) {
         disconnect(outlineModel, nullptr, this, nullptr);
     }
-    
+
     outlineModel = model;
-    
+
     if (outlineModel) {
-        connect(outlineModel, &PDFOutlineModel::outlineParsed, this, &PDFOutlineWidget::onOutlineParsed);
-        connect(outlineModel, &PDFOutlineModel::outlineCleared, this, &PDFOutlineWidget::onOutlineCleared);
-        
+        connect(outlineModel, &PDFOutlineModel::outlineParsed, this,
+                &PDFOutlineWidget::onOutlineParsed);
+        connect(outlineModel, &PDFOutlineModel::outlineCleared, this,
+                &PDFOutlineWidget::onOutlineCleared);
+
         // 如果模型已有数据，立即刷新
         if (outlineModel->hasOutline()) {
             refreshOutline();
@@ -106,14 +112,14 @@ void PDFOutlineWidget::refreshOutline() {
         clearOutline();
         return;
     }
-    
+
     buildOutlineTree();
 }
 
 void PDFOutlineWidget::clearOutline() {
     clear();
     currentHighlightedItem = nullptr;
-    
+
     // 显示空状态
     QTreeWidgetItem* emptyItem = new QTreeWidgetItem(this);
     emptyItem->setText(0, "无目录信息");
@@ -127,14 +133,14 @@ void PDFOutlineWidget::clearOutline() {
 void PDFOutlineWidget::buildOutlineTree() {
     clear();
     currentHighlightedItem = nullptr;
-    
+
     if (!outlineModel || !outlineModel->hasOutline()) {
         return;
     }
-    
+
     const auto& rootNodes = outlineModel->getRootNodes();
     addOutlineNodes(nullptr, rootNodes);
-    
+
     // 默认展开第一层
     expandToLevel(0);
 }
@@ -142,11 +148,10 @@ void PDFOutlineWidget::buildOutlineTree() {
 void PDFOutlineWidget::addOutlineNodes(
     QTreeWidgetItem* parentItem,
     const QList<std::shared_ptr<PDFOutlineNode>>& nodes) {
-    
     for (const auto& node : nodes) {
         QTreeWidgetItem* item = createOutlineItem(node, parentItem);
         setItemStyle(item, node);
-        
+
         // 递归添加子节点
         if (node->hasChildren) {
             addOutlineNodes(item, node->children);
@@ -155,28 +160,27 @@ void PDFOutlineWidget::addOutlineNodes(
 }
 
 QTreeWidgetItem* PDFOutlineWidget::createOutlineItem(
-    const std::shared_ptr<PDFOutlineNode>& node,
-    QTreeWidgetItem* parent) {
-    
+    const std::shared_ptr<PDFOutlineNode>& node, QTreeWidgetItem* parent) {
     QTreeWidgetItem* item;
     if (parent) {
         item = new QTreeWidgetItem(parent);
     } else {
         item = new QTreeWidgetItem(this);
     }
-    
+
     item->setText(0, node->title);
     item->setData(0, PageNumberRole, node->pageNumber);
-    
+
     // 存储节点指针（用于后续操作）
     item->setData(0, NodePtrRole, QVariant::fromValue(node.get()));
-    
+
     return item;
 }
 
-void PDFOutlineWidget::setItemStyle(QTreeWidgetItem* item, const std::shared_ptr<PDFOutlineNode>& node) {
+void PDFOutlineWidget::setItemStyle(
+    QTreeWidgetItem* item, const std::shared_ptr<PDFOutlineNode>& node) {
     QFont font = item->font(0);
-    
+
     // 根据层级设置字体大小
     if (node->level == 0) {
         font.setBold(true);
@@ -188,35 +192,32 @@ void PDFOutlineWidget::setItemStyle(QTreeWidgetItem* item, const std::shared_ptr
         font.setBold(false);
         font.setPointSize(font.pointSize() - 1);
     }
-    
+
     item->setFont(0, font);
-    
+
     // 设置工具提示
     QString tooltip = node->title;
     if (node->isValidPageReference()) {
         tooltip += QString(" (第 %1 页)").arg(node->pageNumber + 1);
     }
     item->setToolTip(0, tooltip);
-    
+
     // 如果没有有效的页面引用，设置为灰色
     if (!node->isValidPageReference()) {
         item->setForeground(0, QBrush(QColor(128, 128, 128)));
     }
 }
 
-void PDFOutlineWidget::onOutlineParsed() {
-    refreshOutline();
-}
+void PDFOutlineWidget::onOutlineParsed() { refreshOutline(); }
 
-void PDFOutlineWidget::onOutlineCleared() {
-    clearOutline();
-}
+void PDFOutlineWidget::onOutlineCleared() { clearOutline(); }
 
 void PDFOutlineWidget::onItemClicked(QTreeWidgetItem* item, int column) {
     Q_UNUSED(column)
-    
-    if (!item) return;
-    
+
+    if (!item)
+        return;
+
     int pageNumber = getItemPageNumber(item);
     if (pageNumber >= 0) {
         emit pageNavigationRequested(pageNumber);
@@ -226,9 +227,10 @@ void PDFOutlineWidget::onItemClicked(QTreeWidgetItem* item, int column) {
 
 void PDFOutlineWidget::onItemDoubleClicked(QTreeWidgetItem* item, int column) {
     Q_UNUSED(column)
-    
-    if (!item) return;
-    
+
+    if (!item)
+        return;
+
     // 双击时展开/折叠节点
     if (item->childCount() > 0) {
         item->setExpanded(!item->isExpanded());
@@ -246,8 +248,9 @@ void PDFOutlineWidget::onItemSelectionChanged() {
 }
 
 int PDFOutlineWidget::getItemPageNumber(QTreeWidgetItem* item) const {
-    if (!item) return -1;
-    
+    if (!item)
+        return -1;
+
     QVariant data = item->data(0, PageNumberRole);
     return data.toInt();
 }
@@ -265,20 +268,17 @@ void PDFOutlineWidget::highlightPageItem(int pageNumber) {
     }
 }
 
-void PDFOutlineWidget::expandAll() {
-    QTreeWidget::expandAll();
-}
+void PDFOutlineWidget::expandAll() { QTreeWidget::expandAll(); }
 
-void PDFOutlineWidget::collapseAll() {
-    QTreeWidget::collapseAll();
-}
+void PDFOutlineWidget::collapseAll() { QTreeWidget::collapseAll(); }
 
 void PDFOutlineWidget::expandToLevel(int level) {
     collapseAll();
 
     QTreeWidgetItemIterator it(this);
     while (*it) {
-        auto node = static_cast<PDFOutlineNode*>((*it)->data(0, NodePtrRole).value<void*>());
+        auto node = static_cast<PDFOutlineNode*>(
+            (*it)->data(0, NodePtrRole).value<void*>());
         if (node && node->level <= level) {
             (*it)->setExpanded(true);
         }
@@ -309,7 +309,8 @@ void PDFOutlineWidget::searchItems(const QString& searchText) {
     searchItemsRecursive(invisibleRootItem(), searchText, found);
 }
 
-QTreeWidgetItem* PDFOutlineWidget::findItemByPage(int pageNumber, QTreeWidgetItem* parent) {
+QTreeWidgetItem* PDFOutlineWidget::findItemByPage(int pageNumber,
+                                                  QTreeWidgetItem* parent) {
     if (!parent) {
         parent = invisibleRootItem();
     }
@@ -346,7 +347,9 @@ void PDFOutlineWidget::clearHighlight() {
     }
 }
 
-void PDFOutlineWidget::searchItemsRecursive(QTreeWidgetItem* item, const QString& searchText, bool& found) {
+void PDFOutlineWidget::searchItemsRecursive(QTreeWidgetItem* item,
+                                            const QString& searchText,
+                                            bool& found) {
     for (int i = 0; i < item->childCount(); ++i) {
         QTreeWidgetItem* child = item->child(i);
 
@@ -378,30 +381,26 @@ void PDFOutlineWidget::contextMenuEvent(QContextMenuEvent* event) {
 
 void PDFOutlineWidget::keyPressEvent(QKeyEvent* event) {
     switch (event->key()) {
-    case Qt::Key_Return:
-    case Qt::Key_Enter:
-        if (currentItem()) {
-            onItemClicked(currentItem(), 0);
-        }
-        break;
-    case Qt::Key_Space:
-        if (currentItem() && currentItem()->childCount() > 0) {
-            currentItem()->setExpanded(!currentItem()->isExpanded());
-        }
-        break;
-    default:
-        QTreeWidget::keyPressEvent(event);
-        break;
+        case Qt::Key_Return:
+        case Qt::Key_Enter:
+            if (currentItem()) {
+                onItemClicked(currentItem(), 0);
+            }
+            break;
+        case Qt::Key_Space:
+            if (currentItem() && currentItem()->childCount() > 0) {
+                currentItem()->setExpanded(!currentItem()->isExpanded());
+            }
+            break;
+        default:
+            QTreeWidget::keyPressEvent(event);
+            break;
     }
 }
 
-void PDFOutlineWidget::onExpandAllRequested() {
-    expandAll();
-}
+void PDFOutlineWidget::onExpandAllRequested() { expandAll(); }
 
-void PDFOutlineWidget::onCollapseAllRequested() {
-    collapseAll();
-}
+void PDFOutlineWidget::onCollapseAllRequested() { collapseAll(); }
 
 void PDFOutlineWidget::onCopyTitleRequested() {
     QTreeWidgetItem* item = currentItem();

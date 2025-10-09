@@ -1,29 +1,29 @@
 #include "WelcomeWidget.h"
-#include "RecentFileListWidget.h"
+#include <QApplication>
+#include <QDebug>
+#include <QEasingCurve>
+#include <QFrame>
+#include <QGraphicsOpacityEffect>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPaintEvent>
+#include <QPainter>
+#include <QPixmap>
+#include <QPropertyAnimation>
+#include <QPushButton>
+#include <QResizeEvent>
+#include <QScrollArea>
+#include <QShowEvent>
+#include <QStyle>
+#include <QTimer>
+#include <QVBoxLayout>
+#include <QWidget>
+#include <Qt>
 #include "../../managers/RecentFilesManager.h"
 #include "../../managers/StyleManager.h"
 #include "../managers/WelcomeScreenManager.h"
-#include <QApplication>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QScrollArea>
-#include <QPushButton>
-#include <QFrame>
-#include <QPixmap>
-#include <QTimer>
-#include <QPropertyAnimation>
-#include <QGraphicsOpacityEffect>
-#include <QPaintEvent>
-#include <QPainter>
-#include <QResizeEvent>
-#include <QShowEvent>
-#include <QDebug>
-#include <QStyle>
-#include <QWidget>
+#include "RecentFileListWidget.h"
 #include "utils/LoggingMacros.h"
-#include <QEasingCurve>
-#include <Qt>
 
 // Static const member definitions
 const int WelcomeWidget::LOGO_SIZE;
@@ -35,110 +35,114 @@ const int WelcomeWidget::SPACING_SMALL;
 const int WelcomeWidget::SPACING_XSMALL;
 
 WelcomeWidget::WelcomeWidget(QWidget* parent)
-    : QWidget(parent)
-    , m_mainLayout(nullptr)
-    , m_contentWidget(nullptr)
-    , m_scrollArea(nullptr)
-    , m_logoWidget(nullptr)
-    , m_logoLayout(nullptr)
-    , m_logoLabel(nullptr)
-    , m_titleLabel(nullptr)
-    , m_versionLabel(nullptr)
-    , m_actionsWidget(nullptr)
-    , m_actionsLayout(nullptr)
-    , m_newFileButton(nullptr)
-    , m_openFileButton(nullptr)
-    , m_recentFilesWidget(nullptr)
-    , m_recentFilesLayout(nullptr)
-    , m_recentFilesTitle(nullptr)
-    , m_recentFilesList(nullptr)
-    , m_noRecentFilesLabel(nullptr)
-    , m_separatorLine(nullptr)
-    , m_recentFilesManager(nullptr)
-    , m_welcomeScreenManager(nullptr)
-    , m_opacityEffect(nullptr)
-    , m_fadeAnimation(nullptr)
-    , m_refreshTimer(nullptr)
-    , m_isInitialized(false)
-    , m_isVisible(false)
-{
+    : QWidget(parent),
+      m_mainLayout(nullptr),
+      m_contentWidget(nullptr),
+      m_scrollArea(nullptr),
+      m_logoWidget(nullptr),
+      m_logoLayout(nullptr),
+      m_logoLabel(nullptr),
+      m_titleLabel(nullptr),
+      m_versionLabel(nullptr),
+      m_actionsWidget(nullptr),
+      m_actionsLayout(nullptr),
+      m_newFileButton(nullptr),
+      m_openFileButton(nullptr),
+      m_recentFilesWidget(nullptr),
+      m_recentFilesLayout(nullptr),
+      m_recentFilesTitle(nullptr),
+      m_recentFilesList(nullptr),
+      m_noRecentFilesLabel(nullptr),
+      m_separatorLine(nullptr),
+      m_recentFilesManager(nullptr),
+      m_welcomeScreenManager(nullptr),
+      m_opacityEffect(nullptr),
+      m_fadeAnimation(nullptr),
+      m_refreshTimer(nullptr),
+      m_isInitialized(false),
+      m_isVisible(false) {
     LOG_DEBUG("WelcomeWidget: Initializing...");
 
     // 设置基本属性
     setObjectName("WelcomeWidget");
     setAttribute(Qt::WA_StyledBackground, true);
-    
+
     // 初始化UI
     initializeUI();
-    
+
     // 设置动画效果
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
-    
+
     m_fadeAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
     m_fadeAnimation->setDuration(300);
     m_fadeAnimation->setEasingCurve(QEasingCurve::InOutQuad);
-    
+
     // 设置刷新定时器
     m_refreshTimer = new QTimer(this);
     m_refreshTimer->setSingleShot(true);
     m_refreshTimer->setInterval(100);
-    
+
     setupConnections();
-    
+
     m_isInitialized = true;
     LOG_DEBUG("WelcomeWidget: Initialization completed");
 }
 
-WelcomeWidget::~WelcomeWidget()
-{
-    LOG_DEBUG("WelcomeWidget: Destroying...");
-}
+WelcomeWidget::~WelcomeWidget() { LOG_DEBUG("WelcomeWidget: Destroying..."); }
 
-void WelcomeWidget::setRecentFilesManager(RecentFilesManager* manager)
-{
-    if (m_recentFilesManager == manager) return;
-    
+void WelcomeWidget::setRecentFilesManager(RecentFilesManager* manager) {
+    if (m_recentFilesManager == manager)
+        return;
+
     // 断开旧连接
     if (m_recentFilesManager) {
         disconnect(m_recentFilesManager, nullptr, this, nullptr);
     }
-    
+
     m_recentFilesManager = manager;
-    
+
     // 建立新连接
     if (m_recentFilesManager && m_recentFilesList) {
         m_recentFilesList->setRecentFilesManager(m_recentFilesManager);
         connect(m_recentFilesManager, &RecentFilesManager::recentFilesChanged,
                 this, &WelcomeWidget::onRecentFilesChanged);
     }
-    
+
     // 刷新内容
     refreshContent();
 }
 
-void WelcomeWidget::setWelcomeScreenManager(WelcomeScreenManager* manager)
-{
+void WelcomeWidget::setWelcomeScreenManager(WelcomeScreenManager* manager) {
     m_welcomeScreenManager = manager;
 }
 
-void WelcomeWidget::applyTheme()
-{
-    if (!m_isInitialized) return;
+void WelcomeWidget::applyTheme() {
+    if (!m_isInitialized)
+        return;
 
     LOG_DEBUG("WelcomeWidget: Applying theme...");
 
     // 清除所有内联样式，让QSS文件接管样式控制
     setStyleSheet("");
-    if (m_scrollArea) m_scrollArea->setStyleSheet("");
-    if (m_contentWidget) m_contentWidget->setStyleSheet("");
-    if (m_titleLabel) m_titleLabel->setStyleSheet("");
-    if (m_versionLabel) m_versionLabel->setStyleSheet("");
-    if (m_recentFilesTitle) m_recentFilesTitle->setStyleSheet("");
-    if (m_noRecentFilesLabel) m_noRecentFilesLabel->setStyleSheet("");
-    if (m_separatorLine) m_separatorLine->setStyleSheet("");
-    if (m_newFileButton) m_newFileButton->setStyleSheet("");
-    if (m_openFileButton) m_openFileButton->setStyleSheet("");
+    if (m_scrollArea)
+        m_scrollArea->setStyleSheet("");
+    if (m_contentWidget)
+        m_contentWidget->setStyleSheet("");
+    if (m_titleLabel)
+        m_titleLabel->setStyleSheet("");
+    if (m_versionLabel)
+        m_versionLabel->setStyleSheet("");
+    if (m_recentFilesTitle)
+        m_recentFilesTitle->setStyleSheet("");
+    if (m_noRecentFilesLabel)
+        m_noRecentFilesLabel->setStyleSheet("");
+    if (m_separatorLine)
+        m_separatorLine->setStyleSheet("");
+    if (m_newFileButton)
+        m_newFileButton->setStyleSheet("");
+    if (m_openFileButton)
+        m_openFileButton->setStyleSheet("");
 
     // 更新logo（仍需要根据主题选择不同的图标）
     updateLogo();
@@ -164,9 +168,9 @@ void WelcomeWidget::applyTheme()
     LOG_DEBUG("WelcomeWidget: Theme applied successfully");
 }
 
-void WelcomeWidget::refreshContent()
-{
-    if (!m_isInitialized) return;
+void WelcomeWidget::refreshContent() {
+    if (!m_isInitialized)
+        return;
 
     LOG_DEBUG("WelcomeWidget: Refreshing content...");
 
@@ -176,20 +180,23 @@ void WelcomeWidget::refreshContent()
 
         // 更新最近文件区域的可见性
         bool hasRecentFiles = m_recentFilesManager->hasRecentFiles();
-        if (m_recentFilesList) m_recentFilesList->setVisible(hasRecentFiles);
-        if (m_noRecentFilesLabel) m_noRecentFilesLabel->setVisible(!hasRecentFiles);
+        if (m_recentFilesList)
+            m_recentFilesList->setVisible(hasRecentFiles);
+        if (m_noRecentFilesLabel)
+            m_noRecentFilesLabel->setVisible(!hasRecentFiles);
     } else {
         // 如果没有管理器，显示无最近文件标签
-        if (m_recentFilesList) m_recentFilesList->setVisible(false);
-        if (m_noRecentFilesLabel) m_noRecentFilesLabel->setVisible(true);
+        if (m_recentFilesList)
+            m_recentFilesList->setVisible(false);
+        if (m_noRecentFilesLabel)
+            m_noRecentFilesLabel->setVisible(true);
     }
 
     // 更新布局
     updateLayout();
 }
 
-void WelcomeWidget::onRecentFilesChanged()
-{
+void WelcomeWidget::onRecentFilesChanged() {
     LOG_DEBUG("WelcomeWidget: Recent files changed, refreshing...");
 
     // 延迟刷新以避免频繁更新
@@ -198,27 +205,23 @@ void WelcomeWidget::onRecentFilesChanged()
     }
 }
 
-void WelcomeWidget::onThemeChanged()
-{
+void WelcomeWidget::onThemeChanged() {
     LOG_DEBUG("WelcomeWidget: Theme changed, applying new theme...");
     applyTheme();
 }
 
-void WelcomeWidget::paintEvent(QPaintEvent* event)
-{
+void WelcomeWidget::paintEvent(QPaintEvent* event) {
     QWidget::paintEvent(event);
 }
 
-void WelcomeWidget::resizeEvent(QResizeEvent* event)
-{
+void WelcomeWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     updateLayout();
 }
 
-void WelcomeWidget::showEvent(QShowEvent* event)
-{
+void WelcomeWidget::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
-    
+
     if (!m_isVisible) {
         m_isVisible = true;
         startFadeInAnimation();
@@ -226,31 +229,26 @@ void WelcomeWidget::showEvent(QShowEvent* event)
     }
 }
 
-void WelcomeWidget::onNewFileClicked()
-{
+void WelcomeWidget::onNewFileClicked() {
     LOG_DEBUG("WelcomeWidget: New file requested");
     emit newFileRequested();
 }
 
-void WelcomeWidget::onOpenFileClicked()
-{
+void WelcomeWidget::onOpenFileClicked() {
     LOG_DEBUG("WelcomeWidget: Open file requested");
     emit openFileRequested();
 }
 
-void WelcomeWidget::onRecentFileClicked(const QString& filePath)
-{
+void WelcomeWidget::onRecentFileClicked(const QString& filePath) {
     LOG_DEBUG("WelcomeWidget: Recent file clicked: {}", filePath.toStdString());
     emit fileOpenRequested(filePath);
 }
 
-void WelcomeWidget::onFadeInFinished()
-{
+void WelcomeWidget::onFadeInFinished() {
     LOG_DEBUG("WelcomeWidget: Fade in animation finished");
 }
 
-void WelcomeWidget::initializeUI()
-{
+void WelcomeWidget::initializeUI() {
     LOG_DEBUG("WelcomeWidget: Initializing UI components...");
 
     // 创建主布局
@@ -282,12 +280,13 @@ void WelcomeWidget::initializeUI()
     LOG_DEBUG("WelcomeWidget: UI components initialized");
 }
 
-void WelcomeWidget::setupLayout()
-{
-    if (!m_contentWidget) return;
+void WelcomeWidget::setupLayout() {
+    if (!m_contentWidget)
+        return;
 
     QVBoxLayout* contentLayout = new QVBoxLayout(m_contentWidget);
-    contentLayout->setContentsMargins(SPACING_XLARGE, SPACING_XLARGE, SPACING_XLARGE, SPACING_XLARGE);
+    contentLayout->setContentsMargins(SPACING_XLARGE, SPACING_XLARGE,
+                                      SPACING_XLARGE, SPACING_XLARGE);
     contentLayout->setSpacing(SPACING_XLARGE);
     contentLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
@@ -323,9 +322,9 @@ void WelcomeWidget::setupLayout()
     contentLayout->addStretch(2);
 }
 
-void WelcomeWidget::setupLogo()
-{
-    if (!m_logoWidget) return;
+void WelcomeWidget::setupLogo() {
+    if (!m_logoWidget)
+        return;
 
     m_logoLayout = new QVBoxLayout(m_logoWidget);
     m_logoLayout->setContentsMargins(0, 0, 0, 0);
@@ -340,14 +339,16 @@ void WelcomeWidget::setupLogo()
     m_logoLabel->setScaledContents(true);
 
     // 应用程序标题
-    m_titleLabel = new QLabel(QApplication::applicationDisplayName().isEmpty() ?
-                              "SAST Readium" : QApplication::applicationDisplayName());
+    m_titleLabel = new QLabel(QApplication::applicationDisplayName().isEmpty()
+                                  ? "SAST Readium"
+                                  : QApplication::applicationDisplayName());
     m_titleLabel->setObjectName("WelcomeTitleLabel");
     m_titleLabel->setAlignment(Qt::AlignCenter);
 
     // 版本信息
     QString version = QApplication::applicationVersion();
-    if (version.isEmpty()) version = "1.0.0";
+    if (version.isEmpty())
+        version = "1.0.0";
     m_versionLabel = new QLabel(QString("Version %1").arg(version));
     m_versionLabel->setObjectName("WelcomeVersionLabel");
     m_versionLabel->setAlignment(Qt::AlignCenter);
@@ -360,9 +361,9 @@ void WelcomeWidget::setupLogo()
     updateLogo();
 }
 
-void WelcomeWidget::updateLogo()
-{
-    if (!m_logoLabel) return;
+void WelcomeWidget::updateLogo() {
+    if (!m_logoLabel)
+        return;
 
     // 根据当前主题选择合适的logo
     StyleManager& styleManager = StyleManager::instance();
@@ -386,29 +387,33 @@ void WelcomeWidget::updateLogo()
             QPainter painter(&logoPixmap);
             painter.setRenderHint(QPainter::Antialiasing);
 
-            QColor logoColor = styleManager.currentTheme() == Theme::Dark ?
-                              QColor(79, 195, 247) : QColor(0, 120, 212);
+            QColor logoColor = styleManager.currentTheme() == Theme::Dark
+                                   ? QColor(79, 195, 247)
+                                   : QColor(0, 120, 212);
             painter.setBrush(QBrush(logoColor));
             painter.setPen(Qt::NoPen);
             painter.drawEllipse(0, 0, LOGO_SIZE, LOGO_SIZE);
 
             // 添加简单的文档图标
             painter.setBrush(QBrush(Qt::white));
-            painter.drawRect(LOGO_SIZE/4, LOGO_SIZE/4, LOGO_SIZE/2, LOGO_SIZE/2);
+            painter.drawRect(LOGO_SIZE / 4, LOGO_SIZE / 4, LOGO_SIZE / 2,
+                             LOGO_SIZE / 2);
         }
     }
 
     // 确保logo大小正确
     if (logoPixmap.size() != QSize(LOGO_SIZE, LOGO_SIZE)) {
-        logoPixmap = logoPixmap.scaled(LOGO_SIZE, LOGO_SIZE, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        logoPixmap =
+            logoPixmap.scaled(LOGO_SIZE, LOGO_SIZE, Qt::KeepAspectRatio,
+                              Qt::SmoothTransformation);
     }
 
     m_logoLabel->setPixmap(logoPixmap);
 }
 
-void WelcomeWidget::setupActions()
-{
-    if (!m_actionsWidget) return;
+void WelcomeWidget::setupActions() {
+    if (!m_actionsWidget)
+        return;
 
     m_actionsLayout = new QHBoxLayout(m_actionsWidget);
     m_actionsLayout->setContentsMargins(0, 0, 0, 0);
@@ -429,9 +434,9 @@ void WelcomeWidget::setupActions()
     m_actionsLayout->addWidget(m_openFileButton);
 }
 
-void WelcomeWidget::setupRecentFiles()
-{
-    if (!m_recentFilesWidget) return;
+void WelcomeWidget::setupRecentFiles() {
+    if (!m_recentFilesWidget)
+        return;
 
     m_recentFilesLayout = new QVBoxLayout(m_recentFilesWidget);
     m_recentFilesLayout->setContentsMargins(0, 0, 0, 0);
@@ -457,46 +462,49 @@ void WelcomeWidget::setupRecentFiles()
     m_recentFilesLayout->addWidget(m_noRecentFilesLabel);
 }
 
-void WelcomeWidget::setupConnections()
-{
+void WelcomeWidget::setupConnections() {
     // 按钮连接
     if (m_newFileButton) {
-        connect(m_newFileButton, &QPushButton::clicked, this, &WelcomeWidget::onNewFileClicked);
+        connect(m_newFileButton, &QPushButton::clicked, this,
+                &WelcomeWidget::onNewFileClicked);
     }
 
     if (m_openFileButton) {
-        connect(m_openFileButton, &QPushButton::clicked, this, &WelcomeWidget::onOpenFileClicked);
+        connect(m_openFileButton, &QPushButton::clicked, this,
+                &WelcomeWidget::onOpenFileClicked);
     }
 
     // 最近文件列表连接
     if (m_recentFilesList) {
-        connect(m_recentFilesList, &RecentFileListWidget::fileClicked,
-                this, &WelcomeWidget::onRecentFileClicked);
+        connect(m_recentFilesList, &RecentFileListWidget::fileClicked, this,
+                &WelcomeWidget::onRecentFileClicked);
     }
 
     // 动画连接
     if (m_fadeAnimation) {
-        connect(m_fadeAnimation, &QPropertyAnimation::finished,
-                this, &WelcomeWidget::onFadeInFinished);
+        connect(m_fadeAnimation, &QPropertyAnimation::finished, this,
+                &WelcomeWidget::onFadeInFinished);
     }
 
     // 刷新定时器连接
     if (m_refreshTimer) {
-        connect(m_refreshTimer, &QTimer::timeout, this, &WelcomeWidget::refreshContent);
+        connect(m_refreshTimer, &QTimer::timeout, this,
+                &WelcomeWidget::refreshContent);
     }
 
     // 主题管理器连接
-    connect(&StyleManager::instance(), &StyleManager::themeChanged,
-            this, &WelcomeWidget::onThemeChanged);
+    connect(&StyleManager::instance(), &StyleManager::themeChanged, this,
+            &WelcomeWidget::onThemeChanged);
 }
 
-void WelcomeWidget::updateLayout()
-{
-    if (!m_contentWidget) return;
+void WelcomeWidget::updateLayout() {
+    if (!m_contentWidget)
+        return;
 
     // 根据窗口大小调整内容宽度
     int availableWidth = width();
-    int contentWidth = qMin(availableWidth - 2 * SPACING_LARGE, CONTENT_MAX_WIDTH);
+    int contentWidth =
+        qMin(availableWidth - 2 * SPACING_LARGE, CONTENT_MAX_WIDTH);
 
     if (m_recentFilesWidget) {
         m_recentFilesWidget->setMaximumWidth(contentWidth);
@@ -507,9 +515,9 @@ void WelcomeWidget::updateLayout()
     }
 }
 
-void WelcomeWidget::startFadeInAnimation()
-{
-    if (!m_fadeAnimation || !m_opacityEffect) return;
+void WelcomeWidget::startFadeInAnimation() {
+    if (!m_fadeAnimation || !m_opacityEffect)
+        return;
 
     m_opacityEffect->setOpacity(0.0);
     m_fadeAnimation->setStartValue(0.0);

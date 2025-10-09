@@ -10,7 +10,6 @@
 #include "../model/DocumentModel.h"
 #include "tool.hpp"
 
-
 // 前向声明
 class QWidget;
 

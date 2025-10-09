@@ -77,16 +77,16 @@ jobs:
       - name: Verify dependencies
         run: |
           echo "Verifying system dependencies..."
-          
+
           # Check Qt6 installation
           pkg-config --exists Qt6Core && echo "✓ Qt6Core found" || echo "✗ Qt6Core not found"
           pkg-config --exists Qt6Widgets && echo "✓ Qt6Widgets found" || echo "✗ Qt6Widgets not found"
           pkg-config --exists Qt6Svg && echo "✓ Qt6Svg found" || echo "✗ Qt6Svg not found"
           pkg-config --exists poppler-qt6 && echo "✓ poppler-qt6 found" || echo "✗ poppler-qt6 not found"
-          
+
           # Check build tools
           which cmake ninja gcc g++ || true
-          
+
           echo "Qt6 version: $(pkg-config --modversion Qt6Core 2>/dev/null || echo 'Not found')"
           echo "Poppler version: $(pkg-config --modversion poppler-qt6 2>/dev/null || echo 'Not found')"
 
@@ -101,7 +101,7 @@ jobs:
           JOBS=$((JOBS * 3 / 4))
           [ $JOBS -lt 1 ] && JOBS=1
           [ $JOBS -gt 8 ] && JOBS=8  # Cap for CI stability
-          
+
           echo "Building with $JOBS parallel jobs"
           cmake --build --preset=${{ matrix.preset }} --parallel $JOBS
 
@@ -120,7 +120,7 @@ jobs:
     name: Linux ARM64 (Cross-compile)
     runs-on: ubuntu-latest
     if: github.event.inputs.build_all_architectures == 'true' || github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -143,11 +143,11 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          
+
           # Add ARM64 architecture
           sudo dpkg --add-architecture arm64
           sudo apt update
-          
+
           # Install ARM64 Qt6 packages
           sudo apt install -y \
             qt6-base-dev:arm64 \
@@ -160,7 +160,7 @@ jobs:
           echo "ARM64 toolchain verification:"
           aarch64-linux-gnu-gcc --version
           aarch64-linux-gnu-g++ --version
-          
+
           # Check cross-compilation Qt6 packages
           export PKG_CONFIG_PATH="/usr/lib/aarch64-linux-gnu/pkgconfig"
           pkg-config --exists Qt6Core && echo "✓ ARM64 Qt6Core found" || echo "✗ ARM64 Qt6Core not found"
@@ -200,7 +200,7 @@ jobs:
     # Only run if system build fails or explicitly requested
     if: failure() || github.event.inputs.force_vcpkg == 'true' || contains(github.event.head_commit.message, '[vcpkg]')
     needs: build-system
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -275,7 +275,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-system, build-arm64, build-vcpkg]
     if: always()
-    
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -291,10 +291,10 @@ jobs:
           echo "- **Cross-compile**: ARM64 support" >> $GITHUB_STEP_SUMMARY
           echo "- **Fallback**: vcpkg when system packages fail" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "## Artifacts Generated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           for dir in artifacts/*/; do
             if [ -d "$dir" ]; then
               artifact_name=$(basename "$dir")
@@ -303,23 +303,23 @@ jobs:
               echo "- **$artifact_name**: $file_count files, $total_size" >> $GITHUB_STEP_SUMMARY
             fi
           done
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Platform Coverage" >> $GITHUB_STEP_SUMMARY
           echo "✅ Linux x64 (System packages)" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -d "artifacts/${{ env.APP_NAME }}-linux-arm64" ]; then
             echo "✅ Linux ARM64 (Cross-compiled)" >> $GITHUB_STEP_SUMMARY
           else
             echo "⏭️ Linux ARM64 (On-demand)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ -d "artifacts/${{ env.APP_NAME }}-linux-x64-vcpkg" ]; then
             echo "✅ Linux x64 (vcpkg fallback)" >> $GITHUB_STEP_SUMMARY
           else
             echo "⏭️ Linux x64 (vcpkg - not needed)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Performance Optimizations" >> $GITHUB_STEP_SUMMARY
           echo "- **System packages**: Prioritized over vcpkg" >> $GITHUB_STEP_SUMMARY

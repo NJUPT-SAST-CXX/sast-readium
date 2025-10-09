@@ -8,24 +8,27 @@ StyleManager& StyleManager::instance() {
 }
 
 StyleManager::StyleManager() : m_currentTheme(Theme::Light) {
-    Logger::instance().info("[managers] StyleManager initialized with Light theme");
+    Logger::instance().info(
+        "[managers] StyleManager initialized with Light theme");
     updateColors();
 }
 
 void StyleManager::setTheme(Theme theme) {
     if (m_currentTheme != theme) {
         Logger::instance().info("[managers] Changing theme from {} to {}",
-                 static_cast<int>(m_currentTheme), static_cast<int>(theme));
+                                static_cast<int>(m_currentTheme),
+                                static_cast<int>(theme));
         m_currentTheme = theme;
         updateColors();
         emit themeChanged(theme);
-        Logger::instance().debug("[managers] Theme change completed and signal emitted");
+        Logger::instance().debug(
+            "[managers] Theme change completed and signal emitted");
     }
 }
 
 void StyleManager::updateColors() {
     Logger::instance().debug("[managers] Updating colors for theme: {}",
-              m_currentTheme == Theme::Light ? "Light" : "Dark");
+                             m_currentTheme == Theme::Light ? "Light" : "Dark");
     if (m_currentTheme == Theme::Light) {
         // 亮色主题
         m_primaryColor = QColor(0, 120, 212);       // 蓝色

@@ -1,14 +1,14 @@
 #include "ThumbnailDelegate.h"
-#include "../model/ThumbnailModel.h"
-#include "../managers/StyleManager.h"
-#include <QApplication>
-#include <QPainter>
-#include <QStyleOptionViewItem>
-#include <QModelIndex>
-#include <QDebug>
-#include <QPropertyAnimation>
-#include <QTimer>
 #include <QAbstractItemView>
+#include <QApplication>
+#include <QDebug>
+#include <QModelIndex>
+#include <QPainter>
+#include <QPropertyAnimation>
+#include <QStyleOptionViewItem>
+#include <QTimer>
+#include "../managers/StyleManager.h"
+#include "../model/ThumbnailModel.h"
 
 // Chrome风格颜色常量
 const QColor ThumbnailDelegate::GOOGLE_BLUE = QColor(66, 133, 244);
@@ -22,75 +22,74 @@ const QColor ThumbnailDelegate::DARK_BORDER = QColor(95, 99, 104);
 const QColor ThumbnailDelegate::DARK_TEXT = QColor(232, 234, 237);
 
 ThumbnailDelegate::ThumbnailDelegate(QObject* parent)
-    : QStyledItemDelegate(parent)
-    , m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT)
-    , m_margin(DEFAULT_MARGIN)
-    , m_borderRadius(DEFAULT_BORDER_RADIUS)
-    , m_pageNumberHeight(DEFAULT_PAGE_NUMBER_HEIGHT)
-    , m_shadowEnabled(true)
-    , m_animationEnabled(true)
-    , m_shadowBlurRadius(DEFAULT_SHADOW_BLUR_RADIUS)
-    , m_shadowOffset(DEFAULT_SHADOW_OFFSET)
-    , m_borderWidth(DEFAULT_BORDER_WIDTH)
-    , m_loadingTimer(new QTimer(this))
-{
+    : QStyledItemDelegate(parent),
+      m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT),
+      m_margin(DEFAULT_MARGIN),
+      m_borderRadius(DEFAULT_BORDER_RADIUS),
+      m_pageNumberHeight(DEFAULT_PAGE_NUMBER_HEIGHT),
+      m_shadowEnabled(true),
+      m_animationEnabled(true),
+      m_shadowBlurRadius(DEFAULT_SHADOW_BLUR_RADIUS),
+      m_shadowOffset(DEFAULT_SHADOW_OFFSET),
+      m_borderWidth(DEFAULT_BORDER_WIDTH),
+      m_loadingTimer(new QTimer(this)) {
     // 设置默认颜色主题
     setLightTheme();
-    
+
     // 设置字体
     m_pageNumberFont = QFont("Arial", 9);
     m_errorFont = QFont("Arial", 8);
-    
+
     // 设置加载动画定时器
     m_loadingTimer->setInterval(LOADING_ANIMATION_INTERVAL);
-    connect(m_loadingTimer, &QTimer::timeout, this, &ThumbnailDelegate::onLoadingAnimationTimer);
+    connect(m_loadingTimer, &QTimer::timeout, this,
+            &ThumbnailDelegate::onLoadingAnimationTimer);
 }
 
-ThumbnailDelegate::~ThumbnailDelegate()
-{
-    cleanupAnimations();
-}
+ThumbnailDelegate::~ThumbnailDelegate() { cleanupAnimations(); }
 
-QSize ThumbnailDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
+QSize ThumbnailDelegate::sizeHint(const QStyleOptionViewItem& option,
+                                  const QModelIndex& index) const {
     Q_UNUSED(option)
     Q_UNUSED(index)
-    
+
     return QSize(m_thumbnailSize.width() + 2 * m_margin,
                  m_thumbnailSize.height() + m_pageNumberHeight + 2 * m_margin);
 }
 
-void ThumbnailDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
+void ThumbnailDelegate::paint(QPainter* painter,
+                              const QStyleOptionViewItem& option,
+                              const QModelIndex& index) const {
     if (!index.isValid()) {
         return;
     }
-    
+
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing);
-    
+
     // 获取数据
     QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
     bool isLoading = index.data(ThumbnailModel::LoadingRole).toBool();
     bool hasError = index.data(ThumbnailModel::ErrorRole).toBool();
-    QString errorMessage = index.data(ThumbnailModel::ErrorMessageRole).toString();
+    QString errorMessage =
+        index.data(ThumbnailModel::ErrorMessageRole).toString();
     int pageNumber = index.data(ThumbnailModel::PageNumberRole).toInt();
-    
+
     // 计算矩形
     QRect thumbnailRect = getThumbnailRect(option.rect);
     QRect pageNumberRect = getPageNumberRect(thumbnailRect);
-    
+
     // 绘制背景
     paintBackground(painter, option.rect, option);
-    
+
     // 绘制阴影
     if (m_shadowEnabled) {
         paintShadow(painter, thumbnailRect, option);
     }
-    
+
     // 绘制边框
     paintBorder(painter, thumbnailRect, option);
-    
+
     // 绘制缩略图内容
     if (hasError) {
         paintErrorIndicator(painter, thumbnailRect, errorMessage, option);
@@ -99,49 +98,41 @@ void ThumbnailDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
     } else if (!thumbnail.isNull()) {
         paintThumbnail(painter, thumbnailRect, thumbnail, option);
     }
-    
+
     // 绘制页码
     paintPageNumber(painter, pageNumberRect, pageNumber, option);
-    
+
     painter->restore();
 }
 
-void ThumbnailDelegate::setThumbnailSize(const QSize& size)
-{
+void ThumbnailDelegate::setThumbnailSize(const QSize& size) {
     if (m_thumbnailSize != size) {
         m_thumbnailSize = size;
         emit sizeHintChanged(QModelIndex());
     }
 }
 
-void ThumbnailDelegate::setMargins(int margin)
-{
+void ThumbnailDelegate::setMargins(int margin) {
     if (m_margin != margin) {
         m_margin = margin;
         emit sizeHintChanged(QModelIndex());
     }
 }
 
-void ThumbnailDelegate::setBorderRadius(int radius)
-{
-    m_borderRadius = radius;
-}
+void ThumbnailDelegate::setBorderRadius(int radius) { m_borderRadius = radius; }
 
-void ThumbnailDelegate::setShadowEnabled(bool enabled)
-{
+void ThumbnailDelegate::setShadowEnabled(bool enabled) {
     m_shadowEnabled = enabled;
 }
 
-void ThumbnailDelegate::setAnimationEnabled(bool enabled)
-{
+void ThumbnailDelegate::setAnimationEnabled(bool enabled) {
     m_animationEnabled = enabled;
     if (!enabled) {
         cleanupAnimations();
     }
 }
 
-void ThumbnailDelegate::setLightTheme()
-{
+void ThumbnailDelegate::setLightTheme() {
     m_backgroundColor = LIGHT_BACKGROUND;
     m_borderColorNormal = LIGHT_BORDER;
     m_borderColorHovered = GOOGLE_BLUE.lighter(150);
@@ -154,8 +145,7 @@ void ThumbnailDelegate::setLightTheme()
     m_placeholderColor = QColor(200, 200, 200);
 }
 
-void ThumbnailDelegate::setDarkTheme()
-{
+void ThumbnailDelegate::setDarkTheme() {
     m_backgroundColor = DARK_BACKGROUND;
     m_borderColorNormal = DARK_BORDER;
     m_borderColorHovered = GOOGLE_BLUE.lighter(150);
@@ -168,9 +158,10 @@ void ThumbnailDelegate::setDarkTheme()
     m_placeholderColor = QColor(100, 100, 100);
 }
 
-void ThumbnailDelegate::setCustomColors(const QColor& background, const QColor& border, 
-                                       const QColor& text, const QColor& accent)
-{
+void ThumbnailDelegate::setCustomColors(const QColor& background,
+                                        const QColor& border,
+                                        const QColor& text,
+                                        const QColor& accent) {
     m_backgroundColor = background;
     m_borderColorNormal = border;
     m_borderColorHovered = accent.lighter(150);
@@ -179,20 +170,18 @@ void ThumbnailDelegate::setCustomColors(const QColor& background, const QColor& 
     m_loadingColor = accent;
 }
 
-bool ThumbnailDelegate::eventFilter(QObject* object, QEvent* event)
-{
+bool ThumbnailDelegate::eventFilter(QObject* object, QEvent* event) {
     // 处理鼠标事件以触发动画
     if (auto* view = qobject_cast<QAbstractItemView*>(object)) {
         if (event->type() == QEvent::MouseMove) {
             // 处理悬停状态
         }
     }
-    
+
     return QStyledItemDelegate::eventFilter(object, event);
 }
 
-void ThumbnailDelegate::onAnimationValueChanged()
-{
+void ThumbnailDelegate::onAnimationValueChanged() {
     // 触发重绘
     if (parent()) {
         if (auto* view = qobject_cast<QAbstractItemView*>(parent())) {
@@ -201,14 +190,14 @@ void ThumbnailDelegate::onAnimationValueChanged()
     }
 }
 
-void ThumbnailDelegate::onLoadingAnimationTimer()
-{
+void ThumbnailDelegate::onLoadingAnimationTimer() {
     // 更新加载动画状态
-    for (auto it = m_animationStates.begin(); it != m_animationStates.end(); ++it) {
+    for (auto it = m_animationStates.begin(); it != m_animationStates.end();
+         ++it) {
         AnimationState* state = it.value();
         state->loadingAngle = (state->loadingAngle + 15) % 360;
     }
-    
+
     // 触发重绘
     if (parent()) {
         if (auto* view = qobject_cast<QAbstractItemView*>(parent())) {
@@ -217,31 +206,30 @@ void ThumbnailDelegate::onLoadingAnimationTimer()
     }
 }
 
-QRect ThumbnailDelegate::getThumbnailRect(const QRect& itemRect) const
-{
+QRect ThumbnailDelegate::getThumbnailRect(const QRect& itemRect) const {
     int x = itemRect.x() + m_margin;
     int y = itemRect.y() + m_margin;
     return QRect(x, y, m_thumbnailSize.width(), m_thumbnailSize.height());
 }
 
-QRect ThumbnailDelegate::getPageNumberRect(const QRect& thumbnailRect) const
-{
+QRect ThumbnailDelegate::getPageNumberRect(const QRect& thumbnailRect) const {
     int x = thumbnailRect.x();
     int y = thumbnailRect.bottom() + 2;
     int width = thumbnailRect.width();
     return QRect(x, y, width, m_pageNumberHeight);
 }
 
-void ThumbnailDelegate::paintThumbnail(QPainter* painter, const QRect& rect,
-                                      const QPixmap& pixmap, const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::paintThumbnail(
+    QPainter* painter, const QRect& rect, const QPixmap& pixmap,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
 
     // 优化缩放操作 - 避免不必要的缩放
     QPixmap displayPixmap = pixmap;
     if (pixmap.size() != rect.size()) {
         // 选择最优的变换模式
-        Qt::TransformationMode mode = getOptimalTransformationMode(pixmap.size(), rect.size());
+        Qt::TransformationMode mode =
+            getOptimalTransformationMode(pixmap.size(), rect.size());
         displayPixmap = pixmap.scaled(rect.size(), Qt::KeepAspectRatio, mode);
     }
 
@@ -256,29 +244,28 @@ void ThumbnailDelegate::paintThumbnail(QPainter* painter, const QRect& rect,
     painter->drawPixmap(targetRect, displayPixmap);
 }
 
-void ThumbnailDelegate::paintBackground(QPainter* painter, const QRect& rect, 
-                                       const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::paintBackground(
+    QPainter* painter, const QRect& rect,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
-    
+
     painter->fillRect(rect, m_backgroundColor);
 }
 
-void ThumbnailDelegate::paintBorder(QPainter* painter, const QRect& rect, 
-                                   const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::paintBorder(QPainter* painter, const QRect& rect,
+                                    const QStyleOptionViewItem& option) const {
     QColor borderColor = m_borderColorNormal;
-    
+
     if (option.state & QStyle::State_Selected) {
         borderColor = m_borderColorSelected;
     } else if (option.state & QStyle::State_MouseOver) {
         borderColor = m_borderColorHovered;
     }
-    
+
     QPen borderPen(borderColor, m_borderWidth);
     painter->setPen(borderPen);
     painter->setBrush(Qt::NoBrush);
-    
+
     if (m_borderRadius > 0) {
         painter->drawRoundedRect(rect, m_borderRadius, m_borderRadius);
     } else {
@@ -287,23 +274,23 @@ void ThumbnailDelegate::paintBorder(QPainter* painter, const QRect& rect,
 }
 
 void ThumbnailDelegate::paintShadow(QPainter* painter, const QRect& rect,
-                                   const QStyleOptionViewItem& option) const
-{
+                                    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
 
     // 简化的阴影绘制
     QRect shadowRect = rect.adjusted(-m_shadowOffset, -m_shadowOffset,
-                                    m_shadowOffset, m_shadowOffset);
+                                     m_shadowOffset, m_shadowOffset);
 
     painter->fillRect(shadowRect, m_shadowColor);
 }
 
-void ThumbnailDelegate::paintPageNumber(QPainter* painter, const QRect& rect,
-                                       int pageNumber, const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::paintPageNumber(
+    QPainter* painter, const QRect& rect, int pageNumber,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
 
-    if (rect.height() <= 0) return;
+    if (rect.height() <= 0)
+        return;
 
     // 绘制页码背景
     painter->fillRect(rect, m_pageNumberBgColor);
@@ -312,13 +299,13 @@ void ThumbnailDelegate::paintPageNumber(QPainter* painter, const QRect& rect,
     painter->setPen(m_pageNumberTextColor);
     painter->setFont(m_pageNumberFont);
 
-    QString pageText = QString::number(pageNumber + 1); // 页码从1开始显示
+    QString pageText = QString::number(pageNumber + 1);  // 页码从1开始显示
     painter->drawText(rect, Qt::AlignCenter, pageText);
 }
 
-void ThumbnailDelegate::paintLoadingIndicator(QPainter* painter, const QRect& rect,
-                                             const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::paintLoadingIndicator(
+    QPainter* painter, const QRect& rect,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
 
     // 绘制半透明遮罩
@@ -329,8 +316,8 @@ void ThumbnailDelegate::paintLoadingIndicator(QPainter* painter, const QRect& re
     int angle = state ? state->loadingAngle : 0;
 
     // 绘制旋转的加载指示器
-    QRect spinnerRect(rect.center().x() - LOADING_SPINNER_SIZE/2,
-                      rect.center().y() - LOADING_SPINNER_SIZE/2,
+    QRect spinnerRect(rect.center().x() - LOADING_SPINNER_SIZE / 2,
+                      rect.center().y() - LOADING_SPINNER_SIZE / 2,
                       LOADING_SPINNER_SIZE, LOADING_SPINNER_SIZE);
 
     painter->save();
@@ -338,16 +325,16 @@ void ThumbnailDelegate::paintLoadingIndicator(QPainter* painter, const QRect& re
     painter->rotate(angle);
 
     painter->setPen(QPen(m_loadingColor, 3, Qt::SolidLine, Qt::RoundCap));
-    painter->drawArc(-LOADING_SPINNER_SIZE/2, -LOADING_SPINNER_SIZE/2,
-                    LOADING_SPINNER_SIZE, LOADING_SPINNER_SIZE,
-                    0, 270 * 16); // 3/4 圆弧
+    painter->drawArc(-LOADING_SPINNER_SIZE / 2, -LOADING_SPINNER_SIZE / 2,
+                     LOADING_SPINNER_SIZE, LOADING_SPINNER_SIZE, 0,
+                     270 * 16);  // 3/4 圆弧
 
     painter->restore();
 }
 
-void ThumbnailDelegate::paintErrorIndicator(QPainter* painter, const QRect& rect,
-                                           const QString& errorMessage, const QStyleOptionViewItem& option) const
-{
+void ThumbnailDelegate::paintErrorIndicator(
+    QPainter* painter, const QRect& rect, const QString& errorMessage,
+    const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
 
     // 绘制半透明遮罩
@@ -363,7 +350,7 @@ void ThumbnailDelegate::paintErrorIndicator(QPainter* painter, const QRect& rect
     // 绘制感叹号
     painter->setPen(QPen(m_errorColor, 3, Qt::SolidLine, Qt::RoundCap));
     painter->drawLine(iconRect.center().x(), iconRect.top() + 6,
-                     iconRect.center().x(), iconRect.center().y() + 2);
+                      iconRect.center().x(), iconRect.center().y() + 2);
     painter->drawPoint(iconRect.center().x(), iconRect.bottom() - 4);
 
     // 绘制错误消息（如果有空间）
@@ -371,12 +358,13 @@ void ThumbnailDelegate::paintErrorIndicator(QPainter* painter, const QRect& rect
         painter->setPen(m_errorColor);
         painter->setFont(m_errorFont);
         QRect textRect = rect.adjusted(4, iconRect.bottom() + 4, -4, -4);
-        painter->drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap, errorMessage);
+        painter->drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap,
+                          errorMessage);
     }
 }
 
-ThumbnailDelegate::AnimationState* ThumbnailDelegate::getAnimationState(const QModelIndex& index) const
-{
+ThumbnailDelegate::AnimationState* ThumbnailDelegate::getAnimationState(
+    const QModelIndex& index) const {
     if (!m_animationEnabled || !index.isValid()) {
         return nullptr;
     }
@@ -394,45 +382,49 @@ ThumbnailDelegate::AnimationState* ThumbnailDelegate::getAnimationState(const QM
     return it.value();
 }
 
-void ThumbnailDelegate::setupAnimations(AnimationState* state, const QModelIndex& index) const
-{
+void ThumbnailDelegate::setupAnimations(AnimationState* state,
+                                        const QModelIndex& index) const {
     Q_UNUSED(index)
 
     // 悬停动画
     state->hoverAnimation = new QPropertyAnimation();
-    state->hoverAnimation->setTargetObject(const_cast<ThumbnailDelegate*>(this));
+    state->hoverAnimation->setTargetObject(
+        const_cast<ThumbnailDelegate*>(this));
     state->hoverAnimation->setPropertyName("animationValue");
     state->hoverAnimation->setDuration(HOVER_ANIMATION_DURATION);
 
-    connect(state->hoverAnimation, &QPropertyAnimation::valueChanged,
-            this, &ThumbnailDelegate::onAnimationValueChanged);
+    connect(state->hoverAnimation, &QPropertyAnimation::valueChanged, this,
+            &ThumbnailDelegate::onAnimationValueChanged);
 
     // 选中动画
     state->selectionAnimation = new QPropertyAnimation();
-    state->selectionAnimation->setTargetObject(const_cast<ThumbnailDelegate*>(this));
+    state->selectionAnimation->setTargetObject(
+        const_cast<ThumbnailDelegate*>(this));
     state->selectionAnimation->setPropertyName("animationValue");
     state->selectionAnimation->setDuration(SELECTION_ANIMATION_DURATION);
 
-    connect(state->selectionAnimation, &QPropertyAnimation::valueChanged,
-            this, &ThumbnailDelegate::onAnimationValueChanged);
+    connect(state->selectionAnimation, &QPropertyAnimation::valueChanged, this,
+            &ThumbnailDelegate::onAnimationValueChanged);
 }
 
-void ThumbnailDelegate::cleanupAnimations()
-{
-    for (auto it = m_animationStates.begin(); it != m_animationStates.end(); ++it) {
+void ThumbnailDelegate::cleanupAnimations() {
+    for (auto it = m_animationStates.begin(); it != m_animationStates.end();
+         ++it) {
         delete it.value();
     }
     m_animationStates.clear();
 }
 
-Qt::TransformationMode ThumbnailDelegate::getOptimalTransformationMode(const QSize& sourceSize, const QSize& targetSize) const
-{
+Qt::TransformationMode ThumbnailDelegate::getOptimalTransformationMode(
+    const QSize& sourceSize, const QSize& targetSize) const {
     // 计算缩放比例
-    double scaleRatio = qMin(static_cast<double>(targetSize.width()) / sourceSize.width(),
-                            static_cast<double>(targetSize.height()) / sourceSize.height());
+    double scaleRatio =
+        qMin(static_cast<double>(targetSize.width()) / sourceSize.width(),
+             static_cast<double>(targetSize.height()) / sourceSize.height());
 
     // 对于小幅缩放或小尺寸目标，使用快速变换
-    if (scaleRatio > 0.75 || targetSize.width() <= 150 || targetSize.height() <= 200) {
+    if (scaleRatio > 0.75 || targetSize.width() <= 150 ||
+        targetSize.height() <= 200) {
         return Qt::FastTransformation;
     }
 
@@ -440,12 +432,14 @@ Qt::TransformationMode ThumbnailDelegate::getOptimalTransformationMode(const QSi
     return Qt::SmoothTransformation;
 }
 
-void ThumbnailDelegate::updateHoverState(const QModelIndex& index, bool hovered)
-{
-    if (!m_animationEnabled) return;
+void ThumbnailDelegate::updateHoverState(const QModelIndex& index,
+                                         bool hovered) {
+    if (!m_animationEnabled)
+        return;
 
     AnimationState* state = getAnimationState(index);
-    if (!state || !state->hoverAnimation) return;
+    if (!state || !state->hoverAnimation)
+        return;
 
     qreal targetOpacity = hovered ? 1.0 : 0.0;
 
@@ -456,12 +450,14 @@ void ThumbnailDelegate::updateHoverState(const QModelIndex& index, bool hovered)
     }
 }
 
-void ThumbnailDelegate::updateSelectionState(const QModelIndex& index, bool selected)
-{
-    if (!m_animationEnabled) return;
+void ThumbnailDelegate::updateSelectionState(const QModelIndex& index,
+                                             bool selected) {
+    if (!m_animationEnabled)
+        return;
 
     AnimationState* state = getAnimationState(index);
-    if (!state || !state->selectionAnimation) return;
+    if (!state || !state->selectionAnimation)
+        return;
 
     qreal targetOpacity = selected ? 1.0 : 0.0;
 

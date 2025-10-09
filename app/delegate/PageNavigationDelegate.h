@@ -9,7 +9,7 @@ class PageNavigationDelegate : public QObject {
 public:
     explicit PageNavigationDelegate(QLabel* pageLabel,
                                     QObject* parent = nullptr);
-    ~PageNavigationDelegate() {};
+    ~PageNavigationDelegate(){};
 
 public slots:
     void viewUpdate(int pageNum);

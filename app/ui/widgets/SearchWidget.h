@@ -1,16 +1,16 @@
 #pragma once
 
-#include <QWidget>
-#include <QLineEdit>
-#include <QPushButton>
 #include <QCheckBox>
-#include <QLabel>
-#include <QListView>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListView>
 #include <QProgressBar>
+#include <QPushButton>
 #include <QTimer>
+#include <QVBoxLayout>
+#include <QWidget>
 #include "../../model/SearchModel.h"
 
 class QShortcut;
@@ -111,7 +111,7 @@ private:
     // Data and state
     SearchModel* m_searchModel;
     Poppler::Document* m_document;
-    QTimer* m_searchTimer; // For debounced search
+    QTimer* m_searchTimer;  // For debounced search
     bool m_optionsVisible;
 
     // Shortcuts

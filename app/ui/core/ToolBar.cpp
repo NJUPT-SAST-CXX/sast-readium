@@ -1,8 +1,8 @@
 #include "ToolBar.h"
-#include "../../managers/StyleManager.h"
 #include <QAction>
 #include <QHBoxLayout>
 #include <QWidget>
+#include "../../managers/StyleManager.h"
 
 ToolBar::ToolBar(QWidget* parent) : QToolBar(parent) {
     setMovable(true);
@@ -49,15 +49,12 @@ void ToolBar::setupFileActions() {
     addAction(saveAction);
 
     // 连接信号
-    connect(openAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::openFile);
-    });
-    connect(openFolderAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::openFolder);
-    });
-    connect(saveAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::save);
-    });
+    connect(openAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::openFile); });
+    connect(openFolderAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::openFolder); });
+    connect(saveAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::save); });
 }
 
 void ToolBar::setupNavigationActions() {
@@ -102,20 +99,16 @@ void ToolBar::setupNavigationActions() {
     addAction(lastPageAction);
 
     // 连接信号
-    connect(firstPageAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::firstPage);
-    });
-    connect(prevPageAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::previousPage);
-    });
-    connect(nextPageAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::nextPage);
-    });
-    connect(lastPageAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::lastPage);
-    });
-    connect(pageSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
-            this, &ToolBar::onPageSpinBoxChanged);
+    connect(firstPageAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::firstPage); });
+    connect(prevPageAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::previousPage); });
+    connect(nextPageAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::nextPage); });
+    connect(lastPageAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::lastPage); });
+    connect(pageSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this,
+            &ToolBar::onPageSpinBoxChanged);
 }
 
 void ToolBar::setupZoomActions() {
@@ -145,21 +138,16 @@ void ToolBar::setupZoomActions() {
     addAction(fitHeightAction);
 
     // 连接信号
-    connect(zoomOutAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::zoomOut);
-    });
-    connect(zoomInAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::zoomIn);
-    });
-    connect(fitWidthAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::fitToWidth);
-    });
-    connect(fitPageAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::fitToPage);
-    });
-    connect(fitHeightAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::fitToHeight);
-    });
+    connect(zoomOutAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::zoomOut); });
+    connect(zoomInAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::zoomIn); });
+    connect(fitWidthAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::fitToWidth); });
+    connect(fitPageAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::fitToPage); });
+    connect(fitHeightAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::fitToHeight); });
 }
 
 void ToolBar::setupViewActions() {
@@ -186,9 +174,8 @@ void ToolBar::setupViewActions() {
     addWidget(viewWidget);
 
     // 连接信号
-    connect(toggleSidebarAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::toggleSideBar);
-    });
+    connect(toggleSidebarAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::toggleSideBar); });
     connect(viewModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &ToolBar::onViewModeChanged);
 }
@@ -205,12 +192,10 @@ void ToolBar::setupRotationActions() {
     addAction(rotateRightAction);
 
     // 连接信号
-    connect(rotateLeftAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::rotateLeft);
-    });
-    connect(rotateRightAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::rotateRight);
-    });
+    connect(rotateLeftAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::rotateLeft); });
+    connect(rotateRightAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::rotateRight); });
 }
 
 void ToolBar::setupThemeActions() {
@@ -220,14 +205,11 @@ void ToolBar::setupThemeActions() {
     addAction(themeToggleAction);
 
     // 连接信号
-    connect(themeToggleAction, &QAction::triggered, this, [this]() {
-        emit actionTriggered(ActionMap::toggleTheme);
-    });
+    connect(themeToggleAction, &QAction::triggered, this,
+            [this]() { emit actionTriggered(ActionMap::toggleTheme); });
 }
 
-void ToolBar::createSeparator() {
-    addSeparator();
-}
+void ToolBar::createSeparator() { addSeparator(); }
 
 void ToolBar::applyToolBarStyle() {
     // 应用工具栏样式
@@ -249,7 +231,8 @@ void ToolBar::updatePageInfo(int currentPage, int totalPages) {
     if (pageSpinBox && pageCountLabel) {
         pageSpinBox->blockSignals(true);
         pageSpinBox->setMaximum(totalPages);
-        pageSpinBox->setValue(currentPage + 1); // Convert from 0-based to 1-based
+        pageSpinBox->setValue(currentPage +
+                              1);  // Convert from 0-based to 1-based
         pageSpinBox->blockSignals(false);
 
         pageCountLabel->setText(QString("/ %1").arg(totalPages));

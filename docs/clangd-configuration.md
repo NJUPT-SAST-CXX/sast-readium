@@ -88,13 +88,13 @@ Index:
 
 Diagnostics:
   # Relaxed include checking
-  
+
 InlayHints:
   # Enhanced code hints
-  
+
 Hover:
   # Better hover information
-  
+
 Completion:
   # Improved completion
 ```

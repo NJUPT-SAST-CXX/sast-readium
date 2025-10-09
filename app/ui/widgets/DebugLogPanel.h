@@ -1,38 +1,38 @@
 #pragma once
 
-#include <QWidget>
-#include <QTextEdit>
-#include <QComboBox>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QGridLayout>
-#include <QCheckBox>
-#include <QSpinBox>
-#include <QTimer>
-#include <QMutex>
-#include <QScrollBar>
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QApplication>
-#include <QClipboard>
-#include <QMenu>
 #include <QAction>
+#include <QApplication>
+#include <QCheckBox>
+#include <QClipboard>
+#include <QColor>
+#include <QComboBox>
 #include <QContextMenuEvent>
 #include <QDateTime>
-#include <QTextCursor>
-#include <QTextCharFormat>
-#include <QColor>
+#include <QFileDialog>
 #include <QFont>
-#include <QSettings>
-#include <QSplitter>
+#include <QGridLayout>
 #include <QGroupBox>
-#include <QProgressBar>
-#include <QTableWidget>
+#include <QHBoxLayout>
 #include <QHeaderView>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMenu>
+#include <QMessageBox>
+#include <QMutex>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QScrollBar>
+#include <QSettings>
+#include <QSpinBox>
+#include <QSplitter>
 #include <QTabWidget>
+#include <QTableWidget>
+#include <QTextCharFormat>
+#include <QTextCursor>
+#include <QTextEdit>
+#include <QTimer>
+#include <QVBoxLayout>
+#include <QWidget>
 #include <deque>
 #include <memory>
 #include "../../utils/Logger.h"
@@ -40,7 +40,7 @@
 
 /**
  * @brief Comprehensive debug logging panel widget
- * 
+ *
  * This widget provides a complete debug logging interface with:
  * - Real-time log message display
  * - Filtering by log level and category
@@ -49,8 +49,7 @@
  * - Statistics display
  * - Configuration options
  */
-class DebugLogPanel : public QWidget
-{
+class DebugLogPanel : public QWidget {
     Q_OBJECT
 
 public:
@@ -61,12 +60,17 @@ public:
         QString message;
         QString threadId;
         QString sourceLocation;
-        
+
         LogEntry() = default;
-        LogEntry(const QDateTime& ts, Logger::LogLevel lvl, const QString& cat, 
-                const QString& msg, const QString& thread = "", const QString& source = "")
-            : timestamp(ts), level(lvl), category(cat), message(msg), 
-              threadId(thread), sourceLocation(source) {}
+        LogEntry(const QDateTime& ts, Logger::LogLevel lvl, const QString& cat,
+                 const QString& msg, const QString& thread = "",
+                 const QString& source = "")
+            : timestamp(ts),
+              level(lvl),
+              category(cat),
+              message(msg),
+              threadId(thread),
+              sourceLocation(source) {}
     };
 
     struct PanelConfiguration {
@@ -81,19 +85,19 @@ public:
         bool colorizeOutput = true;
         QString timestampFormat = "hh:mm:ss.zzz";
         QFont logFont = QFont("Consolas", 9);
-        
+
         // Filter settings
         Logger::LogLevel minLogLevel = Logger::LogLevel::Debug;
         QStringList enabledCategories;
         QString searchFilter;
         bool caseSensitiveSearch = false;
         bool regexSearch = false;
-        
+
         // Performance settings
         int updateIntervalMs = 100;
         int batchSize = 50;
         bool pauseOnHighFrequency = true;
-        int highFrequencyThreshold = 1000; // messages per second
+        int highFrequencyThreshold = 1000;  // messages per second
     };
 
     explicit DebugLogPanel(QWidget* parent = nullptr);
@@ -110,7 +114,7 @@ public:
     void clearLogs();
     void pauseLogging(bool pause);
     bool isLoggingPaused() const { return m_paused; }
-    
+
     // Statistics
     struct LogStatistics {
         int totalMessages = 0;
@@ -124,15 +128,16 @@ public:
         QDateTime lastLogTime;
         double messagesPerSecond = 0.0;
     };
-    
+
     LogStatistics getStatistics() const;
     void resetStatistics();
 
 public slots:
     void onLogMessage(const QString& message, int level);
-    void onLogMessageDetailed(const QDateTime& timestamp, int level, 
-                             const QString& category, const QString& message,
-                             const QString& threadId = "", const QString& sourceLocation = "");
+    void onLogMessageDetailed(const QDateTime& timestamp, int level,
+                              const QString& category, const QString& message,
+                              const QString& threadId = "",
+                              const QString& sourceLocation = "");
     void showPanel();
     void hidePanel();
     void togglePanel();
@@ -192,11 +197,11 @@ private:
     // UI Components
     QVBoxLayout* m_mainLayout;
     QSplitter* m_mainSplitter;
-    
+
     // Log display area
     QTextEdit* m_logDisplay;
     QScrollBar* m_scrollBar;
-    
+
     // Filter controls
     QGroupBox* m_filterGroup;
     QComboBox* m_logLevelFilter;
@@ -206,7 +211,7 @@ private:
     QPushButton* m_searchPrevBtn;
     QCheckBox* m_caseSensitiveCheck;
     QCheckBox* m_regexCheck;
-    
+
     // Action buttons
     QHBoxLayout* m_actionLayout;
     QPushButton* m_clearBtn;
@@ -215,13 +220,13 @@ private:
     QPushButton* m_pauseBtn;
     QPushButton* m_settingsBtn;
     QCheckBox* m_autoScrollCheck;
-    
+
     // Statistics display
     QGroupBox* m_statsGroup;
     QTableWidget* m_statsTable;
     QLabel* m_messagesPerSecLabel;
     QProgressBar* m_memoryUsageBar;
-    
+
     // Context menu
     QMenu* m_contextMenu;
     QAction* m_copyAction;
@@ -229,14 +234,14 @@ private:
     QAction* m_clearAction;
     QAction* m_exportAction;
     QAction* m_pauseAction;
-    
+
     // Data management
     std::deque<LogEntry> m_logEntries;
     std::deque<LogEntry> m_filteredEntries;
     mutable QMutex m_logMutex;
     QTimer* m_updateTimer;
     QTimer* m_statisticsTimer;
-    
+
     // Configuration and state
     PanelConfiguration m_config;
     LogStatistics m_statistics;
@@ -244,15 +249,15 @@ private:
     bool m_autoScroll;
     int m_currentSearchIndex;
     QStringList m_searchResults;
-    
+
     // Performance tracking
     QDateTime m_lastUpdateTime;
     int m_pendingMessages;
     std::deque<LogEntry> m_pendingEntries;
-    
+
     // Settings
     QSettings* m_settings;
-    
+
     static const QString SETTINGS_GROUP;
     static const int DEFAULT_MAX_ENTRIES;
     static const int UPDATE_INTERVAL_MS;

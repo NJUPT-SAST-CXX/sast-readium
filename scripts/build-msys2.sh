@@ -67,7 +67,7 @@ check_msys2_env() {
         print_error "Please start MSYS2 and run this script from there"
         exit 1
     fi
-    
+
     print_status "MSYS2 environment detected: $MSYSTEM"
     print_status "MSYSTEM_PREFIX: $MSYSTEM_PREFIX"
 }
@@ -75,7 +75,7 @@ check_msys2_env() {
 # Function to install MSYS2 dependencies
 install_dependencies() {
     print_status "Installing MSYS2 dependencies..."
-    
+
     local packages=(
         "mingw-w64-$MSYSTEM_CARCH-cmake"
         "mingw-w64-$MSYSTEM_CARCH-ninja"
@@ -87,13 +87,13 @@ install_dependencies() {
         "mingw-w64-$MSYSTEM_CARCH-pkg-config"
         "git"
     )
-    
+
     print_status "Updating package database..."
     pacman -Sy
-    
+
     print_status "Installing packages: ${packages[*]}"
     pacman -S --needed --noconfirm "${packages[@]}"
-    
+
     print_success "Dependencies installed successfully"
 }
 
@@ -103,7 +103,7 @@ clean_build() {
     if [[ "$USE_VCPKG" == "ON" ]]; then
         build_dir="build/${BUILD_TYPE}-MSYS2-vcpkg"
     fi
-    
+
     if [[ -d "$build_dir" ]]; then
         print_status "Cleaning build directory: $build_dir"
         rm -rf "$build_dir"
@@ -114,11 +114,11 @@ clean_build() {
 # Function to configure CMake
 configure_cmake() {
     print_status "Configuring CMake..."
-    
+
     local preset="${BUILD_TYPE}-MSYS2"
     if [[ "$USE_VCPKG" == "ON" ]]; then
         preset="${BUILD_TYPE}-MSYS2-vcpkg"
-        
+
         # Check if VCPKG_ROOT is set when using vcpkg
         if [[ -z "$VCPKG_ROOT" ]]; then
             print_error "VCPKG_ROOT environment variable is not set"
@@ -127,24 +127,24 @@ configure_cmake() {
         fi
         print_status "Using vcpkg from: $VCPKG_ROOT"
     fi
-    
+
     print_status "Using CMake preset: $preset"
     cmake --preset="$preset"
-    
+
     print_success "CMake configuration completed"
 }
 
 # Function to build the project
 build_project() {
     print_status "Building project..."
-    
+
     local preset="${BUILD_TYPE}-MSYS2"
     if [[ "$USE_VCPKG" == "ON" ]]; then
         preset="${BUILD_TYPE}-MSYS2-vcpkg"
     fi
-    
+
     cmake --build --preset="$preset" --parallel "$JOBS"
-    
+
     print_success "Build completed successfully"
 }
 
@@ -154,14 +154,14 @@ show_build_info() {
     if [[ "$USE_VCPKG" == "ON" ]]; then
         build_dir="build/${BUILD_TYPE}-MSYS2-vcpkg"
     fi
-    
+
     print_success "=== Build Information ==="
     echo "Build Type: $BUILD_TYPE"
     echo "Using vcpkg: $USE_VCPKG"
     echo "Build Directory: $build_dir"
     echo "Parallel Jobs: $JOBS"
     echo "MSYSTEM: $MSYSTEM"
-    
+
     if [[ -f "$build_dir/app/app.exe" ]]; then
         echo "Executable: $build_dir/app/app.exe"
         echo "Executable size: $(du -h "$build_dir/app/app.exe" | cut -f1)"
@@ -215,27 +215,27 @@ done
 # Main execution
 main() {
     print_status "Starting MSYS2 build process..."
-    
+
     # Check environment
     check_msys2_env
-    
+
     # Install dependencies if requested
     if [[ "$INSTALL_DEPS" == "true" ]]; then
         install_dependencies
     fi
-    
+
     # Clean build if requested
     if [[ "$CLEAN_BUILD" == "true" ]]; then
         clean_build
     fi
-    
+
     # Configure and build
     configure_cmake
     build_project
-    
+
     # Show build information
     show_build_info
-    
+
     print_success "MSYS2 build process completed successfully!"
 }
 

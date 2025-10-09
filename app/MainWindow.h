@@ -13,14 +13,13 @@
 #include "model/PageModel.h"
 #include "model/RenderModel.h"
 #include "ui/core/MenuBar.h"
-#include "ui/core/SideBar.h"
 #include "ui/core/RightSideBar.h"
+#include "ui/core/SideBar.h"
 #include "ui/core/StatusBar.h"
 #include "ui/core/ToolBar.h"
 #include "ui/core/ViewWidget.h"
-#include "ui/widgets/WelcomeWidget.h"
 #include "ui/managers/WelcomeScreenManager.h"
-
+#include "ui/widgets/WelcomeWidget.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

@@ -1,11 +1,11 @@
 #pragma once
 
-#include <QTabWidget>
-#include <QWidget>
+#include <QLabel>
 #include <QPropertyAnimation>
 #include <QSettings>
+#include <QTabWidget>
 #include <QVBoxLayout>
-#include <QLabel>
+#include <QWidget>
 #include <memory>
 
 // Forward declaration

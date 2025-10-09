@@ -1,9 +1,9 @@
 #pragma once
 
+#include <QMessageBox>
 #include <QObject>
 #include <QSharedPointer>
 #include "RenderModel.h"
-#include <QMessageBox>
 
 class PageModel : public QObject {
     Q_OBJECT
@@ -20,7 +20,7 @@ public:
     void prevPage();
 
     ~PageModel(){};
-    
+
 public slots:
     void updateInfo(Poppler::Document* document);
 

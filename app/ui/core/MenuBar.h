@@ -1,10 +1,10 @@
 #pragma once
 
-#include <QMenuBar>
-#include <QMenu>
 #include <QAction>
-#include <QString>
+#include <QMenu>
+#include <QMenuBar>
 #include <QObject>
+#include <QString>
 #include "../../controller/tool.hpp"
 #include "../../managers/RecentFilesManager.h"
 

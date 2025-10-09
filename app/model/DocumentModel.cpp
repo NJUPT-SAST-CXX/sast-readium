@@ -4,20 +4,21 @@
 #include "utils/LoggingMacros.h"
 
 // 添加支持RenderModel的构造函数
-DocumentModel::DocumentModel(RenderModel* _renderModel): renderModel(_renderModel), currentDocumentIndex(-1) {
+DocumentModel::DocumentModel(RenderModel* _renderModel)
+    : renderModel(_renderModel), currentDocumentIndex(-1) {
     LOG_DEBUG("DocumentModel created with RenderModel");
     // 初始化异步加载器
     asyncLoader = new AsyncDocumentLoader(this);
 
     // 连接异步加载器信号
-    connect(asyncLoader, &AsyncDocumentLoader::documentLoaded,
-            this, &DocumentModel::onDocumentLoaded);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingProgressChanged,
-            this, &DocumentModel::loadingProgressChanged);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingMessageChanged,
-            this, &DocumentModel::loadingMessageChanged);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingFailed,
-            this, &DocumentModel::loadingFailed);
+    connect(asyncLoader, &AsyncDocumentLoader::documentLoaded, this,
+            &DocumentModel::onDocumentLoaded);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingProgressChanged, this,
+            &DocumentModel::loadingProgressChanged);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingMessageChanged, this,
+            &DocumentModel::loadingMessageChanged);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingFailed, this,
+            &DocumentModel::loadingFailed);
 }
 
 DocumentModel::DocumentModel() : currentDocumentIndex(-1) {
@@ -25,14 +26,14 @@ DocumentModel::DocumentModel() : currentDocumentIndex(-1) {
     asyncLoader = new AsyncDocumentLoader(this);
 
     // 连接异步加载器信号
-    connect(asyncLoader, &AsyncDocumentLoader::loadingProgressChanged,
-            this, &DocumentModel::loadingProgressChanged);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingMessageChanged,
-            this, &DocumentModel::loadingMessageChanged);
-    connect(asyncLoader, &AsyncDocumentLoader::documentLoaded,
-            this, &DocumentModel::onDocumentLoaded);
-    connect(asyncLoader, &AsyncDocumentLoader::loadingFailed,
-            this, &DocumentModel::loadingFailed);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingProgressChanged, this,
+            &DocumentModel::loadingProgressChanged);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingMessageChanged, this,
+            &DocumentModel::loadingMessageChanged);
+    connect(asyncLoader, &AsyncDocumentLoader::documentLoaded, this,
+            &DocumentModel::onDocumentLoaded);
+    connect(asyncLoader, &AsyncDocumentLoader::loadingFailed, this,
+            &DocumentModel::loadingFailed);
 }
 
 bool DocumentModel::openFromFile(const QString& filePath) {
@@ -56,7 +57,7 @@ bool DocumentModel::openFromFile(const QString& filePath) {
     // 使用异步加载器加载文档
     asyncLoader->loadDocument(filePath);
 
-    return true; // 异步加载，立即返回true
+    return true;  // 异步加载，立即返回true
 }
 
 bool DocumentModel::openFromFiles(const QStringList& filePaths) {
@@ -117,8 +118,8 @@ bool DocumentModel::openFromFiles(const QStringList& filePaths) {
     return true;
 }
 
-void DocumentModel::onDocumentLoaded(Poppler::Document* document, const QString& filePath)
-{
+void DocumentModel::onDocumentLoaded(Poppler::Document* document,
+                                     const QString& filePath) {
     if (!document) {
         emit loadingFailed("文档加载失败", filePath);
         return;
@@ -128,7 +129,8 @@ void DocumentModel::onDocumentLoaded(Poppler::Document* document, const QString&
     std::unique_ptr<Poppler::Document> popplerDoc(document);
 
     // 创建文档信息
-    auto docInfo = std::make_unique<DocumentInfo>(filePath, std::move(popplerDoc));
+    auto docInfo =
+        std::make_unique<DocumentInfo>(filePath, std::move(popplerDoc));
     documents.push_back(std::move(docInfo));
 
     int newIndex = static_cast<int>(documents.size() - 1);
@@ -234,9 +236,7 @@ Poppler::Document* DocumentModel::getDocument(int index) const {
     return nullptr;
 }
 
-bool DocumentModel::isEmpty() const {
-    return documents.empty();
-}
+bool DocumentModel::isEmpty() const { return documents.empty(); }
 
 bool DocumentModel::isValidIndex(int index) const {
     return index >= 0 && index < static_cast<int>(documents.size());

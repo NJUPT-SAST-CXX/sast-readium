@@ -1,16 +1,16 @@
 #include "RecentFilesManager.h"
 #include <QDir>
-#include "utils/Logger.h"
 #include <QFileInfo>
+#include <QList>
 #include <QMutexLocker>
-#include <QTimer>
-#include <QString>
 #include <QObject>
 #include <QSettings>
-#include <QList>
+#include <QString>
 #include <QStringList>
+#include <QTimer>
 #include <QtCore/QObject>
 #include <algorithm>
+#include "utils/Logger.h"
 
 const QString RecentFilesManager::SETTINGS_GROUP = "recentFiles";
 const QString RecentFilesManager::SETTINGS_MAX_FILES_KEY = "maxFiles";
@@ -26,7 +26,8 @@ RecentFilesManager::RecentFilesManager(QObject* parent)
     // 加载配置 (不执行文件清理以避免阻塞)
     loadSettingsWithoutCleanup();
 
-    Logger::instance().debug("RecentFilesManager: Initialized with max files: {}", m_maxRecentFiles);
+    Logger::instance().debug(
+        "RecentFilesManager: Initialized with max files: {}", m_maxRecentFiles);
 }
 
 RecentFilesManager::~RecentFilesManager() { saveSettings(); }
@@ -41,7 +42,8 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
     // 创建文件信息
     RecentFileInfo newFile(filePath);
     if (!newFile.isValid()) {
-        Logger::instance().warning("[managers] File does not exist: {}", filePath.toStdString());
+        Logger::instance().warning("[managers] File does not exist: {}",
+                                   filePath.toStdString());
         return;
     }
 
@@ -66,7 +68,8 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
     emit recentFileAdded(filePath);
     emit recentFilesChanged();
 
-    Logger::instance().info("[managers] Added recent file: {}", filePath.toStdString());
+    Logger::instance().info("[managers] Added recent file: {}",
+                            filePath.toStdString());
 }
 
 QList<RecentFileInfo> RecentFilesManager::getRecentFiles() const {
@@ -116,13 +119,15 @@ void RecentFilesManager::removeRecentFile(const QString& filePath) {
         emit recentFileRemoved(filePath);
         emit recentFilesChanged();
 
-        Logger::instance().info("[managers] Removed recent file: {}", filePath.toStdString());
+        Logger::instance().info("[managers] Removed recent file: {}",
+                                filePath.toStdString());
     }
 }
 
 void RecentFilesManager::setMaxRecentFiles(int maxFiles) {
     if (maxFiles < 1 || maxFiles > 50) {
-        Logger::instance().warning("[managers] Invalid max files count: {}", maxFiles);
+        Logger::instance().warning("[managers] Invalid max files count: {}",
+                                   maxFiles);
         return;
     }
 
@@ -135,7 +140,8 @@ void RecentFilesManager::setMaxRecentFiles(int maxFiles) {
 
         emit recentFilesChanged();
 
-        Logger::instance().info("[managers] Max recent files changed to: {}", maxFiles);
+        Logger::instance().info("[managers] Max recent files changed to: {}",
+                                maxFiles);
     }
 }
 
@@ -161,7 +167,8 @@ void RecentFilesManager::cleanupInvalidFiles() {
     auto it = m_recentFiles.begin();
     while (it != m_recentFiles.end()) {
         if (!it->isValid()) {
-            Logger::instance().debug("[managers] Removing invalid file: {}", it->filePath.toStdString());
+            Logger::instance().debug("[managers] Removing invalid file: {}",
+                                     it->filePath.toStdString());
             it = m_recentFiles.erase(it);
             changed = true;
         } else {
@@ -183,17 +190,21 @@ void RecentFilesManager::initializeAsync() {
 
             // 检查对象是否仍然有效
             if (!m_settings) {
-                Logger::instance().warning("[managers] Settings object is null during async cleanup");
+                Logger::instance().warning(
+                    "[managers] Settings object is null during async cleanup");
                 return;
             }
 
             cleanupInvalidFiles();
-            Logger::instance().debug("[managers] Async cleanup completed successfully");
+            Logger::instance().debug(
+                "[managers] Async cleanup completed successfully");
 
         } catch (const std::exception& e) {
-            Logger::instance().error("[managers] Exception during async cleanup: {}", e.what());
+            Logger::instance().error(
+                "[managers] Exception during async cleanup: {}", e.what());
         } catch (...) {
-            Logger::instance().error("[managers] Unknown exception during async cleanup");
+            Logger::instance().error(
+                "[managers] Unknown exception during async cleanup");
         }
     });
 }
@@ -204,7 +215,8 @@ void RecentFilesManager::loadSettings() {
     // 清理无效文件
     cleanupInvalidFiles();
 
-    Logger::instance().info("[managers] Loaded and cleaned {} recent files", m_recentFiles.size());
+    Logger::instance().info("[managers] Loaded and cleaned {} recent files",
+                            m_recentFiles.size());
 }
 
 void RecentFilesManager::loadSettingsWithoutCleanup() {
@@ -236,7 +248,8 @@ void RecentFilesManager::loadSettingsWithoutCleanup() {
                 m_recentFiles.append(info);
                 validCount++;
             } else {
-                Logger::instance().warning("[managers] Skipping invalid file entry at index {}", i);
+                Logger::instance().warning(
+                    "[managers] Skipping invalid file entry at index {}", i);
             }
         }
     }
@@ -244,8 +257,10 @@ void RecentFilesManager::loadSettingsWithoutCleanup() {
     m_settings->endArray();
     m_settings->endGroup();
 
-    Logger::instance().debug("[managers] Loaded {} valid recent files out of {} total entries (without cleanup)",
-              validCount, size);
+    Logger::instance().debug(
+        "[managers] Loaded {} valid recent files out of {} total entries "
+        "(without cleanup)",
+        validCount, size);
 }
 
 void RecentFilesManager::saveSettings() {
@@ -299,8 +314,9 @@ RecentFileInfo RecentFilesManager::variantToFileInfo(
 
     // Validate and fix corrupted data
     if (info.filePath.isEmpty() || info.fileName.isEmpty()) {
-        Logger::instance().warning("[managers] Invalid file info detected, skipping");
-        return RecentFileInfo(); // Return empty/invalid info
+        Logger::instance().warning(
+            "[managers] Invalid file info detected, skipping");
+        return RecentFileInfo();  // Return empty/invalid info
     }
 
     // Ensure fileName is properly extracted from filePath if missing

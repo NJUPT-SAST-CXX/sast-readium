@@ -1,100 +1,99 @@
 #include "ThumbnailModel.h"
-#include "../ui/thumbnail/ThumbnailGenerator.h"
-#include <QDebug>
-#include <QDateTime>
-#include <QMutexLocker>
-#include <QApplication>
 #include <poppler-qt6.h>
+#include <QApplication>
+#include <QDateTime>
+#include <QDebug>
+#include <QMutexLocker>
+#include "../ui/thumbnail/ThumbnailGenerator.h"
 
 ThumbnailModel::ThumbnailModel(QObject* parent)
-    : QAbstractListModel(parent)
-    , m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT)
-    , m_thumbnailQuality(DEFAULT_QUALITY)
-    , m_maxCacheSize(DEFAULT_CACHE_SIZE)
-    , m_maxMemory(DEFAULT_MEMORY_LIMIT)
-    , m_currentMemory(0)
-    , m_cacheHits(0)
-    , m_cacheMisses(0)
-    , m_preloadRange(DEFAULT_PRELOAD_RANGE)
-    , m_visibleStart(-1)
-    , m_visibleEnd(-1)
-    , m_viewportMargin(2)
-    , m_lazyLoadingEnabled(true)
-    , m_cacheCompressionRatio(0.8)
-    , m_adaptiveCaching(true)
-    , m_lastCleanupTime(0)
-{
+    : QAbstractListModel(parent),
+      m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT),
+      m_thumbnailQuality(DEFAULT_QUALITY),
+      m_maxCacheSize(DEFAULT_CACHE_SIZE),
+      m_maxMemory(DEFAULT_MEMORY_LIMIT),
+      m_currentMemory(0),
+      m_cacheHits(0),
+      m_cacheMisses(0),
+      m_preloadRange(DEFAULT_PRELOAD_RANGE),
+      m_visibleStart(-1),
+      m_visibleEnd(-1),
+      m_viewportMargin(2),
+      m_lazyLoadingEnabled(true),
+      m_cacheCompressionRatio(0.8),
+      m_adaptiveCaching(true),
+      m_lastCleanupTime(0) {
     initializeModel();
 }
 
-ThumbnailModel::~ThumbnailModel()
-{
+ThumbnailModel::~ThumbnailModel() {
     if (m_preloadTimer) {
         m_preloadTimer->stop();
     }
     clearCache();
 }
 
-void ThumbnailModel::initializeModel()
-{
+void ThumbnailModel::initializeModel() {
     // 创建缩略图生成器
     m_generator = std::make_unique<ThumbnailGenerator>(this);
-    
+
     // 连接信号
-    connect(m_generator.get(), &ThumbnailGenerator::thumbnailGenerated,
-            this, &ThumbnailModel::onThumbnailGenerated);
-    connect(m_generator.get(), &ThumbnailGenerator::thumbnailError,
-            this, &ThumbnailModel::onThumbnailError);
-    
+    connect(m_generator.get(), &ThumbnailGenerator::thumbnailGenerated, this,
+            &ThumbnailModel::onThumbnailGenerated);
+    connect(m_generator.get(), &ThumbnailGenerator::thumbnailError, this,
+            &ThumbnailModel::onThumbnailError);
+
     // 设置预加载定时器
     m_preloadTimer = new QTimer(this);
     m_preloadTimer->setInterval(PRELOAD_TIMER_INTERVAL);
     m_preloadTimer->setSingleShot(false);
-    connect(m_preloadTimer, &QTimer::timeout, this, &ThumbnailModel::onPreloadTimer);
-    
+    connect(m_preloadTimer, &QTimer::timeout, this,
+            &ThumbnailModel::onPreloadTimer);
+
     // 设置缓存清理定时器
     QTimer* cleanupTimer = new QTimer(this);
-    cleanupTimer->setInterval(30000); // 30秒清理一次
+    cleanupTimer->setInterval(30000);  // 30秒清理一次
     cleanupTimer->setSingleShot(false);
-    connect(cleanupTimer, &QTimer::timeout, this, &ThumbnailModel::cleanupCache);
+    connect(cleanupTimer, &QTimer::timeout, this,
+            &ThumbnailModel::cleanupCache);
     cleanupTimer->start();
 
     // 设置优先级更新定时器
     m_priorityUpdateTimer = new QTimer(this);
-    m_priorityUpdateTimer->setInterval(200); // 200ms间隔
+    m_priorityUpdateTimer->setInterval(200);  // 200ms间隔
     m_priorityUpdateTimer->setSingleShot(false);
-    connect(m_priorityUpdateTimer, &QTimer::timeout, this, &ThumbnailModel::onPriorityUpdateTimer);
+    connect(m_priorityUpdateTimer, &QTimer::timeout, this,
+            &ThumbnailModel::onPriorityUpdateTimer);
 }
 
-int ThumbnailModel::rowCount(const QModelIndex& parent) const
-{
+int ThumbnailModel::rowCount(const QModelIndex& parent) const {
     Q_UNUSED(parent)
     return m_document ? m_document->numPages() : 0;
 }
 
-QVariant ThumbnailModel::data(const QModelIndex& index, int role) const
-{
+QVariant ThumbnailModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid() || !m_document) {
         return QVariant();
     }
-    
+
     int pageNumber = index.row();
     if (pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return QVariant();
     }
-    
+
     QMutexLocker locker(&m_thumbnailsMutex);
-    
+
     switch (role) {
         case PageNumberRole:
             return pageNumber;
-            
+
         case PixmapRole: {
             auto it = m_thumbnails.find(pageNumber);
             if (it != m_thumbnails.end()) {
                 // 更新访问时间和频率
                 it->lastAccessed = QDateTime::currentMSecsSinceEpoch();
-                const_cast<ThumbnailModel*>(this)->updateAccessFrequency(pageNumber);
+                const_cast<ThumbnailModel*>(this)->updateAccessFrequency(
+                    pageNumber);
                 if (!it->pixmap.isNull()) {
                     const_cast<ThumbnailModel*>(this)->m_cacheHits++;
                     return it->pixmap;
@@ -106,60 +105,60 @@ QVariant ThumbnailModel::data(const QModelIndex& index, int role) const
             const_cast<ThumbnailModel*>(this)->requestThumbnail(pageNumber);
             return QVariant();
         }
-        
+
         case LoadingRole: {
             auto it = m_thumbnails.find(pageNumber);
             return (it != m_thumbnails.end()) ? it->isLoading : false;
         }
-        
+
         case ErrorRole: {
             auto it = m_thumbnails.find(pageNumber);
             return (it != m_thumbnails.end()) ? it->hasError : false;
         }
-        
+
         case ErrorMessageRole: {
             auto it = m_thumbnails.find(pageNumber);
             return (it != m_thumbnails.end()) ? it->errorMessage : QString();
         }
-        
+
         case PageSizeRole: {
             auto it = m_thumbnails.find(pageNumber);
             if (it != m_thumbnails.end() && !it->pageSize.isEmpty()) {
                 return it->pageSize;
             }
-            
+
             // 如果没有缓存页面尺寸，尝试获取
             if (m_document) {
-                std::unique_ptr<Poppler::Page> page(m_document->page(pageNumber));
+                std::unique_ptr<Poppler::Page> page(
+                    m_document->page(pageNumber));
                 if (page) {
                     QSizeF pageSize = page->pageSizeF();
                     QSize size = pageSize.toSize();
-                    
+
                     // 缓存页面尺寸
-                    ThumbnailItem& item = const_cast<ThumbnailModel*>(this)->m_thumbnails[pageNumber];
+                    ThumbnailItem& item = const_cast<ThumbnailModel*>(this)
+                                              ->m_thumbnails[pageNumber];
                     item.pageSize = size;
-                    
+
                     return size;
                 }
             }
             return QVariant();
         }
-        
+
         default:
             return QVariant();
     }
 }
 
-Qt::ItemFlags ThumbnailModel::flags(const QModelIndex& index) const
-{
+Qt::ItemFlags ThumbnailModel::flags(const QModelIndex& index) const {
     if (!index.isValid()) {
         return Qt::NoItemFlags;
     }
     return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 }
 
-QHash<int, QByteArray> ThumbnailModel::roleNames() const
-{
+QHash<int, QByteArray> ThumbnailModel::roleNames() const {
     QHash<int, QByteArray> roles;
     roles[PageNumberRole] = "pageNumber";
     roles[PixmapRole] = "pixmap";
@@ -170,32 +169,30 @@ QHash<int, QByteArray> ThumbnailModel::roleNames() const
     return roles;
 }
 
-void ThumbnailModel::setDocument(std::shared_ptr<Poppler::Document> document)
-{
+void ThumbnailModel::setDocument(std::shared_ptr<Poppler::Document> document) {
     beginResetModel();
-    
+
     m_document = document;
     clearCache();
-    
+
     if (m_generator) {
         m_generator->setDocument(document);
     }
-    
+
     endResetModel();
 }
 
-void ThumbnailModel::setThumbnailSize(const QSize& size)
-{
+void ThumbnailModel::setThumbnailSize(const QSize& size) {
     if (m_thumbnailSize != size) {
         m_thumbnailSize = size;
-        
+
         if (m_generator) {
             m_generator->setThumbnailSize(size);
         }
-        
+
         // 清除现有缓存，因为尺寸改变了
         clearCache();
-        
+
         // 通知视图刷新
         if (rowCount() > 0) {
             emit dataChanged(index(0), index(rowCount() - 1));
@@ -203,18 +200,17 @@ void ThumbnailModel::setThumbnailSize(const QSize& size)
     }
 }
 
-void ThumbnailModel::setThumbnailQuality(double quality)
-{
+void ThumbnailModel::setThumbnailQuality(double quality) {
     if (qAbs(m_thumbnailQuality - quality) > 0.001) {
         m_thumbnailQuality = quality;
-        
+
         if (m_generator) {
             m_generator->setQuality(quality);
         }
-        
+
         // 清除现有缓存，因为质量改变了
         clearCache();
-        
+
         // 通知视图刷新
         if (rowCount() > 0) {
             emit dataChanged(index(0), index(rowCount() - 1));
@@ -222,45 +218,40 @@ void ThumbnailModel::setThumbnailQuality(double quality)
     }
 }
 
-void ThumbnailModel::setCacheSize(int maxItems)
-{
+void ThumbnailModel::setCacheSize(int maxItems) {
     m_maxCacheSize = qMax(1, maxItems);
-    
+
     // 如果当前缓存超过限制，清理多余项
     while (m_thumbnails.size() > m_maxCacheSize) {
         evictLeastRecentlyUsed();
     }
 }
 
-void ThumbnailModel::setMemoryLimit(qint64 maxMemory)
-{
-    m_maxMemory = qMax(1024LL * 1024, maxMemory); // 最少1MB
-    
+void ThumbnailModel::setMemoryLimit(qint64 maxMemory) {
+    m_maxMemory = qMax(1024LL * 1024, maxMemory);  // 最少1MB
+
     // 如果当前内存使用超过限制，清理
     while (m_currentMemory > m_maxMemory && !m_thumbnails.isEmpty()) {
         evictLeastRecentlyUsed();
     }
 }
 
-void ThumbnailModel::clearCache()
-{
+void ThumbnailModel::clearCache() {
     QMutexLocker locker(&m_thumbnailsMutex);
-    
+
     m_thumbnails.clear();
     m_currentMemory = 0;
     m_preloadQueue.clear();
-    
+
     emit cacheUpdated();
     emit memoryUsageChanged(m_currentMemory);
 }
 
-void ThumbnailModel::setPreloadRange(int range)
-{
+void ThumbnailModel::setPreloadRange(int range) {
     m_preloadRange = qMax(0, range);
 }
 
-void ThumbnailModel::requestThumbnail(int pageNumber)
-{
+void ThumbnailModel::requestThumbnail(int pageNumber) {
     if (!m_document || pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return;
     }
@@ -290,7 +281,8 @@ void ThumbnailModel::requestThumbnail(int pageNumber)
     // 发送生成请求，使用优先级
     if (m_generator) {
         int priority = calculatePriority(pageNumber);
-        m_generator->generateThumbnail(pageNumber, m_thumbnailSize, m_thumbnailQuality, priority);
+        m_generator->generateThumbnail(pageNumber, m_thumbnailSize,
+                                       m_thumbnailQuality, priority);
     }
 
     // 通知加载状态变化
@@ -300,9 +292,9 @@ void ThumbnailModel::requestThumbnail(int pageNumber)
     emit dataChanged(idx, idx, {LoadingRole});
 }
 
-void ThumbnailModel::requestThumbnailRange(int startPage, int endPage)
-{
-    if (!m_document) return;
+void ThumbnailModel::requestThumbnailRange(int startPage, int endPage) {
+    if (!m_document)
+        return;
 
     int numPages = m_document->numPages();
     startPage = qMax(0, startPage);
@@ -313,29 +305,25 @@ void ThumbnailModel::requestThumbnailRange(int startPage, int endPage)
     }
 }
 
-bool ThumbnailModel::isLoading(int pageNumber) const
-{
+bool ThumbnailModel::isLoading(int pageNumber) const {
     QMutexLocker locker(&m_thumbnailsMutex);
     auto it = m_thumbnails.find(pageNumber);
     return (it != m_thumbnails.end()) ? it->isLoading : false;
 }
 
-bool ThumbnailModel::hasError(int pageNumber) const
-{
+bool ThumbnailModel::hasError(int pageNumber) const {
     QMutexLocker locker(&m_thumbnailsMutex);
     auto it = m_thumbnails.find(pageNumber);
     return (it != m_thumbnails.end()) ? it->hasError : false;
 }
 
-QString ThumbnailModel::errorMessage(int pageNumber) const
-{
+QString ThumbnailModel::errorMessage(int pageNumber) const {
     QMutexLocker locker(&m_thumbnailsMutex);
     auto it = m_thumbnails.find(pageNumber);
     return (it != m_thumbnails.end()) ? it->errorMessage : QString();
 }
 
-void ThumbnailModel::refreshThumbnail(int pageNumber)
-{
+void ThumbnailModel::refreshThumbnail(int pageNumber) {
     if (!m_document || pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return;
     }
@@ -358,8 +346,7 @@ void ThumbnailModel::refreshThumbnail(int pageNumber)
     emit memoryUsageChanged(m_currentMemory);
 }
 
-void ThumbnailModel::refreshAllThumbnails()
-{
+void ThumbnailModel::refreshAllThumbnails() {
     clearCache();
 
     if (rowCount() > 0) {
@@ -367,9 +354,9 @@ void ThumbnailModel::refreshAllThumbnails()
     }
 }
 
-void ThumbnailModel::preloadVisibleRange(int firstVisible, int lastVisible)
-{
-    if (!m_document) return;
+void ThumbnailModel::preloadVisibleRange(int firstVisible, int lastVisible) {
+    if (!m_document)
+        return;
 
     int numPages = m_document->numPages();
 
@@ -390,13 +377,13 @@ void ThumbnailModel::preloadVisibleRange(int firstVisible, int lastVisible)
     }
 }
 
-void ThumbnailModel::onThumbnailGenerated(int pageNumber, const QPixmap& pixmap)
-{
+void ThumbnailModel::onThumbnailGenerated(int pageNumber,
+                                          const QPixmap& pixmap) {
     QMutexLocker locker(&m_thumbnailsMutex);
 
     auto it = m_thumbnails.find(pageNumber);
     if (it == m_thumbnails.end()) {
-        return; // 项目可能已被清理
+        return;  // 项目可能已被清理
     }
 
     // 更新缓存项
@@ -425,8 +412,7 @@ void ThumbnailModel::onThumbnailGenerated(int pageNumber, const QPixmap& pixmap)
     emit dataChanged(idx, idx, {PixmapRole, LoadingRole});
 }
 
-void ThumbnailModel::onThumbnailError(int pageNumber, const QString& error)
-{
+void ThumbnailModel::onThumbnailError(int pageNumber, const QString& error) {
     QMutexLocker locker(&m_thumbnailsMutex);
 
     auto it = m_thumbnails.find(pageNumber);
@@ -450,8 +436,7 @@ void ThumbnailModel::onThumbnailError(int pageNumber, const QString& error)
     emit dataChanged(idx, idx, {LoadingRole, ErrorRole, ErrorMessageRole});
 }
 
-void ThumbnailModel::onPreloadTimer()
-{
+void ThumbnailModel::onPreloadTimer() {
     if (m_preloadQueue.isEmpty()) {
         m_preloadTimer->stop();
         return;
@@ -469,8 +454,7 @@ void ThumbnailModel::onPreloadTimer()
     }
 }
 
-void ThumbnailModel::cleanupCache()
-{
+void ThumbnailModel::cleanupCache() {
     QMutexLocker locker(&m_thumbnailsMutex);
 
     if (m_thumbnails.isEmpty()) {
@@ -493,8 +477,7 @@ void ThumbnailModel::cleanupCache()
     emit cacheUpdated();
 }
 
-void ThumbnailModel::evictLeastRecentlyUsed()
-{
+void ThumbnailModel::evictLeastRecentlyUsed() {
     if (m_thumbnails.isEmpty()) {
         return;
     }
@@ -517,8 +500,7 @@ void ThumbnailModel::evictLeastRecentlyUsed()
     m_thumbnails.erase(oldestIt);
 }
 
-qint64 ThumbnailModel::calculatePixmapMemory(const QPixmap& pixmap) const
-{
+qint64 ThumbnailModel::calculatePixmapMemory(const QPixmap& pixmap) const {
     if (pixmap.isNull()) {
         return 0;
     }
@@ -527,8 +509,7 @@ qint64 ThumbnailModel::calculatePixmapMemory(const QPixmap& pixmap) const
     return static_cast<qint64>(pixmap.width()) * pixmap.height() * 4;
 }
 
-void ThumbnailModel::updateMemoryUsage()
-{
+void ThumbnailModel::updateMemoryUsage() {
     QMutexLocker locker(&m_thumbnailsMutex);
 
     qint64 totalMemory = 0;
@@ -540,8 +521,7 @@ void ThumbnailModel::updateMemoryUsage()
     emit memoryUsageChanged(m_currentMemory);
 }
 
-bool ThumbnailModel::shouldPreload(int pageNumber) const
-{
+bool ThumbnailModel::shouldPreload(int pageNumber) const {
     if (!m_document || pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return false;
     }
@@ -554,12 +534,11 @@ bool ThumbnailModel::shouldPreload(int pageNumber) const
         return it->pixmap.isNull() && !it->isLoading && !it->hasError;
     }
 
-    return true; // 没有缓存项，需要预加载
+    return true;  // 没有缓存项，需要预加载
 }
 
 // 懒加载和视口管理实现
-void ThumbnailModel::setLazyLoadingEnabled(bool enabled)
-{
+void ThumbnailModel::setLazyLoadingEnabled(bool enabled) {
     m_lazyLoadingEnabled = enabled;
     if (enabled && m_priorityUpdateTimer) {
         m_priorityUpdateTimer->start();
@@ -568,8 +547,7 @@ void ThumbnailModel::setLazyLoadingEnabled(bool enabled)
     }
 }
 
-void ThumbnailModel::setViewportRange(int start, int end, int margin)
-{
+void ThumbnailModel::setViewportRange(int start, int end, int margin) {
     m_visibleStart = start;
     m_visibleEnd = end;
     m_viewportMargin = margin;
@@ -579,22 +557,23 @@ void ThumbnailModel::setViewportRange(int start, int end, int margin)
     }
 }
 
-void ThumbnailModel::updateViewportPriorities()
-{
-    if (!m_document) return;
+void ThumbnailModel::updateViewportPriorities() {
+    if (!m_document)
+        return;
 
     m_pagePriorities.clear();
 
     // 可见区域最高优先级
     for (int i = m_visibleStart; i <= m_visibleEnd; ++i) {
         if (i >= 0 && i < m_document->numPages()) {
-            m_pagePriorities[i] = 0; // 最高优先级
+            m_pagePriorities[i] = 0;  // 最高优先级
         }
     }
 
     // 预加载区域次高优先级
     int preloadStart = qMax(0, m_visibleStart - m_viewportMargin);
-    int preloadEnd = qMin(m_document->numPages() - 1, m_visibleEnd + m_viewportMargin);
+    int preloadEnd =
+        qMin(m_document->numPages() - 1, m_visibleEnd + m_viewportMargin);
 
     for (int i = preloadStart; i < m_visibleStart; ++i) {
         m_pagePriorities[i] = 1;
@@ -604,8 +583,7 @@ void ThumbnailModel::updateViewportPriorities()
     }
 }
 
-bool ThumbnailModel::shouldGenerateThumbnail(int pageNumber) const
-{
+bool ThumbnailModel::shouldGenerateThumbnail(int pageNumber) const {
     if (!m_lazyLoadingEnabled) {
         return true;
     }
@@ -613,8 +591,7 @@ bool ThumbnailModel::shouldGenerateThumbnail(int pageNumber) const
     return isInViewport(pageNumber);
 }
 
-int ThumbnailModel::calculatePriority(int pageNumber) const
-{
+int ThumbnailModel::calculatePriority(int pageNumber) const {
     auto it = m_pagePriorities.find(pageNumber);
     if (it != m_pagePriorities.end()) {
         return it.value();
@@ -624,10 +601,9 @@ int ThumbnailModel::calculatePriority(int pageNumber) const
     return 5;
 }
 
-bool ThumbnailModel::isInViewport(int pageNumber) const
-{
+bool ThumbnailModel::isInViewport(int pageNumber) const {
     if (m_visibleStart < 0 || m_visibleEnd < 0) {
-        return true; // 如果没有设置视口，生成所有缩略图
+        return true;  // 如果没有设置视口，生成所有缩略图
     }
 
     int expandedStart = qMax(0, m_visibleStart - m_viewportMargin);
@@ -636,16 +612,14 @@ bool ThumbnailModel::isInViewport(int pageNumber) const
     return pageNumber >= expandedStart && pageNumber <= expandedEnd;
 }
 
-void ThumbnailModel::onPriorityUpdateTimer()
-{
+void ThumbnailModel::onPriorityUpdateTimer() {
     if (m_lazyLoadingEnabled) {
         updateViewportPriorities();
     }
 }
 
 // 高级缓存管理实现
-void ThumbnailModel::updateAccessFrequency(int pageNumber)
-{
+void ThumbnailModel::updateAccessFrequency(int pageNumber) {
     m_accessFrequency[pageNumber]++;
 
     // 限制频率表大小
@@ -662,9 +636,9 @@ void ThumbnailModel::updateAccessFrequency(int pageNumber)
     }
 }
 
-void ThumbnailModel::evictLeastFrequentlyUsed()
-{
-    if (m_thumbnails.isEmpty()) return;
+void ThumbnailModel::evictLeastFrequentlyUsed() {
+    if (m_thumbnails.isEmpty())
+        return;
 
     QMutexLocker locker(&m_thumbnailsMutex);
 
@@ -694,8 +668,7 @@ void ThumbnailModel::evictLeastFrequentlyUsed()
     }
 }
 
-void ThumbnailModel::evictByAdaptivePolicy()
-{
+void ThumbnailModel::evictByAdaptivePolicy() {
     if (!m_adaptiveCaching) {
         evictLeastRecentlyUsed();
         return;
@@ -713,16 +686,15 @@ void ThumbnailModel::evictByAdaptivePolicy()
     }
 }
 
-double ThumbnailModel::calculateCacheEfficiency() const
-{
+double ThumbnailModel::calculateCacheEfficiency() const {
     int totalAccess = m_cacheHits + m_cacheMisses;
-    if (totalAccess == 0) return 1.0;
+    if (totalAccess == 0)
+        return 1.0;
 
     return static_cast<double>(m_cacheHits) / totalAccess;
 }
 
-void ThumbnailModel::adaptCacheSize()
-{
+void ThumbnailModel::adaptCacheSize() {
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
     // 每30秒调整一次

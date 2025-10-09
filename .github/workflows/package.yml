@@ -179,7 +179,7 @@ jobs:
     name: Package Linux
     runs-on: ubuntu-latest
     needs: [version-info, build-for-packaging]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -194,7 +194,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y dpkg-dev rpm build-essential fakeroot
-          
+
           # Install AppImage tools
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
@@ -206,10 +206,10 @@ jobs:
           mkdir -p packaging/deb/usr/bin
           mkdir -p packaging/deb/usr/share/applications
           mkdir -p packaging/deb/usr/share/pixmaps
-          
+
           # Copy binary
           cp build/Release/app/app packaging/deb/usr/bin/${{ env.APP_NAME }}
-          
+
           # Create desktop file
           cat > packaging/deb/usr/share/applications/${{ env.APP_NAME }}.desktop << EOF
           [Desktop Entry]
@@ -222,7 +222,7 @@ jobs:
           Categories=Office;Viewer;
           MimeType=application/pdf;
           EOF
-          
+
           # Create control file
           cat > packaging/deb/DEBIAN/control << EOF
           Package: ${{ env.APP_NAME }}
@@ -235,14 +235,14 @@ jobs:
           Description: Qt6-based PDF reader application
            A modern PDF reader built with Qt6 and Poppler.
           EOF
-          
+
           # Build .deb
           dpkg-deb --build packaging/deb ${{ env.APP_NAME }}_${{ needs.version-info.outputs.version_number }}_amd64.deb
 
       - name: Create .rpm package
         run: |
           mkdir -p packaging/rpm/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          
+
           # Create RPM spec file
           cat > packaging/rpm/SPECS/${{ env.APP_NAME }}.spec << EOF
           Name: ${{ env.APP_NAME }}
@@ -251,25 +251,25 @@ jobs:
           Summary: Qt6-based PDF reader
           License: MIT
           URL: https://github.com/SAST-Readium/sast-readium
-          
+
           %description
           A modern PDF reader built with Qt6 and Poppler.
-          
+
           %install
           mkdir -p %{buildroot}/usr/bin
           mkdir -p %{buildroot}/usr/share/applications
           cp ${{ github.workspace }}/build/Release/app/app %{buildroot}/usr/bin/${{ env.APP_NAME }}
           cp ${{ github.workspace }}/packaging/deb/usr/share/applications/${{ env.APP_NAME }}.desktop %{buildroot}/usr/share/applications/
-          
+
           %files
           /usr/bin/${{ env.APP_NAME }}
           /usr/share/applications/${{ env.APP_NAME }}.desktop
-          
+
           %changelog
           * $(date +'%a %b %d %Y') SAST Team - ${{ needs.version-info.outputs.version_number }}-1
           - Release ${{ needs.version-info.outputs.version }}
           EOF
-          
+
           # Build RPM
           rpmbuild --define "_topdir $(pwd)/packaging/rpm" -bb packaging/rpm/SPECS/${{ env.APP_NAME }}.spec
           cp packaging/rpm/RPMS/x86_64/${{ env.APP_NAME }}-*.rpm ./
@@ -279,11 +279,11 @@ jobs:
           mkdir -p packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/bin
           mkdir -p packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/share/applications
           mkdir -p packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/share/icons/hicolor/256x256/apps
-          
+
           # Copy files
           cp build/Release/app/app packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/bin/${{ env.APP_NAME }}
           cp packaging/deb/usr/share/applications/${{ env.APP_NAME }}.desktop packaging/appimage/${{ env.APP_NAME }}.AppDir/
-          
+
           # Create AppRun
           cat > packaging/appimage/${{ env.APP_NAME }}.AppDir/AppRun << 'EOF'
           #!/bin/bash
@@ -291,7 +291,7 @@ jobs:
           exec "${HERE}/usr/bin/${{ env.APP_NAME }}" "$@"
           EOF
           chmod +x packaging/appimage/${{ env.APP_NAME }}.AppDir/AppRun
-          
+
           # Build AppImage
           cd packaging/appimage
           appimagetool ${{ env.APP_NAME }}.AppDir ${{ env.APP_NAME }}-${{ needs.version-info.outputs.version_number }}-x86_64.AppImage
@@ -311,7 +311,7 @@ jobs:
     name: Package macOS
     runs-on: macos-latest
     needs: [version-info, build-for-packaging]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -329,11 +329,11 @@ jobs:
       - name: Create .app bundle
         run: |
           mkdir -p packaging/macos/${{ env.APP_NAME }}.app/Contents/{MacOS,Resources}
-          
+
           # Copy binary
           cp build/Release/app/app packaging/macos/${{ env.APP_NAME }}.app/Contents/MacOS/${{ env.APP_NAME }}
           chmod +x packaging/macos/${{ env.APP_NAME }}.app/Contents/MacOS/${{ env.APP_NAME }}
-          
+
           # Create Info.plist
           cat > packaging/macos/${{ env.APP_NAME }}.app/Contents/Info.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -384,7 +384,7 @@ jobs:
     name: Package Windows
     runs-on: windows-latest
     needs: [version-info, build-for-packaging]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -407,17 +407,17 @@ jobs:
           @"
           <?xml version="1.0" encoding="UTF-8"?>
           <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-            <Product Id="*" Name="SAST Readium" Language="1033" Version="${{ needs.version-info.outputs.version_number }}" 
+            <Product Id="*" Name="SAST Readium" Language="1033" Version="${{ needs.version-info.outputs.version_number }}"
                      Manufacturer="SAST Team" UpgradeCode="12345678-1234-1234-1234-123456789012">
               <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
               <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
               <MediaTemplate EmbedCab="yes" />
-              
+
               <Feature Id="ProductFeature" Title="SAST Readium" Level="1">
                 <ComponentGroupRef Id="ProductComponents" />
               </Feature>
             </Product>
-            
+
             <Fragment>
               <Directory Id="TARGETDIR" Name="SourceDir">
                 <Directory Id="ProgramFilesFolder">
@@ -425,7 +425,7 @@ jobs:
                 </Directory>
               </Directory>
             </Fragment>
-            
+
             <Fragment>
               <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
                 <Component Id="MainExecutable" Guid="*">
@@ -435,7 +435,7 @@ jobs:
             </Fragment>
           </Wix>
           "@ | Out-File -FilePath "installer.wxs" -Encoding UTF8
-          
+
           # Compile and link
           candle.exe installer.wxs
           light.exe installer.wixobj -o "${{ env.APP_NAME }}-${{ needs.version-info.outputs.version_number }}-x64.msi"

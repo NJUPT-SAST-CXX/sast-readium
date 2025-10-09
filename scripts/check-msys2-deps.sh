@@ -57,24 +57,24 @@ get_package_version() {
 # Function to check MSYS2 environment
 check_msys2_env() {
     print_status "Checking MSYS2 environment..."
-    
+
     if [[ -z "$MSYSTEM" ]]; then
         print_error "Not running in MSYS2 environment"
         print_error "Please start MSYS2 and run this script from there"
         return 1
     fi
-    
+
     print_success "MSYS2 environment: $MSYSTEM"
     print_status "MSYSTEM_PREFIX: $MSYSTEM_PREFIX"
     print_status "MSYSTEM_CARCH: $MSYSTEM_CARCH"
-    
+
     return 0
 }
 
 # Function to check core build tools
 check_build_tools() {
     print_status "Checking core build tools..."
-    
+
     local tools=(
         "cmake:mingw-w64-$MSYSTEM_CARCH-cmake"
         "ninja:mingw-w64-$MSYSTEM_CARCH-ninja"
@@ -83,12 +83,12 @@ check_build_tools() {
         "pkg-config:mingw-w64-$MSYSTEM_CARCH-pkg-config"
         "git:git"
     )
-    
+
     local missing_tools=()
-    
+
     for tool_info in "${tools[@]}"; do
         IFS=':' read -r cmd package <<< "$tool_info"
-        
+
         if check_command "$cmd"; then
             local version
             case "$cmd" in
@@ -117,28 +117,28 @@ check_build_tools() {
             missing_tools+=("$package")
         fi
     done
-    
+
     if [[ ${#missing_tools[@]} -gt 0 ]]; then
         print_warning "Missing build tools. Install with:"
         echo "pacman -S ${missing_tools[*]}"
         return 1
     fi
-    
+
     return 0
 }
 
 # Function to check Qt6 dependencies
 check_qt6_deps() {
     print_status "Checking Qt6 dependencies..."
-    
+
     local qt_packages=(
         "mingw-w64-$MSYSTEM_CARCH-qt6-base"
         "mingw-w64-$MSYSTEM_CARCH-qt6-svg"
         "mingw-w64-$MSYSTEM_CARCH-qt6-tools"
     )
-    
+
     local missing_qt=()
-    
+
     for package in "${qt_packages[@]}"; do
         if check_package "$package"; then
             local version=$(get_package_version "$package")
@@ -148,7 +148,7 @@ check_qt6_deps() {
             missing_qt+=("$package")
         fi
     done
-    
+
     # Check Qt6 commands
     local qt_commands=(
         "qmake6"
@@ -156,7 +156,7 @@ check_qt6_deps() {
         "uic"
         "rcc"
     )
-    
+
     for cmd in "${qt_commands[@]}"; do
         if check_command "$cmd"; then
             print_success "$cmd: Available"
@@ -164,26 +164,26 @@ check_qt6_deps() {
             print_warning "$cmd: Not found"
         fi
     done
-    
+
     if [[ ${#missing_qt[@]} -gt 0 ]]; then
         print_warning "Missing Qt6 packages. Install with:"
         echo "pacman -S ${missing_qt[*]}"
         return 1
     fi
-    
+
     return 0
 }
 
 # Function to check Poppler dependencies
 check_poppler_deps() {
     print_status "Checking Poppler dependencies..."
-    
+
     local poppler_package="mingw-w64-$MSYSTEM_CARCH-poppler-qt6"
-    
+
     if check_package "$poppler_package"; then
         local version=$(get_package_version "$poppler_package")
         print_success "$poppler_package: $version"
-        
+
         # Check pkg-config for poppler-qt6
         if pkg-config --exists poppler-qt6; then
             local pc_version=$(pkg-config --modversion poppler-qt6)
@@ -191,7 +191,7 @@ check_poppler_deps() {
         else
             print_warning "poppler-qt6 pkg-config not found"
         fi
-        
+
         return 0
     else
         print_warning "$poppler_package: Not installed"
@@ -203,11 +203,11 @@ check_poppler_deps() {
 # Function to check vcpkg (optional)
 check_vcpkg() {
     print_status "Checking vcpkg (optional)..."
-    
+
     if [[ -n "$VCPKG_ROOT" ]]; then
         if [[ -d "$VCPKG_ROOT" ]]; then
             print_success "VCPKG_ROOT: $VCPKG_ROOT"
-            
+
             if [[ -f "$VCPKG_ROOT/vcpkg.exe" ]]; then
                 print_success "vcpkg executable found"
             else
@@ -224,7 +224,7 @@ check_vcpkg() {
 # Function to install all missing dependencies
 install_all_deps() {
     print_status "Installing all required dependencies..."
-    
+
     local all_packages=(
         "mingw-w64-$MSYSTEM_CARCH-cmake"
         "mingw-w64-$MSYSTEM_CARCH-ninja"
@@ -236,13 +236,13 @@ install_all_deps() {
         "mingw-w64-$MSYSTEM_CARCH-pkg-config"
         "git"
     )
-    
+
     print_status "Updating package database..."
     pacman -Sy
-    
+
     print_status "Installing packages: ${all_packages[*]}"
     pacman -S --needed --noconfirm "${all_packages[@]}"
-    
+
     print_success "All dependencies installed successfully"
 }
 
@@ -267,7 +267,7 @@ EOF
 # Main function
 main() {
     local install_deps=false
-    
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -286,49 +286,49 @@ main() {
                 ;;
         esac
     done
-    
+
     print_status "MSYS2 Dependency Checker for SAST Readium"
     echo "=============================================="
-    
+
     # Check environment
     if ! check_msys2_env; then
         exit 1
     fi
-    
+
     echo
-    
+
     # Install dependencies if requested
     if [[ "$install_deps" == "true" ]]; then
         install_all_deps
         echo
     fi
-    
+
     # Check all dependencies
     local all_good=true
-    
+
     if ! check_build_tools; then
         all_good=false
     fi
-    
+
     echo
-    
+
     if ! check_qt6_deps; then
         all_good=false
     fi
-    
+
     echo
-    
+
     if ! check_poppler_deps; then
         all_good=false
     fi
-    
+
     echo
-    
+
     check_vcpkg
-    
+
     echo
     echo "=============================================="
-    
+
     if [[ "$all_good" == "true" ]]; then
         print_success "All required dependencies are available!"
         print_status "You can now build the project with:"

@@ -113,7 +113,7 @@ bool qgraphicsAvailable = false;
 if (qgraphicsAvailable) {
     // Switch to QGraphics mode
     viewer->setQGraphicsRenderingEnabled(true);
-    
+
     // Configure enhanced features
     viewer->setQGraphicsHighQualityRendering(true);
     viewer->setQGraphicsViewMode(1); // Continuous mode

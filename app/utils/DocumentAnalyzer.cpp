@@ -1,39 +1,39 @@
 #include "DocumentAnalyzer.h"
-#include "PDFUtilities.h"
 #include <poppler-qt6.h>
-#include <QDateTime>
-#include <QFile>
-#include "Logger.h"
-#include <QTextStream>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QStringList>
-#include <QDir>
-#include <QFileInfo>
-#include <QCryptographicHash>
-#include <QRandomGenerator>
 #include <QBuffer>
-#include <QRegularExpression>
-#include <QTimer>
+#include <QCryptographicHash>
+#include <QDateTime>
+#include <QDir>
 #include <QElapsedTimer>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QRandomGenerator>
+#include <QRegularExpression>
+#include <QStringList>
+#include <QTextStream>
+#include <QTimer>
 #include <QtMath>
 #include <memory>
+#include "Logger.h"
+#include "PDFUtilities.h"
 
 DocumentAnalyzer::DocumentAnalyzer(QObject* parent)
-    : QObject(parent)
-    , m_totalDocuments(0)
-    , m_processedDocuments(0)
-    , m_failedDocuments(0)
-    , m_batchRunning(false)
-    , m_cachingEnabled(true)
-    , m_maxCacheSize(DEFAULT_MAX_CACHE_SIZE)
-    , m_progressTimer(nullptr)
-    , m_analysisWatcher(nullptr)
-{
+    : QObject(parent),
+      m_totalDocuments(0),
+      m_processedDocuments(0),
+      m_failedDocuments(0),
+      m_batchRunning(false),
+      m_cachingEnabled(true),
+      m_maxCacheSize(DEFAULT_MAX_CACHE_SIZE),
+      m_progressTimer(nullptr),
+      m_analysisWatcher(nullptr) {
     m_progressTimer = new QTimer(this);
-    m_progressTimer->setInterval(1000); // Update progress every second
-    connect(m_progressTimer, &QTimer::timeout, this, &DocumentAnalyzer::onBatchProgressUpdate);
-    
+    m_progressTimer->setInterval(1000);  // Update progress every second
+    connect(m_progressTimer, &QTimer::timeout, this,
+            &DocumentAnalyzer::onBatchProgressUpdate);
+
     // Initialize default settings
     m_settings.analysisTypes = FullAnalysis;
     m_settings.maxConcurrentJobs = DEFAULT_MAX_CONCURRENT_JOBS;
@@ -45,111 +45,117 @@ DocumentAnalyzer::DocumentAnalyzer(QObject* parent)
     m_settings.maxKeywords = 20;
 }
 
-DocumentAnalyzer::~DocumentAnalyzer()
-{
+DocumentAnalyzer::~DocumentAnalyzer() {
     if (m_batchRunning) {
         stopBatchAnalysis();
     }
 }
 
-DocumentAnalyzer::AnalysisResult DocumentAnalyzer::analyzeDocument(const QString& filePath, AnalysisTypes types)
-{
+DocumentAnalyzer::AnalysisResult DocumentAnalyzer::analyzeDocument(
+    const QString& filePath, AnalysisTypes types) {
     QElapsedTimer timer;
     timer.start();
-    
+
     AnalysisResult result;
     result.documentPath = filePath;
     result.timestamp = QDateTime::currentDateTime();
     result.success = false;
-    
+
     // Check cache first
     if (m_cachingEnabled) {
-        QString cacheKey = QCryptographicHash::hash(filePath.toUtf8(), QCryptographicHash::Md5).toHex();
+        QString cacheKey =
+            QCryptographicHash::hash(filePath.toUtf8(), QCryptographicHash::Md5)
+                .toHex();
         if (hasCachedResult(cacheKey)) {
             return getCachedResult(cacheKey);
         }
     }
-    
+
     // Load document
-    std::unique_ptr<Poppler::Document> document(Poppler::Document::load(filePath));
+    std::unique_ptr<Poppler::Document> document(
+        Poppler::Document::load(filePath));
     if (!document) {
         result.errorMessage = "Failed to load document";
         result.processingTime = timer.elapsed();
         return result;
     }
-    
+
     if (document->isLocked()) {
         result.errorMessage = "Document is password protected";
         result.processingTime = timer.elapsed();
         return result;
     }
-    
+
     result = performAnalysis(document.get(), filePath, types);
     result.processingTime = timer.elapsed();
-    
+
     // Cache result
     if (m_cachingEnabled && result.success) {
-        QString cacheKey = QCryptographicHash::hash(filePath.toUtf8(), QCryptographicHash::Md5).toHex();
+        QString cacheKey =
+            QCryptographicHash::hash(filePath.toUtf8(), QCryptographicHash::Md5)
+                .toHex();
         cacheResult(cacheKey, result);
     }
-    
+
     return result;
 }
 
-DocumentAnalyzer::AnalysisResult DocumentAnalyzer::analyzeDocument(Poppler::Document* document, AnalysisTypes types)
-{
+DocumentAnalyzer::AnalysisResult DocumentAnalyzer::analyzeDocument(
+    Poppler::Document* document, AnalysisTypes types) {
     QElapsedTimer timer;
     timer.start();
-    
+
     AnalysisResult result;
     result.documentPath = "memory_document";
     result.timestamp = QDateTime::currentDateTime();
     result.success = false;
-    
+
     if (!document) {
         result.errorMessage = "Invalid document pointer";
         result.processingTime = timer.elapsed();
         return result;
     }
-    
+
     result = performAnalysis(document, "memory_document", types);
     result.processingTime = timer.elapsed();
-    
+
     return result;
 }
 
-void DocumentAnalyzer::startBatchAnalysis(const QStringList& filePaths, const BatchAnalysisSettings& settings)
-{
+void DocumentAnalyzer::startBatchAnalysis(
+    const QStringList& filePaths, const BatchAnalysisSettings& settings) {
     if (m_batchRunning) {
         Logger::instance().warning("[utils] Batch analysis already running");
         return;
     }
-    
+
     m_settings = settings;
     m_batchFilePaths = filePaths;
     m_failedPaths.clear();
     m_results.clear();
-    
+
     m_totalDocuments = filePaths.size();
     m_processedDocuments = 0;
     m_failedDocuments = 0;
     m_batchRunning = true;
-    
+
     m_batchTimer.start();
     m_progressTimer->start();
-    
+
     emit batchAnalysisStarted(m_totalDocuments);
-    
+
     // For now, process documents sequentially
-    // In a real implementation, you would use QThreadPool for concurrent processing
+    // In a real implementation, you would use QThreadPool for concurrent
+    // processing
     for (const QString& filePath : filePaths) {
         if (!m_batchRunning) {
-            break; // Analysis was stopped
+            break;  // Analysis was stopped
         }
-        
-        AnalysisResult result = analyzeDocument(filePath, m_settings.analysisTypes);
+
+        AnalysisResult result =
+            analyzeDocument(filePath, m_settings.analysisTypes);
         m_results.append(result);
-        
+
         if (result.success) {
             emit documentAnalyzed(filePath, result);
         } else {
@@ -157,77 +163,64 @@ void DocumentAnalyzer::startBatchAnalysis(const QStringList& filePaths, const Ba
             m_failedDocuments++;
             emit documentAnalysisFailed(filePath, result.errorMessage);
         }
-        
+
         m_processedDocuments++;
         updateBatchProgress();
     }
-    
+
     finalizeBatchAnalysis();
 }
 
-void DocumentAnalyzer::stopBatchAnalysis()
-{
+void DocumentAnalyzer::stopBatchAnalysis() {
     if (!m_batchRunning) {
         return;
     }
-    
+
     m_batchRunning = false;
     m_progressTimer->stop();
-    
+
     finalizeBatchAnalysis();
 }
 
-bool DocumentAnalyzer::isBatchAnalysisRunning() const
-{
-    return m_batchRunning;
-}
+bool DocumentAnalyzer::isBatchAnalysisRunning() const { return m_batchRunning; }
 
-int DocumentAnalyzer::getTotalDocuments() const
-{
-    return m_totalDocuments;
-}
+int DocumentAnalyzer::getTotalDocuments() const { return m_totalDocuments; }
 
-int DocumentAnalyzer::getProcessedDocuments() const
-{
+int DocumentAnalyzer::getProcessedDocuments() const {
     return m_processedDocuments;
 }
 
-int DocumentAnalyzer::getFailedDocuments() const
-{
-    return m_failedDocuments;
-}
+int DocumentAnalyzer::getFailedDocuments() const { return m_failedDocuments; }
 
-double DocumentAnalyzer::getProgressPercentage() const
-{
+double DocumentAnalyzer::getProgressPercentage() const {
     if (m_totalDocuments == 0) {
         return 0.0;
     }
-    return (static_cast<double>(m_processedDocuments) / m_totalDocuments) * 100.0;
+    return (static_cast<double>(m_processedDocuments) / m_totalDocuments) *
+           100.0;
 }
 
-QStringList DocumentAnalyzer::getFailedDocumentPaths() const
-{
+QStringList DocumentAnalyzer::getFailedDocumentPaths() const {
     return m_failedPaths;
 }
 
-QList<DocumentAnalyzer::AnalysisResult> DocumentAnalyzer::getAllResults() const
-{
+QList<DocumentAnalyzer::AnalysisResult> DocumentAnalyzer::getAllResults()
+    const {
     return m_results;
 }
 
-DocumentAnalyzer::AnalysisResult DocumentAnalyzer::getResult(const QString& filePath) const
-{
+DocumentAnalyzer::AnalysisResult DocumentAnalyzer::getResult(
+    const QString& filePath) const {
     for (const AnalysisResult& result : m_results) {
         if (result.documentPath == filePath) {
             return result;
         }
     }
-    
-    return AnalysisResult(); // Return empty result if not found
+
+    return AnalysisResult();  // Return empty result if not found
 }
 
-void DocumentAnalyzer::clearResults()
-{
+void DocumentAnalyzer::clearResults() {
     m_results.clear();
     m_failedPaths.clear();
     m_processedDocuments = 0;
@@ -235,26 +228,24 @@ void DocumentAnalyzer::clearResults()
     m_totalDocuments = 0;
 }
 
-bool DocumentAnalyzer::exportBatchReport(const QString& filePath) const
-{
+bool DocumentAnalyzer::exportBatchReport(const QString& filePath) const {
     QString report = generateSummaryReport();
-    
+
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         return false;
     }
-    
+
     QTextStream out(&file);
     out << report;
-    
+
     return true;
 }
 
-bool DocumentAnalyzer::exportResultsToJson(const QString& filePath) const
-{
+bool DocumentAnalyzer::exportResultsToJson(const QString& filePath) const {
     QJsonObject root;
     QJsonArray resultsArray;
-    
+
     for (const AnalysisResult& result : m_results) {
         QJsonObject resultObj;
         resultObj["documentPath"] = result.documentPath;
@@ -263,41 +254,47 @@ bool DocumentAnalyzer::exportResultsToJson(const QString& filePath) const
         resultObj["success"] = result.success;
         resultObj["errorMessage"] = result.errorMessage;
         resultObj["timestamp"] = result.timestamp.toString(Qt::ISODate);
-        
+
         resultsArray.append(resultObj);
     }
-    
+
     root["results"] = resultsArray;
     root["totalDocuments"] = m_totalDocuments;
     root["processedDocuments"] = m_processedDocuments;
     root["failedDocuments"] = m_failedDocuments;
-    root["exportTimestamp"] = QDateTime::currentDateTime().toString(Qt::ISODate);
-    
+    root["exportTimestamp"] =
+        QDateTime::currentDateTime().toString(Qt::ISODate);
+
     QJsonDocument doc(root);
-    
+
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly)) {
         return false;
     }
-    
+
     file.write(doc.toJson());
     return true;
 }
 
-QString DocumentAnalyzer::generateSummaryReport() const
-{
+QString DocumentAnalyzer::generateSummaryReport() const {
     QString report;
     QTextStream stream(&report);
-    
+
     stream << "Document Analysis Summary Report\n";
     stream << "================================\n\n";
-    
+
     stream << "Analysis Overview:\n";
     stream << "  Total documents: " << m_totalDocuments << "\n";
-    stream << "  Successfully processed: " << (m_processedDocuments - m_failedDocuments) << "\n";
+    stream << "  Successfully processed: "
+           << (m_processedDocuments - m_failedDocuments) << "\n";
     stream << "  Failed: " << m_failedDocuments << "\n";
-    stream << "  Success rate: " << QString::number((1.0 - static_cast<double>(m_failedDocuments) / m_totalDocuments) * 100, 'f', 1) << "%\n\n";
-    
+    stream << "  Success rate: "
+           << QString::number((1.0 - static_cast<double>(m_failedDocuments) /
+                                         m_totalDocuments) *
+                                  100,
+                              'f', 1)
+           << "%\n\n";
+
     if (!m_failedPaths.isEmpty()) {
         stream << "Failed Documents:\n";
         for (const QString& path : m_failedPaths) {
@@ -305,87 +302,91 @@ QString DocumentAnalyzer::generateSummaryReport() const
         }
         stream << "\n";
     }
-    
+
     // Calculate statistics
     qint64 totalProcessingTime = 0;
     int totalPages = 0;
     int totalWords = 0;
-    
+
     for (const AnalysisResult& result : m_results) {
         if (result.success) {
             totalProcessingTime += result.processingTime;
-            
+
             if (result.analysis.contains("pageCount")) {
                 totalPages += result.analysis["pageCount"].toInt();
             }
-            
+
             if (result.analysis.contains("totalWords")) {
                 totalWords += result.analysis["totalWords"].toInt();
             }
         }
     }
-    
+
     stream << "Processing Statistics:\n";
-    stream << "  Total processing time: " << formatAnalysisTime(totalProcessingTime) << "\n";
-    stream << "  Average time per document: " << formatAnalysisTime(totalProcessingTime / qMax(1, m_results.size())) << "\n";
+    stream << "  Total processing time: "
+           << formatAnalysisTime(totalProcessingTime) << "\n";
+    stream << "  Average time per document: "
+           << formatAnalysisTime(totalProcessingTime /
+                                 qMax(1, m_results.size()))
+           << "\n";
     stream << "  Total pages processed: " << totalPages << "\n";
     stream << "  Total words analyzed: " << totalWords << "\n\n";
-    
-    stream << "Report generated: " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
-    
+
+    stream << "Report generated: "
+           << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
+
     return report;
 }
 
 // Private helper functions
-DocumentAnalyzer::AnalysisResult DocumentAnalyzer::performAnalysis(Poppler::Document* document, const QString& filePath, AnalysisTypes types)
-{
+DocumentAnalyzer::AnalysisResult DocumentAnalyzer::performAnalysis(
+    Poppler::Document* document, const QString& filePath, AnalysisTypes types) {
     AnalysisResult result;
     result.documentPath = filePath;
     result.timestamp = QDateTime::currentDateTime();
     result.success = true;
-    
+
     QJsonObject analysis;
-    
+
     try {
         if (types & BasicAnalysis) {
-            analysis["basic"] = QJsonObject{
-                {"pageCount", document->numPages()},
-                {"title", document->info("Title")},
-                {"author", document->info("Author")},
-                {"subject", document->info("Subject")},
-                {"creator", document->info("Creator")},
-                {"producer", document->info("Producer")},
-                {"creationDate", document->info("CreationDate")},
-                {"modificationDate", document->info("ModDate")}
-            };
+            analysis["basic"] =
+                QJsonObject{{"pageCount", document->numPages()},
+                            {"title", document->info("Title")},
+                            {"author", document->info("Author")},
+                            {"subject", document->info("Subject")},
+                            {"creator", document->info("Creator")},
+                            {"producer", document->info("Producer")},
+                            {"creationDate", document->info("CreationDate")},
+                            {"modificationDate", document->info("ModDate")}};
         }
-        
+
         if (types & TextAnalysis) {
             analysis["text"] = performTextAnalysis(document);
         }
-        
+
         if (types & ImageAnalysis) {
             analysis["images"] = performImageAnalysis(document);
         }
-        
+
         if (types & StructureAnalysis) {
             analysis["structure"] = performStructureAnalysis(document);
         }
-        
+
         if (types & SecurityAnalysis) {
             analysis["security"] = performSecurityAnalysis(document);
         }
-        
+
         if (types & QualityAnalysis) {
             analysis["quality"] = performQualityAnalysis(document);
         }
-        
+
         if (types & AccessibilityAnalysis) {
             analysis["accessibility"] = performAccessibilityAnalysis(document);
         }
-        
+
         result.analysis = analysis;
-        
+
     } catch (const std::exception& e) {
         result.success = false;
         result.errorMessage = QString("Analysis failed: %1").arg(e.what());
@@ -393,37 +394,38 @@ DocumentAnalyzer::AnalysisResult DocumentAnalyzer::performAnalysis(Poppler::Docu
         result.success = false;
         result.errorMessage = "Unknown error during analysis";
     }
-    
+
     return result;
 }
 
-void DocumentAnalyzer::updateBatchProgress()
-{
+void DocumentAnalyzer::updateBatchProgress() {
     double percentage = getProgressPercentage();
-    emit batchAnalysisProgress(m_processedDocuments, m_totalDocuments, percentage);
+    emit batchAnalysisProgress(m_processedDocuments, m_totalDocuments,
+                               percentage);
 }
 
-void DocumentAnalyzer::finalizeBatchAnalysis()
-{
+void DocumentAnalyzer::finalizeBatchAnalysis() {
     m_batchRunning = false;
     m_progressTimer->stop();
-    
+
     if (m_settings.generateReport) {
-        QString reportPath = m_settings.outputDirectory + "/analysis_report.txt";
+        QString reportPath =
+            m_settings.outputDirectory + "/analysis_report.txt";
         if (exportBatchReport(reportPath)) {
             emit reportGenerated(reportPath);
         }
     }
-    
+
     emit batchAnalysisFinished();
 }
 
-QString DocumentAnalyzer::formatAnalysisTime(qint64 milliseconds) const
-{
+QString DocumentAnalyzer::formatAnalysisTime(qint64 milliseconds) const {
     if (milliseconds < 1000) {
         return QString("%1 ms").arg(milliseconds);
     } else if (milliseconds < 60000) {
-        return QString("%1.%2 s").arg(milliseconds / 1000).arg((milliseconds % 1000) / 100);
+        return QString("%1.%2 s")
+            .arg(milliseconds / 1000)
+            .arg((milliseconds % 1000) / 100);
     } else {
         int minutes = milliseconds / 60000;
         int seconds = (milliseconds % 60000) / 1000;
@@ -431,14 +433,10 @@ QString DocumentAnalyzer::formatAnalysisTime(qint64 milliseconds) const
     }
 }
 
-void DocumentAnalyzer::onBatchProgressUpdate()
-{
-    updateBatchProgress();
-}
+void DocumentAnalyzer::onBatchProgressUpdate() { updateBatchProgress(); }
 
 // Analysis function implementations
-QJsonObject DocumentAnalyzer::performTextAnalysis(Poppler::Document* document)
-{
+QJsonObject DocumentAnalyzer::performTextAnalysis(Poppler::Document* document) {
     QJsonObject textAnalysis;
 
     if (!document) {
@@ -457,14 +455,16 @@ QJsonObject DocumentAnalyzer::performTextAnalysis(Poppler::Document* document)
             allText.append(pageText);
 
             // Simple word counting
-            QStringList words = pageText.split(QRegularExpression("\\W+"), Qt::SkipEmptyParts);
+            QStringList words =
+                pageText.split(QRegularExpression("\\W+"), Qt::SkipEmptyParts);
             totalWords += words.size();
 
             // Simple sentence counting
             totalSentences += pageText.count(QRegularExpression("[.!?]+"));
 
             // Simple paragraph counting
-            totalParagraphs += pageText.count(QRegularExpression("\\n\\s*\\n")) + 1;
+            totalParagraphs +=
+                pageText.count(QRegularExpression("\\n\\s*\\n")) + 1;
         }
     }
 
@@ -474,12 +474,16 @@ QJsonObject DocumentAnalyzer::performTextAnalysis(Poppler::Document* document)
     textAnalysis["totalSentences"] = totalSentences;
     textAnalysis["totalParagraphs"] = totalParagraphs;
     textAnalysis["totalCharacters"] = fullText.length();
-    textAnalysis["averageWordsPerPage"] = document->numPages() > 0 ? totalWords / document->numPages() : 0;
-    textAnalysis["estimatedReadingTime"] = totalWords / 200.0; // 200 words per minute
+    textAnalysis["averageWordsPerPage"] =
+        document->numPages() > 0 ? totalWords / document->numPages() : 0;
+    textAnalysis["estimatedReadingTime"] =
+        totalWords / 200.0;  // 200 words per minute
 
     // Simple language detection
     QString language = "unknown";
-    if (fullText.contains(QRegularExpression("\\b(the|and|that|have|for)\\b", QRegularExpression::CaseInsensitiveOption))) {
+    if (fullText.contains(
+            QRegularExpression("\\b(the|and|that|have|for)\\b",
+                               QRegularExpression::CaseInsensitiveOption))) {
         language = "english";
     } else if (fullText.contains(QRegularExpression("[\\u4e00-\\u9fff]"))) {
         language = "chinese";
@@ -489,8 +493,8 @@ QJsonObject DocumentAnalyzer::performTextAnalysis(Poppler::Document* document)
     return textAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performImageAnalysis(Poppler::Document* document)
-{
+QJsonObject DocumentAnalyzer::performImageAnalysis(
+    Poppler::Document* document) {
     QJsonObject imageAnalysis;
 
     if (!document) {
@@ -522,14 +526,18 @@ QJsonObject DocumentAnalyzer::performImageAnalysis(Poppler::Document* document)
 
     imageAnalysis["totalImages"] = totalImages;
     imageAnalysis["estimatedTotalSize"] = totalImageSize;
-    imageAnalysis["averageImageSize"] = totalImages > 0 ? totalImageSize / totalImages : 0;
-    imageAnalysis["imagesPerPage"] = document->numPages() > 0 ? static_cast<double>(totalImages) / document->numPages() : 0.0;
+    imageAnalysis["averageImageSize"] =
+        totalImages > 0 ? totalImageSize / totalImages : 0;
+    imageAnalysis["imagesPerPage"] =
+        document->numPages() > 0
+            ? static_cast<double>(totalImages) / document->numPages()
+            : 0.0;
 
     return imageAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performStructureAnalysis(Poppler::Document* document)
-{
+QJsonObject DocumentAnalyzer::performStructureAnalysis(
+    Poppler::Document* document) {
     QJsonObject structureAnalysis;
 
     if (!document) {
@@ -566,8 +574,8 @@ QJsonObject DocumentAnalyzer::performStructureAnalysis(Poppler::Document* docume
     return structureAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performSecurityAnalysis(Poppler::Document* document)
-{
+QJsonObject DocumentAnalyzer::performSecurityAnalysis(
+    Poppler::Document* document) {
     QJsonObject securityAnalysis;
 
     if (!document) {
@@ -586,8 +594,8 @@ QJsonObject DocumentAnalyzer::performSecurityAnalysis(Poppler::Document* documen
     return securityAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performQualityAnalysis(Poppler::Document* document)
-{
+QJsonObject DocumentAnalyzer::performQualityAnalysis(
+    Poppler::Document* document) {
     QJsonObject qualityAnalysis;
 
     if (!document) {
@@ -632,8 +640,8 @@ QJsonObject DocumentAnalyzer::performQualityAnalysis(Poppler::Document* document
     return qualityAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performAccessibilityAnalysis(Poppler::Document* document)
-{
+QJsonObject DocumentAnalyzer::performAccessibilityAnalysis(
+    Poppler::Document* document) {
     QJsonObject accessibilityAnalysis;
 
     if (!document) {
@@ -674,7 +682,8 @@ QJsonObject DocumentAnalyzer::performAccessibilityAnalysis(Poppler::Document* do
     }
 
     accessibilityAnalysis["accessibilityScore"] = qMax(0.0, accessibilityScore);
-    accessibilityAnalysis["issues"] = QJsonArray::fromStringList(accessibilityIssues);
+    accessibilityAnalysis["issues"] =
+        QJsonArray::fromStringList(accessibilityIssues);
     accessibilityAnalysis["hasExtractableText"] = hasExtractableText;
     accessibilityAnalysis["hasTitle"] = !document->info("Title").isEmpty();
     accessibilityAnalysis["hasAuthor"] = !document->info("Author").isEmpty();
@@ -683,8 +692,8 @@ QJsonObject DocumentAnalyzer::performAccessibilityAnalysis(Poppler::Document* do
 }
 
 // Cache management functions
-void DocumentAnalyzer::cacheResult(const QString& key, const AnalysisResult& result)
-{
+void DocumentAnalyzer::cacheResult(const QString& key,
+                                   const AnalysisResult& result) {
     if (!m_cachingEnabled) {
         return;
     }
@@ -692,25 +701,23 @@ void DocumentAnalyzer::cacheResult(const QString& key, const AnalysisResult& res
     m_resultCache[key] = result;
 
     // Simple cache size management
-    if (m_resultCache.size() * 1024 > m_maxCacheSize) { // Rough estimate
+    if (m_resultCache.size() * 1024 > m_maxCacheSize) {  // Rough estimate
         evictOldCacheEntries();
     }
 
     emit cacheUpdated(m_resultCache.size() * 1024);
 }
 
-DocumentAnalyzer::AnalysisResult DocumentAnalyzer::getCachedResult(const QString& key) const
-{
+DocumentAnalyzer::AnalysisResult DocumentAnalyzer::getCachedResult(
+    const QString& key) const {
     return m_resultCache.value(key, AnalysisResult());
 }
 
-bool DocumentAnalyzer::hasCachedResult(const QString& key) const
-{
+bool DocumentAnalyzer::hasCachedResult(const QString& key) const {
     return m_resultCache.contains(key);
 }
 
-void DocumentAnalyzer::evictOldCacheEntries()
-{
+void DocumentAnalyzer::evictOldCacheEntries() {
     // Simple eviction: remove half of the cache entries
     int targetSize = m_resultCache.size() / 2;
     auto it = m_resultCache.begin();
@@ -720,40 +727,34 @@ void DocumentAnalyzer::evictOldCacheEntries()
     }
 }
 
-void DocumentAnalyzer::enableResultCaching(bool enabled)
-{
+void DocumentAnalyzer::enableResultCaching(bool enabled) {
     m_cachingEnabled = enabled;
     if (!enabled) {
         clearCache();
     }
 }
 
-bool DocumentAnalyzer::isResultCachingEnabled() const
-{
+bool DocumentAnalyzer::isResultCachingEnabled() const {
     return m_cachingEnabled;
 }
 
-void DocumentAnalyzer::clearCache()
-{
+void DocumentAnalyzer::clearCache() {
     m_resultCache.clear();
     emit cacheUpdated(0);
 }
 
-qint64 DocumentAnalyzer::getCacheSize() const
-{
-    return m_resultCache.size() * 1024; // Rough estimate
+qint64 DocumentAnalyzer::getCacheSize() const {
+    return m_resultCache.size() * 1024;  // Rough estimate
 }
 
-void DocumentAnalyzer::setMaxCacheSize(qint64 maxSize)
-{
+void DocumentAnalyzer::setMaxCacheSize(qint64 maxSize) {
     m_maxCacheSize = maxSize;
     if (getCacheSize() > maxSize) {
         evictOldCacheEntries();
     }
 }
 
-void DocumentAnalyzer::onDocumentAnalysisFinished()
-{
+void DocumentAnalyzer::onDocumentAnalysisFinished() {
     // Handle completion of document analysis
     Logger::instance().debug("[utils] Document analysis completed");
 
@@ -762,5 +763,6 @@ void DocumentAnalyzer::onDocumentAnalysisFinished()
 
     // This slot is called when analysis is finished
     // It can be used to perform cleanup or trigger additional processing
-    Logger::instance().debug("[utils] Analysis processing completed successfully");
+    Logger::instance().debug(
+        "[utils] Analysis processing completed successfully");
 }

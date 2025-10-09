@@ -1,36 +1,36 @@
 #pragma once
 
-#include <QWidget>
-#include <QSplitter>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QPushButton>
-#include <QComboBox>
-#include <QProgressBar>
-#include <QTextEdit>
-#include <QTreeWidget>
-#include <QScrollArea>
-#include <QGroupBox>
+#include <poppler-qt6.h>
 #include <QCheckBox>
-#include <QSpinBox>
-#include <QSlider>
-#include <QTimer>
+#include <QComboBox>
 #include <QFuture>
 #include <QFutureWatcher>
-#include <poppler-qt6.h>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QSlider>
+#include <QSpinBox>
+#include <QSplitter>
+#include <QTextEdit>
+#include <QTimer>
+#include <QTreeWidget>
+#include <QVBoxLayout>
+#include <QWidget>
 
 /**
  * Types of document differences
  */
 enum class DifferenceType {
-    TextAdded,      // Text was added
-    TextRemoved,    // Text was removed
-    TextModified,   // Text was changed
-    ImageAdded,     // Image was added
-    ImageRemoved,   // Image was removed
-    ImageModified,  // Image was changed
-    LayoutChanged,  // Page layout changed
+    TextAdded,          // Text was added
+    TextRemoved,        // Text was removed
+    TextModified,       // Text was changed
+    ImageAdded,         // Image was added
+    ImageRemoved,       // Image was removed
+    ImageModified,      // Image was changed
+    LayoutChanged,      // Page layout changed
     AnnotationAdded,    // Annotation was added
     AnnotationRemoved,  // Annotation was removed
     AnnotationModified  // Annotation was changed
@@ -41,22 +41,22 @@ enum class DifferenceType {
  */
 struct DocumentDifference {
     DifferenceType type;
-    int pageNumber1;        // Page in first document
-    int pageNumber2;        // Page in second document
-    QRectF region1;         // Region in first document
-    QRectF region2;         // Region in second document
-    QString oldText;        // Original text (for text changes)
-    QString newText;        // New text (for text changes)
-    QString description;    // Human-readable description
-    double confidence;      // Confidence level (0.0-1.0)
-    QDateTime timestamp;    // When difference was detected
-    
-    DocumentDifference() 
-        : type(DifferenceType::TextModified)
-        , pageNumber1(-1), pageNumber2(-1)
-        , confidence(1.0)
-        , timestamp(QDateTime::currentDateTime())
-    {}
+    int pageNumber1;      // Page in first document
+    int pageNumber2;      // Page in second document
+    QRectF region1;       // Region in first document
+    QRectF region2;       // Region in second document
+    QString oldText;      // Original text (for text changes)
+    QString newText;      // New text (for text changes)
+    QString description;  // Human-readable description
+    double confidence;    // Confidence level (0.0-1.0)
+    QDateTime timestamp;  // When difference was detected
+
+    DocumentDifference()
+        : type(DifferenceType::TextModified),
+          pageNumber1(-1),
+          pageNumber2(-1),
+          confidence(1.0),
+          timestamp(QDateTime::currentDateTime()) {}
 };
 
 /**
@@ -74,7 +74,7 @@ struct ComparisonOptions {
     double textSimilarityThreshold = 0.90;
     int maxDifferencesPerPage = 50;
     bool enableProgressReporting = true;
-    
+
     ComparisonOptions() = default;
 };
 
@@ -90,11 +90,13 @@ struct ComparisonResults {
     double overallSimilarity;
     QMap<DifferenceType, int> differenceCountByType;
     QString summary;
-    
-    ComparisonResults() 
-        : totalPages1(0), totalPages2(0), pagesCompared(0)
-        , comparisonTime(0), overallSimilarity(0.0)
-    {}
+
+    ComparisonResults()
+        : totalPages1(0),
+          totalPages2(0),
+          pagesCompared(0),
+          comparisonTime(0),
+          overallSimilarity(0.0) {}
 };
 
 /**
@@ -110,31 +112,34 @@ public:
     // Document loading
     void setDocuments(Poppler::Document* doc1, Poppler::Document* doc2);
     void setDocumentPaths(const QString& path1, const QString& path2);
-    
+
     // Comparison operations
     void startComparison();
     void stopComparison();
     bool isComparing() const { return m_isComparing; }
-    
+
     // Comparison options
     ComparisonOptions getComparisonOptions() const;
     void setComparisonOptions(const ComparisonOptions& options);
-    
+
     // Results access
     ComparisonResults getResults() const { return m_results; }
-    QList<DocumentDifference> getDifferences() const { return m_results.differences; }
-    
+    QList<DocumentDifference> getDifferences() const {
+        return m_results.differences;
+    }
+
     // Navigation
     void goToDifference(int index);
     void nextDifference();
     void previousDifference();
-    
+
     // Export and reporting
     QString generateComparisonReport() const;
     bool exportResultsToFile(const QString& filePath) const;
 
     // Additional comparison functions
-    bool compareDocumentMetadata(Poppler::Document* doc1, Poppler::Document* doc2);
+    bool compareDocumentMetadata(Poppler::Document* doc1,
+                                 Poppler::Document* doc2);
     QList<DocumentDifference> comparePageLayouts(int page1, int page2);
     void generateDetailedReport();
     QString getDifferenceTypeName(DifferenceType type) const;
@@ -147,7 +152,8 @@ public:
 
     // UI state
     void showDifferenceDetails(bool show);
-    void setViewMode(const QString& mode); // "side-by-side", "overlay", "difference-only"
+    void setViewMode(
+        const QString& mode);  // "side-by-side", "overlay", "difference-only"
 
 signals:
     void comparisonStarted();
@@ -177,23 +183,26 @@ private:
     void updateComparisonView();
     void highlightDifference(const DocumentDifference& diff);
     void clearHighlights();
-    
+
     // Comparison algorithms
     QFuture<ComparisonResults> performComparison();
     ComparisonResults compareDocuments();
     QList<DocumentDifference> comparePages(int page1, int page2);
-    QList<DocumentDifference> compareText(const QString& text1, const QString& text2, 
-                                         int page1, int page2);
-    QList<DocumentDifference> compareImages(const QPixmap& image1, const QPixmap& image2,
-                                           int page1, int page2);
+    QList<DocumentDifference> compareText(const QString& text1,
+                                          const QString& text2, int page1,
+                                          int page2);
+    QList<DocumentDifference> compareImages(const QPixmap& image1,
+                                            const QPixmap& image2, int page1,
+                                            int page2);
     double calculateTextSimilarity(const QString& text1, const QString& text2);
-    double calculateImageSimilarity(const QPixmap& image1, const QPixmap& image2);
-    
+    double calculateImageSimilarity(const QPixmap& image1,
+                                    const QPixmap& image2);
+
     // UI Components
     QVBoxLayout* m_mainLayout;
     QHBoxLayout* m_toolbarLayout;
     QHBoxLayout* m_contentLayout;
-    
+
     // Toolbar
     QPushButton* m_compareButton;
     QPushButton* m_stopButton;
@@ -202,7 +211,7 @@ private:
     QComboBox* m_viewModeCombo;
     QLabel* m_statusLabel;
     QProgressBar* m_progressBar;
-    
+
     // Options panel
     QGroupBox* m_optionsGroup;
     QCheckBox* m_compareTextCheck;
@@ -213,19 +222,19 @@ private:
     QCheckBox* m_ignoreCaseCheck;
     QSlider* m_similaritySlider;
     QSpinBox* m_maxDifferencesSpinBox;
-    
+
     // Results panel
     QSplitter* m_resultsSplitter;
     QTreeWidget* m_differencesTree;
     QTextEdit* m_differenceDetails;
-    
+
     // Comparison view
     QSplitter* m_viewSplitter;
     QScrollArea* m_leftView;
     QScrollArea* m_rightView;
     QLabel* m_leftImageLabel;
     QLabel* m_rightImageLabel;
-    
+
     // Data
     Poppler::Document* m_document1;
     Poppler::Document* m_document2;
@@ -234,7 +243,7 @@ private:
     ComparisonOptions m_options;
     ComparisonResults m_results;
     int m_currentDifferenceIndex;
-    
+
     // Comparison state
     bool m_isComparing;
     QFuture<ComparisonResults> m_comparisonFuture;

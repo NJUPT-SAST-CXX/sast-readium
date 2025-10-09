@@ -3,7 +3,6 @@
 #include <QMessageBox>
 #include <QObject>
 
-
 class PageController;
 
 class Command : public QObject {

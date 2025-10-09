@@ -1,16 +1,15 @@
 #include "MenuBar.h"
 #include <QAction>
 #include <QActionGroup>
-#include <QMenu>
-#include <QFileInfo>
 #include <QDebug>
+#include <QFileInfo>
+#include <QMenu>
 
 MenuBar::MenuBar(QWidget* parent)
-    : QMenuBar(parent)
-    , m_recentFilesManager(nullptr)
-    , m_recentFilesMenu(nullptr)
-    , m_clearRecentFilesAction(nullptr)
-{
+    : QMenuBar(parent),
+      m_recentFilesManager(nullptr),
+      m_recentFilesMenu(nullptr),
+      m_clearRecentFilesAction(nullptr) {
     createFileMenu();
     createTabMenu();
     createViewMenu();
@@ -113,14 +112,14 @@ void MenuBar::createViewMenu() {
     // 欢迎界面控制
     m_welcomeScreenToggleAction = new QAction(tr("显示欢迎界面"), this);
     m_welcomeScreenToggleAction->setCheckable(true);
-    m_welcomeScreenToggleAction->setChecked(true); // 默认启用
+    m_welcomeScreenToggleAction->setChecked(true);  // 默认启用
     m_welcomeScreenToggleAction->setToolTip(tr("切换欢迎界面的显示"));
 
     // 侧边栏控制
     QAction* toggleSideBarAction = new QAction(tr("切换侧边栏"), this);
     toggleSideBarAction->setShortcut(QKeySequence("F9"));
     toggleSideBarAction->setCheckable(true);
-    toggleSideBarAction->setChecked(true); // 默认显示
+    toggleSideBarAction->setChecked(true);  // 默认显示
 
     QAction* showSideBarAction = new QAction(tr("显示侧边栏"), this);
     QAction* hideSideBarAction = new QAction(tr("隐藏侧边栏"), this);
@@ -129,7 +128,7 @@ void MenuBar::createViewMenu() {
     QAction* singlePageAction = new QAction(tr("单页视图"), this);
     singlePageAction->setShortcut(QKeySequence("Ctrl+1"));
     singlePageAction->setCheckable(true);
-    singlePageAction->setChecked(true); // 默认单页视图
+    singlePageAction->setChecked(true);  // 默认单页视图
 
     QAction* continuousScrollAction = new QAction(tr("连续滚动"), this);
     continuousScrollAction->setShortcut(QKeySequence("Ctrl+2"));
@@ -154,7 +153,7 @@ void MenuBar::createViewMenu() {
     m_debugPanelToggleAction = new QAction(tr("显示调试面板"), this);
     m_debugPanelToggleAction->setShortcut(QKeySequence("F12"));
     m_debugPanelToggleAction->setCheckable(true);
-    m_debugPanelToggleAction->setChecked(true); // 默认显示
+    m_debugPanelToggleAction->setChecked(true);  // 默认显示
     m_debugPanelToggleAction->setToolTip(tr("切换调试日志面板的显示"));
 
     m_debugPanelClearAction = new QAction(tr("清空调试日志"), this);
@@ -237,8 +236,7 @@ void MenuBar::createThemeMenu() {
     });
 }
 
-void MenuBar::setRecentFilesManager(RecentFilesManager* manager)
-{
+void MenuBar::setRecentFilesManager(RecentFilesManager* manager) {
     if (m_recentFilesManager) {
         disconnect(m_recentFilesManager, nullptr, this, nullptr);
     }
@@ -252,25 +250,22 @@ void MenuBar::setRecentFilesManager(RecentFilesManager* manager)
     }
 }
 
-void MenuBar::setWelcomeScreenEnabled(bool enabled)
-{
+void MenuBar::setWelcomeScreenEnabled(bool enabled) {
     if (m_welcomeScreenToggleAction) {
         m_welcomeScreenToggleAction->setChecked(enabled);
     }
 }
 
-void MenuBar::setupRecentFilesMenu()
-{
+void MenuBar::setupRecentFilesMenu() {
     m_recentFilesMenu = new QMenu(tr("最近打开的文件"), this);
-    m_recentFilesMenu->setEnabled(false); // 初始状态禁用，直到有文件
+    m_recentFilesMenu->setEnabled(false);  // 初始状态禁用，直到有文件
 
     m_clearRecentFilesAction = new QAction(tr("清空最近文件"), this);
-    connect(m_clearRecentFilesAction, &QAction::triggered,
-            this, &MenuBar::onClearRecentFilesTriggered);
+    connect(m_clearRecentFilesAction, &QAction::triggered, this,
+            &MenuBar::onClearRecentFilesTriggered);
 }
 
-void MenuBar::updateRecentFilesMenu()
-{
+void MenuBar::updateRecentFilesMenu() {
     if (!m_recentFilesMenu || !m_recentFilesManager) {
         return;
     }
@@ -294,7 +289,8 @@ void MenuBar::updateRecentFilesMenu()
         const RecentFileInfo& fileInfo = recentFiles[i];
 
         // 创建显示文本：序号 + 文件名 + 路径
-        QString displayText = QString("&%1 %2").arg(i + 1).arg(fileInfo.fileName);
+        QString displayText =
+            QString("&%1 %2").arg(i + 1).arg(fileInfo.fileName);
         if (displayText.length() > 50) {
             displayText = displayText.left(47) + "...";
         }
@@ -303,8 +299,8 @@ void MenuBar::updateRecentFilesMenu()
         fileAction->setToolTip(fileInfo.filePath);
         fileAction->setData(fileInfo.filePath);
 
-        connect(fileAction, &QAction::triggered,
-                this, &MenuBar::onRecentFileTriggered);
+        connect(fileAction, &QAction::triggered, this,
+                &MenuBar::onRecentFileTriggered);
     }
 
     // 添加分隔符和清空选项
@@ -312,8 +308,7 @@ void MenuBar::updateRecentFilesMenu()
     m_recentFilesMenu->addAction(m_clearRecentFilesAction);
 }
 
-void MenuBar::onRecentFileTriggered()
-{
+void MenuBar::onRecentFileTriggered() {
     QAction* action = qobject_cast<QAction*>(sender());
     if (action) {
         QString filePath = action->data().toString();
@@ -333,8 +328,7 @@ void MenuBar::onRecentFileTriggered()
     }
 }
 
-void MenuBar::onClearRecentFilesTriggered()
-{
+void MenuBar::onClearRecentFilesTriggered() {
     if (m_recentFilesManager) {
         m_recentFilesManager->clearRecentFiles();
     }

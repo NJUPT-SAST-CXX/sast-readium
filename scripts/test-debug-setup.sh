@@ -42,7 +42,7 @@ config_files=(
 for file in "${config_files[@]}"; do
     if [ -f "$file" ]; then
         echo -e "   ${GREEN}✓ $file exists${NC}"
-        
+
         # Validate JSON files
         if [[ "$file" == *.json ]]; then
             if command -v python3 &> /dev/null; then
@@ -73,7 +73,7 @@ check_command() {
     local name="$1"
     local cmd="$2"
     local optional="$3"
-    
+
     if command -v ${cmd%% *} &> /dev/null; then
         echo -e "   ${GREEN}✓ $name available${NC}"
         return 0

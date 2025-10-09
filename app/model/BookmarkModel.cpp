@@ -15,7 +15,7 @@ QJsonObject Bookmark::toJson() const {
     obj["lastAccessed"] = lastAccessed.toString(Qt::ISODate);
     obj["notes"] = notes;
     obj["category"] = category;
-    
+
     if (!highlightRect.isNull()) {
         QJsonObject rectObj;
         rectObj["x"] = highlightRect.x();
@@ -24,7 +24,7 @@ QJsonObject Bookmark::toJson() const {
         rectObj["height"] = highlightRect.height();
         obj["highlightRect"] = rectObj;
     }
-    
+
     return obj;
 }
 
@@ -34,48 +34,49 @@ Bookmark Bookmark::fromJson(const QJsonObject& json) {
     bookmark.title = json["title"].toString();
     bookmark.documentPath = json["documentPath"].toString();
     bookmark.pageNumber = json["pageNumber"].toInt();
-    bookmark.createdTime = QDateTime::fromString(json["createdTime"].toString(), Qt::ISODate);
-    bookmark.lastAccessed = QDateTime::fromString(json["lastAccessed"].toString(), Qt::ISODate);
+    bookmark.createdTime =
+        QDateTime::fromString(json["createdTime"].toString(), Qt::ISODate);
+    bookmark.lastAccessed =
+        QDateTime::fromString(json["lastAccessed"].toString(), Qt::ISODate);
     bookmark.notes = json["notes"].toString();
     bookmark.category = json["category"].toString();
-    
+
     if (json.contains("highlightRect")) {
         QJsonObject rectObj = json["highlightRect"].toObject();
-        bookmark.highlightRect = QRectF(
-            rectObj["x"].toDouble(),
-            rectObj["y"].toDouble(),
-            rectObj["width"].toDouble(),
-            rectObj["height"].toDouble()
-        );
+        bookmark.highlightRect =
+            QRectF(rectObj["x"].toDouble(), rectObj["y"].toDouble(),
+                   rectObj["width"].toDouble(), rectObj["height"].toDouble());
     }
-    
+
     return bookmark;
 }
 
 BookmarkModel::BookmarkModel(QObject* parent)
-    : QAbstractItemModel(parent)
-    , m_autoSave(true)
-{
+    : QAbstractItemModel(parent), m_autoSave(true) {
     initializeStorage();
     loadFromFile();
-    
+
     // Connect to auto-save on data changes
-    connect(this, &BookmarkModel::dataChanged, this, &BookmarkModel::onDataChanged);
-    connect(this, &BookmarkModel::rowsInserted, this, &BookmarkModel::onDataChanged);
-    connect(this, &BookmarkModel::rowsRemoved, this, &BookmarkModel::onDataChanged);
+    connect(this, &BookmarkModel::dataChanged, this,
+            &BookmarkModel::onDataChanged);
+    connect(this, &BookmarkModel::rowsInserted, this,
+            &BookmarkModel::onDataChanged);
+    connect(this, &BookmarkModel::rowsRemoved, this,
+            &BookmarkModel::onDataChanged);
 }
 
-QModelIndex BookmarkModel::index(int row, int column, const QModelIndex& parent) const {
+QModelIndex BookmarkModel::index(int row, int column,
+                                 const QModelIndex& parent) const {
     if (!hasIndex(row, column, parent) || parent.isValid()) {
         return QModelIndex();
     }
-    
+
     return createIndex(row, column, nullptr);
 }
 
 QModelIndex BookmarkModel::parent(const QModelIndex& child) const {
     Q_UNUSED(child)
-    return QModelIndex(); // Flat list model
+    return QModelIndex();  // Flat list model
 }
 
 int BookmarkModel::rowCount(const QModelIndex& parent) const {
@@ -87,66 +88,89 @@ int BookmarkModel::rowCount(const QModelIndex& parent) const {
 
 int BookmarkModel::columnCount(const QModelIndex& parent) const {
     Q_UNUSED(parent)
-    return 4; // Title, Document, Page, Created
+    return 4;  // Title, Document, Page, Created
 }
 
 QVariant BookmarkModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid() || index.row() >= m_bookmarks.size()) {
         return QVariant();
     }
-    
+
     const Bookmark& bookmark = m_bookmarks.at(index.row());
-    
+
     switch (role) {
         case Qt::DisplayRole:
             switch (index.column()) {
-                case 0: return bookmark.title;
-                case 1: return QFileInfo(bookmark.documentPath).baseName();
-                case 2: return bookmark.pageNumber + 1; // Display 1-based page numbers
-                case 3: return bookmark.createdTime.toString("yyyy-MM-dd hh:mm");
-                default: return QVariant();
+                case 0:
+                    return bookmark.title;
+                case 1:
+                    return QFileInfo(bookmark.documentPath).baseName();
+                case 2:
+                    return bookmark.pageNumber +
+                           1;  // Display 1-based page numbers
+                case 3:
+                    return bookmark.createdTime.toString("yyyy-MM-dd hh:mm");
+                default:
+                    return QVariant();
             }
         case Qt::ToolTipRole:
             return QString("Document: %1\nPage: %2\nCreated: %3\nNotes: %4")
-                   .arg(bookmark.documentPath)
-                   .arg(bookmark.pageNumber + 1)
-                   .arg(bookmark.createdTime.toString())
-                   .arg(bookmark.notes.isEmpty() ? "None" : bookmark.notes);
-        case IdRole: return bookmark.id;
-        case TitleRole: return bookmark.title;
-        case DocumentPathRole: return bookmark.documentPath;
-        case PageNumberRole: return bookmark.pageNumber;
-        case CreatedTimeRole: return bookmark.createdTime;
-        case LastAccessedRole: return bookmark.lastAccessed;
-        case NotesRole: return bookmark.notes;
-        case HighlightRectRole: return bookmark.highlightRect;
-        case CategoryRole: return bookmark.category;
-        default: return QVariant();
+                .arg(bookmark.documentPath)
+                .arg(bookmark.pageNumber + 1)
+                .arg(bookmark.createdTime.toString())
+                .arg(bookmark.notes.isEmpty() ? "None" : bookmark.notes);
+        case IdRole:
+            return bookmark.id;
+        case TitleRole:
+            return bookmark.title;
+        case DocumentPathRole:
+            return bookmark.documentPath;
+        case PageNumberRole:
+            return bookmark.pageNumber;
+        case CreatedTimeRole:
+            return bookmark.createdTime;
+        case LastAccessedRole:
+            return bookmark.lastAccessed;
+        case NotesRole:
+            return bookmark.notes;
+        case HighlightRectRole:
+            return bookmark.highlightRect;
+        case CategoryRole:
+            return bookmark.category;
+        default:
+            return QVariant();
     }
 }
 
-QVariant BookmarkModel::headerData(int section, Qt::Orientation orientation, int role) const {
+QVariant BookmarkModel::headerData(int section, Qt::Orientation orientation,
+                                   int role) const {
     if (orientation != Qt::Horizontal || role != Qt::DisplayRole) {
         return QVariant();
     }
-    
+
     switch (section) {
-        case 0: return "Title";
-        case 1: return "Document";
-        case 2: return "Page";
-        case 3: return "Created";
-        default: return QVariant();
+        case 0:
+            return "Title";
+        case 1:
+            return "Document";
+        case 2:
+            return "Page";
+        case 3:
+            return "Created";
+        default:
+            return QVariant();
     }
 }
 
-bool BookmarkModel::setData(const QModelIndex& index, const QVariant& value, int role) {
+bool BookmarkModel::setData(const QModelIndex& index, const QVariant& value,
+                            int role) {
     if (!index.isValid() || index.row() >= m_bookmarks.size()) {
         return false;
     }
-    
+
     Bookmark& bookmark = m_bookmarks[index.row()];
     bool changed = false;
-    
+
     switch (role) {
         case TitleRole:
             if (bookmark.title != value.toString()) {
@@ -169,13 +193,13 @@ bool BookmarkModel::setData(const QModelIndex& index, const QVariant& value, int
         default:
             return false;
     }
-    
+
     if (changed) {
         emit dataChanged(index, index, {role});
         emit bookmarkUpdated(bookmark);
         return true;
     }
-    
+
     return false;
 }
 
@@ -183,7 +207,7 @@ Qt::ItemFlags BookmarkModel::flags(const QModelIndex& index) const {
     if (!index.isValid()) {
         return Qt::NoItemFlags;
     }
-    
+
     return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable;
 }
 
@@ -208,14 +232,14 @@ bool BookmarkModel::addBookmark(const Bookmark& bookmark) {
         qDebug() << "Bookmark already exists for this page";
         return false;
     }
-    
+
     beginInsertRows(QModelIndex(), m_bookmarks.size(), m_bookmarks.size());
     m_bookmarks.append(bookmark);
     endInsertRows();
-    
+
     sortBookmarks();
     emit bookmarkAdded(bookmark);
-    
+
     return true;
 }
 
@@ -224,26 +248,27 @@ bool BookmarkModel::removeBookmark(const QString& bookmarkId) {
     if (index < 0) {
         return false;
     }
-    
+
     beginRemoveRows(QModelIndex(), index, index);
     m_bookmarks.removeAt(index);
     endRemoveRows();
-    
+
     emit bookmarkRemoved(bookmarkId);
     return true;
 }
 
-bool BookmarkModel::updateBookmark(const QString& bookmarkId, const Bookmark& updatedBookmark) {
+bool BookmarkModel::updateBookmark(const QString& bookmarkId,
+                                   const Bookmark& updatedBookmark) {
     int index = findBookmarkIndex(bookmarkId);
     if (index < 0) {
         return false;
     }
-    
+
     m_bookmarks[index] = updatedBookmark;
     QModelIndex modelIndex = this->index(index, 0);
     emit dataChanged(modelIndex, this->index(index, columnCount() - 1));
     emit bookmarkUpdated(updatedBookmark);
-    
+
     return true;
 }
 
@@ -255,11 +280,10 @@ Bookmark BookmarkModel::getBookmark(const QString& bookmarkId) const {
     return Bookmark();
 }
 
-QList<Bookmark> BookmarkModel::getAllBookmarks() const {
-    return m_bookmarks;
-}
+QList<Bookmark> BookmarkModel::getAllBookmarks() const { return m_bookmarks; }
 
-QList<Bookmark> BookmarkModel::getBookmarksForDocument(const QString& documentPath) const {
+QList<Bookmark> BookmarkModel::getBookmarksForDocument(
+    const QString& documentPath) const {
     QList<Bookmark> result;
     for (const Bookmark& bookmark : m_bookmarks) {
         if (bookmark.documentPath == documentPath) {
@@ -269,18 +293,22 @@ QList<Bookmark> BookmarkModel::getBookmarksForDocument(const QString& documentPa
     return result;
 }
 
-bool BookmarkModel::hasBookmarkForPage(const QString& documentPath, int pageNumber) const {
+bool BookmarkModel::hasBookmarkForPage(const QString& documentPath,
+                                       int pageNumber) const {
     for (const Bookmark& bookmark : m_bookmarks) {
-        if (bookmark.documentPath == documentPath && bookmark.pageNumber == pageNumber) {
+        if (bookmark.documentPath == documentPath &&
+            bookmark.pageNumber == pageNumber) {
             return true;
         }
     }
     return false;
 }
 
-Bookmark BookmarkModel::getBookmarkForPage(const QString& documentPath, int pageNumber) const {
+Bookmark BookmarkModel::getBookmarkForPage(const QString& documentPath,
+                                           int pageNumber) const {
     for (const Bookmark& bookmark : m_bookmarks) {
-        if (bookmark.documentPath == documentPath && bookmark.pageNumber == pageNumber) {
+        if (bookmark.documentPath == documentPath &&
+            bookmark.pageNumber == pageNumber) {
             return bookmark;
         }
     }
@@ -289,7 +317,7 @@ Bookmark BookmarkModel::getBookmarkForPage(const QString& documentPath, int page
 
 void BookmarkModel::initializeStorage() {
     m_storageFile = getStorageFilePath();
-    
+
     // Ensure directory exists
     QFileInfo fileInfo(m_storageFile);
     QDir dir = fileInfo.absoluteDir();
@@ -299,7 +327,8 @@ void BookmarkModel::initializeStorage() {
 }
 
 QString BookmarkModel::getStorageFilePath() const {
-    QString dataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QString dataPath =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     return QDir(dataPath).filePath("bookmarks.json");
 }
 
@@ -313,9 +342,9 @@ int BookmarkModel::findBookmarkIndex(const QString& bookmarkId) const {
 }
 
 void BookmarkModel::sortBookmarks() {
-    std::sort(m_bookmarks.begin(), m_bookmarks.end(), 
+    std::sort(m_bookmarks.begin(), m_bookmarks.end(),
               [](const Bookmark& a, const Bookmark& b) {
-                  return a.lastAccessed > b.lastAccessed; // Most recent first
+                  return a.lastAccessed > b.lastAccessed;  // Most recent first
               });
 }
 
@@ -328,7 +357,8 @@ void BookmarkModel::onDataChanged() {
 QStringList BookmarkModel::getCategories() const {
     QStringList categories;
     for (const Bookmark& bookmark : m_bookmarks) {
-        if (!bookmark.category.isEmpty() && !categories.contains(bookmark.category)) {
+        if (!bookmark.category.isEmpty() &&
+            !categories.contains(bookmark.category)) {
             categories.append(bookmark.category);
         }
     }
@@ -336,7 +366,8 @@ QStringList BookmarkModel::getCategories() const {
     return categories;
 }
 
-QList<Bookmark> BookmarkModel::getBookmarksInCategory(const QString& category) const {
+QList<Bookmark> BookmarkModel::getBookmarksInCategory(
+    const QString& category) const {
     QList<Bookmark> result;
     for (const Bookmark& bookmark : m_bookmarks) {
         if (bookmark.category == category) {
@@ -346,7 +377,8 @@ QList<Bookmark> BookmarkModel::getBookmarksInCategory(const QString& category) c
     return result;
 }
 
-bool BookmarkModel::moveBookmarkToCategory(const QString& bookmarkId, const QString& category) {
+bool BookmarkModel::moveBookmarkToCategory(const QString& bookmarkId,
+                                           const QString& category) {
     int index = findBookmarkIndex(bookmarkId);
     if (index < 0) {
         return false;
@@ -405,7 +437,8 @@ bool BookmarkModel::saveToFile() {
 
     QFile file(m_storageFile);
     if (!file.open(QIODevice::WriteOnly)) {
-        qWarning() << "Failed to open bookmarks file for writing:" << m_storageFile;
+        qWarning() << "Failed to open bookmarks file for writing:"
+                   << m_storageFile;
         return false;
     }
 
@@ -414,7 +447,8 @@ bool BookmarkModel::saveToFile() {
 
     if (bytesWritten > 0) {
         emit bookmarksSaved(m_bookmarks.size());
-        qDebug() << "Saved" << m_bookmarks.size() << "bookmarks to" << m_storageFile;
+        qDebug() << "Saved" << m_bookmarks.size() << "bookmarks to"
+                 << m_storageFile;
         return true;
     }
 
@@ -425,11 +459,12 @@ bool BookmarkModel::loadFromFile() {
     QFile file(m_storageFile);
     if (!file.exists()) {
         qDebug() << "Bookmarks file does not exist, starting with empty list";
-        return true; // Not an error for first run
+        return true;  // Not an error for first run
     }
 
     if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "Failed to open bookmarks file for reading:" << m_storageFile;
+        qWarning() << "Failed to open bookmarks file for reading:"
+                   << m_storageFile;
         return false;
     }
 
@@ -440,7 +475,8 @@ bool BookmarkModel::loadFromFile() {
     QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
 
     if (parseError.error != QJsonParseError::NoError) {
-        qWarning() << "Failed to parse bookmarks JSON:" << parseError.errorString();
+        qWarning() << "Failed to parse bookmarks JSON:"
+                   << parseError.errorString();
         return false;
     }
 
@@ -463,7 +499,8 @@ bool BookmarkModel::loadFromFile() {
     endResetModel();
 
     emit bookmarksLoaded(m_bookmarks.size());
-    qDebug() << "Loaded" << m_bookmarks.size() << "bookmarks from" << m_storageFile;
+    qDebug() << "Loaded" << m_bookmarks.size() << "bookmarks from"
+             << m_storageFile;
 
     return true;
 }

@@ -1,10 +1,13 @@
 #include "ViewWidget.h"
-#include <QLabel>
 #include <QDebug>
+#include <QLabel>
 #include "../viewer/PDFViewer.h"
 
 ViewWidget::ViewWidget(QWidget* parent)
-    : QWidget(parent), documentController(nullptr), documentModel(nullptr), outlineModel(nullptr) {
+    : QWidget(parent),
+      documentController(nullptr),
+      documentModel(nullptr),
+      outlineModel(nullptr) {
     setupUI();
 }
 
@@ -22,7 +25,8 @@ void ViewWidget::setupUI() {
     // 创建空状态组件
     emptyWidget = new QWidget(this);
     QVBoxLayout* emptyLayout = new QVBoxLayout(emptyWidget);
-    QLabel* emptyLabel = new QLabel("没有打开的PDF文档\n点击文件菜单打开PDF文档", emptyWidget);
+    QLabel* emptyLabel =
+        new QLabel("没有打开的PDF文档\n点击文件菜单打开PDF文档", emptyWidget);
     emptyLabel->setAlignment(Qt::AlignCenter);
     emptyLabel->setStyleSheet("color: gray; font-size: 14px;");
     emptyLayout->addWidget(emptyLabel);
@@ -40,14 +44,14 @@ void ViewWidget::setupUI() {
 
 void ViewWidget::setupConnections() {
     // 标签页信号连接
-    connect(tabWidget, &DocumentTabWidget::tabCloseRequested,
-            this, &ViewWidget::onTabCloseRequested);
-    connect(tabWidget, &DocumentTabWidget::tabSwitched,
-            this, &ViewWidget::onTabSwitched);
-    connect(tabWidget, &DocumentTabWidget::tabMoved,
-            this, &ViewWidget::onTabMoved);
-    connect(tabWidget, &DocumentTabWidget::allTabsClosed,
-            this, &ViewWidget::onAllDocumentsClosed);
+    connect(tabWidget, &DocumentTabWidget::tabCloseRequested, this,
+            &ViewWidget::onTabCloseRequested);
+    connect(tabWidget, &DocumentTabWidget::tabSwitched, this,
+            &ViewWidget::onTabSwitched);
+    connect(tabWidget, &DocumentTabWidget::tabMoved, this,
+            &ViewWidget::onTabMoved);
+    connect(tabWidget, &DocumentTabWidget::allTabsClosed, this,
+            &ViewWidget::onAllDocumentsClosed);
 }
 
 void ViewWidget::setDocumentController(DocumentController* controller) {
@@ -64,20 +68,20 @@ void ViewWidget::setDocumentModel(DocumentModel* model) {
 
     if (documentModel) {
         // 连接新模型的信号
-        connect(documentModel, &DocumentModel::documentOpened,
-                this, &ViewWidget::onDocumentOpened);
-        connect(documentModel, &DocumentModel::documentClosed,
-                this, &ViewWidget::onDocumentClosed);
-        connect(documentModel, &DocumentModel::currentDocumentChanged,
-                this, &ViewWidget::onCurrentDocumentChanged);
-        connect(documentModel, &DocumentModel::allDocumentsClosed,
-                this, &ViewWidget::onAllDocumentsClosed);
-        connect(documentModel, &DocumentModel::loadingStarted,
-                this, &ViewWidget::onDocumentLoadingStarted);
-        connect(documentModel, &DocumentModel::loadingProgressChanged,
-                this, &ViewWidget::onDocumentLoadingProgress);
-        connect(documentModel, &DocumentModel::loadingFailed,
-                this, &ViewWidget::onDocumentLoadingFailed);
+        connect(documentModel, &DocumentModel::documentOpened, this,
+                &ViewWidget::onDocumentOpened);
+        connect(documentModel, &DocumentModel::documentClosed, this,
+                &ViewWidget::onDocumentClosed);
+        connect(documentModel, &DocumentModel::currentDocumentChanged, this,
+                &ViewWidget::onCurrentDocumentChanged);
+        connect(documentModel, &DocumentModel::allDocumentsClosed, this,
+                &ViewWidget::onAllDocumentsClosed);
+        connect(documentModel, &DocumentModel::loadingStarted, this,
+                &ViewWidget::onDocumentLoadingStarted);
+        connect(documentModel, &DocumentModel::loadingProgressChanged, this,
+                &ViewWidget::onDocumentLoadingProgress);
+        connect(documentModel, &DocumentModel::loadingFailed, this,
+                &ViewWidget::onDocumentLoadingFailed);
     }
 }
 
@@ -127,11 +131,12 @@ void ViewWidget::setCurrentViewMode(int mode) {
 void ViewWidget::executePDFAction(ActionMap action) {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex < 0 || currentIndex >= pdfViewers.size()) {
-        return; // 没有当前文档
+        return;  // 没有当前文档
     }
 
     PDFViewer* currentViewer = pdfViewers[currentIndex];
-    if (!currentViewer) return;
+    if (!currentViewer)
+        return;
 
     // 执行相应的PDF操作
     switch (action) {
@@ -169,7 +174,8 @@ void ViewWidget::executePDFAction(ActionMap action) {
             currentViewer->rotateRight();
             break;
         default:
-            qWarning() << "Unhandled PDF action in ViewWidget:" << static_cast<int>(action);
+            qWarning() << "Unhandled PDF action in ViewWidget:"
+                       << static_cast<int>(action);
             break;
     }
 }
@@ -218,7 +224,8 @@ double ViewWidget::getCurrentZoom() const {
 }
 
 void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
-    if (!documentModel) return;
+    if (!documentModel)
+        return;
 
     QString filePath = documentModel->getDocumentFilePath(index);
     Poppler::Document* document = documentModel->getDocument(index);
@@ -270,7 +277,8 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
 }
 
 void ViewWidget::onDocumentClosed(int index) {
-    if (index < 0 || index >= pdfViewers.size()) return;
+    if (index < 0 || index >= pdfViewers.size())
+        return;
 
     // 移除PDF查看器和目录模型
     removePDFViewer(index);
@@ -336,7 +344,8 @@ void ViewWidget::onDocumentLoadingStarted(const QString& filePath) {
 
     // 如果没有现有标签页，创建新的
     if (!tabExists) {
-        int tabIndex = tabWidget->addDocumentTab(fileName + " (加载中...)", filePath);
+        int tabIndex =
+            tabWidget->addDocumentTab(fileName + " (加载中...)", filePath);
 
         // 创建加载中的占位组件
         QWidget* loadingWidget = createLoadingWidget(fileName);
@@ -358,7 +367,8 @@ void ViewWidget::onDocumentLoadingProgress(int progress) {
     qDebug() << "Loading progress:" << progress << "%";
 }
 
-void ViewWidget::onDocumentLoadingFailed(const QString& error, const QString& filePath) {
+void ViewWidget::onDocumentLoadingFailed(const QString& error,
+                                         const QString& filePath) {
     QFileInfo fileInfo(filePath);
     QString fileName = fileInfo.baseName();
 
@@ -368,17 +378,14 @@ void ViewWidget::onDocumentLoadingFailed(const QString& error, const QString& fi
     // 这里暂时只输出调试信息
 }
 
-void ViewWidget::onTabCloseRequested(int index) {
-    closeDocument(index);
-}
+void ViewWidget::onTabCloseRequested(int index) { closeDocument(index); }
 
-void ViewWidget::onTabSwitched(int index) {
-    switchToDocument(index);
-}
+void ViewWidget::onTabSwitched(int index) { switchToDocument(index); }
 
 void ViewWidget::onTabMoved(int from, int to) {
     // 标签页移动时，需要同步移动PDF查看器
-    if (from < 0 || to < 0 || from >= pdfViewers.size() || to >= pdfViewers.size()) {
+    if (from < 0 || to < 0 || from >= pdfViewers.size() ||
+        to >= pdfViewers.size()) {
         return;
     }
 
@@ -388,7 +395,7 @@ void ViewWidget::onTabMoved(int from, int to) {
 
     // 移动堆叠组件中的widget
     viewerStack->removeWidget(viewer);
-    viewerStack->insertWidget(to + 1, viewer); // +1 因为第0个是emptyWidget
+    viewerStack->insertWidget(to + 1, viewer);  // +1 因为第0个是emptyWidget
 
     updateCurrentViewer();
     qDebug() << "Tab moved from" << from << "to" << to;
@@ -398,8 +405,10 @@ PDFViewer* ViewWidget::createPDFViewer() {
     PDFViewer* viewer = new PDFViewer(this);
 
     // 连接PDF查看器的信号
-    connect(viewer, &PDFViewer::pageChanged, this, &ViewWidget::onPDFPageChanged);
-    connect(viewer, &PDFViewer::zoomChanged, this, &ViewWidget::onPDFZoomChanged);
+    connect(viewer, &PDFViewer::pageChanged, this,
+            &ViewWidget::onPDFPageChanged);
+    connect(viewer, &PDFViewer::zoomChanged, this,
+            &ViewWidget::onPDFZoomChanged);
 
     return viewer;
 }
@@ -411,12 +420,13 @@ QWidget* ViewWidget::createLoadingWidget(const QString& fileName) {
 
     // 添加加载图标或动画
     QLabel* iconLabel = new QLabel(loadingWidget);
-    iconLabel->setText("⏳"); // 使用简单的emoji作为加载图标
+    iconLabel->setText("⏳");  // 使用简单的emoji作为加载图标
     iconLabel->setAlignment(Qt::AlignCenter);
     iconLabel->setStyleSheet("font-size: 48px; color: #666;");
 
     // 添加加载文本
-    QLabel* textLabel = new QLabel(QString("正在加载 %1...").arg(fileName), loadingWidget);
+    QLabel* textLabel =
+        new QLabel(QString("正在加载 %1...").arg(fileName), loadingWidget);
     textLabel->setAlignment(Qt::AlignCenter);
     textLabel->setStyleSheet("font-size: 16px; color: #666; margin-top: 10px;");
 
@@ -435,7 +445,8 @@ QWidget* ViewWidget::createLoadingWidget(const QString& fileName) {
 }
 
 void ViewWidget::removePDFViewer(int index) {
-    if (index < 0 || index >= pdfViewers.size()) return;
+    if (index < 0 || index >= pdfViewers.size())
+        return;
 
     PDFViewer* viewer = pdfViewers.takeAt(index);
     viewerStack->removeWidget(viewer);
@@ -460,9 +471,7 @@ void ViewWidget::showEmptyState() {
     tabWidget->hide();
 }
 
-void ViewWidget::hideEmptyState() {
-    tabWidget->show();
-}
+void ViewWidget::hideEmptyState() { tabWidget->show(); }
 
 void ViewWidget::onPDFPageChanged(int pageNumber) {
     // 只有当前活动的PDF查看器的信号才需要处理

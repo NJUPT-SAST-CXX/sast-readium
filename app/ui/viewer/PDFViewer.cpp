@@ -1,44 +1,48 @@
 #include "PDFViewer.h"
-#include "../../managers/StyleManager.h"
 #include <QApplication>
-#include <QWheelEvent>
+#include <QColor>
+#include <QComboBox>
+#include <QDateTime>
+#include <QDebug>
+#include <QGesture>
+#include <QGestureEvent>
+#include <QGraphicsOpacityEffect>
+#include <QGroupBox>
+#include <QLabel>
+#include <QLayoutItem>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QDebug>
-#include <QSplitter>
-#include <QGroupBox>
+#include <QPanGesture>
+#include <QPen>
+#include <QPinchGesture>
+#include <QPropertyAnimation>
+#include <QRect>
+#include <QScrollBar>
+#include <QSettings>
 #include <QSize>
 #include <QSizeF>
-#include <QLayoutItem>
+#include <QSplitter>
 #include <QStackedWidget>
-#include <QComboBox>
-#include <QLabel>
-#include <QRect>
-#include <QColor>
-#include <QPen>
-#include <QtGlobal>
-#include <QSettings>
-#include <QScrollBar>
-#include <QDateTime>
-#include <QPropertyAnimation>
-#include <QGraphicsOpacityEffect>
-#include <QGestureEvent>
 #include <QSwipeGesture>
-#include <QPinchGesture>
-#include <QPanGesture>
 #include <QTouchEvent>
+#include <QWheelEvent>
 #include <QtCore>
-#include <QtWidgets>
 #include <QtGlobal>
-#include <QGesture>
-#include <memory>
+#include <QtWidgets>
 #include <cmath>
+#include <memory>
 #include <stdexcept>
+#include "../../managers/StyleManager.h"
 
 // PDFPageWidget Implementation
 PDFPageWidget::PDFPageWidget(QWidget* parent)
-    : QLabel(parent), currentPage(nullptr), currentScaleFactor(1.0), currentRotation(0), isDragging(false),
-      m_currentSearchResultIndex(-1), m_normalHighlightColor(QColor(255, 255, 0, 100)),
+    : QLabel(parent),
+      currentPage(nullptr),
+      currentScaleFactor(1.0),
+      currentRotation(0),
+      isDragging(false),
+      m_currentSearchResultIndex(-1),
+      m_normalHighlightColor(QColor(255, 255, 0, 100)),
       m_currentHighlightColor(QColor(255, 165, 0, 150)) {
     setAlignment(Qt::AlignCenter);
     setMinimumSize(200, 200);
@@ -62,23 +66,28 @@ PDFPageWidget::PDFPageWidget(QWidget* parent)
                 margin: 12px;
                 padding: 8px;
             }
-        )").arg(STYLE.borderColor().name()));
+        )")
+                          .arg(STYLE.borderColor().name()));
     } catch (...) {
         // 在测试环境中忽略样式错误
-        setStyleSheet("QLabel#pdfPage { background-color: white; border: 1px solid gray; }");
+        setStyleSheet(
+            "QLabel#pdfPage { background-color: white; border: 1px solid gray; "
+            "}");
     }
 
     setText("No PDF loaded");
 
     // 添加阴影效果
-    QGraphicsDropShadowEffect* shadowEffect = new QGraphicsDropShadowEffect(this);
+    QGraphicsDropShadowEffect* shadowEffect =
+        new QGraphicsDropShadowEffect(this);
     shadowEffect->setBlurRadius(15);
     shadowEffect->setColor(QColor(0, 0, 0, 50));
     shadowEffect->setOffset(0, 4);
     setGraphicsEffect(shadowEffect);
 }
 
-void PDFPageWidget::setPage(Poppler::Page* page, double scaleFactor, int rotation) {
+void PDFPageWidget::setPage(Poppler::Page* page, double scaleFactor,
+                            int rotation) {
     currentPage = page;
     currentScaleFactor = scaleFactor;
     currentRotation = rotation;
@@ -120,11 +129,13 @@ void PDFPageWidget::renderPage() {
         QSizeF pageSize = currentPage->pageSizeF();
 
         // Note: Document configuration would be done at document level
-        // High-quality rendering is achieved through optimized DPI and render hints
+        // High-quality rendering is achieved through optimized DPI and render
+        // hints
 
         // 渲染页面为图像，包含旋转和优化设置
-        QImage image = currentPage->renderToImage(optimizedDpi, optimizedDpi, -1, -1, -1, -1,
-                                                  static_cast<Poppler::Page::Rotation>(currentRotation / 90));
+        QImage image = currentPage->renderToImage(
+            optimizedDpi, optimizedDpi, -1, -1, -1, -1,
+            static_cast<Poppler::Page::Rotation>(currentRotation / 90));
         if (image.isNull()) {
             setText("Failed to render page");
             return;
@@ -151,8 +162,8 @@ void PDFPageWidget::paintEvent(QPaintEvent* event) {
 
     // Enable high-quality rendering hints
     painter.setRenderHints(QPainter::Antialiasing |
-                          QPainter::SmoothPixmapTransform |
-                          QPainter::TextAntialiasing);
+                           QPainter::SmoothPixmapTransform |
+                           QPainter::TextAntialiasing);
 
     // Call parent implementation with enhanced rendering
     QLabel::paintEvent(event);
@@ -203,7 +214,7 @@ void PDFPageWidget::pinchTriggered(QPinchGesture* gesture) {
 
         // Apply pinch zoom
         double newScale = currentScaleFactor * scaleFactor;
-        newScale = qBound(0.1, newScale, 5.0); // Limit zoom range
+        newScale = qBound(0.1, newScale, 5.0);  // Limit zoom range
 
         if (qAbs(newScale - currentScaleFactor) > 0.01) {
             setScaleFactor(newScale);
@@ -221,10 +232,12 @@ void PDFPageWidget::swipeTriggered(QSwipeGesture* gesture) {
     if (gesture->state() == Qt::GestureFinished) {
         if (gesture->horizontalDirection() == QSwipeGesture::Left) {
             // Swipe left - next page
-            emit pageClicked(QPoint(-1, 0)); // Use special coordinates to indicate swipe
+            emit pageClicked(
+                QPoint(-1, 0));  // Use special coordinates to indicate swipe
         } else if (gesture->horizontalDirection() == QSwipeGesture::Right) {
             // Swipe right - previous page
-            emit pageClicked(QPoint(-2, 0)); // Use special coordinates to indicate swipe
+            emit pageClicked(
+                QPoint(-2, 0));  // Use special coordinates to indicate swipe
         }
     }
 }
@@ -237,8 +250,10 @@ void PDFPageWidget::panTriggered(QPanGesture* gesture) {
     } else if (gesture->state() == Qt::GestureUpdated) {
         // Handle panning - this would typically scroll the parent scroll area
         // For now, we'll emit a signal that the parent can handle
-        emit pageClicked(QPoint(static_cast<int>(delta.x()), static_cast<int>(delta.y())));
-    } else if (gesture->state() == Qt::GestureFinished || gesture->state() == Qt::GestureCanceled) {
+        emit pageClicked(
+            QPoint(static_cast<int>(delta.x()), static_cast<int>(delta.y())));
+    } else if (gesture->state() == Qt::GestureFinished ||
+               gesture->state() == Qt::GestureCanceled) {
         setCursor(Qt::ArrowCursor);
     }
 }
@@ -283,8 +298,7 @@ void PDFPageWidget::touchEvent(QTouchEvent* event) {
 }
 
 // Drag and Drop Implementation
-void PDFPageWidget::dragEnterEvent(QDragEnterEvent* event)
-{
+void PDFPageWidget::dragEnterEvent(QDragEnterEvent* event) {
     if (event->mimeData()->hasUrls()) {
         QList<QUrl> urls = event->mimeData()->urls();
         if (!urls.isEmpty()) {
@@ -298,8 +312,7 @@ void PDFPageWidget::dragEnterEvent(QDragEnterEvent* event)
     event->ignore();
 }
 
-void PDFPageWidget::dragMoveEvent(QDragMoveEvent* event)
-{
+void PDFPageWidget::dragMoveEvent(QDragMoveEvent* event) {
     if (event->mimeData()->hasUrls()) {
         event->acceptProposedAction();
     } else {
@@ -307,15 +320,15 @@ void PDFPageWidget::dragMoveEvent(QDragMoveEvent* event)
     }
 }
 
-void PDFPageWidget::dropEvent(QDropEvent* event)
-{
+void PDFPageWidget::dropEvent(QDropEvent* event) {
     if (event->mimeData()->hasUrls()) {
         QList<QUrl> urls = event->mimeData()->urls();
         if (!urls.isEmpty()) {
             QString fileName = urls.first().toLocalFile();
             if (fileName.toLower().endsWith(".pdf")) {
                 // Emit signal to parent to handle file opening
-                emit pageClicked(QPoint(-100, -100)); // Special coordinates for file drop
+                emit pageClicked(
+                    QPoint(-100, -100));  // Special coordinates for file drop
                 // Store the file path for retrieval
                 setProperty("droppedFile", fileName);
                 event->acceptProposedAction();
@@ -361,7 +374,7 @@ void PDFPageWidget::mouseMoveEvent(QMouseEvent* event) {
         // 实现拖拽平移功能
         QPoint delta = event->pos() - lastPanPoint;
         lastPanPoint = event->pos();
-        
+
         // 这里可以实现滚动区域的平移
         // 由于我们在ScrollArea中，这个功能由ScrollArea处理
     }
@@ -397,7 +410,8 @@ void PDFPageWidget::clearSearchHighlights() {
 void PDFPageWidget::setCurrentSearchResult(int index) {
     if (index >= 0 && index < m_searchResults.size()) {
         // Clear previous current result
-        if (m_currentSearchResultIndex >= 0 && m_currentSearchResultIndex < m_searchResults.size()) {
+        if (m_currentSearchResultIndex >= 0 &&
+            m_currentSearchResultIndex < m_searchResults.size()) {
             m_searchResults[m_currentSearchResultIndex].isCurrentResult = false;
         }
 
@@ -409,7 +423,8 @@ void PDFPageWidget::setCurrentSearchResult(int index) {
     }
 }
 
-void PDFPageWidget::updateHighlightColors(const QColor& normalColor, const QColor& currentColor) {
+void PDFPageWidget::updateHighlightColors(const QColor& normalColor,
+                                          const QColor& currentColor) {
     m_normalHighlightColor = normalColor;
     m_currentHighlightColor = currentColor;
     update();
@@ -424,7 +439,8 @@ void PDFPageWidget::updateSearchResultCoordinates() {
     QSize widgetSize = size();
 
     for (SearchResult& result : m_searchResults) {
-        result.transformToWidgetCoordinates(currentScaleFactor, currentRotation, pageSize, widgetSize);
+        result.transformToWidgetCoordinates(currentScaleFactor, currentRotation,
+                                            pageSize, widgetSize);
     }
 }
 
@@ -441,7 +457,8 @@ void PDFPageWidget::drawSearchHighlights(QPainter& painter) {
         }
 
         // Choose color based on whether this is the current result
-        QColor highlightColor = result.isCurrentResult ? m_currentHighlightColor : m_normalHighlightColor;
+        QColor highlightColor = result.isCurrentResult ? m_currentHighlightColor
+                                                       : m_normalHighlightColor;
 
         // Draw highlight rectangle
         painter.fillRect(result.widgetRect, highlightColor);
@@ -458,24 +475,29 @@ void PDFPageWidget::drawSearchHighlights(QPainter& painter) {
 
 // PDFViewer Implementation
 PDFViewer::PDFViewer(QWidget* parent, bool enableStyling)
-    : QWidget(parent), document(nullptr), currentPageNumber(0),
-      currentZoomFactor(DEFAULT_ZOOM), currentViewMode(PDFViewMode::SinglePage),
-      currentZoomType(ZoomType::FixedValue), currentRotation(0),
-      pendingZoomFactor(DEFAULT_ZOOM), isZoomPending(false),
-      m_currentSearchResultIndex(-1), m_enableStyling(enableStyling) {
-
+    : QWidget(parent),
+      document(nullptr),
+      currentPageNumber(0),
+      currentZoomFactor(DEFAULT_ZOOM),
+      currentViewMode(PDFViewMode::SinglePage),
+      currentZoomType(ZoomType::FixedValue),
+      currentRotation(0),
+      pendingZoomFactor(DEFAULT_ZOOM),
+      isZoomPending(false),
+      m_currentSearchResultIndex(-1),
+      m_enableStyling(enableStyling) {
     // 初始化动画管理器
     animationManager = new PDFAnimationManager(this);
 
     // 初始化预渲染器
     prerenderer = new PDFPrerenderer(this);
     prerenderer->setStrategy(PDFPrerenderer::PrerenderStrategy::Balanced);
-    prerenderer->setMaxWorkerThreads(2); // Use 2 background threads
+    prerenderer->setMaxWorkerThreads(2);  // Use 2 background threads
 
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // 初始化QGraphics PDF查看器
     qgraphicsViewer = nullptr;
-    useQGraphicsViewer = false; // 默认使用传统渲染
+    useQGraphicsViewer = false;  // 默认使用传统渲染
 #endif
 
     // 启用拖放功能
@@ -484,24 +506,24 @@ PDFViewer::PDFViewer(QWidget* parent, bool enableStyling)
     // 初始化防抖定时器
     zoomTimer = new QTimer(this);
     zoomTimer->setSingleShot(true);
-    zoomTimer->setInterval(150); // 150ms防抖延迟
+    zoomTimer->setInterval(150);  // 150ms防抖延迟
 
     // 初始化虚拟化渲染
     visiblePageStart = 0;
     visiblePageEnd = 0;
-    renderBuffer = 2; // 预渲染前后2页
+    renderBuffer = 2;  // 预渲染前后2页
 
     scrollTimer = new QTimer(this);
     scrollTimer->setSingleShot(true);
-    scrollTimer->setInterval(100); // 100ms滚动防抖
+    scrollTimer->setInterval(100);  // 100ms滚动防抖
 
     // 初始化页面缓存
-    maxCacheSize = 20; // 最多缓存20页
+    maxCacheSize = 20;  // 最多缓存20页
 
     // 初始化动画效果
     opacityEffect = new QGraphicsOpacityEffect(this);
     fadeAnimation = new QPropertyAnimation(opacityEffect, "opacity", this);
-    fadeAnimation->setDuration(300); // 300ms动画时间
+    fadeAnimation->setDuration(300);  // 300ms动画时间
 
     setupUI();
     setupConnections();
@@ -526,18 +548,19 @@ void PDFViewer::setupUI() {
     if (m_enableStyling) {
         toolbar->setStyleSheet(STYLE.getToolbarStyleSheet());
         toolbarLayout = new QHBoxLayout(toolbar);
-        toolbarLayout->setContentsMargins(STYLE.margin(), STYLE.spacing(), STYLE.margin(), STYLE.spacing());
+        toolbarLayout->setContentsMargins(STYLE.margin(), STYLE.spacing(),
+                                          STYLE.margin(), STYLE.spacing());
         toolbarLayout->setSpacing(STYLE.spacing());
     } else {
         toolbarLayout = new QHBoxLayout(toolbar);
         toolbarLayout->setContentsMargins(8, 8, 8, 8);
         toolbarLayout->setSpacing(8);
     }
-    
+
     // 页面导航控件
     QGroupBox* navGroup = new QGroupBox("页面导航", toolbar);
     QHBoxLayout* navLayout = new QHBoxLayout(navGroup);
-    
+
     // 使用现代化图标
     firstPageBtn = new QPushButton("⏮", navGroup);
     prevPageBtn = new QPushButton("◀", navGroup);
@@ -564,14 +587,14 @@ void PDFViewer::setupUI() {
     prevPageBtn->setToolTip("上一页 (Page Up)");
     nextPageBtn->setToolTip("下一页 (Page Down)");
     lastPageBtn->setToolTip("最后一页 (Ctrl+End)");
-    
+
     navLayout->addWidget(firstPageBtn);
     navLayout->addWidget(prevPageBtn);
     navLayout->addWidget(pageNumberSpinBox);
     navLayout->addWidget(pageCountLabel);
     navLayout->addWidget(nextPageBtn);
     navLayout->addWidget(lastPageBtn);
-    
+
     // 缩放控件
     QGroupBox* zoomGroup = new QGroupBox("缩放", toolbar);
     QHBoxLayout* zoomLayout = new QHBoxLayout(zoomGroup);
@@ -598,7 +621,7 @@ void PDFViewer::setupUI() {
     fitHeightBtn->setFixedSize(STYLE.buttonHeight(), STYLE.buttonHeight());
     fitPageBtn->setFixedSize(STYLE.buttonHeight(), STYLE.buttonHeight());
 
-    zoomSlider->setRange(10, 500); // 10% to 500%
+    zoomSlider->setRange(10, 500);  // 10% to 500%
     zoomSlider->setValue(100);
     zoomSlider->setMinimumWidth(120);
 
@@ -659,9 +682,11 @@ void PDFViewer::setupUI() {
     QHBoxLayout* viewLayout = new QHBoxLayout(viewGroup);
 
     viewModeComboBox = new QComboBox(viewGroup);
-    viewModeComboBox->addItem("单页视图", static_cast<int>(PDFViewMode::SinglePage));
-    viewModeComboBox->addItem("连续滚动", static_cast<int>(PDFViewMode::ContinuousScroll));
-    viewModeComboBox->setCurrentIndex(0); // 默认单页视图
+    viewModeComboBox->addItem("单页视图",
+                              static_cast<int>(PDFViewMode::SinglePage));
+    viewModeComboBox->addItem("连续滚动",
+                              static_cast<int>(PDFViewMode::ContinuousScroll));
+    viewModeComboBox->setCurrentIndex(0);  // 默认单页视图
 
     viewLayout->addWidget(viewModeComboBox);
 
@@ -671,7 +696,7 @@ void PDFViewer::setupUI() {
     toolbarLayout->addWidget(themeGroup);
     toolbarLayout->addWidget(viewGroup);
     toolbarLayout->addStretch();
-    
+
     // 创建视图堆叠组件
     viewStack = new QStackedWidget(this);
 
@@ -679,7 +704,7 @@ void PDFViewer::setupUI() {
 
     // 创建搜索组件
     searchWidget = new SearchWidget(this);
-    searchWidget->setVisible(false); // 默认隐藏
+    searchWidget->setVisible(false);  // 默认隐藏
 
     mainLayout->addWidget(toolbar);
     mainLayout->addWidget(searchWidget);
@@ -696,7 +721,8 @@ void PDFViewer::setupViewModes() {
 
     // 应用样式
     if (m_enableStyling) {
-        singlePageScrollArea->setStyleSheet(STYLE.getPDFViewerStyleSheet() + STYLE.getScrollBarStyleSheet());
+        singlePageScrollArea->setStyleSheet(STYLE.getPDFViewerStyleSheet() +
+                                            STYLE.getScrollBarStyleSheet());
     }
 
     // 创建连续滚动视图
@@ -704,7 +730,8 @@ void PDFViewer::setupViewModes() {
     continuousWidget = new QWidget(continuousScrollArea);
     continuousLayout = new QVBoxLayout(continuousWidget);
     if (m_enableStyling) {
-        continuousLayout->setContentsMargins(STYLE.margin(), STYLE.margin(), STYLE.margin(), STYLE.margin());
+        continuousLayout->setContentsMargins(STYLE.margin(), STYLE.margin(),
+                                             STYLE.margin(), STYLE.margin());
         continuousLayout->setSpacing(STYLE.spacing() * 2);
     } else {
         continuousLayout->setContentsMargins(12, 12, 12, 12);
@@ -715,7 +742,8 @@ void PDFViewer::setupViewModes() {
 
     // 应用样式
     if (m_enableStyling) {
-        continuousScrollArea->setStyleSheet(STYLE.getPDFViewerStyleSheet() + STYLE.getScrollBarStyleSheet());
+        continuousScrollArea->setStyleSheet(STYLE.getPDFViewerStyleSheet() +
+                                            STYLE.getScrollBarStyleSheet());
     }
 
     // 添加到堆叠组件
@@ -741,32 +769,42 @@ void PDFViewer::setupConnections() {
     // 缩放控制
     connect(zoomInBtn, &QPushButton::clicked, this, &PDFViewer::zoomIn);
     connect(zoomOutBtn, &QPushButton::clicked, this, &PDFViewer::zoomOut);
-    connect(zoomSlider, &QSlider::valueChanged, this, &PDFViewer::onZoomSliderChanged);
+    connect(zoomSlider, &QSlider::valueChanged, this,
+            &PDFViewer::onZoomSliderChanged);
     connect(zoomPercentageSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &PDFViewer::onZoomPercentageChanged);
     connect(fitWidthBtn, &QPushButton::clicked, this, &PDFViewer::zoomToWidth);
-    connect(fitHeightBtn, &QPushButton::clicked, this, &PDFViewer::zoomToHeight);
+    connect(fitHeightBtn, &QPushButton::clicked, this,
+            &PDFViewer::zoomToHeight);
     connect(fitPageBtn, &QPushButton::clicked, this, &PDFViewer::zoomToFit);
 
     // 旋转控制
     connect(rotateLeftBtn, &QPushButton::clicked, this, &PDFViewer::rotateLeft);
-    connect(rotateRightBtn, &QPushButton::clicked, this, &PDFViewer::rotateRight);
+    connect(rotateRightBtn, &QPushButton::clicked, this,
+            &PDFViewer::rotateRight);
 
     // 主题切换
-    connect(themeToggleBtn, &QPushButton::clicked, this, &PDFViewer::toggleTheme);
+    connect(themeToggleBtn, &QPushButton::clicked, this,
+            &PDFViewer::toggleTheme);
 
     // 搜索组件连接
     if (searchWidget) {
-        connect(searchWidget, &SearchWidget::searchRequested, this, &PDFViewer::onSearchRequested);
-        connect(searchWidget, &SearchWidget::resultSelected, this, &PDFViewer::onSearchResultSelected);
-        connect(searchWidget, &SearchWidget::navigateToResult, this, &PDFViewer::onNavigateToSearchResult);
-        connect(searchWidget, &SearchWidget::searchClosed, this, &PDFViewer::hideSearch);
-        connect(searchWidget, &SearchWidget::searchCleared, this, &PDFViewer::clearSearchHighlights);
+        connect(searchWidget, &SearchWidget::searchRequested, this,
+                &PDFViewer::onSearchRequested);
+        connect(searchWidget, &SearchWidget::resultSelected, this,
+                &PDFViewer::onSearchResultSelected);
+        connect(searchWidget, &SearchWidget::navigateToResult, this,
+                &PDFViewer::onNavigateToSearchResult);
+        connect(searchWidget, &SearchWidget::searchClosed, this,
+                &PDFViewer::hideSearch);
+        connect(searchWidget, &SearchWidget::searchCleared, this,
+                &PDFViewer::clearSearchHighlights);
 
         // Connect search model signals for real-time highlighting
         if (searchWidget->getSearchModel()) {
-            connect(searchWidget->getSearchModel(), &SearchModel::realTimeResultsUpdated,
-                    this, &PDFViewer::setSearchResults);
+            connect(searchWidget->getSearchModel(),
+                    &SearchModel::realTimeResultsUpdated, this,
+                    &PDFViewer::setSearchResults);
         }
     }
 
@@ -775,11 +813,13 @@ void PDFViewer::setupConnections() {
     connect(scrollTimer, &QTimer::timeout, this, &PDFViewer::onScrollChanged);
 
     // 查看模式控制
-    connect(viewModeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &PDFViewer::onViewModeChanged);
+    connect(viewModeComboBox,
+            QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &PDFViewer::onViewModeChanged);
 
     // 页面组件信号
-    connect(singlePageWidget, &PDFPageWidget::scaleChanged, this, &PDFViewer::onScaleChanged);
+    connect(singlePageWidget, &PDFPageWidget::scaleChanged, this,
+            &PDFViewer::onScaleChanged);
 }
 
 void PDFViewer::setupShortcuts() {
@@ -806,7 +846,8 @@ void PDFViewer::setupShortcuts() {
     QShortcut* rotate180 = new QShortcut(QKeySequence("Ctrl+Shift+R"), this);
 
     // 主题切换快捷键
-    QShortcut* themeToggleShortcut = new QShortcut(QKeySequence("Ctrl+T"), this);
+    QShortcut* themeToggleShortcut =
+        new QShortcut(QKeySequence("Ctrl+T"), this);
 
     // 导航快捷键 - 基本
     firstPageShortcut = new QShortcut(QKeySequence("Ctrl+Home"), this);
@@ -850,12 +891,16 @@ void PDFViewer::setupShortcuts() {
     connect(zoomInShortcut, &QShortcut::activated, this, &PDFViewer::zoomIn);
     connect(zoomOutShortcut, &QShortcut::activated, this, &PDFViewer::zoomOut);
     connect(zoomIn2, &QShortcut::activated, this, &PDFViewer::zoomIn);
-    connect(fitPageShortcut, &QShortcut::activated, this, &PDFViewer::zoomToFit);
-    connect(fitWidthShortcut, &QShortcut::activated, this, &PDFViewer::zoomToWidth);
-    connect(fitHeightShortcut, &QShortcut::activated, this, &PDFViewer::zoomToHeight);
+    connect(fitPageShortcut, &QShortcut::activated, this,
+            &PDFViewer::zoomToFit);
+    connect(fitWidthShortcut, &QShortcut::activated, this,
+            &PDFViewer::zoomToWidth);
+    connect(fitHeightShortcut, &QShortcut::activated, this,
+            &PDFViewer::zoomToHeight);
 
     // 连接预设缩放级别
-    connect(zoomActualSize, &QShortcut::activated, this, [this]() { setZoom(1.0); });
+    connect(zoomActualSize, &QShortcut::activated, this,
+            [this]() { setZoom(1.0); });
     connect(zoom25, &QShortcut::activated, this, [this]() { setZoom(0.25); });
     connect(zoom50, &QShortcut::activated, this, [this]() { setZoom(0.5); });
     connect(zoom75, &QShortcut::activated, this, [this]() { setZoom(0.75); });
@@ -864,20 +909,26 @@ void PDFViewer::setupShortcuts() {
     connect(zoom200, &QShortcut::activated, this, [this]() { setZoom(2.0); });
 
     // 连接旋转快捷键
-    connect(rotateLeftShortcut, &QShortcut::activated, this, &PDFViewer::rotateLeft);
-    connect(rotateRightShortcut, &QShortcut::activated, this, &PDFViewer::rotateRight);
-    connect(rotate180, &QShortcut::activated, this, [this]() {
-        setRotation(currentRotation + 180);
-    });
+    connect(rotateLeftShortcut, &QShortcut::activated, this,
+            &PDFViewer::rotateLeft);
+    connect(rotateRightShortcut, &QShortcut::activated, this,
+            &PDFViewer::rotateRight);
+    connect(rotate180, &QShortcut::activated, this,
+            [this]() { setRotation(currentRotation + 180); });
 
     // 连接主题快捷键
-    connect(themeToggleShortcut, &QShortcut::activated, this, &PDFViewer::toggleTheme);
+    connect(themeToggleShortcut, &QShortcut::activated, this,
+            &PDFViewer::toggleTheme);
 
     // 连接基本导航快捷键
-    connect(firstPageShortcut, &QShortcut::activated, this, &PDFViewer::firstPage);
-    connect(lastPageShortcut, &QShortcut::activated, this, &PDFViewer::lastPage);
-    connect(nextPageShortcut, &QShortcut::activated, this, &PDFViewer::nextPage);
-    connect(prevPageShortcut, &QShortcut::activated, this, &PDFViewer::previousPage);
+    connect(firstPageShortcut, &QShortcut::activated, this,
+            &PDFViewer::firstPage);
+    connect(lastPageShortcut, &QShortcut::activated, this,
+            &PDFViewer::lastPage);
+    connect(nextPageShortcut, &QShortcut::activated, this,
+            &PDFViewer::nextPage);
+    connect(prevPageShortcut, &QShortcut::activated, this,
+            &PDFViewer::previousPage);
 
     // 连接高级导航快捷键
     connect(nextPage2, &QShortcut::activated, this, &PDFViewer::nextPage);
@@ -888,12 +939,10 @@ void PDFViewer::setupShortcuts() {
     connect(prevPage4, &QShortcut::activated, this, &PDFViewer::previousPage);
 
     // 连接跳转快捷键
-    connect(jump10Forward, &QShortcut::activated, this, [this]() {
-        goToPage(currentPageNumber + 10);
-    });
-    connect(jump10Backward, &QShortcut::activated, this, [this]() {
-        goToPage(currentPageNumber - 10);
-    });
+    connect(jump10Forward, &QShortcut::activated, this,
+            [this]() { goToPage(currentPageNumber + 10); });
+    connect(jump10Backward, &QShortcut::activated, this,
+            [this]() { goToPage(currentPageNumber - 10); });
     connect(gotoPage, &QShortcut::activated, this, [this]() {
         // Focus on page number input
         if (pageNumberSpinBox) {
@@ -940,12 +989,12 @@ void PDFViewer::setDocument(Poppler::Document* doc) {
     try {
         // 清理旧文档
         if (document) {
-            clearPageCache(); // 清理缓存
+            clearPageCache();  // 清理缓存
         }
 
         document = doc;
         currentPageNumber = 0;
-        currentRotation = 0; // 重置旋转
+        currentRotation = 0;  // 重置旋转
 
         if (document) {
             // Configure document for high-quality rendering
@@ -1027,9 +1076,7 @@ void PDFViewer::setDocument(Poppler::Document* doc) {
     }
 }
 
-void PDFViewer::clearDocument() {
-    setDocument(nullptr);
-}
+void PDFViewer::clearDocument() { setDocument(nullptr); }
 
 void PDFViewer::goToPage(int pageNumber) {
     goToPageWithValidation(pageNumber, false);
@@ -1045,7 +1092,8 @@ bool PDFViewer::goToPageWithValidation(int pageNumber, bool showMessage) {
 
     if (pageNumber < 0 || pageNumber >= document->numPages()) {
         if (showMessage) {
-            setMessage(QString("页码超出范围 (1-%1)").arg(document->numPages()));
+            setMessage(
+                QString("页码超出范围 (1-%1)").arg(document->numPages()));
         }
         return false;
     }
@@ -1113,11 +1161,13 @@ void PDFViewer::zoomOut() {
 }
 
 void PDFViewer::zoomToFit() {
-    if (!document) return;
+    if (!document)
+        return;
 
     // 获取当前视图的viewport大小
-    QScrollArea* currentScrollArea = (currentViewMode == PDFViewMode::SinglePage)
-        ? singlePageScrollArea : continuousScrollArea;
+    QScrollArea* currentScrollArea =
+        (currentViewMode == PDFViewMode::SinglePage) ? singlePageScrollArea
+                                                     : continuousScrollArea;
     QSize viewportSize = currentScrollArea->viewport()->size();
 
     if (document->numPages() > 0) {
@@ -1126,17 +1176,20 @@ void PDFViewer::zoomToFit() {
             QSizeF pageSize = page->pageSizeF();
             double scaleX = viewportSize.width() / pageSize.width();
             double scaleY = viewportSize.height() / pageSize.height();
-            setZoomWithType(qMin(scaleX, scaleY) * 0.9, ZoomType::FitPage); // 留一些边距
+            setZoomWithType(qMin(scaleX, scaleY) * 0.9,
+                            ZoomType::FitPage);  // 留一些边距
         }
     }
 }
 
 void PDFViewer::zoomToWidth() {
-    if (!document) return;
+    if (!document)
+        return;
 
     // 获取当前视图的viewport大小
-    QScrollArea* currentScrollArea = (currentViewMode == PDFViewMode::SinglePage)
-        ? singlePageScrollArea : continuousScrollArea;
+    QScrollArea* currentScrollArea =
+        (currentViewMode == PDFViewMode::SinglePage) ? singlePageScrollArea
+                                                     : continuousScrollArea;
     QSize viewportSize = currentScrollArea->viewport()->size();
 
     if (document->numPages() > 0) {
@@ -1144,7 +1197,7 @@ void PDFViewer::zoomToWidth() {
         if (page) {
             QSizeF pageSize = page->pageSizeF();
             double scale = viewportSize.width() / pageSize.width();
-            setZoomWithType(scale * 0.95, ZoomType::FitWidth); // 留一些边距
+            setZoomWithType(scale * 0.95, ZoomType::FitWidth);  // 留一些边距
         }
     }
 }
@@ -1157,14 +1210,14 @@ int PDFViewer::getPageCount() const {
     return document ? document->numPages() : 0;
 }
 
-double PDFViewer::getCurrentZoom() const {
-    return currentZoomFactor;
-}
+double PDFViewer::getCurrentZoom() const { return currentZoomFactor; }
 
 void PDFViewer::updatePageDisplay() {
-    if (!document || currentPageNumber < 0 || currentPageNumber >= document->numPages()) {
+    if (!document || currentPageNumber < 0 ||
+        currentPageNumber >= document->numPages()) {
         if (currentViewMode == PDFViewMode::SinglePage) {
-            singlePageWidget->setPage(nullptr, currentZoomFactor, currentRotation);
+            singlePageWidget->setPage(nullptr, currentZoomFactor,
+                                      currentRotation);
         }
         return;
     }
@@ -1180,7 +1233,8 @@ void PDFViewer::updatePageDisplay() {
 
         std::unique_ptr<Poppler::Page> page(document->page(currentPageNumber));
         if (page) {
-            singlePageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+            singlePageWidget->setPage(page.get(), currentZoomFactor,
+                                      currentRotation);
         }
     }
     // 连续模式下不需要更新单个页面，因为所有页面都已经渲染
@@ -1192,10 +1246,12 @@ void PDFViewer::updateContinuousView() {
     }
 
     // 优化：只更新缩放因子，避免重新渲染所有页面
-    for (int i = 0; i < continuousLayout->count() - 1; ++i) { // -1 因为最后一个是stretch
+    for (int i = 0; i < continuousLayout->count() - 1;
+         ++i) {  // -1 因为最后一个是stretch
         QLayoutItem* item = continuousLayout->itemAt(i);
         if (item && item->widget()) {
-            PDFPageWidget* pageWidget = qobject_cast<PDFPageWidget*>(item->widget());
+            PDFPageWidget* pageWidget =
+                qobject_cast<PDFPageWidget*>(item->widget());
             if (pageWidget) {
                 // 阻止信号发出，避免循环
                 pageWidget->blockSignals(true);
@@ -1272,7 +1328,7 @@ void PDFViewer::updateZoomControls() {
 }
 
 void PDFViewer::onPageNumberChanged(int pageNumber) {
-    goToPage(pageNumber - 1); // SpinBox is 1-based, internal is 0-based
+    goToPage(pageNumber - 1);  // SpinBox is 1-based, internal is 0-based
 }
 
 void PDFViewer::onZoomSliderChanged(int value) {
@@ -1327,7 +1383,9 @@ void PDFViewer::setViewMode(PDFViewMode mode) {
         updateZoomControls();
 
         emit viewModeChanged(mode);
-        setMessage(QString("切换到%1模式").arg(mode == PDFViewMode::SinglePage ? "单页" : "连续滚动"));
+        setMessage(
+            QString("切换到%1模式")
+                .arg(mode == PDFViewMode::SinglePage ? "单页" : "连续滚动"));
 
     } catch (const std::exception& e) {
         // 恢复到原来的模式
@@ -1354,7 +1412,8 @@ void PDFViewer::switchToContinuousMode() {
 }
 
 void PDFViewer::createContinuousPages() {
-    if (!document) return;
+    if (!document)
+        return;
 
     // 清空现有页面
     QLayoutItem* item;
@@ -1378,16 +1437,17 @@ void PDFViewer::createContinuousPages() {
         continuousLayout->addWidget(pageWidget);
 
         // 连接信号
-        connect(pageWidget, &PDFPageWidget::scaleChanged, this, &PDFViewer::onScaleChanged);
+        connect(pageWidget, &PDFPageWidget::scaleChanged, this,
+                &PDFViewer::onScaleChanged);
     }
 
     continuousLayout->addStretch();
 
     // 连接滚动区域的滚动信号以实现虚拟化渲染
     if (continuousScrollArea->verticalScrollBar()) {
-        connect(continuousScrollArea->verticalScrollBar(), &QScrollBar::valueChanged,
-                this, [this]() {
-                    scrollTimer->start(); // 使用防抖
+        connect(continuousScrollArea->verticalScrollBar(),
+                &QScrollBar::valueChanged, this, [this]() {
+                    scrollTimer->start();  // 使用防抖
                 });
     }
 }
@@ -1398,17 +1458,19 @@ void PDFViewer::updateVisiblePages() {
     }
 
     QScrollBar* scrollBar = continuousScrollArea->verticalScrollBar();
-    if (!scrollBar) return;
+    if (!scrollBar)
+        return;
 
     int viewportHeight = continuousScrollArea->viewport()->height();
     int scrollValue = scrollBar->value();
 
     // 估算可见页面范围
     int totalPages = document->numPages();
-    if (totalPages == 0) return;
+    if (totalPages == 0)
+        return;
 
     // 简化计算：假设所有页面高度相似
-    int estimatedPageHeight = viewportHeight; // 粗略估算
+    int estimatedPageHeight = viewportHeight;  // 粗略估算
     if (continuousLayout->count() > 1) {
         QLayoutItem* firstItem = continuousLayout->itemAt(0);
         if (firstItem && firstItem->widget()) {
@@ -1416,14 +1478,18 @@ void PDFViewer::updateVisiblePages() {
         }
     }
 
-    if (estimatedPageHeight <= 0) estimatedPageHeight = viewportHeight;
+    if (estimatedPageHeight <= 0)
+        estimatedPageHeight = viewportHeight;
 
-    int newVisibleStart = qMax(0, (scrollValue / estimatedPageHeight) - renderBuffer);
-    int newVisibleEnd = qMin(totalPages - 1,
-                            ((scrollValue + viewportHeight) / estimatedPageHeight) + renderBuffer);
+    int newVisibleStart =
+        qMax(0, (scrollValue / estimatedPageHeight) - renderBuffer);
+    int newVisibleEnd = qMin(
+        totalPages - 1,
+        ((scrollValue + viewportHeight) / estimatedPageHeight) + renderBuffer);
 
     // 如果可见范围发生变化，更新渲染
-    if (newVisibleStart != visiblePageStart || newVisibleEnd != visiblePageEnd) {
+    if (newVisibleStart != visiblePageStart ||
+        newVisibleEnd != visiblePageEnd) {
         visiblePageStart = newVisibleStart;
         visiblePageEnd = newVisibleEnd;
         renderVisiblePages();
@@ -1440,10 +1506,12 @@ void PDFViewer::renderVisiblePages() {
     for (int i = 0; i < continuousLayout->count() - 1; ++i) {
         QLayoutItem* item = continuousLayout->itemAt(i);
         if (item && item->widget()) {
-            PDFPageWidget* pageWidget = qobject_cast<PDFPageWidget*>(item->widget());
+            PDFPageWidget* pageWidget =
+                qobject_cast<PDFPageWidget*>(item->widget());
             if (pageWidget) {
                 // 只渲染可见范围内的页面
-                bool shouldRender = (i >= visiblePageStart && i <= visiblePageEnd);
+                bool shouldRender =
+                    (i >= visiblePageStart && i <= visiblePageEnd);
                 pageWidget->setVisible(shouldRender);
             }
         }
@@ -1456,21 +1524,25 @@ void PDFViewer::onScrollChanged() {
     }
 }
 
-QPixmap PDFViewer::getCachedPage(int pageNumber, double zoomFactor, int rotation) {
+QPixmap PDFViewer::getCachedPage(int pageNumber, double zoomFactor,
+                                 int rotation) {
     auto it = pageCache.find(pageNumber);
     if (it != pageCache.end()) {
         const PageCacheItem& item = it.value();
         // 检查缓存是否匹配当前参数
-        if (qAbs(item.zoomFactor - zoomFactor) < 0.001 && item.rotation == rotation) {
+        if (qAbs(item.zoomFactor - zoomFactor) < 0.001 &&
+            item.rotation == rotation) {
             // 更新访问时间
-            const_cast<PageCacheItem&>(item).lastAccessed = QDateTime::currentMSecsSinceEpoch();
+            const_cast<PageCacheItem&>(item).lastAccessed =
+                QDateTime::currentMSecsSinceEpoch();
             return item.pixmap;
         }
     }
-    return QPixmap(); // 返回空的QPixmap表示缓存未命中
+    return QPixmap();  // 返回空的QPixmap表示缓存未命中
 }
 
-void PDFViewer::setCachedPage(int pageNumber, const QPixmap& pixmap, double zoomFactor, int rotation) {
+void PDFViewer::setCachedPage(int pageNumber, const QPixmap& pixmap,
+                              double zoomFactor, int rotation) {
     // 如果缓存已满，清理最旧的条目
     if (pageCache.size() >= maxCacheSize) {
         cleanupCache();
@@ -1485,13 +1557,11 @@ void PDFViewer::setCachedPage(int pageNumber, const QPixmap& pixmap, double zoom
     pageCache[pageNumber] = item;
 }
 
-void PDFViewer::clearPageCache() {
-    pageCache.clear();
-}
+void PDFViewer::clearPageCache() { pageCache.clear(); }
 
 void PDFViewer::cleanupCache() {
     if (pageCache.size() <= maxCacheSize / 2) {
-        return; // 不需要清理
+        return;  // 不需要清理
     }
 
     // 找到最旧的条目并删除
@@ -1506,8 +1576,9 @@ void PDFViewer::cleanupCache() {
 
     // 删除超过一半的最旧条目
     int removeCount = pageCache.size() - maxCacheSize / 2;
-    for (auto it = pageCache.begin(); it != pageCache.end() && removeCount > 0; ++it) {
-        if (it.value().lastAccessed <= oldestTime + 1000) { // 1秒容差
+    for (auto it = pageCache.begin(); it != pageCache.end() && removeCount > 0;
+         ++it) {
+        if (it.value().lastAccessed <= oldestTime + 1000) {  // 1秒容差
             keysToRemove.append(it.key());
             removeCount--;
         }
@@ -1520,7 +1591,8 @@ void PDFViewer::cleanupCache() {
 
 void PDFViewer::toggleTheme() {
     Theme currentTheme = STYLE.currentTheme();
-    Theme newTheme = (currentTheme == Theme::Light) ? Theme::Dark : Theme::Light;
+    Theme newTheme =
+        (currentTheme == Theme::Light) ? Theme::Dark : Theme::Light;
 
     STYLE.setTheme(newTheme);
 
@@ -1552,11 +1624,13 @@ void PDFViewer::toggleTheme() {
     themeToggleBtn->setStyleSheet(buttonStyle);
 
     // 更新滚动区域样式
-    QString scrollStyle = STYLE.getPDFViewerStyleSheet() + STYLE.getScrollBarStyleSheet();
+    QString scrollStyle =
+        STYLE.getPDFViewerStyleSheet() + STYLE.getScrollBarStyleSheet();
     singlePageScrollArea->setStyleSheet(scrollStyle);
     continuousScrollArea->setStyleSheet(scrollStyle);
 
-    setMessage(QString("已切换到%1主题").arg(newTheme == Theme::Dark ? "暗色" : "亮色"));
+    setMessage(QString("已切换到%1主题")
+                   .arg(newTheme == Theme::Dark ? "暗色" : "亮色"));
 }
 
 void PDFViewer::onViewModeChanged(int index) {
@@ -1613,7 +1687,7 @@ void PDFViewer::setZoomWithType(double factor, ZoomType type) {
         // 使用防抖机制
         pendingZoomFactor = factor;
         isZoomPending = true;
-        zoomTimer->start(); // 重新启动定时器
+        zoomTimer->start();  // 重新启动定时器
     } else {
         // 立即应用缩放
         if (zoomTimer->isActive()) {
@@ -1630,11 +1704,13 @@ void PDFViewer::setZoomWithType(double factor, ZoomType type) {
 }
 
 void PDFViewer::zoomToHeight() {
-    if (!document) return;
+    if (!document)
+        return;
 
     // 获取当前视图的viewport大小
-    QScrollArea* currentScrollArea = (currentViewMode == PDFViewMode::SinglePage)
-        ? singlePageScrollArea : continuousScrollArea;
+    QScrollArea* currentScrollArea =
+        (currentViewMode == PDFViewMode::SinglePage) ? singlePageScrollArea
+                                                     : continuousScrollArea;
     QSize viewportSize = currentScrollArea->viewport()->size();
 
     if (document->numPages() > 0) {
@@ -1642,7 +1718,7 @@ void PDFViewer::zoomToHeight() {
         if (page) {
             QSizeF pageSize = page->pageSizeF();
             double scale = viewportSize.height() / pageSize.height();
-            setZoomWithType(scale * 0.95, ZoomType::FitHeight); // 留一些边距
+            setZoomWithType(scale * 0.95, ZoomType::FitHeight);  // 留一些边距
         }
     }
 }
@@ -1675,7 +1751,7 @@ void PDFViewer::applyZoom(double factor) {
 #endif
 
         updateZoomControls();
-        saveZoomSettings(); // 保存缩放设置
+        saveZoomSettings();  // 保存缩放设置
         emit zoomChanged(factor);
 
         // 恢复标志状态
@@ -1695,7 +1771,7 @@ bool PDFViewer::eventFilter(QObject* object, QEvent* event) {
                 double newZoom = currentZoomFactor * scaleDelta;
                 setZoomWithType(newZoom, ZoomType::FixedValue);
             }
-            return true; // 事件已处理
+            return true;  // 事件已处理
         }
     }
 
@@ -1716,7 +1792,9 @@ void PDFViewer::loadZoomSettings() {
 
     // 加载默认缩放值
     double savedZoom = settings.value("defaultZoom", DEFAULT_ZOOM).toDouble();
-    int savedZoomType = settings.value("zoomType", static_cast<int>(ZoomType::FixedValue)).toInt();
+    int savedZoomType =
+        settings.value("zoomType", static_cast<int>(ZoomType::FixedValue))
+            .toInt();
 
     settings.endGroup();
 
@@ -1731,8 +1809,10 @@ void PDFViewer::keyPressEvent(QKeyEvent* event) {
         if (pageNumberSpinBox->hasFocus()) {
             // 如果页码输入框有焦点，应用当前值并跳转
             int pageNumber = pageNumberSpinBox->value();
-            if (goToPageWithValidation(pageNumber - 1, true)) { // SpinBox is 1-based, internal is 0-based
-                pageNumberSpinBox->clearFocus(); // 清除焦点
+            if (goToPageWithValidation(
+                    pageNumber - 1,
+                    true)) {  // SpinBox is 1-based, internal is 0-based
+                pageNumberSpinBox->clearFocus();  // 清除焦点
             }
             event->accept();
             return;
@@ -1795,12 +1875,16 @@ void PDFViewer::setRotation(int degrees) {
 #endif
                 // 更新当前视图
                 if (currentViewMode == PDFViewMode::SinglePage) {
-                    if (currentPageNumber >= 0 && currentPageNumber < document->numPages()) {
-                        std::unique_ptr<Poppler::Page> page(document->page(currentPageNumber));
+                    if (currentPageNumber >= 0 &&
+                        currentPageNumber < document->numPages()) {
+                        std::unique_ptr<Poppler::Page> page(
+                            document->page(currentPageNumber));
                         if (page) {
-                            singlePageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+                            singlePageWidget->setPage(
+                                page.get(), currentZoomFactor, currentRotation);
                         } else {
-                            throw std::runtime_error("Failed to get page for rotation");
+                            throw std::runtime_error(
+                                "Failed to get page for rotation");
                         }
                     }
                 } else {
@@ -1828,20 +1912,22 @@ void PDFViewer::updateContinuousViewRotation() {
     }
 
     int successCount = 0;
-    int totalPages = continuousLayout->count() - 1; // -1 因为最后一个是stretch
+    int totalPages = continuousLayout->count() - 1;  // -1 因为最后一个是stretch
 
     // 更新连续视图中所有页面的旋转
     for (int i = 0; i < totalPages; ++i) {
         try {
             QLayoutItem* item = continuousLayout->itemAt(i);
             if (item && item->widget()) {
-                PDFPageWidget* pageWidget = qobject_cast<PDFPageWidget*>(item->widget());
+                PDFPageWidget* pageWidget =
+                    qobject_cast<PDFPageWidget*>(item->widget());
                 if (pageWidget && i < document->numPages()) {
                     std::unique_ptr<Poppler::Page> page(document->page(i));
                     if (page) {
                         // 阻止信号发出，避免循环
                         pageWidget->blockSignals(true);
-                        pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+                        pageWidget->setPage(page.get(), currentZoomFactor,
+                                            currentRotation);
                         pageWidget->blockSignals(false);
                         successCount++;
                     } else {
@@ -1855,7 +1941,9 @@ void PDFViewer::updateContinuousViewRotation() {
     }
 
     if (successCount < totalPages) {
-        setMessage(QString("部分页面旋转失败 (%1/%2)").arg(successCount).arg(totalPages));
+        setMessage(QString("部分页面旋转失败 (%1/%2)")
+                       .arg(successCount)
+                       .arg(totalPages));
     }
 }
 
@@ -1904,12 +1992,14 @@ void PDFViewer::clearSearch() {
 }
 
 // 搜索相关槽函数
-void PDFViewer::onSearchRequested(const QString& query, const SearchOptions& options) {
+void PDFViewer::onSearchRequested(const QString& query,
+                                  const SearchOptions& options) {
     // Clear previous search highlights
     clearSearchHighlights();
 
     if (!query.isEmpty() && document) {
-        // The search is handled by SearchWidget, but we prepare for highlighting
+        // The search is handled by SearchWidget, but we prepare for
+        // highlighting
         setMessage(QString("搜索: %1").arg(query));
     }
 }
@@ -1952,7 +2042,8 @@ void PDFViewer::clearSearchHighlights() {
         for (int i = 0; i < continuousLayout->count() - 1; ++i) {
             QLayoutItem* item = continuousLayout->itemAt(i);
             if (item && item->widget()) {
-                PDFPageWidget* pageWidget = qobject_cast<PDFPageWidget*>(item->widget());
+                PDFPageWidget* pageWidget =
+                    qobject_cast<PDFPageWidget*>(item->widget());
                 if (pageWidget) {
                     pageWidget->clearSearchHighlights();
                 }
@@ -1991,7 +2082,8 @@ void PDFViewer::updateSearchHighlightsForCurrentPage() {
 }
 
 void PDFViewer::updateAllPagesSearchHighlights() {
-    if (m_allSearchResults.isEmpty() || currentViewMode != PDFViewMode::ContinuousScroll) {
+    if (m_allSearchResults.isEmpty() ||
+        currentViewMode != PDFViewMode::ContinuousScroll) {
         return;
     }
 
@@ -2007,7 +2099,8 @@ void PDFViewer::updateAllPagesSearchHighlights() {
     for (int pageNum = 0; pageNum < continuousLayout->count() - 1; ++pageNum) {
         QLayoutItem* item = continuousLayout->itemAt(pageNum);
         if (item && item->widget()) {
-            PDFPageWidget* pageWidget = qobject_cast<PDFPageWidget*>(item->widget());
+            PDFPageWidget* pageWidget =
+                qobject_cast<PDFPageWidget*>(item->widget());
             if (pageWidget) {
                 if (resultsByPage.contains(pageNum)) {
                     pageWidget->setSearchResults(resultsByPage[pageNum]);
@@ -2068,7 +2161,7 @@ void PDFViewer::toggleBookmark() {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
 void PDFViewer::setQGraphicsRenderingEnabled(bool enabled) {
     if (useQGraphicsViewer == enabled) {
-        return; // No change needed
+        return;  // No change needed
     }
 
     useQGraphicsViewer = enabled;
@@ -2079,7 +2172,8 @@ void PDFViewer::setQGraphicsRenderingEnabled(bool enabled) {
             try {
                 qgraphicsViewer = new QGraphicsPDFViewer(this);
             } catch (...) {
-                // If QGraphics viewer creation fails, fall back to traditional mode
+                // If QGraphics viewer creation fails, fall back to traditional
+                // mode
                 useQGraphicsViewer = false;
                 return;
             }
@@ -2091,25 +2185,27 @@ void PDFViewer::setQGraphicsRenderingEnabled(bool enabled) {
                         emit pageChanged(page);
                     });
 
-            connect(qgraphicsViewer, &QGraphicsPDFViewer::zoomChanged,
-                    this, [this](double zoom) {
+            connect(qgraphicsViewer, &QGraphicsPDFViewer::zoomChanged, this,
+                    [this](double zoom) {
                         currentZoomFactor = zoom;
                         emit zoomChanged(zoom);
                     });
 
-            connect(qgraphicsViewer, &QGraphicsPDFViewer::rotationChanged,
-                    this, [this](int rotation) {
+            connect(qgraphicsViewer, &QGraphicsPDFViewer::rotationChanged, this,
+                    [this](int rotation) {
                         currentRotation = rotation;
                         emit rotationChanged(rotation);
                     });
 
-            connect(qgraphicsViewer, &QGraphicsPDFViewer::documentChanged,
-                    this, &PDFViewer::documentChanged);
+            connect(qgraphicsViewer, &QGraphicsPDFViewer::documentChanged, this,
+                    &PDFViewer::documentChanged);
         }
 
         // Hide traditional viewer components and show QGraphics viewer
-        if (singlePageWidget) singlePageWidget->hide();
-        if (continuousScrollArea) continuousScrollArea->hide();
+        if (singlePageWidget)
+            singlePageWidget->hide();
+        if (continuousScrollArea)
+            continuousScrollArea->hide();
 
         if (qgraphicsViewer) {
             qgraphicsViewer->show();
@@ -2126,7 +2222,8 @@ void PDFViewer::setQGraphicsRenderingEnabled(bool enabled) {
             // Only add to layout if not already added
             QVBoxLayout* vLayout = qobject_cast<QVBoxLayout*>(layout());
             if (vLayout) {
-                vLayout->addWidget(qgraphicsViewer, 1); // Give it stretch factor
+                vLayout->addWidget(qgraphicsViewer,
+                                   1);  // Give it stretch factor
             }
         }
 
@@ -2136,8 +2233,10 @@ void PDFViewer::setQGraphicsRenderingEnabled(bool enabled) {
             qgraphicsViewer->hide();
         }
 
-        if (singlePageWidget) singlePageWidget->show();
-        if (continuousScrollArea && currentViewMode == PDFViewMode::ContinuousScroll) {
+        if (singlePageWidget)
+            singlePageWidget->show();
+        if (continuousScrollArea &&
+            currentViewMode == PDFViewMode::ContinuousScroll) {
             continuousScrollArea->show();
         }
 
@@ -2158,7 +2257,8 @@ void PDFViewer::setQGraphicsHighQualityRendering(bool enabled) {
 
 void PDFViewer::setQGraphicsViewMode(int mode) {
     if (qgraphicsViewer) {
-        QGraphicsPDFViewer::ViewMode viewMode = static_cast<QGraphicsPDFViewer::ViewMode>(mode);
+        QGraphicsPDFViewer::ViewMode viewMode =
+            static_cast<QGraphicsPDFViewer::ViewMode>(mode);
         qgraphicsViewer->setViewMode(viewMode);
     }
 }

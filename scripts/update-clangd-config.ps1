@@ -16,7 +16,7 @@ $ClangdFile = Join-Path $ProjectRoot ".clangd"
 # List of possible build directories from CMakePresets.json
 $PossibleBuildDirs = @(
     "build/Debug-MSYS2",
-    "build/Release-MSYS2", 
+    "build/Release-MSYS2",
     "build/Debug-MSYS2-vcpkg",
     "build/Release-MSYS2-vcpkg",
     "build/Debug",
@@ -66,10 +66,10 @@ function Find-ValidBuildDirs {
 
 function Update-ClangdConfig {
     param([string]$TargetBuildDir)
-    
+
     Write-Log "Updating .clangd configuration..." "INFO"
     Write-Log "Target build directory: $TargetBuildDir" "INFO"
-    
+
     # Check if .clangd file exists
     if (-not (Test-Path $ClangdFile)) {
         Write-Log ".clangd file not found, creating new one..." "INFO"
@@ -105,7 +105,7 @@ Hover:
         Write-Log "Created new .clangd file with build directory: $TargetBuildDir" "INFO"
         return
     }
-    
+
     # Read existing .clangd file
     $content = Get-Content $ClangdFile -Raw -Encoding UTF8
 

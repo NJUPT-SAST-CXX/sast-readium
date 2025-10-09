@@ -186,7 +186,7 @@ jobs:
           JOBS=$((JOBS * 3 / 4))
           [ $JOBS -lt 1 ] && JOBS=1
           [ $JOBS -gt 8 ] && JOBS=8  # Cap for CI stability
-          
+
           echo "Building with $JOBS parallel jobs"
           cmake --build --preset=${{ matrix.preset }} --parallel $JOBS
 
@@ -208,7 +208,7 @@ jobs:
     name: macOS Universal (System Packages)
     runs-on: macos-latest
     if: github.event.inputs.build_universal == 'true' || github.event_name == 'push'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -326,7 +326,7 @@ jobs:
           JOBS=$((JOBS * 3 / 4))
           [ $JOBS -lt 1 ] && JOBS=1
           [ $JOBS -gt 6 ] && JOBS=6  # Conservative for universal builds
-          
+
           echo "Building Universal binary with $JOBS parallel jobs"
           cmake --build --preset=Release-Unix --parallel $JOBS
 
@@ -361,7 +361,7 @@ jobs:
     runs-on: macos-13  # Intel runner for vcpkg compatibility
     if: failure() || github.event.inputs.force_vcpkg == 'true' || contains(github.event.head_commit.message, '[vcpkg]')
     needs: build-native
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -430,7 +430,7 @@ jobs:
     runs-on: macos-latest
     needs: [build-native, build-universal, build-vcpkg]
     if: always()
-    
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -446,10 +446,10 @@ jobs:
           echo "- **Universal**: Intel + Apple Silicon binaries" >> $GITHUB_STEP_SUMMARY
           echo "- **Fallback**: vcpkg when system packages fail" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "## Artifacts Generated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           for dir in artifacts/*/; do
             if [ -d "$dir" ]; then
               artifact_name=$(basename "$dir")
@@ -458,30 +458,30 @@ jobs:
               echo "- **$artifact_name**: $file_count files, $total_size" >> $GITHUB_STEP_SUMMARY
             fi
           done
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Platform Coverage" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -d "artifacts/${{ env.APP_NAME }}-macos-x64" ]; then
             echo "✅ macOS x64 (Intel)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ -d "artifacts/${{ env.APP_NAME }}-macos-arm64" ]; then
             echo "✅ macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ -d "artifacts/${{ env.APP_NAME }}-macos-universal" ]; then
             echo "✅ macOS Universal (Intel + Apple Silicon)" >> $GITHUB_STEP_SUMMARY
           else
             echo "⏭️ macOS Universal (On-demand)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ -d "artifacts/${{ env.APP_NAME }}-macos-x64-vcpkg" ]; then
             echo "✅ macOS x64 (vcpkg fallback)" >> $GITHUB_STEP_SUMMARY
           else
             echo "⏭️ macOS x64 (vcpkg - not needed)" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Performance Optimizations" >> $GITHUB_STEP_SUMMARY
           echo "- **ccache**: Compilation caching (500MB-750MB limit)" >> $GITHUB_STEP_SUMMARY
