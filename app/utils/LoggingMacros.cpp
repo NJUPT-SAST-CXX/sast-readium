@@ -1,6 +1,4 @@
 #include "LoggingMacros.h"
-#include <mach/mach.h>
-#include <mach/task.h>
 #include <QFileInfo>
 #include <QMutex>
 #include <QMutexLocker>
