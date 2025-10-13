@@ -10,8 +10,10 @@
 #include "../../app/ui/viewer/PDFViewer.h"
 
 #ifdef Q_OS_WIN
-#include <psapi.h>
+// clang-format off
 #include <windows.h>
+#include <psapi.h>
+// clang-format on
 #elif defined(Q_OS_LINUX)
 #include <unistd.h>
 #include <fstream>

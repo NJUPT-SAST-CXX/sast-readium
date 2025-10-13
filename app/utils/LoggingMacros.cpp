@@ -7,8 +7,10 @@
 #include <chrono>
 
 #ifdef Q_OS_WIN
-#include <psapi.h>
+// clang-format off
 #include <windows.h>
+#include <psapi.h>
+// clang-format on
 #endif
 
 // Static member initialization
@@ -321,8 +323,10 @@ void logSeparator(const QString& title, char separator) {
 // ============================================================================
 
 #ifdef Q_OS_WIN
-#include <psapi.h>
+// clang-format off
 #include <windows.h>
+#include <psapi.h>
+// clang-format on
 #elif defined(Q_OS_MACOS)
 #include <mach/mach.h>
 #include <mach/mach_init.h>
