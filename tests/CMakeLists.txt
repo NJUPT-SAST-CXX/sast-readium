@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Test Network)
 find_package(spdlog REQUIRED)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(POPPLER_QT6 REQUIRED poppler-qt6)
+pkg_check_modules(POPPLER_QT6 REQUIRED IMPORTED_TARGET poppler-qt6)
 
 # Enable testing
 enable_testing()
@@ -31,7 +31,7 @@ set(COMMON_LIBRARIES
     Qt6::Widgets
     Qt6::Test
     Qt6::Network
-    ${POPPLER_QT6_LIBRARIES}
+    PkgConfig::POPPLER_QT6
     spdlog::spdlog
 )
 
