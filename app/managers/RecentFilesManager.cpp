@@ -1,6 +1,7 @@
 #include "RecentFilesManager.h"
 #include <QDir>
 #include <QFileInfo>
+#include <QLatin1String>
 #include <QList>
 #include <QMutex>
 #include <QMutexLocker>
@@ -17,27 +18,30 @@
 class RecentFilesManagerImpl {
 public:
     RecentFilesManagerImpl()
-        : m_settings(nullptr), m_maxRecentFiles(DEFAULT_MAX_RECENT_FILES) {}
+        : m_settings{nullptr}, m_maxRecentFiles{DEFAULT_MAX_RECENT_FILES} {}
 
     void loadSettings();
     void loadSettingsWithoutCleanup();
     void saveSettings();
     void enforceMaxSize();
-    QVariantMap fileInfoToVariant(const RecentFileInfo& info) const;
-    RecentFileInfo variantToFileInfo(const QVariantMap& variant) const;
+    [[nodiscard]] QVariantMap fileInfoToVariant(
+        const RecentFileInfo& info) const;
+    [[nodiscard]] RecentFileInfo variantToFileInfo(
+        const QVariantMap& variant) const;
 
-    QSettings* m_settings;
+    QSettings* m_settings{nullptr};
     QList<RecentFileInfo> m_recentFiles;
-    int m_maxRecentFiles;
+    int m_maxRecentFiles{DEFAULT_MAX_RECENT_FILES};
     mutable QMutex m_mutex;
 
     static const int DEFAULT_MAX_RECENT_FILES = 10;
 };
 
 // Static constant definitions
-const QString RecentFilesManager::SETTINGS_GROUP = "recentFiles";
-const QString RecentFilesManager::SETTINGS_MAX_FILES_KEY = "maxFiles";
-const QString RecentFilesManager::SETTINGS_FILES_KEY = "files";
+const QString RecentFilesManager::SETTINGS_GROUP{QLatin1String("recentFiles")};
+const QString RecentFilesManager::SETTINGS_MAX_FILES_KEY{
+    QLatin1String("maxFiles")};
+const QString RecentFilesManager::SETTINGS_FILES_KEY{QLatin1String("files")};
 
 RecentFilesManager::RecentFilesManager(QObject* parent)
     : QObject(parent), pImpl(std::make_unique<RecentFilesManagerImpl>()) {
@@ -244,8 +248,9 @@ void RecentFilesManager::loadSettings() {
 }
 
 void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
-    if (!m_settings)
+    if (!m_settings) {
         return;
+    }
 
     QMutexLocker locker(&m_mutex);
 
@@ -258,8 +263,8 @@ void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
                            .toInt();
 
     // 加载文件列表
-    int size =
-        m_settings->beginReadArray(RecentFilesManager::SETTINGS_FILES_KEY);
+    int size = 0;
+    size = m_settings->beginReadArray(RecentFilesManager::SETTINGS_FILES_KEY);
     m_recentFiles.clear();
     m_recentFiles.reserve(size);
 
@@ -292,8 +297,9 @@ void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
 void RecentFilesManager::saveSettings() { pImpl->saveSettings(); }
 
 void RecentFilesManagerImpl::saveSettings() {
-    if (!m_settings)
+    if (!m_settings) {
         return;
+    }
 
     // 注意：这里不需要加锁，因为调用此方法的地方已经加锁了
 
@@ -346,7 +352,7 @@ RecentFileInfo RecentFilesManagerImpl::variantToFileInfo(
     if (info.filePath.isEmpty() || info.fileName.isEmpty()) {
         Logger::instance().warning(
             "[managers] Invalid file info detected, skipping");
-        return RecentFileInfo();  // Return empty/invalid info
+        return {};  // Return empty/invalid info
     }
 
     // Ensure fileName is properly extracted from filePath if missing

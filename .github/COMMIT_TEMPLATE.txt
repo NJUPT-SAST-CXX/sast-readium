@@ -1,0 +1,17 @@
+# Commit Message Template
+
+# 类型（type）：feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert
+# 范围（scope）：可选，说明影响范围（如 app/controller、build、docs 等）
+# 示例：feat(app/ui): 支持 PDF 多标签页切换
+
+简要描述本次提交的内容：
+
+- 主要变更：
+- 影响模块：
+- 变更动机/目的：
+- 兼容性/风险说明：
+- 回滚方案（如有）：
+
+关联 Issue（如有）：
+
+备注/补充说明：

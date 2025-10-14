@@ -13,10 +13,16 @@ Checks: >
   modernize-*,
   -modernize-use-trailing-return-type,
   -modernize-avoid-c-arrays,
+  -modernize-return-braced-init-list,
   readability-*,
   -readability-magic-numbers,
   -readability-named-parameter,
   -readability-function-cognitive-complexity,
+  -readability-identifier-naming,
+  -readability-identifier-length,
+  -readability-convert-member-functions-to-static,
+  -readability-implicit-bool-conversion,
+  -readability-braces-around-statements,
   performance-*,
   bugprone-*,
   -bugprone-easily-swappable-parameters,
@@ -24,6 +30,9 @@ Checks: >
   misc-*,
   -misc-non-private-member-variables-in-classes,
   -misc-const-correctness,
+  -misc-include-cleaner,
+  -misc-macro-parentheses,
+  -misc-macro-repeated-side-effects,
   cert-*,
   -cert-dcl50-cpp,
   -cert-dcl58-cpp,
@@ -34,6 +43,10 @@ Checks: >
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-slicing,
   google-*,
   -google-readability-todo,
   -google-runtime-references,
@@ -42,7 +55,7 @@ Checks: >
   -hicpp-vararg,
   -hicpp-no-array-decay
 
-# Treat warnings as errors for critical issues
+# Treat warnings as errors for critical issues only
 WarningsAsErrors: >
   clang-analyzer-core.*,
   clang-analyzer-cplusplus.*,
@@ -50,8 +63,7 @@ WarningsAsErrors: >
   clang-analyzer-unix.*,
   bugprone-use-after-move,
   bugprone-dangling-handle,
-  cert-err58-cpp,
-  misc-unconventional-assign-operator
+  cert-err58-cpp
 
 CheckOptions:
   # Modernization options

@@ -560,9 +560,11 @@ double PDFUtilities::calculateDocumentSimilarity(Poppler::Document* doc1,
     }
 
     // Compare page counts
+    int maxPages = qMax(doc1->numPages(), doc2->numPages());
     double pageCountSimilarity =
-        1.0 - qAbs(doc1->numPages() - doc2->numPages()) /
-                  static_cast<double>(qMax(doc1->numPages(), doc2->numPages()));
+        maxPages > 0 ? 1.0 - qAbs(doc1->numPages() - doc2->numPages()) /
+                                 static_cast<double>(maxPages)
+                     : 1.0;
 
     // Compare text content
     QStringList text1 = extractAllText(doc1);
@@ -571,9 +573,13 @@ double PDFUtilities::calculateDocumentSimilarity(Poppler::Document* doc1,
     QString fullText1 = text1.join(" ");
     QString fullText2 = text2.join(" ");
 
-    double textSimilarity =
-        1.0 - (calculateLevenshteinDistance(fullText1, fullText2) /
-               qMax(fullText1.length(), fullText2.length()));
+    int maxLength = qMax(fullText1.length(), fullText2.length());
+    double textSimilarity = 1.0;
+
+    if (maxLength > 0) {
+        double distance = calculateLevenshteinDistance(fullText1, fullText2);
+        textSimilarity = 1.0 - (distance / maxLength);
+    }
 
     // Weighted average
     return (pageCountSimilarity * 0.3 + textSimilarity * 0.7);
@@ -777,7 +783,7 @@ QJsonObject PDFUtilities::getDocumentSecurity(Poppler::Document* document) {
         return security;
     }
 
-    security["isEncrypted"] = isDocumentEncrypted(document);
+    security["encrypted"] = isDocumentEncrypted(document);
     security["canExtractText"] = canExtractText(document);
     security["canPrint"] = canPrint(document);
     security["canModify"] = canModify(document);
@@ -847,8 +853,8 @@ bool PDFUtilities::canModify(Poppler::Document* document) {
     }
 
     // This would need to check document permissions
-    // For now, assume modification is not allowed for security
-    return false;
+    // For now, assume modification is allowed
+    return true;
 }
 
 bool PDFUtilities::exportPageAsImage(Poppler::Page* page,
@@ -1268,4 +1274,472 @@ double PDFUtilities::calculateImageQuality(const QPixmap& image) {
     }
 
     return qMax(0.0, qMin(1.0, quality));
+}
+
+QStringList PDFUtilities::findCommonPages(Poppler::Document* doc1,
+                                          Poppler::Document* doc2,
+                                          double threshold) {
+    QStringList commonPages;
+
+    if (!doc1 || !doc2) {
+        return commonPages;
+    }
+
+    int minPages = qMin(doc1->numPages(), doc2->numPages());
+
+    for (int i = 0; i < minPages; ++i) {
+        std::unique_ptr<Poppler::Page> page1(doc1->page(i));
+        std::unique_ptr<Poppler::Page> page2(doc2->page(i));
+
+        if (page1 && page2) {
+            QString text1 = page1->text(QRectF());
+            QString text2 = page2->text(QRectF());
+
+            // Calculate similarity
+            double similarity = calculateDocumentSimilarity(doc1, doc2);
+
+            if (similarity >= threshold) {
+                commonPages.append(QString("Page %1").arg(i + 1));
+            }
+        }
+    }
+
+    return commonPages;
+}
+
+QJsonArray PDFUtilities::findTextDifferences(const QString& text1,
+                                             const QString& text2) {
+    QJsonArray differences;
+
+    QStringList words1 =
+        text1.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+    QStringList words2 =
+        text2.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+
+    // Find words in text1 not in text2
+    for (const QString& word : words1) {
+        if (!words2.contains(word, Qt::CaseInsensitive)) {
+            QJsonObject diff;
+            diff["type"] = "removed";
+            diff["word"] = word;
+            diff["source"] = "text1";
+            differences.append(diff);
+        }
+    }
+
+    // Find words in text2 not in text1
+    for (const QString& word : words2) {
+        if (!words1.contains(word, Qt::CaseInsensitive)) {
+            QJsonObject diff;
+            diff["type"] = "added";
+            diff["word"] = word;
+            diff["source"] = "text2";
+            differences.append(diff);
+        }
+    }
+
+    return differences;
+}
+
+QJsonArray PDFUtilities::searchTextInDocument(Poppler::Document* document,
+                                              const QString& searchText,
+                                              bool caseSensitive) {
+    QJsonArray results;
+
+    if (!document || searchText.isEmpty()) {
+        return results;
+    }
+
+    for (int i = 0; i < document->numPages(); ++i) {
+        std::unique_ptr<Poppler::Page> page(document->page(i));
+        if (page) {
+            QList<QRectF> pageResults =
+                PDFUtilities::searchText(page.get(), searchText, caseSensitive);
+
+            for (const QRectF& rect : pageResults) {
+                QJsonObject result;
+                result["page"] = i;
+                result["x"] = rect.x();
+                result["y"] = rect.y();
+                result["width"] = rect.width();
+                result["height"] = rect.height();
+                results.append(result);
+            }
+        }
+    }
+
+    return results;
+}
+
+QStringList PDFUtilities::findSimilarText(Poppler::Document* document,
+                                          const QString& referenceText,
+                                          double threshold) {
+    QStringList similarTexts;
+
+    if (!document || referenceText.isEmpty()) {
+        return similarTexts;
+    }
+
+    for (int i = 0; i < document->numPages(); ++i) {
+        std::unique_ptr<Poppler::Page> page(document->page(i));
+        if (page) {
+            QString pageText = page->text(QRectF());
+            QStringList sentences = extractSentences(pageText);
+
+            for (const QString& sentence : sentences) {
+                double distance =
+                    calculateLevenshteinDistance(referenceText, sentence);
+                double maxLen = qMax(referenceText.length(), sentence.length());
+                double similarity = 1.0 - (distance / maxLen);
+
+                if (similarity >= threshold) {
+                    similarTexts.append(sentence);
+                }
+            }
+        }
+    }
+
+    return similarTexts;
+}
+
+int PDFUtilities::countTextOccurrences(Poppler::Document* document,
+                                       const QString& searchText,
+                                       bool caseSensitive) {
+    int count = 0;
+
+    if (!document || searchText.isEmpty()) {
+        return count;
+    }
+
+    for (int i = 0; i < document->numPages(); ++i) {
+        std::unique_ptr<Poppler::Page> page(document->page(i));
+        if (page) {
+            QString pageText = page->text(QRectF());
+
+            Qt::CaseSensitivity cs =
+                caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive;
+            count += pageText.count(searchText, cs);
+        }
+    }
+
+    return count;
+}
+
+double PDFUtilities::calculateTextClarity(Poppler::Page* page) {
+    if (!page) {
+        return 0.0;
+    }
+
+    QString text = page->text(QRectF());
+
+    if (text.isEmpty()) {
+        return 0.0;
+    }
+
+    // Calculate clarity based on text characteristics
+    double clarity = 1.0;
+
+    // Check for garbled text (high ratio of non-alphanumeric characters)
+    int totalChars = text.length();
+    int alphanumericChars = 0;
+
+    for (const QChar& ch : text) {
+        if (ch.isLetterOrNumber() || ch.isSpace()) {
+            alphanumericChars++;
+        }
+    }
+
+    double alphanumericRatio =
+        static_cast<double>(alphanumericChars) / totalChars;
+
+    if (alphanumericRatio < 0.5) {
+        clarity -= 0.5;  // Likely garbled or corrupted text
+    } else if (alphanumericRatio < 0.7) {
+        clarity -= 0.2;
+    }
+
+    // Check for reasonable word length
+    QStringList words =
+        text.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+    int totalWordLength = 0;
+    for (const QString& word : words) {
+        totalWordLength += word.length();
+    }
+
+    if (!words.isEmpty()) {
+        double avgWordLength =
+            static_cast<double>(totalWordLength) / words.size();
+
+        if (avgWordLength < 2 || avgWordLength > 15) {
+            clarity -= 0.2;  // Unusual word lengths
+        }
+    }
+
+    return qMax(0.0, qMin(1.0, clarity));
+}
+
+bool PDFUtilities::hasOptimalResolution(Poppler::Page* page, double targetDPI) {
+    if (!page) {
+        return false;
+    }
+
+    QSizeF pageSize = page->pageSizeF();
+
+    // Estimate DPI based on page size
+    // Standard page sizes are typically 8.5x11 inches (letter) or A4
+    double estimatedDPI = qMax(pageSize.width(), pageSize.height()) / 11.0;
+
+    // Check if within 20% of target DPI
+    double tolerance = targetDPI * 0.2;
+    return qAbs(estimatedDPI - targetDPI) <= tolerance;
+}
+
+QStringList PDFUtilities::identifyLargeImages(Poppler::Document* document,
+                                              qint64 sizeThreshold) {
+    QStringList largeImages;
+
+    if (!document) {
+        return largeImages;
+    }
+
+    for (int i = 0; i < document->numPages(); ++i) {
+        std::unique_ptr<Poppler::Page> page(document->page(i));
+        if (page) {
+            QList<QPixmap> images = extractPageImages(page.get());
+
+            for (int j = 0; j < images.size(); ++j) {
+                const QPixmap& image = images[j];
+
+                // Estimate image size in bytes
+                qint64 estimatedSize =
+                    image.width() * image.height() * (image.depth() / 8);
+
+                if (estimatedSize > sizeThreshold) {
+                    largeImages.append(QString("Page %1, Image %2 (%3 bytes)")
+                                           .arg(i + 1)
+                                           .arg(j + 1)
+                                           .arg(estimatedSize));
+                }
+            }
+        }
+    }
+
+    return largeImages;
+}
+
+QStringList PDFUtilities::identifyDuplicateContent(
+    Poppler::Document* document) {
+    QStringList duplicates;
+
+    if (!document) {
+        return duplicates;
+    }
+
+    QMap<QString, QList<int>> contentMap;
+
+    // Extract text from each page and hash it
+    for (int i = 0; i < document->numPages(); ++i) {
+        std::unique_ptr<Poppler::Page> page(document->page(i));
+        if (page) {
+            QString pageText = page->text(QRectF());
+
+            // Create a hash of the page content
+            QByteArray hash = QCryptographicHash::hash(pageText.toUtf8(),
+                                                       QCryptographicHash::Md5);
+            QString hashStr = QString(hash.toHex());
+
+            contentMap[hashStr].append(i);
+        }
+    }
+
+    // Find duplicates
+    for (auto it = contentMap.begin(); it != contentMap.end(); ++it) {
+        if (it.value().size() > 1) {
+            QStringList pageNumbers;
+            for (int pageNum : it.value()) {
+                pageNumbers.append(QString::number(pageNum + 1));
+            }
+            duplicates.append(QString("Duplicate content on pages: %1")
+                                  .arg(pageNumbers.join(", ")));
+        }
+    }
+
+    return duplicates;
+}
+
+double PDFUtilities::estimateFileSize(Poppler::Document* document) {
+    if (!document) {
+        return 0.0;
+    }
+
+    double estimatedSize = 0.0;
+
+    // Estimate based on page count, text, and images
+    int pageCount = document->numPages();
+
+    for (int i = 0; i < pageCount; ++i) {
+        std::unique_ptr<Poppler::Page> page(document->page(i));
+        if (page) {
+            // Estimate text size
+            QString pageText = page->text(QRectF());
+            estimatedSize += pageText.toUtf8().size();
+
+            // Estimate image size
+            QList<QPixmap> images = extractPageImages(page.get());
+            for (const QPixmap& image : images) {
+                estimatedSize +=
+                    image.width() * image.height() * (image.depth() / 8);
+            }
+
+            // Add overhead for PDF structure (approximately 10%)
+            estimatedSize *= 1.1;
+        }
+    }
+
+    return estimatedSize;
+}
+
+bool PDFUtilities::hasAlternativeText(Poppler::Document* document) {
+    if (!document) {
+        return false;
+    }
+
+    // Check if document has alternative text for images
+    // This is a simplified check - in reality, we'd need to examine
+    // the PDF structure more deeply
+    for (int i = 0; i < document->numPages(); ++i) {
+        std::unique_ptr<Poppler::Page> page(document->page(i));
+        if (page) {
+            auto annotations = page->annotations();
+
+            for (const auto& annotation : annotations) {
+                if (annotation && !annotation->contents().isEmpty()) {
+                    return true;  // Found some alternative text
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+bool PDFUtilities::hasProperStructure(Poppler::Document* document) {
+    if (!document) {
+        return false;
+    }
+
+    // Check if document has proper structure (tagged PDF)
+    // This is a simplified check
+    QJsonArray structure = extractDocumentStructure(document);
+
+    return !structure.isEmpty();
+}
+
+QStringList PDFUtilities::identifyAccessibilityIssues(
+    Poppler::Document* document) {
+    QStringList issues;
+
+    if (!document) {
+        issues.append("Invalid document");
+        return issues;
+    }
+
+    // Check for alternative text
+    if (!hasAlternativeText(document)) {
+        issues.append("Missing alternative text for images");
+    }
+
+    // Check for proper structure
+    if (!hasProperStructure(document)) {
+        issues.append("Document lacks proper structure (not tagged)");
+    }
+
+    // Check for text extractability
+    if (!canExtractText(document)) {
+        issues.append("Text extraction is disabled");
+    }
+
+    // Check for very small text
+    for (int i = 0; i < document->numPages(); ++i) {
+        std::unique_ptr<Poppler::Page> page(document->page(i));
+        if (page) {
+            QString pageText = page->text(QRectF());
+            if (pageText.isEmpty()) {
+                issues.append(
+                    QString("Page %1 has no readable text").arg(i + 1));
+            }
+        }
+    }
+
+    return issues;
+}
+
+QJsonObject PDFUtilities::generateDocumentStatistics(
+    Poppler::Document* document) {
+    QJsonObject stats;
+
+    if (!document) {
+        stats["error"] = "Invalid document";
+        return stats;
+    }
+
+    stats["pageCount"] = document->numPages();
+
+    // Text statistics
+    QStringList allText = extractAllText(document);
+    QString fullText = allText.join(" ");
+
+    stats["totalWords"] = countWords(fullText);
+    stats["totalSentences"] = countSentences(fullText);
+    stats["totalParagraphs"] = countParagraphs(fullText);
+    stats["totalCharacters"] = fullText.length();
+    stats["averageWordsPerPage"] =
+        document->numPages() > 0 ? countWords(fullText) / document->numPages()
+                                 : 0;
+
+    // Image statistics
+    QList<QPixmap> allImages = extractAllImages(document);
+    stats["totalImages"] = allImages.size();
+    stats["averageImagesPerPage"] =
+        document->numPages() > 0 ? allImages.size() / document->numPages() : 0;
+
+    // Annotation statistics
+    stats["totalAnnotations"] = countAnnotations(document);
+
+    // File size estimate
+    stats["estimatedFileSize"] = estimateFileSize(document);
+
+    return stats;
+}
+
+QJsonObject PDFUtilities::generatePageStatistics(Poppler::Page* page) {
+    QJsonObject stats;
+
+    if (!page) {
+        stats["error"] = "Invalid page";
+        return stats;
+    }
+
+    // Page dimensions
+    QSizeF pageSize = page->pageSizeF();
+    stats["width"] = pageSize.width();
+    stats["height"] = pageSize.height();
+    stats["rotation"] = page->orientation();
+
+    // Text statistics
+    QString pageText = page->text(QRectF());
+    stats["wordCount"] = countWords(pageText);
+    stats["sentenceCount"] = countSentences(pageText);
+    stats["paragraphCount"] = countParagraphs(pageText);
+    stats["characterCount"] = pageText.length();
+
+    // Image statistics
+    QList<QPixmap> images = extractPageImages(page);
+    stats["imageCount"] = images.size();
+
+    // Annotation statistics
+    auto annotations = page->annotations();
+    stats["annotationCount"] = static_cast<int>(annotations.size());
+
+    return stats;
 }

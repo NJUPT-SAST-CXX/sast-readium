@@ -324,7 +324,7 @@ try {
         }
 
         "Smoke" {
-            $totalExitCode += Run-CTest -TestRegex "SmokeTest" -Label "smoke_test"
+            $totalExitCode += Run-CTest -TestRegex "test_smoke" -Label "smoke_test"
         }
     }
 

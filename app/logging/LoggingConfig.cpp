@@ -475,6 +475,20 @@ void LoggingConfig::enableFileLogging(const QString& filename,
     addSinkConfiguration(config);
 }
 
+void LoggingConfig::disableAllSinks() {
+    QMutexLocker locker(&d->mutex);
+    for (auto& sink : d->sinkConfigs) {
+        sink.enabled = false;
+    }
+    emit configurationChanged();
+}
+
+void LoggingConfig::enableDefaultConfiguration() {
+    resetToDefaults();
+    enableConsoleLogging(Logger::LogLevel::Info, true);
+    emit configurationChanged();
+}
+
 void LoggingConfig::loadDevelopmentPreset() {
     resetToDefaults();
 
@@ -515,6 +529,66 @@ void LoggingConfig::loadProductionPreset() {
     d->globalConfig.enableMemoryLogging = false;
     d->globalConfig.enableSourceLocation = false;
     d->globalConfig.enableThreadId = false;
+
+    emit configurationChanged();
+}
+
+void LoggingConfig::loadDebugPreset() {
+    resetToDefaults();
+
+    // Enable console with trace level and colors
+    enableConsoleLogging(Logger::LogLevel::Trace, true);
+
+    // Enable file logging with trace level
+    QString logDir =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
+        "/logs";
+    QDir().mkpath(logDir);
+    enableFileLogging(logDir + "/debug.log", Logger::LogLevel::Trace);
+
+    // Debug settings - maximum verbosity
+    d->globalConfig.globalLevel = Logger::LogLevel::Trace;
+    d->globalConfig.asyncLogging = false;  // Synchronous for debugging
+    d->globalConfig.enablePerformanceLogging = true;
+    d->globalConfig.enableMemoryLogging = true;
+    d->globalConfig.enableSourceLocation = true;
+    d->globalConfig.enableThreadId = true;
+    d->globalConfig.enableProcessId = true;
+
+    emit configurationChanged();
+}
+
+void LoggingConfig::loadPerformancePreset() {
+    resetToDefaults();
+
+    // Enable console with info level
+    enableConsoleLogging(Logger::LogLevel::Info, true);
+
+    // Performance settings - minimal overhead
+    d->globalConfig.globalLevel = Logger::LogLevel::Info;
+    d->globalConfig.asyncLogging = true;
+    d->globalConfig.asyncQueueSize = 16384;  // Larger queue
+    d->globalConfig.enablePerformanceLogging = true;
+    d->globalConfig.enableMemoryLogging = false;
+    d->globalConfig.enableSourceLocation = false;
+    d->globalConfig.enableThreadId = false;
+
+    emit configurationChanged();
+}
+
+void LoggingConfig::loadMinimalPreset() {
+    resetToDefaults();
+
+    // Minimal logging - errors only
+    d->globalConfig.globalLevel = Logger::LogLevel::Error;
+    d->globalConfig.asyncLogging = true;
+    d->globalConfig.enablePerformanceLogging = false;
+    d->globalConfig.enableMemoryLogging = false;
+    d->globalConfig.enableSourceLocation = false;
+    d->globalConfig.enableThreadId = false;
+
+    // Disable all sinks by default
+    disableAllSinks();
 
     emit configurationChanged();
 }

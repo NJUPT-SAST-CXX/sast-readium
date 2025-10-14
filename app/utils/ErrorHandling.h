@@ -136,8 +136,8 @@ const ErrorInfo& getError(const Result<T>& result) {
  * @brief Create successful result
  */
 template <typename T>
-Result<T> success(T&& value) {
-    return Result<T>(std::forward<T>(value));
+Result<std::decay_t<T>> success(T&& value) {
+    return Result<std::decay_t<T>>(std::forward<T>(value));
 }
 
 /**

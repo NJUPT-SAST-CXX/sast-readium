@@ -18,7 +18,10 @@ on:
         default: false
         type: boolean
 
-permissions: write-all
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
 
 env:
   # Build optimization settings
@@ -35,6 +38,7 @@ jobs:
   build-native:
     name: macOS ${{ matrix.arch }} (System Packages)
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -213,6 +217,7 @@ jobs:
   build-universal:
     name: macOS Universal (System Packages)
     runs-on: macos-latest
+    timeout-minutes: 120
     if: github.event.inputs.build_universal == 'true' || github.event_name == 'push'
 
     steps:
@@ -371,6 +376,7 @@ jobs:
   build-vcpkg:
     name: macOS x64 (vcpkg fallback)
     runs-on: macos-13  # Intel runner for vcpkg compatibility
+    timeout-minutes: 120
     if: failure() || github.event.inputs.force_vcpkg == 'true' || contains(github.event.head_commit.message, '[vcpkg]')
     needs: build-native
 
@@ -423,7 +429,6 @@ jobs:
         with:
           vcpkgJsonGlob: 'vcpkg.json'
           vcpkgConfigurationJsonGlob: 'vcpkg-configuration.json'
-          appendedCacheKey: ${{ env.CACHE_VERSION }}
 
       - name: Build with vcpkg
         uses: lukka/run-cmake@v10
@@ -446,6 +451,7 @@ jobs:
   build-summary:
     name: macOS Build Summary
     runs-on: macos-latest
+    timeout-minutes: 15
     needs: [build-native, build-universal, build-vcpkg]
     if: always()
 

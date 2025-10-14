@@ -51,8 +51,15 @@ public:
     void setDpiX(double dpi);
     void setDpiY(double dpi);
     void setDpi(double dpiX, double dpiY);
-    double getEffectiveDpiX(double scaleFactor = 1.0) const;
-    double getEffectiveDpiY(double scaleFactor = 1.0) const;
+
+    // Effective DPI calculation with high DPI display support
+    // devicePixelRatio: The device pixel ratio from
+    // QWidget::devicePixelRatioF()
+    //                   Defaults to 1.0 for standard DPI displays
+    double getEffectiveDpiX(double scaleFactor = 1.0,
+                            double devicePixelRatio = 1.0) const;
+    double getEffectiveDpiY(double scaleFactor = 1.0,
+                            double devicePixelRatio = 1.0) const;
 
     // Rendering Quality
     void setRenderQuality(RenderQuality quality);
@@ -78,6 +85,9 @@ public:
     bool hasPage(int pageNum) const;
     bool isPageValid(int pageNum) const;
     QString getLastError() const;
+
+    // Document Configuration
+    static void configureDocumentRenderHints(Poppler::Document* doc);
 
 private slots:
     void onAsyncRenderCompleted();

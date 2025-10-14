@@ -18,7 +18,10 @@ on:
         default: false
         type: boolean
 
-permissions: write-all
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
 
 env:
   # Build optimization settings
@@ -32,6 +35,7 @@ jobs:
   build-system:
     name: Linux ${{ matrix.arch }} (System Packages)
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -132,6 +136,7 @@ jobs:
   build-arm64:
     name: Linux ARM64 (Cross-compile)
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.event.inputs.build_all_architectures == 'true' || github.event_name == 'push' && contains(github.ref, 'refs/tags/')
 
     steps:
@@ -210,6 +215,7 @@ jobs:
   build-vcpkg:
     name: Linux x64 (vcpkg fallback)
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     # Only run if system build fails or explicitly requested
     if: failure() || github.event.inputs.force_vcpkg == 'true' || contains(github.event.head_commit.message, '[vcpkg]')
     needs: build-system
@@ -263,7 +269,6 @@ jobs:
         with:
           vcpkgJsonGlob: 'vcpkg.json'
           vcpkgConfigurationJsonGlob: 'vcpkg-configuration.json'
-          appendedCacheKey: ${{ env.CACHE_VERSION }}
 
       - name: Build with vcpkg
         uses: lukka/run-cmake@v10
@@ -286,6 +291,7 @@ jobs:
   build-summary:
     name: Linux Build Summary
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [build-system, build-arm64, build-vcpkg]
     if: always()
 

@@ -26,7 +26,10 @@ on:
         default: false
         type: boolean
 
-permissions: write-all
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
 
 env:
   # Build optimization settings
@@ -40,11 +43,7 @@ jobs:
   build-msys2:
     name: MSYS2 ${{ matrix.sys }} (${{ matrix.arch }})
     runs-on: windows-latest
-    # Skip builds marked as 'only_on_request' unless explicitly requested
-    if: |
-      github.event.inputs.build_all_architectures == 'true' ||
-      contains(github.event.head_commit.message, '[all-arch]') ||
-      !contains(toJson(matrix), 'only_on_request')
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -199,6 +198,7 @@ jobs:
   build-msvc:
     name: MSVC ${{ matrix.arch }} (${{ matrix.config }})
     runs-on: windows-latest
+    timeout-minutes: 120
     # Only run MSVC builds if explicitly requested or for ARM64
     if: github.event.inputs.build_all_architectures == 'true' || contains(github.event.head_commit.message, '[msvc]')
     strategy:
@@ -266,7 +266,6 @@ jobs:
         with:
           vcpkgJsonGlob: 'vcpkg.json'
           vcpkgConfigurationJsonGlob: 'vcpkg-configuration.json'
-          appendedCacheKey: ${{ env.CACHE_VERSION }}-${{ matrix.arch }}
 
       - name: Configure CMake (MSVC)
         run: |
@@ -296,6 +295,7 @@ jobs:
   build-summary:
     name: Windows Build Summary
     runs-on: windows-latest
+    timeout-minutes: 15
     needs: [build-msys2, build-msvc]
     if: always()
 

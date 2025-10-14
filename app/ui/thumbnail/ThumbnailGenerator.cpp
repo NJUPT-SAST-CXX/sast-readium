@@ -14,9 +14,19 @@
 #include <algorithm>
 #include <cmath>
 #include "../../logging/LoggingMacros.h"
+#include "../../model/RenderModel.h"
 
 ThumbnailGenerator::ThumbnailGenerator(QObject* parent)
     : QObject(parent),
+      m_document(nullptr),
+      m_documentMutex(),
+      m_dpiCache(),
+      m_dpiCacheMutex(),
+      m_requestQueue(),
+      m_queueMutex(),
+      m_queueCondition(),
+      m_activeJobs(),
+      m_jobsMutex(),
       m_defaultSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT),
       m_defaultQuality(DEFAULT_QUALITY),
       m_maxConcurrentJobs(DEFAULT_MAX_CONCURRENT_JOBS),
@@ -25,13 +35,18 @@ ThumbnailGenerator::ThumbnailGenerator(QObject* parent)
       m_cacheStrategy(CacheStrategy::ADAPTIVE),
       m_gpuAccelerationEnabled(true),
       m_gpuAccelerationAvailable(false),
+      m_gpuContext(nullptr),
       m_memoryPoolSize(DEFAULT_MEMORY_POOL_SIZE),
+      m_memoryPool(),
+      m_memoryPoolMutex(),
       m_compressionEnabled(true),
       m_compressionQuality(DEFAULT_COMPRESSION_QUALITY),
+      m_compressedCache(),
       m_running(false),
       m_paused(false),
       m_batchSize(DEFAULT_BATCH_SIZE),
       m_batchInterval(DEFAULT_BATCH_INTERVAL),
+      m_batchTimer(nullptr),
       m_totalGenerated(0),
       m_totalErrors(0),
       m_totalTime(0) {
@@ -67,7 +82,7 @@ void ThumbnailGenerator::initializeGenerator() {
             &ThumbnailGenerator::onBatchTimer);
 
     // 创建队列处理定时器
-    QTimer* queueTimer = new QTimer(this);
+    auto* queueTimer = new QTimer(this);
     queueTimer->setInterval(QUEUE_PROCESS_INTERVAL);
     queueTimer->setSingleShot(false);
     connect(queueTimer, &QTimer::timeout, this,
@@ -89,14 +104,11 @@ void ThumbnailGenerator::setDocument(
     QMutexLocker locker(&m_documentMutex);
     m_document = document;
 
-    // 配置文档渲染设置
+    // 配置文档渲染设置 - use centralized configuration
     if (m_document) {
         // ArthurBackend可能不可用，注释掉
         // m_document->setRenderBackend(Poppler::Document::ArthurBackend);
-        m_document->setRenderHint(Poppler::Document::Antialiasing, true);
-        m_document->setRenderHint(Poppler::Document::TextAntialiasing, true);
-        m_document->setRenderHint(Poppler::Document::TextHinting, true);
-        m_document->setRenderHint(Poppler::Document::TextSlightHinting, true);
+        RenderModel::configureDocumentRenderHints(m_document.get());
     }
 }
 
@@ -199,8 +211,9 @@ void ThumbnailGenerator::generateThumbnail(int pageNumber, const QSize& size,
 void ThumbnailGenerator::generateThumbnailRange(int startPage, int endPage,
                                                 const QSize& size,
                                                 double quality) {
-    if (!m_document)
+    if (!m_document) {
         return;
+    }
 
     int numPages = m_document->numPages();
     startPage = qBound(0, startPage, numPages - 1);

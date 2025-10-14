@@ -90,7 +90,7 @@ private:
     void scheduleAdaptivePrerendering(int currentPage);
     void analyzeReadingPatterns();
     QList<int> predictNextPages(int currentPage);
-    int calculatePriority(int pageNumber, int currentPage);
+    int calculatePriority(int pageNumber, int currentPage) const;
 
     // Core components
     Poppler::Document* m_document;

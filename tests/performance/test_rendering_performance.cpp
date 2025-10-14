@@ -12,10 +12,12 @@
 #include <QStandardPaths>
 #include <QtTest/QtTest>
 #include "../../app/ui/viewer/PDFViewer.h"
+#include "../TestUtilities.h"
 
 #ifdef Q_OS_WIN
-#include <psapi.h>
-#include <windows.h>
+#define WIN32_LEAN_AND_MEAN  // Reduce Windows header size and avoid conflicts
+#include <psapi.h>           // Process Status API (depends on windows.h types)
+#include <windows.h>  // Must be included BEFORE psapi.h (defines base types)
 #elif defined(Q_OS_LINUX)
 #include <unistd.h>
 #include <fstream>
@@ -101,44 +103,11 @@ Poppler::Document* TestRenderingPerformance::createLargeTestDocument() {
         QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
         "/performance_test.pdf";
 
-    // Use Qt's QPdfWriter to create a valid PDF
-    QPdfWriter pdfWriter(testPdfPath);
-    pdfWriter.setPageSize(QPageSize::A4);
-    pdfWriter.setPageMargins(QMarginsF(20, 20, 20, 20));
+    // Use TestDataGenerator to create PDF without text (avoids font issues)
+    const int numPages = 5;
+    auto doc =
+        TestDataGenerator::createTestPdfWithoutText(numPages, testPdfPath);
 
-    QPainter painter(&pdfWriter);
-    if (!painter.isActive()) {
-        qDebug() << "Failed to create PDF painter";
-        return nullptr;
-    }
-
-    // Create a simple multi-page document for performance testing
-    const int numPages = 5;  // Reduced number of pages to avoid stress
-
-    for (int page = 0; page < numPages; ++page) {
-        if (page > 0) {
-            pdfWriter.newPage();
-        }
-
-        // Draw simple content on each page
-        painter.setFont(QFont("Arial", 12));
-        painter.drawText(100, 100, QString("Performance Test Document"));
-        painter.drawText(100, 150,
-                         QString("Page %1 of %2").arg(page + 1).arg(numPages));
-
-        // Add some additional content for performance testing
-        for (int line = 0; line < 10; ++line) {
-            painter.drawText(
-                100, 200 + line * 30,
-                QString("Line %1 - Test content for performance measurement")
-                    .arg(line + 1));
-        }
-    }
-
-    painter.end();
-
-    // Load and verify the document
-    auto doc = Poppler::Document::load(testPdfPath);
     if (doc && doc->numPages() > 0) {
         // Test if we can safely access the first page
         std::unique_ptr<Poppler::Page> testPage(doc->page(0));
@@ -149,12 +118,15 @@ Poppler::Document* TestRenderingPerformance::createLargeTestDocument() {
                 if (size.isValid() && size.width() > 0 && size.height() > 0) {
                     qDebug() << "Successfully created PDF with"
                              << doc->numPages() << "pages";
-                    return doc.release();
+                    return doc;
                 }
             } catch (...) {
                 // If accessing page size fails, the PDF is invalid
                 qDebug() << "Created PDF is invalid - page size access failed";
+                delete doc;
             }
+        } else {
+            delete doc;
         }
     }
 

@@ -45,7 +45,11 @@ public:
         defaultConfig.logRecoveryAttempts = true;
 
         // Customize for specific error types
-        recoveryConfigs[ValidationError] = defaultConfig;
+        // Validation errors should not retry - they indicate bad input
+        RecoveryConfig validationConfig = defaultConfig;
+        validationConfig.strategy = NoRecovery;
+        validationConfig.maxRetries = 0;
+        recoveryConfigs[ValidationError] = validationConfig;
 
         RecoveryConfig documentConfig = defaultConfig;
         documentConfig.maxRetries = 2;
@@ -152,7 +156,10 @@ SearchErrorRecovery::RecoveryResult SearchErrorRecovery::handleError(
 SearchErrorRecovery::RecoveryResult SearchErrorRecovery::handleError(
     const QString& errorMessage, const ErrorContext& context) {
     ErrorContext mutableContext = context;
-    mutableContext.type = classifyError(errorMessage);
+    // Only classify error if type is not already set
+    if (mutableContext.type == UnknownError) {
+        mutableContext.type = classifyError(errorMessage);
+    }
     mutableContext.details = errorMessage;
 
     return recoverFromError(mutableContext);
@@ -160,26 +167,31 @@ SearchErrorRecovery::RecoveryResult SearchErrorRecovery::handleError(
 
 SearchErrorRecovery::RecoveryResult SearchErrorRecovery::recoverFromError(
     const ErrorContext& context) {
-    QMutexLocker locker(&d->mutex);
+    // Get config and update stats while holding mutex
+    RecoveryConfig config;
+    {
+        QMutexLocker locker(&d->mutex);
 
-    if (!d->globalRecoveryEnabled) {
-        return RecoveryResult(false, NoRecovery, 0, "Global recovery disabled");
-    }
+        if (!d->globalRecoveryEnabled) {
+            return RecoveryResult(false, NoRecovery, 0,
+                                  "Global recovery disabled");
+        }
 
-    // Update statistics
-    d->stats.totalErrors++;
-    d->stats.errorCounts[context.type]++;
-    d->stats.lastError = context.timestamp;
-    d->stats.recentErrors.append(
-        QString("%1: %2").arg(context.operation, context.details));
-    if (d->stats.recentErrors.size() > 100) {
-        d->stats.recentErrors.removeFirst();
-    }
+        // Update statistics
+        d->stats.totalErrors++;
+        d->stats.errorCounts[context.type]++;
+        d->stats.lastError = context.timestamp;
+        d->stats.recentErrors.append(
+            QString("%1: %2").arg(context.operation, context.details));
+        if (d->stats.recentErrors.size() > 100) {
+            d->stats.recentErrors.removeFirst();
+        }
+
+        config = d->recoveryConfigs.value(context.type, RecoveryConfig());
+    }  // Release mutex before emitting signals or calling recovery operations
 
     emit errorOccurred(context);
 
-    RecoveryConfig config =
-        d->recoveryConfigs.value(context.type, RecoveryConfig());
     RecoveryResult result;
 
     switch (config.strategy) {
@@ -204,13 +216,20 @@ SearchErrorRecovery::RecoveryResult SearchErrorRecovery::recoverFromError(
             break;
     }
 
-    // Update statistics
-    d->stats.strategyCounts[result.usedStrategy]++;
+    // Update statistics while holding mutex
+    {
+        QMutexLocker locker(&d->mutex);
+        d->stats.strategyCounts[result.usedStrategy]++;
+        if (result.success) {
+            d->stats.recoveredErrors++;
+        } else {
+            d->stats.failedRecoveries++;
+        }
+    }  // Release mutex before emitting signals
+
     if (result.success) {
-        d->stats.recoveredErrors++;
         emit recoverySucceeded(context, result);
     } else {
-        d->stats.failedRecoveries++;
         emit recoveryFailed(context, result);
     }
 
@@ -252,7 +271,8 @@ SearchErrorRecovery::RecoveryResult SearchErrorRecovery::retryOperation(
 
 SearchErrorRecovery::RecoveryResult SearchErrorRecovery::fallbackOperation(
     const ErrorContext& context) {
-    QMutexLocker locker(&d->mutex);
+    // Note: Mutex is already locked by recoverFromError caller
+    // Do not lock again to avoid deadlock
 
     QPair<ErrorType, QString> key(context.type, context.operation);
     if (d->fallbackFunctions.contains(key)) {
@@ -279,8 +299,12 @@ SearchErrorRecovery::RecoveryResult SearchErrorRecovery::degradeOperation(
     logRecoveryAttempt(context, Degrade);
     emit recoveryAttempted(context, Degrade);
 
-    // Mark component as degraded
-    d->componentHealth[context.component] = false;
+    // Mark component as degraded (mutex protected)
+    {
+        QMutexLocker locker(&d->mutex);
+        d->componentHealth[context.component] = false;
+    }
+
     emit componentHealthChanged(context.component, false);
 
     return RecoveryResult(true, Degrade, 1, "Operation degraded");
@@ -302,8 +326,12 @@ SearchErrorRecovery::RecoveryResult SearchErrorRecovery::resetOperation(
     // Clear operation state
     clearOperationState(context.operation);
 
-    // Reset component health
-    d->componentHealth[context.component] = true;
+    // Reset component health (mutex protected)
+    {
+        QMutexLocker locker(&d->mutex);
+        d->componentHealth[context.component] = true;
+    }
+
     emit componentHealthChanged(context.component, true);
 
     return RecoveryResult(true, Reset, 1, "Operation reset");

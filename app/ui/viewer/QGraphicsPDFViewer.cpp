@@ -433,11 +433,11 @@ void QGraphicsPDFViewer::setDocument(Poppler::Document* document) {
         m_scene->setDocument(document);
         m_currentPage = 0;
 
-        // Configure document for optimal rendering
-        document->setRenderHint(Poppler::Document::Antialiasing,
-                                m_highQualityEnabled);
-        document->setRenderHint(Poppler::Document::TextAntialiasing,
-                                m_highQualityEnabled);
+        // Configure document for optimal rendering using centralized method
+        // Note: This always enables high-quality rendering regardless of
+        // m_highQualityEnabled The flag is used for painter hints, not document
+        // hints
+        RenderModel::configureDocumentRenderHints(document);
 
         updateViewTransform();
         centerOnPage(0);

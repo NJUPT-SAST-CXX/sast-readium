@@ -5,11 +5,21 @@
 // ServiceLocator implementation
 ServiceLocator::ServiceLocator(QObject* parent)
     : QObject(parent), m_logger("ServiceLocator") {
-    m_logger.debug("ServiceLocator created");
+    // Initialize logging safely - don't log if system not ready
+    try {
+        m_logger.debug("ServiceLocator created");
+    } catch (...) {
+        // Logging system not initialized, continue silently
+    }
 }
 
 ServiceLocator::~ServiceLocator() {
-    m_logger.debug("ServiceLocator destroying...");
+    // Initialize logging safely - don't log if system not ready
+    try {
+        m_logger.debug("ServiceLocator destroying...");
+    } catch (...) {
+        // Logging system not initialized, continue silently
+    }
     clearServices();
 }
 

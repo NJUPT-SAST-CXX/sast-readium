@@ -1,0 +1,693 @@
+﻿{
+  "backtraceGraph" :
+  {
+    "commands" :
+    [
+      "add_test",
+      "create_test_target"
+    ],
+    "files" :
+    [
+      "D:/Project/sast-readium/cmake/TargetUtils.cmake",
+      "D:/Project/sast-readium/tests/CMakeLists.txt"
+    ],
+    "nodes" :
+    [
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 31,
+        "parent" : 0
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 1
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 41,
+        "parent" : 3
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 4
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 48,
+        "parent" : 6
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 7
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 55,
+        "parent" : 9
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 10
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 62,
+        "parent" : 12
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 13
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 73,
+        "parent" : 15
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 16
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 80,
+        "parent" : 18
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 19
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 87,
+        "parent" : 21
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 22
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 94,
+        "parent" : 24
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 25
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 193,
+        "parent" : 27
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 28
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 200,
+        "parent" : 30
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 31
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 207,
+        "parent" : 33
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 34
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 260,
+        "parent" : 36
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 37
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 276,
+        "parent" : 39
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 40
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 287,
+        "parent" : 42
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 43
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 548,
+        "parent" : 45
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 46
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 587,
+        "parent" : 48
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 49
+      },
+      {
+        "file" : 1
+      },
+      {
+        "command" : 1,
+        "file" : 1,
+        "line" : 597,
+        "parent" : 51
+      },
+      {
+        "command" : 0,
+        "file" : 0,
+        "line" : 329,
+        "parent" : 52
+      }
+    ]
+  },
+  "kind" : "ctestInfo",
+  "tests" :
+  [
+    {
+      "backtrace" : 2,
+      "name" : "test_smoke",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 30.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 5,
+      "name" : "test_cache_manager",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 8,
+      "name" : "test_pdf_cache_manager",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 11,
+      "name" : "test_page_text_cache",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 14,
+      "name" : "test_search_result_cache",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 17,
+      "name" : "test_command_manager",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 20,
+      "name" : "test_document_commands",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 23,
+      "name" : "test_initialization_command",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 26,
+      "name" : "test_navigation_commands",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 29,
+      "name" : "test_search_integration",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 600.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 32,
+      "name" : "test_rendering_mode_switch",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 600.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 35,
+      "name" : "test_qgraphics_pdf",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 38,
+      "name" : "test_rendering_performance",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 600.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 41,
+      "name" : "test_search_optimizations",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 600.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 44,
+      "name" : "test_real_pdf_documents",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 900.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 47,
+      "name" : "test_qgraphics_components",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 50,
+      "name" : "test_pdf_optimizations",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 300.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    },
+    {
+      "backtrace" : 53,
+      "name" : "test_thread_safety",
+      "properties" :
+      [
+        {
+          "name" : "ENVIRONMENT",
+          "value" :
+          [
+            "QT_QPA_PLATFORM=offscreen"
+          ]
+        },
+        {
+          "name" : "TIMEOUT",
+          "value" : 600.0
+        },
+        {
+          "name" : "WORKING_DIRECTORY",
+          "value" : "D:/Project/sast-readium/build/Debug-MSYS2/tests"
+        }
+      ]
+    }
+  ],
+  "version" :
+  {
+    "major" : 1,
+    "minor" : 0
+  }
+}

@@ -364,13 +364,19 @@ public:
      * @param file Source file name (optional)
      * @param line Source line number (optional)
      */
-    PerformanceLogger(const QString& name, const char* file = nullptr,
-                      int line = 0);
+    explicit PerformanceLogger(const QString& name, const char* file = nullptr,
+                               int line = 0);
 
     /**
      * @brief Destroy the Performance Logger object and log execution time
      */
     ~PerformanceLogger();
+
+    // Non-copyable and non-movable for safety
+    PerformanceLogger(const PerformanceLogger&) = delete;
+    PerformanceLogger& operator=(const PerformanceLogger&) = delete;
+    PerformanceLogger(PerformanceLogger&&) = delete;
+    PerformanceLogger& operator=(PerformanceLogger&&) = delete;
 
     /**
      * @brief Add a checkpoint with optional description

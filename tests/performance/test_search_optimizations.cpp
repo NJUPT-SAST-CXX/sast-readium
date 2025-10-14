@@ -130,6 +130,8 @@ void TestSearchOptimizations::testSearchResultCachePerformance() {
 
     SearchResultCache cache;
     QElapsedTimer timer;
+    qint64 fixedTimestamp =
+        QDateTime::currentMSecsSinceEpoch();  // Use same timestamp for all keys
 
     // Test cache storage performance
     timer.start();
@@ -137,7 +139,7 @@ void TestSearchOptimizations::testSearchResultCachePerformance() {
         SearchResultCache::CacheKey key;
         key.query = QString("test%1").arg(i);
         key.documentId = "test_doc";
-        key.documentModified = QDateTime::currentMSecsSinceEpoch();
+        key.documentModified = fixedTimestamp;  // Use fixed timestamp
 
         QList<SearchResult> results;
         for (int j = 0; j < 10; ++j) {
@@ -157,7 +159,7 @@ void TestSearchOptimizations::testSearchResultCachePerformance() {
         SearchResultCache::CacheKey key;
         key.query = QString("test%1").arg(i);
         key.documentId = "test_doc";
-        key.documentModified = QDateTime::currentMSecsSinceEpoch();
+        key.documentModified = fixedTimestamp;  // Use same fixed timestamp
 
         if (cache.hasResults(key)) {
             QList<SearchResult> results = cache.getResults(key);

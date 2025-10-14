@@ -1231,13 +1231,10 @@ void PDFViewer::setDocument(Poppler::Document* doc) {
         currentRotation = 0;  // 重置旋转
 
         if (document) {
-            // Configure document for high-quality rendering
-            document->setRenderHint(Poppler::Document::Antialiasing, true);
-            document->setRenderHint(Poppler::Document::TextAntialiasing, true);
-            document->setRenderHint(Poppler::Document::TextHinting, true);
-            document->setRenderHint(Poppler::Document::TextSlightHinting, true);
-            document->setRenderHint(Poppler::Document::ThinLineShape, true);
-            document->setRenderHint(Poppler::Document::OverprintPreview, true);
+            // Configure document for high-quality rendering using centralized
+            // method
+            RenderModel::configureDocumentRenderHints(document);
+
             // 验证文档有效性
             int numPages = document->numPages();
             if (numPages <= 0) {
@@ -1472,6 +1469,7 @@ void PDFViewer::updatePageDisplay() {
 
         std::unique_ptr<Poppler::Page> page(document->page(currentPageNumber));
         if (page) {
+            singlePageWidget->setPageNumber(currentPageNumber);
             singlePageWidget->setPage(page.get(), currentZoomFactor,
                                       currentRotation);
         }
@@ -2166,6 +2164,7 @@ void PDFViewer::setRotation(int degrees) {
                         std::unique_ptr<Poppler::Page> page(
                             document->page(currentPageNumber));
                         if (page) {
+                            singlePageWidget->setPageNumber(currentPageNumber);
                             singlePageWidget->setPage(
                                 page.get(), currentZoomFactor, currentRotation);
                         } else {

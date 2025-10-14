@@ -65,6 +65,11 @@ function(setup_compiler_settings)
     set(CMAKE_CXX_STANDARD_REQUIRED ON PARENT_SCOPE)
     set(CMAKE_CXX_EXTENSIONS OFF PARENT_SCOPE)
 
+    # Disable C++20 module dependency scanning
+    # This project does not use C++20 modules, and CMake 4.1+ automatically enables
+    # module scanning for C++20 targets, which can cause build failures with some compilers
+    set(CMAKE_CXX_SCAN_FOR_MODULES OFF PARENT_SCOPE)
+
     # Export compile commands for IDE integration
     # This generates compile_commands.json in the build directory as a build artifact
     # The file contains compilation information for language servers like clangd

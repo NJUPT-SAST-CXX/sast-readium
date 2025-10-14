@@ -43,7 +43,10 @@ bool SearchThreadSafety::MutexHierarchy::HierarchicalMutex::canAcquire() const {
 
     if (s_threadLevels.contains(currentThread)) {
         Level currentLevel = s_threadLevels[currentThread];
-        return m_level < currentLevel;
+        // Can acquire if this lock has lower priority (higher number) than
+        // current DocumentLevel=1 (highest priority) -> CacheLevel=2 (lower
+        // priority) is allowed
+        return m_level > currentLevel;
     }
 
     return true;

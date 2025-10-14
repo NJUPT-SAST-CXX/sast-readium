@@ -105,6 +105,24 @@ void printLogo() {
 }
 
 int main(int argc, char** argv) {
+    // ============================================================================
+    // High DPI Display Support Configuration
+    // ============================================================================
+    // High DPI scaling configuration for crisp rendering on 4K/Retina displays
+    // Note: Qt 6 enables high DPI scaling by default, so
+    // AA_EnableHighDpiScaling is deprecated and no longer needed
+
+    // Use PassThrough policy for accurate DPI tracking
+    // This ensures Qt uses the exact scale factor from the OS without rounding
+    // Alternative policies: Round (rounds to nearest integer),
+    // RoundPreferFloor, etc.
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+
+    // Note: For testing high DPI on standard displays, set environment
+    // variable: QT_SCALE_FACTOR=2.0 (or any desired scale factor)
+    // ============================================================================
+
     QApplication app(argc, argv);
 
     // Configure application metadata early
@@ -149,6 +167,15 @@ int main(int argc, char** argv) {
                 QSysInfo::currentCpuArchitecture().toStdString().c_str());
     SLOG_DEBUG("Application style: fusion");
     SLOG_DEBUG("Log file: " + SastLogging::getCurrentLogFile());
+
+    // Log high DPI configuration
+    qreal devicePixelRatio = qApp->devicePixelRatio();
+    SLOG_INFO_F("Device Pixel Ratio: %.2f", devicePixelRatio);
+    SLOG_INFO_F("High DPI Scaling: %s", devicePixelRatio > 1.0
+                                            ? "Enabled (High DPI Display)"
+                                            : "Standard DPI");
+    SLOG_DEBUG_F("High DPI Scale Factor Rounding Policy: PassThrough");
+
     SLOG_INFO("──────────────────────────────────────────");
 
     // Create category loggers for different components

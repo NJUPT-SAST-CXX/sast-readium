@@ -301,7 +301,13 @@ void TestRealPDFDocuments::testDocumentWithBothModes(const TestDocument& doc) {
     QCOMPARE(m_viewer->getCurrentZoom(), 2.0);
 #endif
 
-    delete document;
+    // Clear the document from viewer
+    // Note: We intentionally don't delete the document here to avoid
+    // use-after-free issues with async rendering operations. The documents are
+    // small test files and will be cleaned up when the test process exits. This
+    // is acceptable for tests.
+    m_viewer->clearDocument();
+    QCoreApplication::processEvents();
 }
 
 void TestRealPDFDocuments::testSimplePDF() {
@@ -409,7 +415,8 @@ void TestRealPDFDocuments::testMultiPageNavigation() {
         }
     }
 
-    delete document;
+    m_viewer->clearDocument();
+    QCoreApplication::processEvents();
     qDebug() << "Multi-page navigation test passed";
 }
 
@@ -426,7 +433,8 @@ void TestRealPDFDocuments::testSearchInRealDocument() {
     // Note: Full search testing would require implementing search in the test
     QVERIFY(m_viewer->hasDocument());
 
-    delete document;
+    m_viewer->clearDocument();
+    QCoreApplication::processEvents();
     qDebug() << "Search test passed";
 }
 
@@ -465,7 +473,8 @@ void TestRealPDFDocuments::testZoomingRealDocument() {
         m_viewer->zoomToWidth();
     }
 
-    delete document;
+    m_viewer->clearDocument();
+    QCoreApplication::processEvents();
     qDebug() << "Zooming test passed";
 }
 
@@ -503,7 +512,8 @@ void TestRealPDFDocuments::testRotationRealDocument() {
         m_viewer->resetRotation();
     }
 
-    delete document;
+    m_viewer->clearDocument();
+    QCoreApplication::processEvents();
     qDebug() << "Rotation test passed";
 }
 
@@ -542,7 +552,8 @@ void TestRealPDFDocuments::testRenderingQuality() {
     }
 #endif
 
-    delete document;
+    m_viewer->clearDocument();
+    QCoreApplication::processEvents();
     qDebug() << "Rendering quality test passed";
 }
 
@@ -578,7 +589,8 @@ void TestRealPDFDocuments::testMemoryWithLargeDocument() {
     }
 #endif
 
-    delete document;
+    m_viewer->clearDocument();
+    QCoreApplication::processEvents();
     qDebug() << "Memory test with large document passed";
 }
 

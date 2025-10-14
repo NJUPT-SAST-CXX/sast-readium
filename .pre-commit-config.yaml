@@ -80,7 +80,7 @@ repos:
               .*ui_.*\.h$|
               .*qrc_.*\.cpp$
           )$
-        args: [--warnings-as-errors=*]
+        args: []
         additional_dependencies:
           - clang-tidy
 

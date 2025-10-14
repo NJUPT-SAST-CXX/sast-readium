@@ -1,4 +1,5 @@
 #include "StateManager.h"
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
 #include <QJsonArray>
@@ -234,6 +235,12 @@ StateManager::StateManager(QObject* parent)
 }
 
 StateManager::~StateManager() {
+    // During static destruction, QCoreApplication might already be destroyed
+    // In that case, we can't safely do anything, so just return
+    if (!QCoreApplication::instance()) {
+        return;
+    }
+
     if (m_autoSaveTimer) {
         m_autoSaveTimer->stop();
         delete m_autoSaveTimer;

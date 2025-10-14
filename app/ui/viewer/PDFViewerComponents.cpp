@@ -16,6 +16,7 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QtGlobal>
 #include <cmath>
+#include "../../model/RenderModel.h"
 
 // HighQualityPDFPageWidget Implementation
 HighQualityPDFPageWidget::HighQualityPDFPageWidget(QWidget* parent)
@@ -247,7 +248,7 @@ QPixmap HighQualityRenderTask::render() const {
             configureDocument(document);
         }
 
-        // Calculate DPI
+        // Calculate DPI - includes device pixel ratio for high-DPI displays
         double dpi = calculateDPI(scaleFactor, highQuality);
 
         // Render the page
@@ -260,7 +261,14 @@ QPixmap HighQualityRenderTask::render() const {
             return QPixmap();
         }
 
-        return QPixmap::fromImage(image);
+        // Convert to pixmap and set device pixel ratio for proper high-DPI
+        // scaling
+        QPixmap pixmap = QPixmap::fromImage(image);
+        if (QApplication::instance()) {
+            pixmap.setDevicePixelRatio(qApp->devicePixelRatio());
+        }
+
+        return pixmap;
 
     } catch (const std::exception& e) {
         qWarning() << "HighQualityRenderTask: Exception during rendering:"
@@ -274,21 +282,16 @@ QPixmap HighQualityRenderTask::render() const {
 }
 
 void HighQualityRenderTask::configureDocument(Poppler::Document* doc) const {
-    if (!doc)
-        return;
-
-    // Enable high-quality rendering hints
-    doc->setRenderHint(Poppler::Document::Antialiasing, true);
-    doc->setRenderHint(Poppler::Document::TextAntialiasing, true);
-    doc->setRenderHint(Poppler::Document::TextHinting, true);
-    doc->setRenderHint(Poppler::Document::TextSlightHinting, true);
-    doc->setRenderHint(Poppler::Document::ThinLineShape, true);
+    // Use centralized render hint configuration from RenderModel
+    RenderModel::configureDocumentRenderHints(doc);
 }
 
 double HighQualityRenderTask::calculateDPI(double scale,
                                            bool highQuality) const {
     double baseDPI = highQuality ? 150.0 : 72.0;
-    return baseDPI * scale;
+    double devicePixelRatio =
+        QApplication::instance() ? qApp->devicePixelRatio() : 1.0;
+    return baseDPI * scale * devicePixelRatio;
 }
 
 // PDFRenderCache Implementation
@@ -421,7 +424,12 @@ QPixmap renderPageHighQuality(Poppler::Page* page, double scaleFactor,
     QImage image = page->renderToImage(
         dpi, dpi, -1, -1, -1, -1,
         static_cast<Poppler::Page::Rotation>(rotation / 90));
-    return QPixmap::fromImage(image);
+
+    QPixmap pixmap = QPixmap::fromImage(image);
+    if (QApplication::instance()) {
+        pixmap.setDevicePixelRatio(qApp->devicePixelRatio());
+    }
+    return pixmap;
 }
 
 QPixmap renderPageFast(Poppler::Page* page, double scaleFactor, int rotation) {
@@ -432,24 +440,24 @@ QPixmap renderPageFast(Poppler::Page* page, double scaleFactor, int rotation) {
     QImage image = page->renderToImage(
         dpi, dpi, -1, -1, -1, -1,
         static_cast<Poppler::Page::Rotation>(rotation / 90));
-    return QPixmap::fromImage(image);
+
+    QPixmap pixmap = QPixmap::fromImage(image);
+    if (QApplication::instance()) {
+        pixmap.setDevicePixelRatio(qApp->devicePixelRatio());
+    }
+    return pixmap;
 }
 
 double calculateOptimalDPI(double scaleFactor, bool highQuality) {
     double baseDPI = highQuality ? 150.0 : 72.0;
-    return baseDPI * scaleFactor;
+    double devicePixelRatio =
+        QApplication::instance() ? qApp->devicePixelRatio() : 1.0;
+    return baseDPI * scaleFactor * devicePixelRatio;
 }
 
 void optimizeDocument(Poppler::Document* document) {
-    if (!document)
-        return;
-
-    // Enable high-quality rendering hints
-    document->setRenderHint(Poppler::Document::Antialiasing, true);
-    document->setRenderHint(Poppler::Document::TextAntialiasing, true);
-    document->setRenderHint(Poppler::Document::TextHinting, true);
-    document->setRenderHint(Poppler::Document::TextSlightHinting, true);
-    document->setRenderHint(Poppler::Document::ThinLineShape, true);
+    // Use centralized render hint configuration from RenderModel
+    RenderModel::configureDocumentRenderHints(document);
 }
 }  // namespace PDFRenderUtils
 

@@ -305,8 +305,36 @@ bool PDFCacheManager::insert(const QString& key, const QVariant& data,
     // Check if we need to make room
     while (d->cache.size() >= d->maxItems ||
            (getCurrentMemoryUsage() + item.memorySize) > d->maxMemoryUsage) {
-        if (!evictLeastUsedItems(1)) {
-            LOG_WARNING("PDFCacheManager: Failed to evict items, cache full");
+        // Evict inline to avoid mutex deadlock
+        if (d->cache.isEmpty()) {
+            LOG_WARNING("PDFCacheManager: Cache is empty, cannot evict");
+            return false;
+        }
+
+        // Create list of items with eviction scores
+        QList<QPair<double, QString>> candidates;
+        for (auto it = d->cache.begin(); it != d->cache.end(); ++it) {
+            if (it->priority != CachePriority::Critical) {
+                double score = d->calculateEvictionScore(*it);
+                candidates.append({score, it->key});
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            LOG_WARNING("PDFCacheManager: No evictable items (all critical)");
+            return false;
+        }
+
+        // Sort by eviction score (lower score = more likely to evict)
+        std::sort(candidates.begin(), candidates.end());
+
+        // Evict the least used item
+        auto it = d->cache.find(candidates.first().second);
+        if (it != d->cache.end()) {
+            emit itemEvicted(it->key, it->type);
+            d->cache.erase(it);
+        } else {
+            LOG_WARNING("PDFCacheManager: Failed to evict item");
             return false;
         }
     }
@@ -475,7 +503,18 @@ void PDFCacheManager::optimizeCache() {
     int initialSize = d->cache.size();
     qint64 initialMemory = getCurrentMemoryUsage();
 
-    cleanupExpiredItems();
+    // Cleanup expired items inline to avoid mutex deadlock
+    if (d->itemMaxAge > 0) {
+        auto it = d->cache.begin();
+        while (it != d->cache.end()) {
+            if (it->isExpired(d->itemMaxAge)) {
+                emit itemEvicted(it->key, it->type);
+                it = d->cache.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
 
     // Additional optimization logic could go here
 

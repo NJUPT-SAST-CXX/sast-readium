@@ -113,7 +113,7 @@ The application follows a modular Qt6 architecture with clear separation of conc
 
 ### Testing
 
-Tests are located in `tests/` with a dedicated `TestUtilities` library. The build system automatically creates test targets using the `create_test_target()` function from `TargetUtils.cmake`. Test discovery follows the pattern `test_*.cpp` for unit tests and `*_test.cpp` for integration tests.
+Tests are located in `tests/` with a dedicated `TestUtilities` library. The build system automatically creates test targets using the `create_test_target()` function from `TargetUtils.cmake`. All test files follow the standardized `test_*.cpp` naming pattern.
 
 ### Dependency Management
 

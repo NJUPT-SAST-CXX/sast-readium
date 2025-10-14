@@ -13,5 +13,5 @@
 // TestDataGenerator implementation - methods are already implemented inline in
 // header
 
-// Include the MOC file for Q_OBJECT classes
-#include "TestUtilities.moc"
+// Note: AutoMoc automatically handles MOC file generation for Q_OBJECT classes
+// No need to manually include .moc files

@@ -4,6 +4,8 @@
 #include <QStandardPaths>
 #include <QTemporaryFile>
 #include <QTest>
+#include <QThread>
+#include "../../app/cache/CacheManager.h"
 #include "../../app/controller/EventBus.h"
 #include "../../app/controller/ServiceLocator.h"
 #include "../../app/controller/StateManager.h"
@@ -80,14 +82,50 @@ void TestSearchIntegration::initTestCase() {
 }
 
 void TestSearchIntegration::cleanupTestCase() {
-    delete m_testDocument;
-    QFile::remove(m_testPdfPath);
+    // Cleanup in reverse order of initialization
+
+    // Unregister ALL caches to prevent dangling pointers
+    CacheManager& cacheManager = CacheManager::instance();
+    cacheManager.unregisterCache(CacheManager::SEARCH_RESULT_CACHE);
+    cacheManager.unregisterCache(CacheManager::PAGE_TEXT_CACHE);
+    cacheManager.unregisterCache(CacheManager::SEARCH_HIGHLIGHT_CACHE);
+    cacheManager.unregisterCache(CacheManager::PDF_RENDER_CACHE);
+    cacheManager.unregisterCache(CacheManager::THUMBNAIL_CACHE);
+
+    // Stop all CacheManager timers to prevent crashes during static destruction
+    cacheManager.stopAllTimers();
+
+    // Clear all caches to release memory
+    cacheManager.clearAllCaches();
+
+    // Tear down services to avoid accessing deleted document
     teardownServices();
+
+    // Process any pending events multiple times to ensure all async operations
+    // complete
+    for (int i = 0; i < 5; ++i) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        QThread::msleep(10);
+    }
+
+    // Delete the test document
+    delete m_testDocument;
+    m_testDocument = nullptr;
+
+    // Remove test file
+    QFile::remove(m_testPdfPath);
+
+    // Final event processing to handle deleteLater() calls
+    for (int i = 0; i < 3; ++i) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        QThread::msleep(10);
+    }
 }
 
 void TestSearchIntegration::init() {
-    m_searchEngine = new SearchEngine(this);
-    m_incrementalManager = new IncrementalSearchManager(this);
+    // Don't set parent to avoid double-delete issues
+    m_searchEngine = new SearchEngine(nullptr);
+    m_incrementalManager = new IncrementalSearchManager(nullptr);
 
     m_searchEngine->setDocument(m_testDocument);
     // Connect incremental manager to search engine
@@ -98,8 +136,29 @@ void TestSearchIntegration::init() {
 }
 
 void TestSearchIntegration::cleanup() {
+    // IMPORTANT: Unregister caches BEFORE deleting SearchEngine to prevent
+    // dangling pointers when CacheManager's timers fire
+    CacheManager& cacheManager = CacheManager::instance();
+    cacheManager.unregisterCache(CacheManager::SEARCH_RESULT_CACHE);
+    cacheManager.unregisterCache(CacheManager::PAGE_TEXT_CACHE);
+    cacheManager.unregisterCache(CacheManager::SEARCH_HIGHLIGHT_CACHE);
+
+    // Disconnect all signals to prevent dangling connections
+    if (m_incrementalManager) {
+        disconnect(m_incrementalManager, nullptr, nullptr, nullptr);
+    }
+    if (m_searchEngine) {
+        disconnect(m_searchEngine, nullptr, nullptr, nullptr);
+    }
+
+    // Explicitly delete to avoid memory leaks
     delete m_incrementalManager;
+    m_incrementalManager = nullptr;
     delete m_searchEngine;
+    m_searchEngine = nullptr;
+
+    // Process events to handle any pending deletions
+    QCoreApplication::processEvents();
 }
 
 void TestSearchIntegration::setupServices() {
@@ -116,6 +175,9 @@ void TestSearchIntegration::setupServices() {
 }
 
 void TestSearchIntegration::teardownServices() {
+    // Unsubscribe from all EventBus events for this test object
+    EventBus::instance().unsubscribeAll(this);
+
     ServiceLocator::instance().clearServices();
     StateManager::instance().reset();
 }
@@ -164,7 +226,7 @@ void TestSearchIntegration::testBasicTextSearch() {
 
     bool foundTest = false;
     for (const auto& result : results) {
-        if (result.text.contains("test", Qt::CaseInsensitive)) {
+        if (result.matchedText.contains("test", Qt::CaseInsensitive)) {
             foundTest = true;
             break;
         }
@@ -197,7 +259,7 @@ void TestSearchIntegration::testWholeWordSearch() {
     // Verify that partial matches are not included
     for (const auto& result : results) {
         // "word" should match but not "words"
-        QVERIFY(!result.text.contains("words"));
+        QVERIFY(!result.matchedText.contains("words"));
     }
 }
 
@@ -258,7 +320,7 @@ void TestSearchIntegration::testSearchWithStateManager() {
     for (const auto& result : m_searchEngine->results()) {
         QVariantMap resultMap;
         resultMap["page"] = result.pageNumber;
-        resultMap["text"] = result.text;
+        resultMap["text"] = result.matchedText;
         resultList.append(resultMap);
     }
 
@@ -284,6 +346,7 @@ void TestSearchIntegration::testSearchWithEventBus() {
 
     // Publish search started event
     eventBus.publish("search.started", QVariant("test query"));
+    QCoreApplication::processEvents();  // Process async event delivery
 
     // Perform actual search
     m_searchEngine->search("test");
@@ -293,6 +356,7 @@ void TestSearchIntegration::testSearchWithEventBus() {
     QVariantMap resultData;
     resultData["count"] = m_searchEngine->results().size();
     eventBus.publish("search.completed", resultData);
+    QCoreApplication::processEvents();  // Process async event delivery
 
     QVERIFY(searchStarted);
     QVERIFY(searchCompleted);

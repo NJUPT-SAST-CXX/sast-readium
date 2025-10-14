@@ -10,23 +10,34 @@
 #include <QtWidgets>
 #include <algorithm>
 #include <cmath>
+#include "../../model/RenderModel.h"
 
 // PDFPrerenderer Implementation
 PDFPrerenderer::PDFPrerenderer(QObject* parent)
     : QObject(parent),
       m_document(nullptr),
+      m_workerThreads(),
+      m_workers(),
       m_strategy(PrerenderStrategy::Balanced),
       m_maxWorkerThreads(QThread::idealThreadCount()),
       m_maxCacheSize(100),
-      m_maxMemoryUsage(512 * 1024 * 1024)  // 512MB
-      ,
+      m_maxMemoryUsage(512 * 1024 * 1024),  // 512MB
+      m_renderQueue(),
+      m_queueMutex(),
+      m_queueCondition(),
       m_isRunning(false),
       m_isPaused(false),
+      m_cache(),
       m_currentMemoryUsage(0),
       m_cacheHits(0),
       m_cacheMisses(0),
+      m_pageViewTimes(),
+      m_navigationPatterns(),
+      m_adaptiveTimer(nullptr),
+      m_accessHistory(),
       m_prerenderRange(3),
-      m_currentScrollDirection(0) {
+      m_currentScrollDirection(0),
+      m_lastScrollTime() {
     // Setup adaptive analysis timer
     m_adaptiveTimer = new QTimer(this);
     m_adaptiveTimer->setInterval(30000);  // 30 seconds
@@ -58,11 +69,9 @@ void PDFPrerenderer::setDocument(Poppler::Document* document) {
 
     m_document = document;
 
-    // Configure document for optimal rendering
+    // Configure document for optimal rendering using centralized method
     if (m_document) {
-        m_document->setRenderHint(Poppler::Document::Antialiasing, true);
-        m_document->setRenderHint(Poppler::Document::TextAntialiasing, true);
-        m_document->setRenderHint(Poppler::Document::TextHinting, true);
+        RenderModel::configureDocumentRenderHints(m_document);
     }
 
     // Clear cache when document changes
@@ -131,8 +140,9 @@ bool PDFPrerenderer::hasPrerenderedPage(int pageNumber, double scaleFactor,
 }
 
 void PDFPrerenderer::startPrerendering() {
-    if (m_isRunning)
+    if (m_isRunning) {
         return;
+    }
 
     m_isRunning = true;
     m_isPaused = false;
@@ -151,8 +161,9 @@ void PDFPrerenderer::startPrerendering() {
 }
 
 void PDFPrerenderer::stopPrerendering() {
-    if (!m_isRunning)
+    if (!m_isRunning) {
         return;
+    }
 
     m_isRunning = false;
     m_adaptiveTimer->stop();
@@ -222,8 +233,9 @@ void PDFPrerenderer::updateScrollDirection(int direction) {
 }
 
 void PDFPrerenderer::scheduleAdaptivePrerendering(int currentPage) {
-    if (!m_document)
+    if (!m_document) {
         return;
+    }
 
     QList<int> pagesToPrerender = predictNextPages(currentPage);
 
@@ -375,7 +387,7 @@ QList<int> PDFPrerenderer::predictNextPages(int currentPage) {
     return predictions;
 }
 
-int PDFPrerenderer::calculatePriority(int pageNumber, int currentPage) {
+int PDFPrerenderer::calculatePriority(int pageNumber, int currentPage) const {
     int distance = qAbs(pageNumber - currentPage);
 
     // Base priority on distance (closer = higher priority = lower number)
@@ -408,8 +420,10 @@ int PDFPrerenderer::calculatePriority(int pageNumber, int currentPage) {
 
 void PDFPrerenderer::setupWorkerThreads() {
     for (int i = 0; i < m_maxWorkerThreads; ++i) {
-        QThread* thread = new QThread(this);
-        PDFRenderWorker* worker = new PDFRenderWorker();
+        auto* thread = new QThread(this);
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory) - Qt manages lifetime
+        // via deleteLater
+        auto* worker = new PDFRenderWorker();
 
         worker->moveToThread(thread);
         worker->setDocument(m_document);
@@ -438,8 +452,9 @@ void PDFPrerenderer::cleanupWorkerThreads() {
 
 void PDFPrerenderer::onRenderCompleted(int pageNumber, const QPixmap& pixmap,
                                        double scaleFactor, int rotation) {
-    if (pixmap.isNull())
+    if (pixmap.isNull()) {
         return;
+    }
 
     QString cacheKey = getCacheKey(pageNumber, scaleFactor, rotation);
     qint64 pixmapSize = getPixmapMemorySize(pixmap);
@@ -527,8 +542,9 @@ void PDFPrerenderer::analyzeReadingPatterns() {
 }
 
 void PDFPrerenderer::evictLRUItems() {
-    if (m_cache.isEmpty())
+    if (m_cache.isEmpty()) {
         return;
+    }
 
     // Find least recently used item
     QString oldestKey;
@@ -558,7 +574,12 @@ double PDFPrerenderer::cacheHitRatio() const {
 
 // PDFRenderWorker Implementation
 PDFRenderWorker::PDFRenderWorker(QObject* parent)
-    : QObject(parent), m_document(nullptr), m_shouldStop(false) {}
+    : QObject(parent),
+      m_document(nullptr),
+      m_localQueue(),
+      m_queueMutex(),
+      m_queueCondition(),
+      m_shouldStop(false) {}
 
 void PDFRenderWorker::setDocument(Poppler::Document* document) {
     QMutexLocker locker(&m_queueMutex);
@@ -585,7 +606,7 @@ void PDFRenderWorker::stop() {
 
 void PDFRenderWorker::processRenderQueue() {
     while (!m_shouldStop) {
-        PDFPrerenderer::RenderRequest request;
+        PDFPrerenderer::RenderRequest request{};
 
         {
             QMutexLocker locker(&m_queueMutex);
@@ -625,7 +646,9 @@ QPixmap PDFRenderWorker::renderPage(
         return QPixmap();
     }
 
+    // Calculate DPI including device pixel ratio for high-DPI displays
     double dpi = calculateOptimalDPI(request.scaleFactor);
+    double deviceRatio = qApp != nullptr ? qApp->devicePixelRatio() : 1.0;
 
     QImage image = page->renderToImage(
         dpi, dpi, -1, -1, -1, -1,
@@ -635,7 +658,13 @@ QPixmap PDFRenderWorker::renderPage(
         return QPixmap();
     }
 
-    return QPixmap::fromImage(image);
+    // Convert to pixmap and set device pixel ratio for proper high-DPI scaling
+    QPixmap pixmap = QPixmap::fromImage(image);
+    if (QApplication::instance()) {
+        pixmap.setDevicePixelRatio(deviceRatio);
+    }
+
+    return pixmap;
 }
 
 double PDFRenderWorker::calculateOptimalDPI(double scaleFactor) {

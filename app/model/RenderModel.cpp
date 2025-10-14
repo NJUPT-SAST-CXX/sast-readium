@@ -1,6 +1,7 @@
 #include "RenderModel.h"
 #include <QApplication>
 #include <QtConcurrent/QtConcurrent>
+#include <cmath>
 #include "../logging/LoggingMacros.h"
 #include "qimage.h"
 #include "qlogging.h"
@@ -11,7 +12,8 @@ RenderModel::RenderModel(double dpiX, double dpiY, Poppler::Document* _document,
       document(_document),
       dpiX(dpiX),
       dpiY(dpiY),
-      renderQuality(RenderQuality::Normal),
+      renderQuality(RenderQuality::High),  // Default to High for
+                                           // high-performance rendering
       maxCacheSize(50) {
     // Initialize cache with reasonable size (in MB)
     pageCache.setMaxCost(maxCacheSize * 1024 * 1024);
@@ -28,6 +30,11 @@ RenderModel::RenderModel(double dpiX, double dpiY, Poppler::Document* _document,
         }
     });
     cacheCleanupTimer->start();
+
+    LOG_INFO(
+        "RenderModel: Initialized with DPI {}x{}, Quality: High (1.5x "
+        "multiplier)",
+        dpiX, dpiY);
 }
 
 RenderModel::~RenderModel() {
@@ -438,12 +445,71 @@ void RenderModel::setDpi(double dpiX, double dpiY) {
     }
 }
 
-double RenderModel::getEffectiveDpiX(double scaleFactor) const {
-    return dpiX * qMax(0.1, scaleFactor);
+double RenderModel::getEffectiveDpiX(double scaleFactor,
+                                     double devicePixelRatio) const {
+    // Validate device pixel ratio - fallback to 1.0 if invalid
+    if (devicePixelRatio <= 0.0 || !std::isfinite(devicePixelRatio)) {
+        LOG_WARNING(
+            "RenderModel: Invalid device pixel ratio: {}, using default 1.0",
+            devicePixelRatio);
+        devicePixelRatio = 1.0;
+    }
+
+    // Calculate effective DPI: base DPI * scale factor * quality multiplier *
+    // device pixel ratio This ensures consistent high-quality rendering across
+    // all zoom levels and display types
+    // - baseDpi: 72.0 (standard PDF DPI)
+    // - scaleFactor: User zoom level (0.1 to 10.0)
+    // - qualityMultiplier: Based on RenderQuality setting (1.0 to 2.0)
+    // - devicePixelRatio: Display scaling (1.0 for standard, 2.0 for Retina,
+    // etc.)
+    double effectiveDpi = dpiX * qMax(0.1, scaleFactor) *
+                          getQualityMultiplier() * devicePixelRatio;
+
+    // Cap at reasonable maximum to prevent excessive memory usage
+    // 600 DPI is sufficient for even 4K displays at high zoom with 2x scaling
+    double maxDpi = 600.0;
+    double clampedDpi = qMin(effectiveDpi, maxDpi);
+
+    if (effectiveDpi > maxDpi) {
+        LOG_DEBUG(
+            "RenderModel: Clamping effective DPI X from {:.2f} to {:.2f} "
+            "(scale: {:.2f}, devicePixelRatio: {:.2f})",
+            effectiveDpi, clampedDpi, scaleFactor, devicePixelRatio);
+    }
+
+    return clampedDpi;
 }
 
-double RenderModel::getEffectiveDpiY(double scaleFactor) const {
-    return dpiY * qMax(0.1, scaleFactor);
+double RenderModel::getEffectiveDpiY(double scaleFactor,
+                                     double devicePixelRatio) const {
+    // Validate device pixel ratio - fallback to 1.0 if invalid
+    if (devicePixelRatio <= 0.0 || !std::isfinite(devicePixelRatio)) {
+        LOG_WARNING(
+            "RenderModel: Invalid device pixel ratio: {}, using default 1.0",
+            devicePixelRatio);
+        devicePixelRatio = 1.0;
+    }
+
+    // Calculate effective DPI: base DPI * scale factor * quality multiplier *
+    // device pixel ratio This ensures consistent high-quality rendering across
+    // all zoom levels and display types
+    double effectiveDpi = dpiY * qMax(0.1, scaleFactor) *
+                          getQualityMultiplier() * devicePixelRatio;
+
+    // Cap at reasonable maximum to prevent excessive memory usage
+    // 600 DPI is sufficient for even 4K displays at high zoom with 2x scaling
+    double maxDpi = 600.0;
+    double clampedDpi = qMin(effectiveDpi, maxDpi);
+
+    if (effectiveDpi > maxDpi) {
+        LOG_DEBUG(
+            "RenderModel: Clamping effective DPI Y from {:.2f} to {:.2f} "
+            "(scale: {:.2f}, devicePixelRatio: {:.2f})",
+            effectiveDpi, clampedDpi, scaleFactor, devicePixelRatio);
+    }
+
+    return clampedDpi;
 }
 
 // Rendering Quality Methods
@@ -1007,6 +1073,26 @@ int RenderModel::getPageCount() {
     }
 }
 
+// Static method to configure document render hints for high-quality rendering
+void RenderModel::configureDocumentRenderHints(Poppler::Document* doc) {
+    if (!doc) {
+        return;
+    }
+
+    // Enable all high-quality rendering hints for optimal output
+    // These settings ensure crisp rendering on all displays, especially
+    // high-DPI
+    doc->setRenderHint(Poppler::Document::Antialiasing, true);
+    doc->setRenderHint(Poppler::Document::TextAntialiasing, true);
+    doc->setRenderHint(Poppler::Document::TextHinting, true);
+    doc->setRenderHint(Poppler::Document::TextSlightHinting, true);
+    doc->setRenderHint(Poppler::Document::ThinLineShape, true);
+    doc->setRenderHint(Poppler::Document::OverprintPreview, true);
+
+    LOG_DEBUG(
+        "RenderModel: Configured document with high-quality render hints");
+}
+
 void RenderModel::setDocument(Poppler::Document* _document) {
     if (document == _document) {
         LOG_DEBUG("RenderModel: Document already set, ignoring");
@@ -1042,6 +1128,9 @@ void RenderModel::setDocument(Poppler::Document* _document) {
         }
 
         LOG_INFO("RenderModel: Setting new document with {} pages", pageCount);
+
+        // Configure document for high-quality rendering
+        configureDocumentRenderHints(_document);
 
         // document.reset(_document);       //
         // 这里不能用reset，因为_document是外部传入的智能指针，

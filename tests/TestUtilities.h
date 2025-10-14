@@ -14,6 +14,12 @@
 #include <functional>
 #include <memory>
 
+// PDF generation utilities
+#include <poppler-qt6.h>
+#include <QPainter>
+#include <QPdfWriter>
+#include <QStandardPaths>
+
 /**
  * @brief TestBase - Base class for all test cases
  *
@@ -206,5 +212,67 @@ public:
             obj[randomString(5)] = randomString(10);
         }
         return obj;
+    }
+
+    /**
+     * @brief Creates a test PDF without text rendering to avoid font issues
+     * @param numPages Number of pages to create
+     * @param filename Optional filename (auto-generated if empty)
+     * @return Pointer to loaded Poppler document (caller owns)
+     *
+     * This creates PDFs using only shapes/rectangles to avoid font-related
+     * crashes in Poppler during rendering operations.
+     */
+    static Poppler::Document* createTestPdfWithoutText(
+        int numPages = 5, const QString& filename = QString()) {
+        QString testPdfPath = filename;
+        if (testPdfPath.isEmpty()) {
+            testPdfPath =
+                QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
+                QString("/test_pdf_%1.pdf")
+                    .arg(QRandomGenerator::global()->generate());
+        }
+
+        QPdfWriter pdfWriter(testPdfPath);
+        pdfWriter.setPageSize(QPageSize::A4);
+        pdfWriter.setPageMargins(QMarginsF(20, 20, 20, 20));
+
+        QPainter painter(&pdfWriter);
+        if (!painter.isActive()) {
+            return nullptr;
+        }
+
+        // Create pages with only shapes - no text to avoid font issues
+        for (int page = 0; page < numPages; ++page) {
+            if (page > 0) {
+                pdfWriter.newPage();
+            }
+
+            // Draw colored rectangles to make pages visually distinct
+            painter.setPen(Qt::black);
+            painter.setBrush(QColor(100 + page * 20, 150, 200));
+            painter.drawRect(50, 50, 200, 100);
+
+            painter.setBrush(QColor(200, 100 + page * 20, 150));
+            painter.drawRect(300, 50, 200, 100);
+
+            painter.setBrush(QColor(150, 200, 100 + page * 20));
+            painter.drawRect(50, 200, 200, 100);
+
+            // Draw page number as shapes (simple visual indicator)
+            for (int i = 0; i <= page; ++i) {
+                painter.setBrush(Qt::darkGray);
+                painter.drawEllipse(300 + i * 30, 250, 20, 20);
+            }
+        }
+
+        painter.end();
+
+        // Load and verify the document
+        auto doc = Poppler::Document::load(testPdfPath);
+        if (doc && doc->numPages() > 0) {
+            return doc.release();
+        }
+        return nullptr;
     }
 };

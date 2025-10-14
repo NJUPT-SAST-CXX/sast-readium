@@ -42,7 +42,15 @@ EventBus::EventBus(QObject* parent)
     });
 }
 
-EventBus::~EventBus() { clearEventQueue(); }
+EventBus::~EventBus() {
+    // During static destruction, QCoreApplication might already be destroyed
+    // In that case, we can't safely do anything, so just return
+    if (!QCoreApplication::instance()) {
+        return;
+    }
+
+    clearEventQueue();
+}
 
 EventBus& EventBus::instance() {
     static EventBus instance;

@@ -25,6 +25,16 @@ public:
         rankingFactors.exactMatchBonus = 2.0;
         rankingFactors.proximityBonus = 1.5;
 
+        // Initialize performance metrics to default values
+        lastMetrics.searchTime = 0;
+        lastMetrics.algorithmTime = 0;
+        lastMetrics.rankingTime = 0;
+        lastMetrics.cacheTime = 0;
+        lastMetrics.resultsFound = 0;
+        lastMetrics.pagesSearched = 0;
+        lastMetrics.algorithmUsed = "None";
+        lastMetrics.cacheHitRatio = 0.0;
+
         setOptimalThreadCount();
     }
 
@@ -101,7 +111,7 @@ public:
     bool threadAffinityEnabled;
     bool workStealingEnabled;
 
-    QMutex metricsMutex;
+    mutable QMutex metricsMutex;
 };
 
 SearchPerformance::SearchPerformance(QObject* parent)
