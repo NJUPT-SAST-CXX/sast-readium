@@ -9,9 +9,12 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <cstddef>
-#include <memory>
+// #include <memory>
 #include "Logger.h"
 #include "QtSpdlogBridge.h"
+
+// Forward declarations
+class LoggingConfig;
 
 /**
  * @brief Centralized logging manager for the entire application
@@ -108,6 +111,19 @@ public:
 
     static LoggingManager& instance();
     ~LoggingManager();
+
+    // Factory method for creating development configuration
+    static LoggingConfiguration createDevelopmentConfiguration(
+        Logger::LogLevel globalLevel = Logger::LogLevel::Debug,
+        const QString& pattern = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v",
+        Logger::LogLevel consoleLevel = Logger::LogLevel::Debug,
+        const QString& fileName = "sast-readium.log",
+        size_t maxFileSize = 10 * 1024 * 1024,
+        size_t maxFiles = 5,
+        Logger::LogLevel fileLevel = Logger::LogLevel::Info);
+    
+    // Convert from LoggingConfig to LoggingConfiguration
+    static LoggingConfiguration fromLoggingConfig(const LoggingConfig& config);
 
     // Initialization and configuration
     void initialize(

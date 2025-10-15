@@ -48,8 +48,8 @@ void Logger::initialize(const LoggerConfig& config) {
         }
 
         createLogger();
-        setLogLevel(m_config.level);
-        setPattern(m_config.pattern);
+        setLogLevelInternal(m_config.level);
+        setPatternInternal(m_config.pattern);
 
         m_initialized = true;
 
@@ -88,6 +88,10 @@ void Logger::createLogger() {
 
 void Logger::setLogLevel(LogLevel level) {
     QMutexLocker locker(&m_mutex);
+    setLogLevelInternal(level);
+}
+
+void Logger::setLogLevelInternal(LogLevel level) {
     m_config.level = level;
 
     if (m_logger) {
@@ -97,6 +101,10 @@ void Logger::setLogLevel(LogLevel level) {
 
 void Logger::setPattern(const QString& pattern) {
     QMutexLocker locker(&m_mutex);
+    setPatternInternal(pattern);
+}
+
+void Logger::setPatternInternal(const QString& pattern) {
     m_config.pattern = pattern;
 
     if (m_logger) {
@@ -189,8 +197,8 @@ void Logger::setQtWidget(QTextEdit* widget) {
         // Recreate logger with new sinks
         if (m_initialized) {
             createLogger();
-            setLogLevel(m_config.level);
-            setPattern(m_config.pattern);
+            setLogLevelInternal(m_config.level);
+            setPatternInternal(m_config.pattern);
         }
     }
 }

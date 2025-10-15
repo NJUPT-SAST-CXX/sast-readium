@@ -159,6 +159,7 @@ tramp
 .cache/
 compile_commands.json
 compile_flags.txt
+.clangd
 
 # ccls
 .ccls-cache/

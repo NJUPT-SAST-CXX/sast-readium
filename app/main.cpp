@@ -8,17 +8,22 @@
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
 
-    // Initialize logging system early
+    // Initialize logging system
     LoggingConfigBuilder configBuilder;
-    configBuilder.useDevelopmentPreset()
+    auto loggingConfigPtr = configBuilder
+        .useDevelopmentPreset()
         .setGlobalLevel(Logger::LogLevel::Debug)
+        .setGlobalPattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] %v")
         .addConsoleSink("console", Logger::LogLevel::Debug)
+        .addRotatingFileSink("file", "sast-readium.log", 10 * 1024 * 1024, 5, Logger::LogLevel::Info)
         .addCategory("main", Logger::LogLevel::Debug)
-        .addCategory("ui", Logger::LogLevel::Info);
+        .addCategory("ui", Logger::LogLevel::Info)
+        .buildUnique();
 
-    auto loggingConfig = configBuilder.buildUnique();
-    LoggingManager::instance().initialize(
-        LoggingManager::LoggingConfiguration{});
+    // Convert to LoggingManager configuration
+    auto loggingConfig = LoggingManager::fromLoggingConfig(*loggingConfigPtr);
+
+    LoggingManager::instance().initialize(loggingConfig);
 
     LOG_INFO("Starting SAST Readium application");
     LOG_INFO("Application name: {}", PROJECT_NAME);

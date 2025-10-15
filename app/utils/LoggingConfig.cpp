@@ -699,9 +699,44 @@ LoggingConfigBuilder& LoggingConfigBuilder::setGlobalLevel(
     return *this;
 }
 
+LoggingConfigBuilder& LoggingConfigBuilder::setGlobalPattern(
+    const QString& pattern) {
+    LoggingConfig::GlobalConfiguration globalConfig = m_config->getGlobalConfig();
+    globalConfig.globalPattern = pattern;
+    m_config->setGlobalConfig(globalConfig);
+    return *this;
+}
+
 LoggingConfigBuilder& LoggingConfigBuilder::addConsoleSink(
     const QString& name, Logger::LogLevel level) {
     m_config->enableConsoleLogging(level, true);
+    return *this;
+}
+
+LoggingConfigBuilder& LoggingConfigBuilder::addFileSink(
+    const QString& name, const QString& filename, Logger::LogLevel level) {
+    LoggingConfig::SinkConfiguration sinkConfig;
+    sinkConfig.name = name;
+    sinkConfig.type = "file";
+    sinkConfig.level = level;
+    sinkConfig.filename = filename;
+    sinkConfig.enabled = true;
+    m_config->addSinkConfiguration(sinkConfig);
+    return *this;
+}
+
+LoggingConfigBuilder& LoggingConfigBuilder::addRotatingFileSink(
+    const QString& name, const QString& filename, size_t maxSize, 
+    size_t maxFiles, Logger::LogLevel level) {
+    LoggingConfig::SinkConfiguration sinkConfig;
+    sinkConfig.name = name;
+    sinkConfig.type = "rotating_file";
+    sinkConfig.level = level;
+    sinkConfig.filename = filename;
+    sinkConfig.maxFileSize = maxSize;
+    sinkConfig.maxFiles = maxFiles;
+    sinkConfig.enabled = true;
+    m_config->addSinkConfiguration(sinkConfig);
     return *this;
 }
 

@@ -10,6 +10,7 @@
 #include <QStandardPaths>
 #include <QThread>
 #include "LoggingMacros.h"
+#include "LoggingConfig.h"
 
 LoggingManager& LoggingManager::instance() {
     static LoggingManager instance;
@@ -17,6 +18,92 @@ LoggingManager& LoggingManager::instance() {
 }
 
 LoggingManager::~LoggingManager() { shutdown(); }
+
+LoggingManager::LoggingConfiguration LoggingManager::createDevelopmentConfiguration(
+    Logger::LogLevel globalLevel,
+    const QString& pattern,
+    Logger::LogLevel consoleLevel,
+    const QString& fileName,
+    size_t maxFileSize,
+    size_t maxFiles,
+    Logger::LogLevel fileLevel) {
+    
+    LoggingConfigBuilder builder;
+    auto config = builder
+        .useDevelopmentPreset()
+        .setGlobalLevel(globalLevel)
+        .setGlobalPattern(pattern)
+        .addConsoleSink("console", consoleLevel)
+        .addRotatingFileSink("file", fileName, maxFileSize, maxFiles, fileLevel)
+        .addCategory("main", Logger::LogLevel::Debug)
+        .addCategory("ui", Logger::LogLevel::Info)
+        .buildUnique();
+
+    // Convert LoggingConfig to LoggingManager::LoggingConfiguration
+    LoggingConfiguration managerConfig;
+    
+    const auto& globalConfig = config->getGlobalConfig();
+    managerConfig.globalLogLevel = globalConfig.globalLevel;
+    managerConfig.logPattern = globalConfig.globalPattern;
+    
+    // Extract console and file settings from sinks
+    const auto& sinks = config->getSinkConfigurations();
+    for (const auto& sink : sinks) {
+        if (sink.type == "console") {
+            managerConfig.enableConsoleLogging = sink.enabled;
+            managerConfig.consoleLogLevel = sink.level;
+        } else if (sink.type == "rotating_file" || sink.type == "file") {
+            managerConfig.enableFileLogging = sink.enabled;
+            managerConfig.fileLogLevel = sink.level;
+            managerConfig.logFileName = sink.filename.isEmpty() ? "sast-readium.log" : sink.filename;
+            managerConfig.maxFileSize = sink.maxFileSize;
+            managerConfig.maxFiles = sink.maxFiles;
+            managerConfig.rotateOnStartup = sink.rotateOnStartup;
+        }
+    }
+    
+    // Set other default values to match original configuration
+    managerConfig.logDirectory = "";  // empty = default
+    managerConfig.enableQtWidgetLogging = false;
+    managerConfig.qtWidgetLogLevel = Logger::LogLevel::Debug;
+    managerConfig.enableQtMessageHandlerRedirection = true;
+    managerConfig.enableQtCategoryFiltering = true;
+    
+    return managerConfig;
+}
+
+LoggingManager::LoggingConfiguration LoggingManager::fromLoggingConfig(const LoggingConfig& config) {
+    LoggingConfiguration managerConfig;
+    
+    const auto& globalConfig = config.getGlobalConfig();
+    managerConfig.globalLogLevel = globalConfig.globalLevel;
+    managerConfig.logPattern = globalConfig.globalPattern;
+    
+    // Extract console and file settings from sinks
+    const auto& sinks = config.getSinkConfigurations();
+    for (const auto& sink : sinks) {
+        if (sink.type == "console") {
+            managerConfig.enableConsoleLogging = sink.enabled;
+            managerConfig.consoleLogLevel = sink.level;
+        } else if (sink.type == "rotating_file" || sink.type == "file") {
+            managerConfig.enableFileLogging = sink.enabled;
+            managerConfig.fileLogLevel = sink.level;
+            managerConfig.logFileName = sink.filename.isEmpty() ? "sast-readium.log" : sink.filename;
+            managerConfig.maxFileSize = sink.maxFileSize;
+            managerConfig.maxFiles = sink.maxFiles;
+            managerConfig.rotateOnStartup = sink.rotateOnStartup;
+        }
+    }
+    
+    // Set other default values to match original configuration
+    managerConfig.logDirectory = "";  // empty = default
+    managerConfig.enableQtWidgetLogging = false;
+    managerConfig.qtWidgetLogLevel = Logger::LogLevel::Debug;
+    managerConfig.enableQtMessageHandlerRedirection = true;
+    managerConfig.enableQtCategoryFiltering = true;
+    
+    return managerConfig;
+}
 
 void LoggingManager::initialize(const LoggingConfiguration& config) {
     QMutexLocker locker(&m_mutex);
