@@ -9,11 +9,14 @@
 #include <QPushButton>
 #include <QStyle>
 #include <QWidget>
+#include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
 
 // CollapsibleSection Implementation
 CollapsibleSection::CollapsibleSection(const QString& title, QWidget* parent)
     : QWidget(parent), m_expanded(true) {
+    StyleManager* styleManager = &StyleManager::instance();
+
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
@@ -31,7 +34,8 @@ CollapsibleSection::CollapsibleSection(const QString& title, QWidget* parent)
         "}");
 
     QHBoxLayout* headerLayout = new QHBoxLayout(headerFrame);
-    headerLayout->setContentsMargins(4, 2, 4, 2);
+    headerLayout->setContentsMargins(styleManager->spacingXS(), styleManager->spacingXS() / 2,
+                                    styleManager->spacingXS(), styleManager->spacingXS() / 2);
 
     m_toggleButton = new QToolButton(this);
     m_toggleButton->setText(title);
@@ -68,7 +72,7 @@ CollapsibleSection::CollapsibleSection(const QString& title, QWidget* parent)
 
     // Setup animation
     m_animation = new QPropertyAnimation(m_contentFrame, "maximumHeight", this);
-    m_animation->setDuration(200);
+    m_animation->setDuration(styleManager->animationNormal());
     m_animation->setEasingCurve(QEasingCurve::InOutQuad);
 
     mainLayout->addWidget(headerFrame);
@@ -110,80 +114,153 @@ void CollapsibleSection::toggleExpanded() { setExpanded(!m_expanded); }
 // ToolBar Implementation
 ToolBar::ToolBar(QWidget* parent)
     : QToolBar(parent), m_compactMode(false), m_isHovered(false) {
+    StyleManager* styleManager = &StyleManager::instance();
+
     setObjectName("MainToolBar");
     setMovable(true);
     setIconSize(QSize(24, 24));
 
-    // Setup main container widget
-    QWidget* containerWidget = new QWidget(this);
-    QVBoxLayout* mainLayout = new QVBoxLayout(containerWidget);
-    mainLayout->setSpacing(8);
-    mainLayout->setContentsMargins(8, 8, 8, 8);
+    // Set size policy for toolbar
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    // Setup quick access bar at top
-    setupQuickAccessBar();
-    mainLayout->addWidget(m_quickAccessBar);
+    // Set consistent spacing using StyleManager
+    layout()->setSpacing(styleManager->spacingXS());
 
-    // Create horizontal layout for sections
-    QHBoxLayout* sectionsLayout = new QHBoxLayout();
-    sectionsLayout->setSpacing(12);
+    // Create simple toolbar actions without CollapsibleSection to avoid hang
+    // File actions
+    m_openAction = new QAction(tr("Open"), this);
+    m_openAction->setToolTip(tr("Open File (Ctrl+O)"));
+    m_openAction->setShortcut(QKeySequence::Open);
+    addAction(m_openAction);
+    connect(m_openAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::openFile); });
 
-    // Setup all sections
-    setupFileSection();
-    setupNavigationSection();
-    setupZoomSection();
-    setupViewSection();
-    setupToolsSection();
+    m_saveAction = new QAction(tr("Save"), this);
+    m_saveAction->setToolTip(tr("Save File (Ctrl+S)"));
+    m_saveAction->setShortcut(QKeySequence::Save);
+    addAction(m_saveAction);
+    connect(m_saveAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::save); });
 
-    sectionsLayout->addWidget(m_fileSection);
-    sectionsLayout->addWidget(m_navigationSection);
-    sectionsLayout->addWidget(m_zoomSection);
-    sectionsLayout->addWidget(m_viewSection);
-    sectionsLayout->addWidget(m_toolsSection);
-    sectionsLayout->addStretch();
+    addSeparator();
 
-    mainLayout->addLayout(sectionsLayout);
+    // Navigation actions
+    m_firstPageAction = new QAction(tr("First"), this);
+    m_firstPageAction->setToolTip(tr("First Page"));
+    addAction(m_firstPageAction);
+    connect(m_firstPageAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::firstPage); });
 
-    // Add document info at bottom
-    QHBoxLayout* infoLayout = new QHBoxLayout();
-    m_documentInfoLabel = new QLabel(tr("No Document"), this);
-    m_fileSizeLabel = new QLabel("", this);
-    m_lastModifiedLabel = new QLabel("", this);
+    m_prevPageAction = new QAction(tr("Prev"), this);
+    m_prevPageAction->setToolTip(tr("Previous Page"));
+    addAction(m_prevPageAction);
+    connect(m_prevPageAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::previousPage); });
 
-    infoLayout->addWidget(m_documentInfoLabel);
-    infoLayout->addWidget(m_fileSizeLabel);
-    infoLayout->addWidget(m_lastModifiedLabel);
-    infoLayout->addStretch();
+    m_nextPageAction = new QAction(tr("Next"), this);
+    m_nextPageAction->setToolTip(tr("Next Page"));
+    addAction(m_nextPageAction);
+    connect(m_nextPageAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::nextPage); });
 
-    mainLayout->addLayout(infoLayout);
+    m_lastPageAction = new QAction(tr("Last"), this);
+    m_lastPageAction->setToolTip(tr("Last Page"));
+    addAction(m_lastPageAction);
+    connect(m_lastPageAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::lastPage); });
 
-    addWidget(containerWidget);
+    addSeparator();
 
-    // Apply enhanced styling
-    applyEnhancedStyle();
+    // Zoom actions
+    m_zoomOutAction = new QAction(tr("Zoom Out"), this);
+    m_zoomOutAction->setToolTip(tr("Zoom Out"));
+    addAction(m_zoomOutAction);
+    connect(m_zoomOutAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::zoomOut); });
 
-    // Initialize animations
-    m_hoverAnimation = new QPropertyAnimation(this, "minimumHeight", this);
-    m_hoverAnimation->setDuration(150);
-    m_hoverAnimation->setEasingCurve(QEasingCurve::InOutQuad);
+    m_zoomInAction = new QAction(tr("Zoom In"), this);
+    m_zoomInAction->setToolTip(tr("Zoom In"));
+    addAction(m_zoomInAction);
+    connect(m_zoomInAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::zoomIn); });
 
-    // Connect section expand/collapse signals
-    connect(m_fileSection, &CollapsibleSection::expandedChanged, this,
-            &ToolBar::onSectionExpandChanged);
-    connect(m_navigationSection, &CollapsibleSection::expandedChanged, this,
-            &ToolBar::onSectionExpandChanged);
-    connect(m_zoomSection, &CollapsibleSection::expandedChanged, this,
-            &ToolBar::onSectionExpandChanged);
-    connect(m_viewSection, &CollapsibleSection::expandedChanged, this,
-            &ToolBar::onSectionExpandChanged);
-    connect(m_toolsSection, &CollapsibleSection::expandedChanged, this,
-            &ToolBar::onSectionExpandChanged);
+    addSeparator();
 
-    // Set initial state
-    setActionsEnabled(false);
+    // Theme toggle
+    m_themeToggleAction = new QAction(tr("Theme"), this);
+    m_themeToggleAction->setToolTip(tr("Toggle Theme"));
+    addAction(m_themeToggleAction);
+    connect(m_themeToggleAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::toggleTheme); });
+
+    // Initialize ALL action pointers to nullptr (not used in simplified version)
+    m_openFolderAction = nullptr;
+    m_saveAsAction = nullptr;
+    m_printAction = nullptr;
+    m_emailAction = nullptr;
+    m_fitWidthAction = nullptr;
+    m_fitPageAction = nullptr;
+    m_fitHeightAction = nullptr;
+    m_rotateLeftAction = nullptr;
+    m_rotateRightAction = nullptr;
+    m_searchAction = nullptr;
+    m_bookmarkAction = nullptr;
+    m_annotateAction = nullptr;
+    m_highlightAction = nullptr;
+    m_snapshotAction = nullptr;
+    m_toggleSidebarAction = nullptr;
+    m_toggleFullscreenAction = nullptr;
+    m_nightModeAction = nullptr;
+    m_readingModeAction = nullptr;
+    m_settingsAction = nullptr;
+    m_helpAction = nullptr;
+
+    // Initialize section pointers to nullptr (not used in simplified version)
+    m_fileSection = nullptr;
+    m_navigationSection = nullptr;
+    m_zoomSection = nullptr;
+    m_viewSection = nullptr;
+    m_toolsSection = nullptr;
+    m_quickAccessBar = nullptr;
+    m_hoverAnimation = nullptr;
+    m_expandAnimation = nullptr;
+
+    // Initialize widget pointers to nullptr
+    m_pageSpinBox = nullptr;
+    m_pageCountLabel = nullptr;
+    m_pageSlider = nullptr;
+    m_thumbnailPreview = nullptr;
+    m_zoomSlider = nullptr;
+    m_zoomValueLabel = nullptr;
+    m_zoomPresets = nullptr;
+    m_viewModeCombo = nullptr;
+    m_layoutCombo = nullptr;
+    m_documentInfoLabel = nullptr;
+    m_fileSizeLabel = nullptr;
+    m_lastModifiedLabel = nullptr;
+}
+
+ToolBar::~ToolBar() {
+    // Stop animations if they exist
+    if (m_hoverAnimation) {
+        m_hoverAnimation->stop();
+        // Animation will be deleted by Qt parent-child ownership
+    }
+
+    if (m_expandAnimation) {
+        m_expandAnimation->stop();
+        // Animation will be deleted by Qt parent-child ownership
+    }
+
+    // All widgets and actions are deleted automatically by Qt parent-child ownership
+    // No manual deletion needed for widgets/actions created with 'this' as parent
+
+    LOG_DEBUG("ToolBar destroyed successfully");
 }
 
 void ToolBar::setupFileSection() {
+    LOG_DEBUG("ToolBar::setupFileSection() - Creating file section");
+
     m_fileSection = new CollapsibleSection(tr("File"), this);
 
     QWidget* content = new QWidget();
@@ -191,32 +268,34 @@ void ToolBar::setupFileSection() {
     layout->setSpacing(4);
 
     // Create file actions with icons
-    m_openAction = new QAction("📁", this);
+    m_openAction = new QAction(tr("Open"), this);
     m_openAction->setToolTip(tr("Open PDF File (Ctrl+O)"));
     m_openAction->setShortcut(QKeySequence::Open);
 
-    m_openFolderAction = new QAction("📂", this);
+    m_openFolderAction = new QAction(tr("Open Folder"), this);
     m_openFolderAction->setToolTip(tr("Open Folder (Ctrl+Shift+O)"));
     m_openFolderAction->setShortcut(QKeySequence("Ctrl+Shift+O"));
 
-    m_saveAction = new QAction("💾", this);
+    m_saveAction = new QAction(tr("Save"), this);
     m_saveAction->setToolTip(tr("Save File (Ctrl+S)"));
     m_saveAction->setShortcut(QKeySequence::Save);
 
-    m_saveAsAction = new QAction("💾", this);
+    m_saveAsAction = new QAction(tr("Save As"), this);
     m_saveAsAction->setToolTip(tr("Save As (Ctrl+Shift+S)"));
     m_saveAsAction->setShortcut(QKeySequence::SaveAs);
 
-    m_printAction = new QAction("🖨️", this);
+    m_printAction = new QAction(tr("Print"), this);
     m_printAction->setToolTip(tr("Print (Ctrl+P)"));
     m_printAction->setShortcut(QKeySequence::Print);
 
-    m_emailAction = new QAction("📧", this);
+    m_emailAction = new QAction(tr("Email"), this);
     m_emailAction->setToolTip(tr("Email Document"));
 
     // Create tool buttons
     auto createButton = [](QAction* action) {
         QToolButton* btn = new QToolButton();
+        btn->setAccessibleName("Toolbar Button");
+        btn->setToolTip(btn->text().isEmpty() ? QString("Toolbar Button") : btn->text());
         btn->setDefaultAction(action);
         btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
         btn->setMinimumSize(60, 60);
@@ -252,6 +331,8 @@ void ToolBar::setupFileSection() {
             [this]() { emit actionTriggered(ActionMap::openFolder); });
     connect(m_saveAction, &QAction::triggered,
             [this]() { emit actionTriggered(ActionMap::save); });
+
+    LOG_DEBUG("ToolBar::setupFileSection() - File section created successfully");
 }
 
 void ToolBar::setupNavigationSection() {
@@ -274,6 +355,8 @@ void ToolBar::setupNavigationSection() {
 
     auto createNavButton = [](QAction* action) {
         QToolButton* btn = new QToolButton();
+        btn->setAccessibleName("Toolbar Button");
+        btn->setToolTip(btn->text().isEmpty() ? QString("Toolbar Button") : btn->text());
         btn->setDefaultAction(action);
         btn->setMinimumSize(32, 32);
         return btn;
@@ -372,6 +455,8 @@ void ToolBar::setupZoomSection() {
 
     auto createZoomButton = [](QAction* action) {
         QToolButton* btn = new QToolButton();
+        btn->setAccessibleName("Toolbar Button");
+        btn->setToolTip(btn->text().isEmpty() ? QString("Toolbar Button") : btn->text());
         btn->setDefaultAction(action);
         btn->setMinimumSize(32, 32);
         return btn;
@@ -476,7 +561,7 @@ void ToolBar::setupViewSection() {
     m_toggleSidebarAction->setCheckable(true);
     m_toggleSidebarAction->setChecked(true);
 
-    m_toggleFullscreenAction = new QAction("🖥️", this);
+    m_toggleFullscreenAction = new QAction("🖥", this);
     m_toggleFullscreenAction->setToolTip(tr("Fullscreen"));
     m_toggleFullscreenAction->setCheckable(true);
 
@@ -490,6 +575,8 @@ void ToolBar::setupViewSection() {
 
     auto createViewButton = [](QAction* action) {
         QToolButton* btn = new QToolButton();
+        btn->setAccessibleName("Toolbar Button");
+        btn->setToolTip(btn->text().isEmpty() ? QString("Toolbar Button") : btn->text());
         btn->setDefaultAction(action);
         btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
         btn->setMinimumSize(50, 50);
@@ -542,6 +629,8 @@ void ToolBar::setupToolsSection() {
 
     auto createToolButton = [](QAction* action) {
         QToolButton* btn = new QToolButton();
+        btn->setAccessibleName("Toolbar Button");
+        btn->setToolTip(btn->text().isEmpty() ? QString("Toolbar Button") : btn->text());
         btn->setDefaultAction(action);
         btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
         btn->setMinimumSize(60, 60);
@@ -600,6 +689,8 @@ void ToolBar::setupQuickAccessBar() {
 
     auto createQuickButton = [](QAction* action) {
         QToolButton* btn = new QToolButton();
+        btn->setAccessibleName("Toolbar Button");
+        btn->setToolTip(btn->text().isEmpty() ? QString("Toolbar Button") : btn->text());
         btn->setDefaultAction(action);
         btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
         btn->setMinimumSize(32, 32);
@@ -671,6 +762,33 @@ void ToolBar::applyEnhancedStyle() {
 }
 
 void ToolBar::updatePageInfo(int currentPage, int totalPages) {
+    // Defensive null pointer checks
+    if (!m_pageSpinBox || !m_pageSlider || !m_pageCountLabel) {
+        LOG_WARNING("ToolBar::updatePageInfo() - Page widgets not initialized");
+        return;
+    }
+
+    if (!m_firstPageAction || !m_prevPageAction || !m_nextPageAction || !m_lastPageAction) {
+        LOG_WARNING("ToolBar::updatePageInfo() - Navigation actions not initialized");
+        return;
+    }
+
+    // Input validation
+    if (totalPages < 0) {
+        LOG_WARNING("ToolBar::updatePageInfo() - Invalid total pages: {}", totalPages);
+        totalPages = 0;
+    }
+
+    if (currentPage < 0) {
+        LOG_WARNING("ToolBar::updatePageInfo() - Invalid current page: {}", currentPage);
+        currentPage = 0;
+    }
+
+    if (currentPage >= totalPages && totalPages > 0) {
+        LOG_WARNING("ToolBar::updatePageInfo() - Current page {} exceeds total pages {}", currentPage, totalPages);
+        currentPage = totalPages - 1;
+    }
+
     m_pageSpinBox->blockSignals(true);
     m_pageSlider->blockSignals(true);
 
@@ -692,6 +810,18 @@ void ToolBar::updatePageInfo(int currentPage, int totalPages) {
 }
 
 void ToolBar::updateZoomLevel(double zoomFactor) {
+    // Defensive null pointer checks
+    if (!m_zoomSlider || !m_zoomValueLabel || !m_zoomPresets) {
+        LOG_WARNING("ToolBar::updateZoomLevel() - Zoom widgets not initialized");
+        return;
+    }
+
+    // Input validation - reasonable zoom range is 0.1 to 5.0
+    if (zoomFactor < 0.1 || zoomFactor > 5.0) {
+        LOG_WARNING("ToolBar::updateZoomLevel() - Zoom factor {} out of range [0.1, 5.0]", zoomFactor);
+        zoomFactor = std::clamp(zoomFactor, 0.1, 5.0);
+    }
+
     int percentage = static_cast<int>(zoomFactor * 100);
 
     m_zoomSlider->blockSignals(true);
@@ -704,6 +834,12 @@ void ToolBar::updateZoomLevel(double zoomFactor) {
 
 void ToolBar::updateDocumentInfo(const QString& fileName, qint64 fileSize,
                                  const QDateTime& lastModified) {
+    // Defensive null pointer checks
+    if (!m_documentInfoLabel || !m_fileSizeLabel || !m_lastModifiedLabel) {
+        LOG_WARNING("ToolBar::updateDocumentInfo() - Document info labels not initialized");
+        return;
+    }
+
     m_documentInfoLabel->setText(fileName);
 
     // Format file size
@@ -725,24 +861,24 @@ void ToolBar::updateDocumentInfo(const QString& fileName, qint64 fileSize,
 
 void ToolBar::setActionsEnabled(bool enabled) {
     // File actions always enabled except save
-    m_openAction->setEnabled(true);
-    m_openFolderAction->setEnabled(true);
-    m_saveAction->setEnabled(enabled);
-    m_saveAsAction->setEnabled(enabled);
-    m_printAction->setEnabled(enabled);
-    m_emailAction->setEnabled(enabled);
+    if (m_openAction) m_openAction->setEnabled(true);
+    if (m_openFolderAction) m_openFolderAction->setEnabled(true);
+    if (m_saveAction) m_saveAction->setEnabled(enabled);
+    if (m_saveAsAction) m_saveAsAction->setEnabled(enabled);
+    if (m_printAction) m_printAction->setEnabled(enabled);
+    if (m_emailAction) m_emailAction->setEnabled(enabled);
 
     // Navigation actions
-    m_navigationSection->setEnabled(enabled);
+    if (m_navigationSection) m_navigationSection->setEnabled(enabled);
 
     // Zoom actions
-    m_zoomSection->setEnabled(enabled);
+    if (m_zoomSection) m_zoomSection->setEnabled(enabled);
 
     // View actions
-    m_viewSection->setEnabled(enabled);
+    if (m_viewSection) m_viewSection->setEnabled(enabled);
 
     // Tool actions
-    m_toolsSection->setEnabled(enabled);
+    if (m_toolsSection) m_toolsSection->setEnabled(enabled);
 }
 
 void ToolBar::setCompactMode(bool compact) {
@@ -750,24 +886,31 @@ void ToolBar::setCompactMode(bool compact) {
 
     if (compact) {
         // Collapse all sections in compact mode
-        m_fileSection->setExpanded(false);
-        m_navigationSection->setExpanded(false);
-        m_zoomSection->setExpanded(false);
-        m_viewSection->setExpanded(false);
-        m_toolsSection->setExpanded(false);
+        if (m_fileSection) m_fileSection->setExpanded(false);
+        if (m_navigationSection) m_navigationSection->setExpanded(false);
+        if (m_zoomSection) m_zoomSection->setExpanded(false);
+        if (m_viewSection) m_viewSection->setExpanded(false);
+        if (m_toolsSection) m_toolsSection->setExpanded(false);
     } else {
         // Expand important sections
-        m_navigationSection->setExpanded(true);
-        m_zoomSection->setExpanded(true);
+        if (m_navigationSection) m_navigationSection->setExpanded(true);
+        if (m_zoomSection) m_zoomSection->setExpanded(true);
     }
 }
 
 void ToolBar::onPageSpinBoxChanged(int pageNumber) {
     emit pageJumpRequested(pageNumber - 1);
-    m_pageSlider->setValue(pageNumber);
+    if (m_pageSlider) {
+        m_pageSlider->setValue(pageNumber);
+    }
 }
 
 void ToolBar::onViewModeChanged() {
+    if (!m_viewModeCombo) {
+        LOG_WARNING("ToolBar::onViewModeChanged() - View mode combo not initialized");
+        return;
+    }
+
     int mode = m_viewModeCombo->currentIndex();
     switch (mode) {
         case 0:
@@ -781,8 +924,12 @@ void ToolBar::onViewModeChanged() {
 }
 
 void ToolBar::onZoomSliderChanged(int value) {
-    m_zoomValueLabel->setText(QString("%1%").arg(value));
-    m_zoomPresets->setCurrentText(QString("%1%").arg(value));
+    if (m_zoomValueLabel) {
+        m_zoomValueLabel->setText(QString("%1%").arg(value));
+    }
+    if (m_zoomPresets) {
+        m_zoomPresets->setCurrentText(QString("%1%").arg(value));
+    }
     emit zoomLevelChanged(value);
 }
 
@@ -810,11 +957,11 @@ void ToolBar::onSectionExpandChanged(bool expanded) {
 
         // In compact mode, check if we can shrink the toolbar
         if (m_compactMode) {
-            bool anyExpanded = m_fileSection->isExpanded() ||
-                               m_navigationSection->isExpanded() ||
-                               m_zoomSection->isExpanded() ||
-                               m_viewSection->isExpanded() ||
-                               m_toolsSection->isExpanded();
+            bool anyExpanded = (m_fileSection && m_fileSection->isExpanded()) ||
+                               (m_navigationSection && m_navigationSection->isExpanded()) ||
+                               (m_zoomSection && m_zoomSection->isExpanded()) ||
+                               (m_viewSection && m_viewSection->isExpanded()) ||
+                               (m_toolsSection && m_toolsSection->isExpanded());
 
             if (!anyExpanded && m_hoverAnimation) {
                 // All sections collapsed, shrink toolbar
@@ -833,7 +980,7 @@ void ToolBar::enterEvent(QEnterEvent* event) {
     Q_UNUSED(event);
     m_isHovered = true;
 
-    if (m_compactMode) {
+    if (m_compactMode && m_hoverAnimation) {
         // Expand on hover in compact mode
         m_hoverAnimation->setStartValue(height());
         m_hoverAnimation->setEndValue(sizeHint().height());
@@ -845,7 +992,7 @@ void ToolBar::leaveEvent(QEvent* event) {
     Q_UNUSED(event);
     m_isHovered = false;
 
-    if (m_compactMode) {
+    if (m_compactMode && m_hoverAnimation) {
         // Collapse on leave in compact mode
         m_hoverAnimation->setStartValue(height());
         m_hoverAnimation->setEndValue(60);  // Minimum height in compact mode
@@ -855,45 +1002,47 @@ void ToolBar::leaveEvent(QEvent* event) {
 
 void ToolBar::retranslateUi() {
     // Update section titles
-    m_fileSection->setWindowTitle(tr("File"));
-    m_navigationSection->setWindowTitle(tr("Navigation"));
-    m_zoomSection->setWindowTitle(tr("Zoom"));
-    m_viewSection->setWindowTitle(tr("View"));
-    m_toolsSection->setWindowTitle(tr("Tools"));
+    if (m_fileSection) m_fileSection->setWindowTitle(tr("File"));
+    if (m_navigationSection) m_navigationSection->setWindowTitle(tr("Navigation"));
+    if (m_zoomSection) m_zoomSection->setWindowTitle(tr("Zoom"));
+    if (m_viewSection) m_viewSection->setWindowTitle(tr("View"));
+    if (m_toolsSection) m_toolsSection->setWindowTitle(tr("Tools"));
 
     // Update all tooltips and text with new translations
-    m_openAction->setToolTip(tr("Open PDF File (Ctrl+O)"));
-    m_openFolderAction->setToolTip(tr("Open Folder (Ctrl+Shift+O)"));
-    m_saveAction->setToolTip(tr("Save File (Ctrl+S)"));
+    if (m_openAction) m_openAction->setToolTip(tr("Open PDF File (Ctrl+O)"));
+    if (m_openFolderAction) m_openFolderAction->setToolTip(tr("Open Folder (Ctrl+Shift+O)"));
+    if (m_saveAction) m_saveAction->setToolTip(tr("Save File (Ctrl+S)"));
 
-    m_firstPageAction->setToolTip(tr("First Page (Ctrl+Home)"));
-    m_prevPageAction->setToolTip(tr("Previous Page (Page Up)"));
-    m_nextPageAction->setToolTip(tr("Next Page (Page Down)"));
-    m_lastPageAction->setToolTip(tr("Last Page (Ctrl+End)"));
-    m_pageSpinBox->setToolTip(tr("Current Page"));
+    if (m_firstPageAction) m_firstPageAction->setToolTip(tr("First Page (Ctrl+Home)"));
+    if (m_prevPageAction) m_prevPageAction->setToolTip(tr("Previous Page (Page Up)"));
+    if (m_nextPageAction) m_nextPageAction->setToolTip(tr("Next Page (Page Down)"));
+    if (m_lastPageAction) m_lastPageAction->setToolTip(tr("Last Page (Ctrl+End)"));
+    if (m_pageSpinBox) m_pageSpinBox->setToolTip(tr("Current Page"));
 
-    m_zoomOutAction->setToolTip(tr("Zoom Out (Ctrl+-)"));
-    m_zoomInAction->setToolTip(tr("Zoom In (Ctrl++)"));
-    m_fitWidthAction->setToolTip(tr("Fit to Width (Ctrl+1)"));
-    m_fitPageAction->setToolTip(tr("Fit to Page (Ctrl+0)"));
-    m_fitHeightAction->setToolTip(tr("Fit to Height (Ctrl+2)"));
+    if (m_zoomOutAction) m_zoomOutAction->setToolTip(tr("Zoom Out (Ctrl+-)"));
+    if (m_zoomInAction) m_zoomInAction->setToolTip(tr("Zoom In (Ctrl++)"));
+    if (m_fitWidthAction) m_fitWidthAction->setToolTip(tr("Fit to Width (Ctrl+1)"));
+    if (m_fitPageAction) m_fitPageAction->setToolTip(tr("Fit to Page (Ctrl+0)"));
+    if (m_fitHeightAction) m_fitHeightAction->setToolTip(tr("Fit to Height (Ctrl+2)"));
 
-    m_toggleSidebarAction->setToolTip(tr("Toggle Sidebar (F9)"));
+    if (m_toggleSidebarAction) m_toggleSidebarAction->setToolTip(tr("Toggle Sidebar (F9)"));
 
     // Update combo box items
-    int currentViewMode = m_viewModeCombo->currentIndex();
-    m_viewModeCombo->blockSignals(true);
-    m_viewModeCombo->clear();
-    m_viewModeCombo->addItems({tr("Single Page"), tr("Continuous"),
-                               tr("Two Pages"), tr("Book View")});
-    m_viewModeCombo->setCurrentIndex(currentViewMode);
-    m_viewModeCombo->setToolTip(tr("Select View Mode"));
-    m_viewModeCombo->blockSignals(false);
+    if (m_viewModeCombo) {
+        int currentViewMode = m_viewModeCombo->currentIndex();
+        m_viewModeCombo->blockSignals(true);
+        m_viewModeCombo->clear();
+        m_viewModeCombo->addItems({tr("Single Page"), tr("Continuous"),
+                                   tr("Two Pages"), tr("Book View")});
+        m_viewModeCombo->setCurrentIndex(currentViewMode);
+        m_viewModeCombo->setToolTip(tr("Select View Mode"));
+        m_viewModeCombo->blockSignals(false);
+    }
 
-    m_rotateLeftAction->setToolTip(tr("Rotate Left 90° (Ctrl+L)"));
-    m_rotateRightAction->setToolTip(tr("Rotate Right 90° (Ctrl+R)"));
+    if (m_rotateLeftAction) m_rotateLeftAction->setToolTip(tr("Rotate Left 90° (Ctrl+L)"));
+    if (m_rotateRightAction) m_rotateRightAction->setToolTip(tr("Rotate Right 90° (Ctrl+R)"));
 
-    m_themeToggleAction->setToolTip(tr("Toggle Theme (Ctrl+T)"));
+    if (m_themeToggleAction) m_themeToggleAction->setToolTip(tr("Toggle Theme (Ctrl+T)"));
 }
 
 void ToolBar::changeEvent(QEvent* event) {
@@ -902,3 +1051,4 @@ void ToolBar::changeEvent(QEvent* event) {
     }
     QToolBar::changeEvent(event);
 }
+

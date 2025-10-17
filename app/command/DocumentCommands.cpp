@@ -1,4 +1,5 @@
 #include "DocumentCommands.h"
+
 #include <poppler/qt6/poppler-qt6.h>
 #include <QApplication>
 #include <QDir>
@@ -11,6 +12,8 @@
 #include <QPrintDialog>
 #include <QPrintPreviewDialog>
 #include <QPrinter>
+#include <algorithm>
+
 #include "../controller/DocumentController.h"
 #include "../model/DocumentModel.h"
 #include "../ui/dialogs/DocumentComparison.h"
@@ -46,7 +49,7 @@ OpenDocumentCommand::OpenDocumentCommand(DocumentController* controller,
 }
 
 bool OpenDocumentCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         setErrorMessage("DocumentController is null");
         m_logger.error("DocumentController is null");
         emit executed(false);
@@ -86,14 +89,12 @@ bool OpenDocumentCommand::execute() {
                 QString("Opened: %1").arg(QFileInfo(fileToOpen).fileName()));
             emit executed(true);
             return true;
-        } else {
-            setErrorMessage(
-                QString("Failed to open document: %1").arg(fileToOpen));
-            m_logger.error(
-                QString("Failed to open document: %1").arg(fileToOpen));
-            emit executed(false);
-            return false;
         }
+        setErrorMessage(QString("Failed to open document: %1").arg(fileToOpen));
+        m_logger.error(QString("Failed to open document: %1").arg(fileToOpen));
+        emit executed(false);
+        return false;
+
     } catch (const std::exception& e) {
         setErrorMessage(
             QString("Exception while opening document: %1").arg(e.what()));
@@ -105,8 +106,9 @@ bool OpenDocumentCommand::execute() {
 }
 
 bool OpenDocumentCommand::canExecute() const {
-    if (!DocumentCommand::canExecute())
+    if (!DocumentCommand::canExecute()) {
         return false;
+    }
 
     // If we have a specific file path, check if it exists
     if (!m_filePath.isEmpty()) {
@@ -134,7 +136,7 @@ OpenDocumentsCommand::OpenDocumentsCommand(DocumentController* controller,
 }
 
 bool OpenDocumentsCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         setErrorMessage("DocumentController is null");
         m_logger.error("DocumentController is null");
         emit executed(false);
@@ -176,11 +178,11 @@ bool OpenDocumentsCommand::execute() {
 
     try {
         int successCount = 0;
-        int totalCount = validFiles.size();
+        qsizetype totalCount = validFiles.size();
 
-        emit progress(0, totalCount);
+        emit progress(0, static_cast<int>(totalCount));
 
-        for (int i = 0; i < validFiles.size(); ++i) {
+        for (qsizetype i = 0; i < validFiles.size(); ++i) {
             const QString& file = validFiles[i];
 
             bool success = controller()->openDocument(file);
@@ -197,7 +199,8 @@ bool OpenDocumentsCommand::execute() {
                                      .arg(file));
             }
 
-            emit progress(i + 1, totalCount);
+            emit progress(static_cast<int>(i + 1),
+                          static_cast<int>(totalCount));
         }
 
         if (successCount > 0) {
@@ -209,12 +212,12 @@ bool OpenDocumentsCommand::execute() {
                                    .arg(totalCount));
             emit executed(true);
             return true;
-        } else {
-            setErrorMessage("Failed to open any documents");
-            m_logger.error("Failed to open any documents");
-            emit executed(false);
-            return false;
         }
+        setErrorMessage("Failed to open any documents");
+        m_logger.error("Failed to open any documents");
+        emit executed(false);
+        return false;
+
     } catch (const std::exception& e) {
         setErrorMessage(
             QString("Exception while opening documents: %1").arg(e.what()));
@@ -226,17 +229,15 @@ bool OpenDocumentsCommand::execute() {
 }
 
 bool OpenDocumentsCommand::canExecute() const {
-    if (!DocumentCommand::canExecute())
+    if (!DocumentCommand::canExecute()) {
         return false;
+    }
 
     // If we have specific file paths, check if at least one exists
     if (!m_filePaths.isEmpty()) {
-        for (const QString& file : m_filePaths) {
-            if (QFileInfo::exists(file)) {
-                return true;
-            }
-        }
-        return false;
+        return std::any_of(
+            m_filePaths.begin(), m_filePaths.end(),
+            [](const QString& file) { return QFileInfo::exists(file); });
     }
 
     // If we're prompting user, we can always execute
@@ -259,7 +260,7 @@ CloseDocumentCommand::CloseDocumentCommand(DocumentController* controller,
 }
 
 bool CloseDocumentCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         setErrorMessage("DocumentController is null");
         m_logger.error("DocumentController is null");
         emit executed(false);
@@ -267,7 +268,7 @@ bool CloseDocumentCommand::execute() {
     }
 
     try {
-        bool success;
+        bool success = false;
 
         if (m_closeCurrent) {
             success = controller()->closeCurrentDocument();
@@ -283,12 +284,12 @@ bool CloseDocumentCommand::execute() {
             emit statusMessage("Document closed");
             emit executed(true);
             return true;
-        } else {
-            setErrorMessage("Failed to close document");
-            m_logger.error("Failed to close document");
-            emit executed(false);
-            return false;
         }
+        setErrorMessage("Failed to close document");
+        m_logger.error("Failed to close document");
+        emit executed(false);
+        return false;
+
     } catch (const std::exception& e) {
         setErrorMessage(
             QString("Exception while closing document: %1").arg(e.what()));
@@ -300,18 +301,19 @@ bool CloseDocumentCommand::execute() {
 }
 
 bool CloseDocumentCommand::canExecute() const {
-    if (!DocumentCommand::canExecute())
+    if (!DocumentCommand::canExecute()) {
         return false;
+    }
 
     DocumentModel* model = controller()->getDocumentModel();
-    if (!model)
+    if (model == nullptr) {
         return false;
+    }
 
     if (m_closeCurrent) {
         return !model->isEmpty();
-    } else {
-        return model->isValidIndex(m_index);
     }
+    return model->isValidIndex(m_index);
 }
 
 // SaveDocumentAsCommand implementation
@@ -326,7 +328,7 @@ SaveDocumentAsCommand::SaveDocumentAsCommand(DocumentController* controller,
 }
 
 bool SaveDocumentAsCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         setErrorMessage("DocumentController is null");
         m_logger.error("DocumentController is null");
         emit executed(false);
@@ -334,7 +336,7 @@ bool SaveDocumentAsCommand::execute() {
     }
 
     DocumentModel* model = controller()->getDocumentModel();
-    if (!model || model->isEmpty()) {
+    if (model == nullptr || model->isEmpty()) {
         setErrorMessage("No document open to save");
         m_logger.error("No document open to save");
         emit executed(false);
@@ -378,14 +380,14 @@ bool SaveDocumentAsCommand::execute() {
                 QString("Saved copy: %1").arg(QFileInfo(savePath).fileName()));
             emit executed(true);
             return true;
-        } else {
-            setErrorMessage(
-                QString("Failed to save document copy to: %1").arg(savePath));
-            m_logger.error(
-                QString("Failed to save document copy to: %1").arg(savePath));
-            emit executed(false);
-            return false;
         }
+        setErrorMessage(
+            QString("Failed to save document copy to: %1").arg(savePath));
+        m_logger.error(
+            QString("Failed to save document copy to: %1").arg(savePath));
+        emit executed(false);
+        return false;
+
     } catch (const std::exception& e) {
         setErrorMessage(
             QString("Exception while saving document: %1").arg(e.what()));
@@ -397,11 +399,12 @@ bool SaveDocumentAsCommand::execute() {
 }
 
 bool SaveDocumentAsCommand::canExecute() const {
-    if (!DocumentCommand::canExecute())
+    if (!DocumentCommand::canExecute()) {
         return false;
+    }
 
     DocumentModel* model = controller()->getDocumentModel();
-    return model && !model->isEmpty();
+    return model != nullptr && !model->isEmpty();
 }
 
 // ExportDocumentCommand implementation
@@ -525,26 +528,26 @@ bool ExportDocumentCommand::exportToImages(Poppler::Document* document,
 
         // Export each page
         int pageCount = endPage - startPage + 1;
-        for (int i = startPage; i <= endPage; ++i) {
+        for (int pageIndex = startPage; pageIndex <= endPage; ++pageIndex) {
             // Emit progress
-            emit this->progress(i - startPage + 1, pageCount);
+            emit this->progress(pageIndex - startPage + 1, pageCount);
             emit statusMessage(QString("Exporting page %1 of %2...")
-                                   .arg(i - startPage + 1)
+                                   .arg(pageIndex - startPage + 1)
                                    .arg(pageCount));
 
             // Get page
-            std::unique_ptr<Poppler::Page> page(document->page(i));
+            std::unique_ptr<Poppler::Page> page(document->page(pageIndex));
             if (!page) {
-                m_logger.warning(
-                    QString("Failed to load page %1, skipping").arg(i + 1));
+                m_logger.warning(QString("Failed to load page %1, skipping")
+                                     .arg(pageIndex + 1));
                 continue;
             }
 
             // Render page to image
             QImage pageImage = page->renderToImage(dpi, dpi);
             if (pageImage.isNull()) {
-                m_logger.warning(
-                    QString("Failed to render page %1, skipping").arg(i + 1));
+                m_logger.warning(QString("Failed to render page %1, skipping")
+                                     .arg(pageIndex + 1));
                 continue;
             }
 
@@ -560,7 +563,7 @@ bool ExportDocumentCommand::exportToImages(Poppler::Document* document,
                 pageOutputPath = QString("%1/%2_page_%3.%4")
                                      .arg(dirPath)
                                      .arg(baseName)
-                                     .arg(i + 1, 4, 10, QChar('0'))
+                                     .arg(pageIndex + 1, 4, 10, QChar('0'))
                                      .arg(extension);
             }
 
@@ -572,7 +575,7 @@ bool ExportDocumentCommand::exportToImages(Poppler::Document* document,
             }
 
             m_logger.debug(QString("Exported page %1 to: %2")
-                               .arg(i + 1)
+                               .arg(pageIndex + 1)
                                .arg(pageOutputPath));
         }
 
@@ -624,30 +627,34 @@ bool ExportDocumentCommand::exportToText(Poppler::Document* document,
 
         // Extract text from each page
         int pageCount = endPage - startPage + 1;
-        for (int i = startPage; i <= endPage; ++i) {
+        for (int pageIndex = startPage; pageIndex <= endPage; ++pageIndex) {
             // Emit progress
-            emit this->progress(i - startPage + 1, pageCount);
+            emit this->progress(pageIndex - startPage + 1, pageCount);
             emit statusMessage(QString("Extracting text from page %1 of %2...")
-                                   .arg(i - startPage + 1)
+                                   .arg(pageIndex - startPage + 1)
                                    .arg(pageCount));
 
             // Get page
-            std::unique_ptr<Poppler::Page> page(document->page(i));
+            std::unique_ptr<Poppler::Page> page(document->page(pageIndex));
             if (!page) {
-                m_logger.warning(
-                    QString("Failed to load page %1, skipping").arg(i + 1));
-                out << QString("[Page %1: Failed to load]\n\n").arg(i + 1);
+                m_logger.warning(QString("Failed to load page %1, skipping")
+                                     .arg(pageIndex + 1));
+                out << QString("[Page %1: Failed to load]\n\n")
+                           .arg(pageIndex + 1);
                 continue;
             }
 
             // Extract text
             QString pageText = page->text(QRectF());
             if (pageText.isEmpty()) {
-                m_logger.debug(QString("Page %1 has no text").arg(i + 1));
-                out << QString("[Page %1: No text content]\n\n").arg(i + 1);
+                m_logger.debug(
+                    QString("Page %1 has no text").arg(pageIndex + 1));
+                out << QString("[Page %1: No text content]\n\n")
+                           .arg(pageIndex + 1);
             } else {
                 // Write page header and text
-                out << QString("========== Page %1 ==========\n").arg(i + 1);
+                out << QString("========== Page %1 ==========\n")
+                           .arg(pageIndex + 1);
                 out << pageText;
                 out << "\n\n";
             }
@@ -665,8 +672,188 @@ bool ExportDocumentCommand::exportToText(Poppler::Document* document,
     }
 }
 
+// Helper method to export to HTML
+bool ExportDocumentCommand::exportToHTML(Poppler::Document* document,
+                                         const QString& outputPath,
+                                         int totalPages) {
+    try {
+        // Open output file
+        QFile outputFile(outputPath);
+        if (!outputFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            m_logger.error(
+                QString("Failed to open output file: %1").arg(outputPath));
+            return false;
+        }
+
+        QTextStream out(&outputFile);
+        out.setEncoding(QStringConverter::Utf8);
+
+        // Get page range from options
+        int startPage = 0;
+        int endPage = totalPages - 1;
+
+        if (m_options.contains("startPage")) {
+            startPage = m_options["startPage"].toInt();
+        }
+        if (m_options.contains("endPage")) {
+            endPage = m_options["endPage"].toInt();
+        }
+
+        // Validate page range
+        startPage = qBound(0, startPage, totalPages - 1);
+        endPage = qBound(startPage, endPage, totalPages - 1);
+
+        m_logger.info(QString("Exporting to HTML from pages %1-%2")
+                          .arg(startPage + 1)
+                          .arg(endPage + 1));
+
+        // Get document metadata
+        QString title = document->info("Title");
+        QString author = document->info("Author");
+        if (title.isEmpty()) {
+            title = "PDF Document";
+        }
+
+        // Write HTML header
+        out << "<!DOCTYPE html>\n";
+        out << "<html lang=\"en\">\n";
+        out << "<head>\n";
+        out << "    <meta charset=\"UTF-8\">\n";
+        out << R"(    <meta name="viewport" content="width=device-width, initial-scale=1.0">)"
+            << "\n";
+        out << "    <title>" << title.toHtmlEscaped() << "</title>\n";
+        if (!author.isEmpty()) {
+            out << R"(    <meta name="author" content=")"
+                << author.toHtmlEscaped() << "\">\n";
+        }
+        out << "    <style>\n";
+        out << "        body {\n";
+        out << R"(            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;)"
+            << "\n";
+        out << "            max-width: 900px;\n";
+        out << "            margin: 0 auto;\n";
+        out << "            padding: 20px;\n";
+        out << "            line-height: 1.6;\n";
+        out << "            background-color: #f5f5f5;\n";
+        out << "        }\n";
+        out << "        .page {\n";
+        out << "            background-color: white;\n";
+        out << "            padding: 40px;\n";
+        out << "            margin-bottom: 30px;\n";
+        out << "            box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n";
+        out << "            border-radius: 4px;\n";
+        out << "        }\n";
+        out << "        .page-header {\n";
+        out << "            color: #333;\n";
+        out << "            border-bottom: 2px solid #007bff;\n";
+        out << "            padding-bottom: 10px;\n";
+        out << "            margin-bottom: 20px;\n";
+        out << "            font-size: 1.2em;\n";
+        out << "            font-weight: bold;\n";
+        out << "        }\n";
+        out << "        .page-content {\n";
+        out << "            white-space: pre-wrap;\n";
+        out << "            word-wrap: break-word;\n";
+        out << "            color: #333;\n";
+        out << "        }\n";
+        out << "        .no-content {\n";
+        out << "            color: #999;\n";
+        out << "            font-style: italic;\n";
+        out << "        }\n";
+        out << "        h1 {\n";
+        out << "            color: #007bff;\n";
+        out << "            border-bottom: 3px solid #007bff;\n";
+        out << "            padding-bottom: 10px;\n";
+        out << "        }\n";
+        out << "        .metadata {\n";
+        out << "            background-color: #e9ecef;\n";
+        out << "            padding: 15px;\n";
+        out << "            border-radius: 4px;\n";
+        out << "            margin-bottom: 30px;\n";
+        out << "        }\n";
+        out << "    </style>\n";
+        out << "</head>\n";
+        out << "<body>\n";
+        out << "    <h1>" << title.toHtmlEscaped() << "</h1>\n";
+
+        // Write metadata section
+        out << "    <div class=\"metadata\">\n";
+        out << "        <strong>Document Information:</strong><br>\n";
+        if (!author.isEmpty()) {
+            out << "        Author: " << author.toHtmlEscaped() << "<br>\n";
+        }
+        out << "        Total Pages: " << totalPages << "<br>\n";
+        out << "        Exported Pages: " << (endPage - startPage + 1)
+            << " (Page " << (startPage + 1) << " to " << (endPage + 1)
+            << ")<br>\n";
+        out << "        Export Date: "
+            << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
+        out << "    </div>\n\n";
+
+        // Extract and write content from each page
+        int pageCount = endPage - startPage + 1;
+        for (int pageIndex = startPage; pageIndex <= endPage; ++pageIndex) {
+            // Emit progress
+            emit this->progress(pageIndex - startPage + 1, pageCount);
+            emit statusMessage(QString("Exporting page %1 of %2 to HTML...")
+                                   .arg(pageIndex - startPage + 1)
+                                   .arg(pageCount));
+
+            // Get page
+            std::unique_ptr<Poppler::Page> page(document->page(pageIndex));
+            if (!page) {
+                m_logger.warning(QString("Failed to load page %1, skipping")
+                                     .arg(pageIndex + 1));
+                out << "    <div class=\"page\">\n";
+                out << "        <div class=\"page-header\">Page "
+                    << (pageIndex + 1) << "</div>\n";
+                out << "        <div class=\"page-content no-content\">[Failed "
+                       "to load page]</div>\n";
+                out << "    </div>\n\n";
+                continue;
+            }
+
+            // Extract text
+            QString pageText = page->text(QRectF());
+
+            // Write page div
+            out << "    <div class=\"page\">\n";
+            out << "        <div class=\"page-header\">Page " << (pageIndex + 1)
+                << "</div>\n";
+
+            if (pageText.isEmpty()) {
+                m_logger.debug(
+                    QString("Page %1 has no text").arg(pageIndex + 1));
+                out << "        <div class=\"page-content no-content\">[No "
+                       "text "
+                       "content on this page]</div>\n";
+            } else {
+                // Escape HTML and write content
+                out << "        <div class=\"page-content\">"
+                    << pageText.toHtmlEscaped() << "</div>\n";
+            }
+
+            out << "    </div>\n\n";
+        }
+
+        // Write HTML footer
+        out << "</body>\n";
+        out << "</html>\n";
+
+        outputFile.close();
+        m_logger.info(
+            QString("Successfully exported to HTML: %1").arg(outputPath));
+        return true;
+
+    } catch (const std::exception& e) {
+        m_logger.error(
+            QString("Exception during HTML export: %1").arg(e.what()));
+        return false;
+    }
+}
+
 bool ExportDocumentCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         setErrorMessage("DocumentController is null");
         m_logger.error("DocumentController is null");
         emit executed(false);
@@ -674,7 +861,7 @@ bool ExportDocumentCommand::execute() {
     }
 
     DocumentModel* model = controller()->getDocumentModel();
-    if (!model || model->isEmpty()) {
+    if (model == nullptr || model->isEmpty()) {
         setErrorMessage("No document open to export");
         m_logger.error("No document open to export");
         emit executed(false);
@@ -724,7 +911,7 @@ bool ExportDocumentCommand::execute() {
 
         // Get the Poppler document
         Poppler::Document* document = model->getCurrentDocument();
-        if (!document) {
+        if (document == nullptr) {
             setErrorMessage("Failed to get document for export");
             m_logger.error("Document pointer is null");
             emit executed(false);
@@ -759,12 +946,8 @@ bool ExportDocumentCommand::execute() {
                 break;
             case HTML:
                 formatStr = "HTML";
-                m_logger.warning(
-                    "Export to HTML not implemented - requires HTML export "
-                    "library");
-                setErrorMessage("Export to HTML format not yet implemented");
-                emit executed(false);
-                return false;
+                success = exportToHTML(document, outputPath, totalPages);
+                break;
         }
 
         if (success) {
@@ -775,11 +958,10 @@ bool ExportDocumentCommand::execute() {
                 QString("Successfully exported to %1").arg(formatStr));
             emit executed(true);
             return true;
-        } else {
-            setErrorMessage(QString("Failed to export to %1").arg(formatStr));
-            emit executed(false);
-            return false;
         }
+        setErrorMessage(QString("Failed to export to %1").arg(formatStr));
+        emit executed(false);
+        return false;
 
     } catch (const std::exception& e) {
         setErrorMessage(
@@ -792,11 +974,12 @@ bool ExportDocumentCommand::execute() {
 }
 
 bool ExportDocumentCommand::canExecute() const {
-    if (!DocumentCommand::canExecute())
+    if (!DocumentCommand::canExecute()) {
         return false;
+    }
 
     DocumentModel* model = controller()->getDocumentModel();
-    return model && !model->isEmpty();
+    return model != nullptr && !model->isEmpty();
 }
 
 // PrintDocumentCommand implementation
@@ -813,7 +996,7 @@ void PrintDocumentCommand::setPageRange(int start, int end) {
 }
 
 bool PrintDocumentCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         setErrorMessage("DocumentController is null");
         m_logger.error("DocumentController is null");
         emit executed(false);
@@ -821,7 +1004,7 @@ bool PrintDocumentCommand::execute() {
     }
 
     DocumentModel* model = controller()->getDocumentModel();
-    if (!model || model->isEmpty()) {
+    if (model == nullptr || model->isEmpty()) {
         setErrorMessage("No document open to print");
         m_logger.error("No document open to print");
         emit executed(false);
@@ -831,7 +1014,7 @@ bool PrintDocumentCommand::execute() {
     try {
         // Get the Poppler document
         Poppler::Document* document = model->getCurrentDocument();
-        if (!document) {
+        if (document == nullptr) {
             setErrorMessage("Failed to get document for printing");
             m_logger.error("Document pointer is null");
             emit executed(false);
@@ -933,27 +1116,26 @@ bool PrintDocumentCommand::execute() {
 
         // Print each page
         int pageCount = endPage - startPage + 1;
-        for (int i = startPage; i <= endPage; ++i) {
+        for (int pageIndex = startPage; pageIndex <= endPage; ++pageIndex) {
             // Emit progress
-            int progress = ((i - startPage + 1) * 100) / pageCount;
-            emit this->progress(i - startPage + 1, pageCount);
+            emit this->progress(pageIndex - startPage + 1, pageCount);
             emit statusMessage(QString("Printing page %1 of %2...")
-                                   .arg(i - startPage + 1)
+                                   .arg(pageIndex - startPage + 1)
                                    .arg(pageCount));
 
             // Get page
-            std::unique_ptr<Poppler::Page> page(document->page(i));
+            std::unique_ptr<Poppler::Page> page(document->page(pageIndex));
             if (!page) {
-                m_logger.warning(
-                    QString("Failed to load page %1, skipping").arg(i + 1));
+                m_logger.warning(QString("Failed to load page %1, skipping")
+                                     .arg(pageIndex + 1));
                 continue;
             }
 
             // Render page to image at high resolution (300 DPI)
             QImage pageImage = page->renderToImage(300.0, 300.0);
             if (pageImage.isNull()) {
-                m_logger.warning(
-                    QString("Failed to render page %1, skipping").arg(i + 1));
+                m_logger.warning(QString("Failed to render page %1, skipping")
+                                     .arg(pageIndex + 1));
                 continue;
             }
 
@@ -963,20 +1145,20 @@ bool PrintDocumentCommand::execute() {
                 pageRect.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
             // Center image on page
-            int x = (pageRect.width() - scaledImage.width()) / 2;
-            int y = (pageRect.height() - scaledImage.height()) / 2;
+            int horizontalOffset = (pageRect.width() - scaledImage.width()) / 2;
+            int verticalOffset = (pageRect.height() - scaledImage.height()) / 2;
 
-            painter.drawImage(x, y, scaledImage);
+            painter.drawImage(horizontalOffset, verticalOffset, scaledImage);
 
             // New page for next iteration (except for last page)
-            if (i < endPage) {
+            if (pageIndex < endPage) {
                 if (!printer.newPage()) {
                     setErrorMessage(
                         QString("Failed to create new page at page %1")
-                            .arg(i + 2));
+                            .arg(pageIndex + 2));
                     m_logger.error(
                         QString("QPrinter::newPage() failed at page %1")
-                            .arg(i + 1));
+                            .arg(pageIndex + 1));
                     painter.end();
                     emit executed(false);
                     return false;
@@ -1008,11 +1190,12 @@ bool PrintDocumentCommand::execute() {
 }
 
 bool PrintDocumentCommand::canExecute() const {
-    if (!DocumentCommand::canExecute())
+    if (!DocumentCommand::canExecute()) {
         return false;
+    }
 
     DocumentModel* model = controller()->getDocumentModel();
-    return model && !model->isEmpty();
+    return model != nullptr && !model->isEmpty();
 }
 
 // ReloadDocumentCommand implementation
@@ -1024,7 +1207,7 @@ ReloadDocumentCommand::ReloadDocumentCommand(DocumentController* controller,
 }
 
 bool ReloadDocumentCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         setErrorMessage("DocumentController is null");
         m_logger.error("DocumentController is null");
         emit executed(false);
@@ -1032,7 +1215,7 @@ bool ReloadDocumentCommand::execute() {
     }
 
     DocumentModel* model = controller()->getDocumentModel();
-    if (!model || model->isEmpty()) {
+    if (model == nullptr || model->isEmpty()) {
         setErrorMessage("No document open to reload");
         m_logger.error("No document open to reload");
         emit executed(false);
@@ -1072,14 +1255,13 @@ bool ReloadDocumentCommand::execute() {
                 QString("Reloaded: %1").arg(QFileInfo(currentPath).fileName()));
             emit executed(true);
             return true;
-        } else {
-            setErrorMessage(
-                QString("Failed to reopen document: %1").arg(currentPath));
-            m_logger.error(
-                QString("Failed to reopen document: %1").arg(currentPath));
-            emit executed(false);
-            return false;
         }
+        setErrorMessage(
+            QString("Failed to reopen document: %1").arg(currentPath));
+        m_logger.error(
+            QString("Failed to reopen document: %1").arg(currentPath));
+        emit executed(false);
+        return false;
 
     } catch (const std::exception& e) {
         setErrorMessage(
@@ -1092,11 +1274,12 @@ bool ReloadDocumentCommand::execute() {
 }
 
 bool ReloadDocumentCommand::canExecute() const {
-    if (!DocumentCommand::canExecute())
+    if (!DocumentCommand::canExecute()) {
         return false;
+    }
 
     DocumentModel* model = controller()->getDocumentModel();
-    return model && !model->isEmpty();
+    return model != nullptr && !model->isEmpty();
 }
 
 // DocumentMacroCommand implementation
@@ -1109,7 +1292,7 @@ DocumentMacroCommand::DocumentMacroCommand(DocumentController* controller,
 DocumentMacroCommand::~DocumentMacroCommand() { clearCommands(); }
 
 void DocumentMacroCommand::addCommand(DocumentCommand* command) {
-    if (command) {
+    if (command != nullptr) {
         m_commands.append(command);
         command->setParent(this);  // Take ownership
         m_logger.debug(
@@ -1126,7 +1309,7 @@ void DocumentMacroCommand::clearCommands() {
 }
 
 bool DocumentMacroCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         setErrorMessage("DocumentController is null");
         m_logger.error("DocumentController is null");
         emit executed(false);
@@ -1143,10 +1326,10 @@ bool DocumentMacroCommand::execute() {
     m_executedCommands.clear();
 
     try {
-        int totalCommands = m_commands.size();
-        emit progress(0, totalCommands);
+        qsizetype totalCommands = m_commands.size();
+        emit progress(0, static_cast<int>(totalCommands));
 
-        for (int i = 0; i < m_commands.size(); ++i) {
+        for (qsizetype i = 0; i < m_commands.size(); ++i) {
             DocumentCommand* command = m_commands[i];
 
             if (!command->canExecute()) {
@@ -1186,7 +1369,8 @@ bool DocumentMacroCommand::execute() {
                 return false;
             }
 
-            emit progress(i + 1, totalCommands);
+            emit progress(static_cast<int>(i + 1),
+                          static_cast<int>(totalCommands));
         }
 
         m_logger.info(QString("Successfully executed macro with %1 commands")
@@ -1211,20 +1395,18 @@ bool DocumentMacroCommand::execute() {
 }
 
 bool DocumentMacroCommand::canExecute() const {
-    if (!DocumentCommand::canExecute())
+    if (!DocumentCommand::canExecute()) {
         return false;
-
-    if (m_commands.isEmpty())
-        return false;
-
-    // Check if all commands can be executed
-    for (const auto& command : m_commands) {
-        if (!command->canExecute()) {
-            return false;
-        }
     }
 
-    return true;
+    if (m_commands.isEmpty()) {
+        return false;
+    }
+
+    // Check if all commands can be executed
+    return std::all_of(
+        m_commands.begin(), m_commands.end(),
+        [](const DocumentCommand* command) { return command->canExecute(); });
 }
 
 bool DocumentMacroCommand::undo() {
@@ -1237,7 +1419,7 @@ bool DocumentMacroCommand::undo() {
         // Undo commands in reverse order
         bool allUndoSuccessful = true;
 
-        for (int i = m_executedCommands.size() - 1; i >= 0; --i) {
+        for (qsizetype i = m_executedCommands.size() - 1; i >= 0; --i) {
             DocumentCommand* command = m_executedCommands[i];
 
             bool undoSuccess = command->undo();
@@ -1273,9 +1455,8 @@ std::unique_ptr<DocumentCommand> DocumentCommandFactory::createOpenCommand(
     DocumentController* controller, const QString& filePath) {
     if (filePath.isEmpty()) {
         return std::make_unique<OpenDocumentCommand>(controller);
-    } else {
-        return std::make_unique<OpenDocumentCommand>(controller, filePath);
     }
+    return std::make_unique<OpenDocumentCommand>(controller, filePath);
 }
 
 std::unique_ptr<DocumentCommand>
@@ -1320,25 +1501,35 @@ std::unique_ptr<DocumentCommand> DocumentCommandFactory::createCommandFromType(
     const QString& type, DocumentController* controller) {
     if (type == "open") {
         return createOpenCommand(controller);
-    } else if (type == "open-multiple") {
+    }
+    if (type == "open-multiple") {
         return createOpenMultipleCommand(controller);
-    } else if (type == "close") {
+    }
+    if (type == "close") {
         return createCloseCommand(controller);
-    } else if (type == "close-current") {
+    }
+    if (type == "close-current") {
         return createCloseCommand(controller, -1);
-    } else if (type == "save-as") {
+    }
+    if (type == "save-as") {
         return createSaveAsCommand(controller);
-    } else if (type == "export-pdf") {
+    }
+    if (type == "export-pdf") {
         return createExportCommand(controller, ExportDocumentCommand::PDF);
-    } else if (type == "export-images") {
+    }
+    if (type == "export-images") {
         return createExportCommand(controller, ExportDocumentCommand::Images);
-    } else if (type == "export-text") {
+    }
+    if (type == "export-text") {
         return createExportCommand(controller, ExportDocumentCommand::Text);
-    } else if (type == "export-html") {
+    }
+    if (type == "export-html") {
         return createExportCommand(controller, ExportDocumentCommand::HTML);
-    } else if (type == "print") {
+    }
+    if (type == "print") {
         return createPrintCommand(controller);
-    } else if (type == "reload") {
+    }
+    if (type == "reload") {
         return createReloadCommand(controller);
     }
 
@@ -1354,27 +1545,27 @@ ShowDocumentPropertiesCommand::ShowDocumentPropertiesCommand(
 }
 
 bool ShowDocumentPropertiesCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         m_logger.error("No document controller available");
         return false;
     }
 
     // Get current document through document model
-    auto documentModel = controller()->getDocumentModel();
-    if (!documentModel) {
+    auto* documentModel = controller()->getDocumentModel();
+    if (documentModel == nullptr) {
         m_logger.error("No document model available");
         return false;
     }
 
-    auto document = documentModel->getCurrentDocument();
-    if (!document) {
+    auto* document = documentModel->getCurrentDocument();
+    if (document == nullptr) {
         m_logger.warning("No document available to show properties");
         return false;
     }
 
     try {
         // Create and show document metadata dialog
-        auto dialog = new DocumentMetadataDialog(m_parentWidget);
+        auto* dialog = new DocumentMetadataDialog(m_parentWidget);
         dialog->setDocument(document, documentModel->getCurrentFilePath());
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         dialog->show();
@@ -1393,32 +1584,34 @@ bool ShowDocumentPropertiesCommand::execute() {
 }
 
 bool ShowDocumentPropertiesCommand::canExecute() const {
-    if (!controller())
+    if (controller() == nullptr) {
         return false;
-    auto documentModel = controller()->getDocumentModel();
-    return documentModel && documentModel->getCurrentDocument();
+    }
+    auto* documentModel = controller()->getDocumentModel();
+    return documentModel != nullptr &&
+           documentModel->getCurrentDocument() != nullptr;
 }
 
 // CompareDocumentsCommand implementation
 CompareDocumentsCommand::CompareDocumentsCommand(DocumentController* controller,
-                                                 const QString& firstPath,
-                                                 const QString& secondPath,
+                                                 QString firstPath,
+                                                 QString secondPath,
                                                  QObject* parent)
     : DocumentCommand(controller, "Compare Documents", parent),
-      m_firstPath(firstPath),
-      m_secondPath(secondPath) {
+      m_firstPath(std::move(firstPath)),
+      m_secondPath(std::move(secondPath)) {
     setDescription("Compare two documents side by side");
 }
 
 bool CompareDocumentsCommand::execute() {
-    if (!controller()) {
+    if (controller() == nullptr) {
         m_logger.error("No document controller available");
         return false;
     }
 
     try {
         // Create and show document comparison dialog
-        auto dialog = new DocumentComparison(nullptr);
+        auto* dialog = new DocumentComparison(nullptr);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         dialog->show();
 

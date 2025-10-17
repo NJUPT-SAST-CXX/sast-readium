@@ -221,6 +221,7 @@ private:
     ConfigurationManager* m_manager;
     QHash<QString, ConfigurationProfile*> m_profiles;
     QString m_activeProfileName;
+    SastLogging::CategoryLogger m_logger{"ConfigurationProfileManager"};
 };
 
 // Convenience macros for configuration access

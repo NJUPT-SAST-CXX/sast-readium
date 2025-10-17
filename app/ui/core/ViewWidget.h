@@ -8,12 +8,48 @@
 #include "../../model/PDFOutlineModel.h"
 #include "../viewer/PDFViewer.h"
 #include "../widgets/DocumentTabWidget.h"
+#include "../widgets/SkeletonWidget.h"
 
+/**
+ * @brief Main document viewing widget with multi-tab PDF viewer support
+ *
+ * @details This widget provides the main document viewing area with:
+ * - Multi-document tab management via DocumentTabWidget
+ * - PDF viewer instances for each open document
+ * - Document loading states with skeleton widgets and progress tracking
+ * - Empty state display when no documents are open
+ * - Document lifecycle management (open, close, switch)
+ * - Page navigation and zoom controls
+ * - View mode management (single page, continuous, etc.)
+ * - Undo/redo support for zoom and scroll position
+ *
+ * **Document Lifecycle:**
+ * 1. openDocument() - Creates PDFViewer, loads document asynchronously
+ * 2. Document loading shows skeleton widget with progress bar
+ * 3. On load complete, switches to PDFViewer
+ * 4. closeDocument() - Removes viewer and cleans up resources
+ *
+ * **Resource Management:**
+ * - All PDFViewer instances are managed via Qt parent-child ownership
+ * - Document models are managed externally by DocumentController
+ * - Proper cleanup in destructor ensures no memory leaks
+ *
+ * @note All document operations are bounds-checked and log errors for invalid indices
+ */
 class ViewWidget : public QWidget {
     Q_OBJECT
 
 public:
+    /**
+     * @brief Construct a new View Widget object
+     * @param parent Parent widget (optional)
+     */
     ViewWidget(QWidget* parent = nullptr);
+
+    /**
+     * @brief Destroy the View Widget object and clean up resources
+     */
+    ~ViewWidget();
 
     // 设置控制器和模型
     void setDocumentController(DocumentController* controller);
@@ -30,6 +66,7 @@ public:
 
     // 查看模式控制
     void setCurrentViewMode(int mode);
+    int getCurrentViewMode() const;
 
     // PDF操作控制
     void executePDFAction(ActionMap action);
@@ -43,6 +80,7 @@ public:
     int getCurrentPage() const;
     int getCurrentPageCount() const;
     double getCurrentZoom() const;
+    int getCurrentRotation() const;
 
     // Zoom control for undo/redo support
     void setZoom(double zoomFactor);
@@ -100,6 +138,10 @@ private:
     PDFOutlineModel* outlineModel;
     QList<PDFViewer*> pdfViewers;           // 每个文档对应一个PDFViewer
     QList<PDFOutlineModel*> outlineModels;  // 每个文档对应一个目录模型
+
+    // Loading state tracking
+    QMap<QString, QWidget*> loadingWidgets;  // filePath -> loading widget
+    QMap<QString, QProgressBar*> progressBars;  // filePath -> progress bar
 
     // 辅助方法
     PDFViewer* createPDFViewer();

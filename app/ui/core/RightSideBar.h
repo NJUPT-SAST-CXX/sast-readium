@@ -11,10 +11,31 @@
 // Forward declaration
 class DebugLogPanel;
 
+/**
+ * @brief Right sidebar with properties, tools, and debug panels
+ *
+ * @details Provides auxiliary functionality via:
+ * - Properties panel (document metadata)
+ * - Tools panel (annotations, highlights)
+ * - Debug log panel with filtering and export
+ * - Animated show/hide with state persistence
+ * - Theme-aware styling
+ *
+ * @note State (visibility, width, active tab) is persisted via QSettings
+ */
 class RightSideBar : public QWidget {
     Q_OBJECT
 public:
+    /**
+     * @brief Construct a new Right Side Bar object
+     * @param parent Parent widget (optional)
+     */
     RightSideBar(QWidget* parent = nullptr);
+
+    /**
+     * @brief Destroy the Right Side Bar object and clean up resources
+     */
+    ~RightSideBar();
 
     // 显示/隐藏控制
     bool isVisible() const;

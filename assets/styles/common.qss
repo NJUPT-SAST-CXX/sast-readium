@@ -1,0 +1,30 @@
+/* Common shared UI refinements */
+
+/* Improve focus visibility across interactive widgets */
+QToolButton:focus {
+    outline: none;
+    border: 2px solid #3daee9;
+}
+
+QPushButton:focus {
+    outline: none;
+    border: 2px solid #3daee9;
+}
+
+QLineEdit:focus {
+    outline: none;
+}
+
+/* Menu item pressed feedback */
+QMenu::item:pressed {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 #e0f0ff, stop: 1 #cfe6fb);
+}
+
+/* StatusBar message pill styling hooks (classes set via setStyleSheet) */
+QLabel.message-pill {
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-weight: 600;
+}
+

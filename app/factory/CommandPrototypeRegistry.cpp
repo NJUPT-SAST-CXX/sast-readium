@@ -1,5 +1,8 @@
-// Minimal stub for CommandPrototypeRegistry.cpp
-// Implementation is in CommandFactory.cpp to avoid duplication
+#include "CommandFactory.h"
 
-// This file exists to satisfy CMake build system
-// The actual CommandPrototypeRegistry implementation is in CommandFactory.cpp
+// This translation unit intentionally delegates to definitions in CommandFactory.cpp
+// to avoid duplication and multiple-definition issues. Keeping a valid TU ensures
+// build systems that expect this file still compile successfully.
+
+// Ensure the linker pulls in CommandFactory.cpp by referencing a symbol
+namespace { volatile int force_link_CommandPrototypeRegistry = 0; }

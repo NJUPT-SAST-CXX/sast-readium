@@ -1,0 +1,241 @@
+---
+globs: *.cpp,*.h,*.hpp
+---
+
+# C++ Coding Standards for SAST Readium
+
+## Language Version
+
+Use **C++20** features. The project is configured with CMake's `CMAKE_CXX_STANDARD 20`.
+
+## Naming Conventions
+
+### Classes and Types
+- **PascalCase** for class names: `DocumentController`, `RenderModel`, `SearchEngine`
+- Suffix model classes with `Model`: `DocumentModel`, `PageModel`
+- Suffix manager classes with `Manager`: `CommandManager`, `PluginManager`
+- Suffix controller classes with `Controller`: `ApplicationController`, `DocumentController`
+- Suffix delegate classes with `Delegate`: `ThumbnailDelegate`, `ViewDelegate`
+
+### Variables and Functions
+- **camelCase** for variables and functions: `pageController`, `documentModel`, `executeCommand()`
+- **m_** prefix for member variables: `m_documentController`, `m_pageModel`, `m_isInitialized`
+- **s_** prefix for static members: `s_instance`
+- No prefix for local variables: `fileName`, `pageNumber`
+
+### Constants and Enums
+- **SCREAMING_SNAKE_CASE** for constants: `MAX_CACHE_SIZE`, `DEFAULT_TIMEOUT`
+- **PascalCase** for enum types: `CacheStrategy`, `SearchMode`
+- **camelCase** for enum values: `CacheStrategy::lru`, `SearchMode::incremental`
+
+### Namespaces
+- **lowercase** for namespaces: `namespace sastreadium`, `namespace logging`
+- Use nested namespaces: `namespace sast::readium::search`
+
+## Modern C++ Practices
+
+### Memory Management
+- **Prefer smart pointers** over raw pointers for ownership:
+  - `std::unique_ptr` for exclusive ownership
+  - `std::shared_ptr` when shared ownership is required
+  - `std::weak_ptr` to break circular references
+- **Use Qt's parent-child system** for automatic memory management of QObjects
+- **Use QPointer** for weak references to QObjects: `QPointer<QObject> ptr`
+
+### RAII and Resource Management
+- Use RAII for resource management (files, locks, connections)
+- Leverage Qt's automatic signal disconnection on object destruction
+- Implement proper cleanup in destructors
+
+### Rule of Zero/Five
+- Prefer Rule of Zero: let compiler generate special members
+- If manual resource management is needed, implement all five: destructor, copy constructor, copy assignment, move constructor, move assignment
+- For classes with custom destructors, explicitly delete copy operations if not needed:
+  ```cpp
+  MyClass(const MyClass&) = delete;
+  MyClass& operator=(const MyClass&) = delete;
+  ```
+
+### Const Correctness
+- Mark methods that don't modify object state as `const`
+- Mark getter methods with `[[nodiscard]]` attribute:
+  ```cpp
+  [[nodiscard]] DocumentController* documentController() const { return m_documentController; }
+  ```
+- Use `const` references for parameters when not modifying: `const QString& fileName`
+- Use `std::string_view` or `QStringView` for read-only string parameters when appropriate
+
+### Auto Keyword
+- Use `auto` when type is obvious from context or very verbose: `auto* controller = ServiceLocator::instance().getService<DocumentController>()`
+- Prefer explicit types for clarity in public APIs and interfaces
+- Use `auto` with initializer lists: `auto list = QList<QString>{...}`
+
+### Range-Based For Loops
+- Prefer range-based for loops over index-based:
+  ```cpp
+  for (const auto& item : items) { ... }
+  for (auto& item : mutableItems) { ... }
+  ```
+
+### nullptr
+- Always use `nullptr` instead of `NULL` or `0` for null pointers
+
+### Override Keyword
+- Always mark overridden virtual methods with `override`:
+  ```cpp
+  void initialize() override;
+  ```
+- Use `final` when a virtual method should not be overridden further
+
+## Qt-Specific Practices
+
+### QObject Integration
+- All classes inheriting from `QObject` MUST include `Q_OBJECT` macro
+- Use Qt's parent-child ownership for automatic cleanup
+- Use Qt's signals and slots for event communication
+
+### Signals and Slots
+- Prefer new-style signal/slot connections (function pointers):
+  ```cpp
+  connect(sender, &Sender::signal, receiver, &Receiver::slot);
+  ```
+- Use lambdas for simple connections:
+  ```cpp
+  connect(button, &QPushButton::clicked, this, [this]() { handleClick(); });
+  ```
+
+### Forward Declarations
+- Use forward declarations in headers to minimize dependencies
+- Include full headers only in `.cpp` files when possible
+- Example from [ApplicationController.h](mdc:app/controller/ApplicationController.h):
+  ```cpp
+  // Forward declarations
+  class QMainWindow;
+  class DocumentController;
+  ```
+
+### Qt Meta Types
+- Register custom types with Qt's meta-object system when needed:
+  ```cpp
+  Q_DECLARE_METATYPE(MyCustomType)
+  qRegisterMetaType<MyCustomType>("MyCustomType");
+  ```
+
+## Thread Safety
+
+### Guidelines
+- Keep UI operations on main thread only
+- Use background threads for heavy operations (rendering, search, file I/O)
+- Use Qt's signal/slot mechanism for thread-safe communication
+- Protect shared data with mutexes or use Qt's concurrent framework
+
+### Thread-Safe Patterns
+- Use `QMutex` and `QMutexLocker` for critical sections:
+  ```cpp
+  QMutex m_mutex;
+  QMutexLocker locker(&m_mutex);
+  ```
+- Use atomic operations for simple flags: `std::atomic<bool>`
+- Use Qt's `QtConcurrent` for parallel operations
+- Document thread-safety requirements in comments
+
+See [docs/thread-safety-guidelines.md](mdc:docs/thread-safety-guidelines.md) for comprehensive guidelines.
+
+## Error Handling
+
+### Exceptions vs Return Codes
+- Use exceptions for exceptional errors (resource allocation failure, logic errors)
+- Use return codes (bool/enum) for expected failures (file not found, invalid input)
+- Document exception guarantees in comments
+
+### Qt Error Handling
+- Check return values from Qt APIs
+- Use `QPointer` to detect deleted QObjects
+- Handle Qt signals for error conditions
+
+### Logging
+- Use the project's logging system ([app/logging/](mdc:app/logging/)) for all logging
+- Log at appropriate levels: TRACE, DEBUG, INFO, WARN, ERROR, CRITICAL
+- Use category loggers for component-specific logging:
+  ```cpp
+  SastLogging::CategoryLogger m_logger{"ComponentName"};
+  m_logger.info("Operation completed");
+  ```
+
+## Documentation
+
+### Header Comments
+- Document all public APIs with Doxygen-style comments:
+  ```cpp
+  /**
+   * @brief Brief description of the class
+   *
+   * Detailed description explaining purpose, usage, and important notes.
+   */
+  class MyClass {
+  ```
+
+### Function Documentation
+- Document parameters, return values, and exceptions:
+  ```cpp
+  /**
+   * @brief Opens a document from the specified file
+   * @param fileName Path to the PDF file
+   * @return true if successful, false otherwise
+   * @throws std::runtime_error if file is corrupted
+   */
+  bool openDocument(const QString& fileName);
+  ```
+
+### Implementation Comments
+- Use `//` for single-line comments
+- Explain **why**, not **what** (code should be self-explanatory)
+- Mark TODOs with: `// TODO: description`
+
+## Code Organization
+
+### Header Files
+- Use `#pragma once` for include guards
+- Order includes: system, Qt, third-party, project
+- Separate sections with blank lines
+- Minimize includes in headers, prefer forward declarations
+
+### Source Files
+- Include corresponding header first
+- Order: own header, system headers, Qt headers, third-party, project headers
+- Keep functions short and focused (Single Responsibility)
+- Extract complex logic into helper functions
+
+### Class Organization
+- Visibility order: public, protected, private
+- Within each section: constructors, operators, methods, slots, signals, members
+- Group related methods together
+
+## Performance Considerations
+
+### Avoid Unnecessary Copies
+- Pass large objects by const reference: `const QList<Item>& items`
+- Return by value for small types (compiler optimization)
+- Use move semantics when transferring ownership: `std::move(object)`
+
+### Lazy Initialization
+- Initialize expensive resources only when needed
+- Use ServiceLocator's lazy service initialization pattern
+
+### Caching
+- Cache expensive computations and rendering results
+- Use project's caching system ([app/cache/](mdc:app/cache/))
+- Implement appropriate eviction strategies
+
+### Asynchronous Operations
+- Use asynchronous loading for documents and images
+- Implement background processing for search and rendering
+- Keep UI responsive with progress indicators
+
+## Testing
+
+- Write unit tests for all new components in [tests/](mdc:tests/)
+- Follow test patterns from [tests/README.md](mdc:tests/README.md)
+- Use Qt Test framework with custom TestUtilities base class
+- Test error conditions and edge cases
+- Mock external dependencies using project's mock framework

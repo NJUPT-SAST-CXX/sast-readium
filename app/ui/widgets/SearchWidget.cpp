@@ -6,6 +6,8 @@
 #include <QMessageBox>
 #include <QShortcut>
 #include <QStyle>
+#include "../../managers/StyleManager.h"
+#include "ToastNotification.h"
 
 SearchWidget::SearchWidget(QWidget* parent)
     : QWidget(parent),
@@ -26,9 +28,12 @@ SearchWidget::SearchWidget(QWidget* parent)
 }
 
 void SearchWidget::setupUI() {
+    StyleManager* styleManager = &StyleManager::instance();
+
     m_mainLayout = new QVBoxLayout(this);
-    m_mainLayout->setContentsMargins(6, 6, 6, 6);
-    m_mainLayout->setSpacing(4);
+    m_mainLayout->setContentsMargins(styleManager->spacingSM(), styleManager->spacingSM(),
+                                    styleManager->spacingSM(), styleManager->spacingSM());
+    m_mainLayout->setSpacing(styleManager->spacingXS());
 
     // Search input layout with history
     m_searchLayout = new QHBoxLayout();

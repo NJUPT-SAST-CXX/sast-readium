@@ -11,7 +11,7 @@ class QGraphicsOpacityEffect;
 class QTimer;
 class OnboardingManager;
 
-enum class OnboardingStep;
+enum class OnboardingStep : std::uint8_t;
 
 /**
  * OnboardingWidget
@@ -28,7 +28,13 @@ class OnboardingWidget : public QWidget {
 
 public:
     explicit OnboardingWidget(QWidget* parent = nullptr);
-    ~OnboardingWidget();
+    ~OnboardingWidget() override;
+
+    // Disable copy and move (Qt parent-child ownership handles lifetime)
+    OnboardingWidget(const OnboardingWidget&) = delete;
+    OnboardingWidget& operator=(const OnboardingWidget&) = delete;
+    OnboardingWidget(OnboardingWidget&&) = delete;
+    OnboardingWidget& operator=(OnboardingWidget&&) = delete;
 
     // Manager
     void setOnboardingManager(OnboardingManager* manager);
@@ -53,13 +59,13 @@ public:
     // Animation control
     void startAnimation();
     void stopAnimation();
-    bool isAnimating() const;
+    [[nodiscard]] bool isAnimating() const;
 
     // Properties
-    qreal overlayOpacity() const;
+    [[nodiscard]] qreal overlayOpacity() const;
     void setOverlayOpacity(qreal opacity);
 
-    QPoint tooltipPosition() const;
+    [[nodiscard]] QPoint tooltipPosition() const;
     void setTooltipPosition(const QPoint& position);
 
     // Theme support

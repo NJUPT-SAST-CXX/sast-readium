@@ -63,6 +63,31 @@ public:
     QMutex statisticsMutex;
 };
 
+namespace {
+QStringList computePopularQueriesFromFrequency(
+    const QHash<QString, int>& frequency, int maxQueries) {
+    QList<QPair<QString, int>> queryPairs;
+    queryPairs.reserve(frequency.size());
+
+    for (auto it = frequency.constBegin(); it != frequency.constEnd(); ++it) {
+        queryPairs.append(qMakePair(it.key(), it.value()));
+    }
+
+    std::sort(queryPairs.begin(), queryPairs.end(),
+              [](const QPair<QString, int>& a,
+                 const QPair<QString, int>& b) { return a.second > b.second; });
+
+    QStringList popularQueries;
+    int limit = qMin(maxQueries, queryPairs.size());
+    popularQueries.reserve(limit);
+    for (int i = 0; i < limit; ++i) {
+        popularQueries.append(queryPairs.at(i).first);
+    }
+
+    return popularQueries;
+}
+}  // namespace
+
 SearchFeatures::SearchFeatures(QObject* parent)
     : QObject(parent), d(new Implementation(this)) {}
 
@@ -365,25 +390,8 @@ QStringList SearchFeatures::getRecentQueries(int maxQueries) const {
 
 QStringList SearchFeatures::getPopularQueries(int maxQueries) const {
     QMutexLocker locker(&d->statisticsMutex);
-
-    QList<QPair<QString, int>> queryPairs;
-    for (auto it = d->statistics.queryFrequency.begin();
-         it != d->statistics.queryFrequency.end(); ++it) {
-        queryPairs.append(qMakePair(it.key(), it.value()));
-    }
-
-    // Sort by frequency (descending)
-    std::sort(queryPairs.begin(), queryPairs.end(),
-              [](const QPair<QString, int>& a, const QPair<QString, int>& b) {
-                  return a.second > b.second;
-              });
-
-    QStringList popularQueries;
-    for (int i = 0; i < qMin(maxQueries, queryPairs.size()); ++i) {
-        popularQueries.append(queryPairs[i].first);
-    }
-
-    return popularQueries;
+    return computePopularQueriesFromFrequency(d->statistics.queryFrequency,
+                                             maxQueries);
 }
 
 void SearchFeatures::clearHistory() {
@@ -585,10 +593,17 @@ QList<SearchResult> SearchFeatures::sortResults(
 }
 
 SearchFeatures::SearchStatistics SearchFeatures::getSearchStatistics() const {
-    QMutexLocker locker(&d->statisticsMutex);
+    QHash<QString, int> frequencySnapshot;
+    SearchStatistics stats;
 
-    SearchStatistics stats = d->statistics;
-    stats.mostPopularQueries = getPopularQueries(10);
+    {
+        QMutexLocker locker(&d->statisticsMutex);
+        stats = d->statistics;
+        frequencySnapshot = d->statistics.queryFrequency;
+    }
+
+    stats.mostPopularQueries =
+        computePopularQueriesFromFrequency(frequencySnapshot, 10);
 
     return stats;
 }

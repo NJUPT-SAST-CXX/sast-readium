@@ -53,8 +53,7 @@ private slots:
     void testOptimizeCache();
     void testCleanupExpiredItems();
     void testEvictLeastUsedItems();
-    // void testCompactCache();  // TODO: Implement compactCache() in
-    // PDFCacheManager.cpp
+    void testCompactCache();
 
     // Statistics tests
     void testGetStatistics();
@@ -63,28 +62,30 @@ private slots:
     void testResetStatistics();
 
     // Cache policy tests
-    // void testSetEvictionPolicy();  // TODO: Implement setEvictionPolicy() in
-    // PDFCacheManager.cpp
+    void testSetEvictionPolicy();
     void testGetEvictionPolicy();
-    // void testSetPriorityWeights();  // TODO: Implement setPriorityWeights()
-    // in PDFCacheManager.cpp
+    void testSetPriorityWeights();
 
     // Settings persistence tests
     void testLoadSettings();
     void testSaveSettings();
 
-    // Utility function tests - TODO: Implement these methods in
-    // PDFCacheManager.cpp void testExportCacheToFile(); void
-    // testImportCacheFromFile(); void testDefragmentCache();
+    // Utility function tests
+    void testExportCacheToFile();
+    void testImportCacheFromFile();
+    void testDefragmentCache();
 
-    // Cache inspection tests - TODO: Implement these methods in
-    // PDFCacheManager.cpp void testGetCacheKeys(); void
-    // testGetCacheKeysByType(); void testGetCacheKeysByPriority(); void
-    // testGetCacheItemCount(); void testGetCacheMemoryUsage();
+    // Cache inspection tests
+    void testGetCacheKeys();
+    void testGetCacheKeysByType();
+    void testGetCacheKeysByPriority();
+    void testGetCacheItemCount();
+    void testGetCacheMemoryUsage();
 
-    // Cache management function tests - TODO: Implement these methods in
-    // PDFCacheManager.cpp void testSetCachePriority(); void
-    // testPromoteToHighPriority(); void testRefreshCacheItem();
+    // Cache management function tests
+    void testSetCachePriority();
+    void testPromoteToHighPriority();
+    void testRefreshCacheItem();
 
     // Signal tests
     void testCacheHitSignal();
@@ -379,24 +380,6 @@ void PDFCacheManagerTest::testEvictLeastUsedItems() {
     }
 }
 
-// TODO: Uncomment when compactCache() is implemented in PDFCacheManager.cpp
-/*
-void PDFCacheManagerTest::testCompactCache() {
-    // Add and remove items to create fragmentation
-    for (int i = 0; i < 10; ++i) {
-        m_cacheManager->insert(createTestKey("compact", i), QString("test"),
-                               CacheItemType::TextContent);
-    }
-
-    for (int i = 0; i < 5; ++i) {
-        m_cacheManager->remove(createTestKey("compact", i));
-    }
-
-    m_cacheManager->compactCache();
-    QVERIFY(true);
-}
-*/
-
 // Statistics tests
 void PDFCacheManagerTest::testGetStatistics() {
     m_cacheManager->insert("key1", QString("test"), CacheItemType::TextContent);
@@ -444,30 +427,10 @@ void PDFCacheManagerTest::testResetStatistics() {
 }
 
 // Cache policy tests
-// TODO: Uncomment when setEvictionPolicy() is implemented in
-// PDFCacheManager.cpp
-/*
-void PDFCacheManagerTest::testSetEvictionPolicy() {
-    m_cacheManager->setEvictionPolicy("LRU");
-    QString policy = m_cacheManager->getEvictionPolicy();
-    QCOMPARE(policy, QString("LRU"));
-}
-*/
-
 void PDFCacheManagerTest::testGetEvictionPolicy() {
     QString policy = m_cacheManager->getEvictionPolicy();
     QVERIFY(!policy.isEmpty());
 }
-
-// TODO: Uncomment when setPriorityWeights() is implemented in
-// PDFCacheManager.cpp
-/*
-void PDFCacheManagerTest::testSetPriorityWeights() {
-    m_cacheManager->setPriorityWeights(0.1, 1.0, 10.0);
-    // No getter, so just verify it doesn't crash
-    QVERIFY(true);
-}
-*/
 
 // Settings persistence tests
 void PDFCacheManagerTest::testLoadSettings() {
@@ -481,133 +444,6 @@ void PDFCacheManagerTest::testSaveSettings() {
     // Just verify it doesn't crash
     QVERIFY(true);
 }
-
-// Utility function tests - TODO: Implement these methods in PDFCacheManager.cpp
-/*
-void PDFCacheManagerTest::testExportCacheToFile() {
-    QString exportPath =
-        QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
-        "/cache_export_test.dat";
-    m_testFiles.append(exportPath);
-
-    m_cacheManager->insert("key1", QString("test"), CacheItemType::TextContent);
-
-    bool result = m_cacheManager->exportCacheToFile(exportPath);
-    // May or may not be implemented
-    QVERIFY(result == true || result == false);
-}
-
-void PDFCacheManagerTest::testImportCacheFromFile() {
-    QString importPath =
-        QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
-        "/cache_import_test.dat";
-
-    bool result = m_cacheManager->importCacheFromFile(importPath);
-    // May fail if file doesn't exist
-    QVERIFY(result == true || result == false);
-}
-
-void PDFCacheManagerTest::testDefragmentCache() {
-    for (int i = 0; i < 10; ++i) {
-        m_cacheManager->insert(createTestKey("defrag", i), QString("test"),
-                               CacheItemType::TextContent);
-    }
-
-    m_cacheManager->defragmentCache();
-    QVERIFY(true);
-}
-*/
-
-// Cache inspection tests - TODO: Implement these methods in PDFCacheManager.cpp
-/*
-void PDFCacheManagerTest::testGetCacheKeys() {
-    m_cacheManager->insert("key1", QString("test1"),
-CacheItemType::TextContent); m_cacheManager->insert("key2", QString("test2"),
-CacheItemType::TextContent);
-
-    QStringList keys = m_cacheManager->getCacheKeys();
-    QVERIFY(keys.contains("key1"));
-    QVERIFY(keys.contains("key2"));
-}
-
-void PDFCacheManagerTest::testGetCacheKeysByType() {
-    m_cacheManager->insert("text1", QString("test"),
-CacheItemType::TextContent); m_cacheManager->insert("page1",
-CacheTestHelpers::createTestPixmap(), CacheItemType::RenderedPage);
-
-    QStringList textKeys =
-        m_cacheManager->getCacheKeysByType(CacheItemType::TextContent);
-    QVERIFY(textKeys.contains("text1"));
-    QVERIFY(!textKeys.contains("page1"));
-}
-
-void PDFCacheManagerTest::testGetCacheKeysByPriority() {
-    m_cacheManager->insert("high1", QString("test"), CacheItemType::TextContent,
-                           CachePriority::High);
-    m_cacheManager->insert("low1", QString("test"), CacheItemType::TextContent,
-                           CachePriority::Low);
-
-    QStringList highKeys =
-        m_cacheManager->getCacheKeysByPriority(CachePriority::High);
-    QVERIFY(highKeys.contains("high1"));
-    QVERIFY(!highKeys.contains("low1"));
-}
-
-void PDFCacheManagerTest::testGetCacheItemCount() {
-    m_cacheManager->insert("text1", QString("test"),
-CacheItemType::TextContent); m_cacheManager->insert("text2", QString("test"),
-CacheItemType::TextContent); m_cacheManager->insert("page1",
-CacheTestHelpers::createTestPixmap(), CacheItemType::RenderedPage);
-
-    int textCount =
-m_cacheManager->getCacheItemCount(CacheItemType::TextContent);
-    QCOMPARE(textCount, 2);
-}
-
-void PDFCacheManagerTest::testGetCacheMemoryUsage() {
-    QPixmap pixmap = CacheTestHelpers::createTestPixmap(200, 200);
-    m_cacheManager->insert("page1", pixmap, CacheItemType::RenderedPage);
-
-    qint64 pageMemory =
-        m_cacheManager->getCacheMemoryUsage(CacheItemType::RenderedPage);
-    QVERIFY(pageMemory > 0);
-}
-*/
-
-// Cache management function tests - TODO: Implement these methods in
-// PDFCacheManager.cpp
-/*
-void PDFCacheManagerTest::testSetCachePriority() {
-    m_cacheManager->insert("key1", QString("test"), CacheItemType::TextContent,
-                           CachePriority::Normal);
-
-    m_cacheManager->setCachePriority("key1", CachePriority::High);
-
-    QStringList highKeys =
-        m_cacheManager->getCacheKeysByPriority(CachePriority::High);
-    QVERIFY(highKeys.contains("key1"));
-}
-
-void PDFCacheManagerTest::testPromoteToHighPriority() {
-    m_cacheManager->insert("key1", QString("test"), CacheItemType::TextContent,
-                           CachePriority::Normal);
-
-    bool promoted = m_cacheManager->promoteToHighPriority("key1");
-    QVERIFY(promoted);
-
-    QStringList highKeys =
-        m_cacheManager->getCacheKeysByPriority(CachePriority::High);
-    QVERIFY(highKeys.contains("key1"));
-}
-
-void PDFCacheManagerTest::testRefreshCacheItem() {
-    m_cacheManager->insert("key1", QString("test"), CacheItemType::TextContent);
-
-    // Just verify it doesn't crash
-    m_cacheManager->refreshCacheItem("key1");
-    QVERIFY(true);
-}
-*/
 
 // Signal tests
 void PDFCacheManagerTest::testCacheHitSignal() {
@@ -848,6 +684,250 @@ void PDFCacheManagerTest::testLRUEvictionOrder() {
                 (m_cacheManager->contains("key3") ? 1 : 0) +
                 (m_cacheManager->contains("key4") ? 1 : 0);
     QCOMPARE(count, 3);
+}
+
+void PDFCacheManagerTest::testCompactCache() {
+    // Insert some items
+    m_cacheManager->insert("key1", QString("test1"),
+                           CacheItemType::TextContent);
+    m_cacheManager->insert("key2", QString("test2"),
+                           CacheItemType::TextContent);
+
+    // Compact cache (should remove expired and zero-access items)
+    m_cacheManager->compactCache();
+
+    // Items should still be there (not expired, have access count)
+    QVERIFY(m_cacheManager->contains("key1"));
+    QVERIFY(m_cacheManager->contains("key2"));
+}
+
+void PDFCacheManagerTest::testSetEvictionPolicy() {
+    // Test setting valid eviction policies
+    m_cacheManager->setEvictionPolicy("LRU");
+    QCOMPARE(m_cacheManager->getEvictionPolicy(), QString("LRU"));
+
+    m_cacheManager->setEvictionPolicy("LFU");
+    QCOMPARE(m_cacheManager->getEvictionPolicy(), QString("LFU"));
+
+    m_cacheManager->setEvictionPolicy("FIFO");
+    QCOMPARE(m_cacheManager->getEvictionPolicy(), QString("FIFO"));
+
+    m_cacheManager->setEvictionPolicy("Priority");
+    QCOMPARE(m_cacheManager->getEvictionPolicy(), QString("Priority"));
+
+    // Test invalid policy (should default to LRU)
+    m_cacheManager->setEvictionPolicy("INVALID");
+    QCOMPARE(m_cacheManager->getEvictionPolicy(), QString("LRU"));
+}
+
+void PDFCacheManagerTest::testSetPriorityWeights() {
+    // Set priority weights
+    m_cacheManager->setPriorityWeights(0.5, 1.0, 2.0);
+
+    // Insert items with different priorities
+    m_cacheManager->insert("low", QString("test"), CacheItemType::TextContent,
+                           CachePriority::Low);
+    m_cacheManager->insert("normal", QString("test"),
+                           CacheItemType::TextContent, CachePriority::Normal);
+    m_cacheManager->insert("high", QString("test"), CacheItemType::TextContent,
+                           CachePriority::High);
+
+    // All items should be in cache
+    QVERIFY(m_cacheManager->contains("low"));
+    QVERIFY(m_cacheManager->contains("normal"));
+    QVERIFY(m_cacheManager->contains("high"));
+}
+
+void PDFCacheManagerTest::testExportCacheToFile() {
+    // Insert some items
+    m_cacheManager->insert("key1", QString("test1"),
+                           CacheItemType::TextContent);
+    m_cacheManager->insert("key2", QString("test2"),
+                           CacheItemType::RenderedPage);
+
+    // Export cache to file
+    QString filePath = QDir::temp().filePath("test_cache_export.dat");
+    bool result = m_cacheManager->exportCacheToFile(filePath);
+    QVERIFY(result);
+
+    // Verify file exists
+    QVERIFY(QFile::exists(filePath));
+
+    // Cleanup
+    QFile::remove(filePath);
+}
+
+void PDFCacheManagerTest::testImportCacheFromFile() {
+    // Insert and export cache
+    m_cacheManager->insert("key1", QString("test1"),
+                           CacheItemType::TextContent);
+    QString filePath = QDir::temp().filePath("test_cache_import.dat");
+    m_cacheManager->exportCacheToFile(filePath);
+
+    // Clear cache
+    m_cacheManager->clear();
+    QVERIFY(!m_cacheManager->contains("key1"));
+
+    // Import cache from file
+    bool result = m_cacheManager->importCacheFromFile(filePath);
+    QVERIFY(result);
+
+    // Cleanup
+    QFile::remove(filePath);
+}
+
+void PDFCacheManagerTest::testDefragmentCache() {
+    // Insert items with different priorities
+    m_cacheManager->insert("low", QString("test"), CacheItemType::TextContent,
+                           CachePriority::Low);
+    m_cacheManager->insert("high", QString("test"), CacheItemType::TextContent,
+                           CachePriority::High);
+    m_cacheManager->insert("normal", QString("test"),
+                           CacheItemType::TextContent, CachePriority::Normal);
+
+    // Defragment cache
+    m_cacheManager->defragmentCache();
+
+    // All items should still be there
+    QVERIFY(m_cacheManager->contains("low"));
+    QVERIFY(m_cacheManager->contains("high"));
+    QVERIFY(m_cacheManager->contains("normal"));
+}
+
+void PDFCacheManagerTest::testGetCacheKeys() {
+    // Insert some items
+    m_cacheManager->insert("key1", QString("test1"),
+                           CacheItemType::TextContent);
+    m_cacheManager->insert("key2", QString("test2"),
+                           CacheItemType::RenderedPage);
+
+    // Get all cache keys
+    QStringList keys = m_cacheManager->getCacheKeys();
+    QCOMPARE(keys.size(), 2);
+    QVERIFY(keys.contains("key1"));
+    QVERIFY(keys.contains("key2"));
+}
+
+void PDFCacheManagerTest::testGetCacheKeysByType() {
+    // Insert items of different types
+    m_cacheManager->insert("text1", QString("test1"),
+                           CacheItemType::TextContent);
+    m_cacheManager->insert("page1", QString("test2"),
+                           CacheItemType::RenderedPage);
+    m_cacheManager->insert("text2", QString("test3"),
+                           CacheItemType::TextContent);
+
+    // Get keys by type
+    QStringList textKeys =
+        m_cacheManager->getCacheKeysByType(CacheItemType::TextContent);
+    QCOMPARE(textKeys.size(), 2);
+    QVERIFY(textKeys.contains("text1"));
+    QVERIFY(textKeys.contains("text2"));
+
+    QStringList pageKeys =
+        m_cacheManager->getCacheKeysByType(CacheItemType::RenderedPage);
+    QCOMPARE(pageKeys.size(), 1);
+    QVERIFY(pageKeys.contains("page1"));
+}
+
+void PDFCacheManagerTest::testGetCacheKeysByPriority() {
+    // Insert items with different priorities
+    m_cacheManager->insert("low1", QString("test"), CacheItemType::TextContent,
+                           CachePriority::Low);
+    m_cacheManager->insert("high1", QString("test"),
+                           CacheItemType::TextContent, CachePriority::High);
+    m_cacheManager->insert("low2", QString("test"), CacheItemType::TextContent,
+                           CachePriority::Low);
+
+    // Get keys by priority
+    QStringList lowKeys =
+        m_cacheManager->getCacheKeysByPriority(CachePriority::Low);
+    QCOMPARE(lowKeys.size(), 2);
+    QVERIFY(lowKeys.contains("low1"));
+    QVERIFY(lowKeys.contains("low2"));
+
+    QStringList highKeys =
+        m_cacheManager->getCacheKeysByPriority(CachePriority::High);
+    QCOMPARE(highKeys.size(), 1);
+    QVERIFY(highKeys.contains("high1"));
+}
+
+void PDFCacheManagerTest::testGetCacheItemCount() {
+    // Insert items of different types
+    m_cacheManager->insert("text1", QString("test1"),
+                           CacheItemType::TextContent);
+    m_cacheManager->insert("page1", QString("test2"),
+                           CacheItemType::RenderedPage);
+    m_cacheManager->insert("text2", QString("test3"),
+                           CacheItemType::TextContent);
+
+    // Get item count by type
+    int textCount = m_cacheManager->getCacheItemCount(CacheItemType::TextContent);
+    QCOMPARE(textCount, 2);
+
+    int pageCount = m_cacheManager->getCacheItemCount(CacheItemType::RenderedPage);
+    QCOMPARE(pageCount, 1);
+}
+
+void PDFCacheManagerTest::testGetCacheMemoryUsage() {
+    // Insert items of different types
+    m_cacheManager->insert("text1", QString("test1"),
+                           CacheItemType::TextContent);
+    m_cacheManager->insert("page1", QString("test2"),
+                           CacheItemType::RenderedPage);
+
+    // Get memory usage by type
+    qint64 textMemory = m_cacheManager->getCacheMemoryUsage(CacheItemType::TextContent);
+    QVERIFY(textMemory > 0);
+
+    qint64 pageMemory = m_cacheManager->getCacheMemoryUsage(CacheItemType::RenderedPage);
+    QVERIFY(pageMemory > 0);
+}
+
+void PDFCacheManagerTest::testSetCachePriority() {
+    // Insert item with normal priority
+    m_cacheManager->insert("key1", QString("test"),
+                           CacheItemType::TextContent, CachePriority::Normal);
+
+    // Change priority to high
+    m_cacheManager->setCachePriority("key1", CachePriority::High);
+
+    // Verify item is still in cache
+    QVERIFY(m_cacheManager->contains("key1"));
+
+    // Verify priority was changed (by checking it's in high priority list)
+    QStringList highKeys =
+        m_cacheManager->getCacheKeysByPriority(CachePriority::High);
+    QVERIFY(highKeys.contains("key1"));
+}
+
+void PDFCacheManagerTest::testPromoteToHighPriority() {
+    // Insert item with normal priority
+    m_cacheManager->insert("key1", QString("test"),
+                           CacheItemType::TextContent, CachePriority::Normal);
+
+    // Promote to high priority
+    m_cacheManager->promoteToHighPriority("key1");
+
+    // Verify item is still in cache
+    QVERIFY(m_cacheManager->contains("key1"));
+
+    // Verify priority was changed to high
+    QStringList highKeys =
+        m_cacheManager->getCacheKeysByPriority(CachePriority::High);
+    QVERIFY(highKeys.contains("key1"));
+}
+
+void PDFCacheManagerTest::testRefreshCacheItem() {
+    // Insert item
+    m_cacheManager->insert("key1", QString("test"),
+                           CacheItemType::TextContent);
+
+    // Refresh item (updates access time and count)
+    m_cacheManager->refreshCacheItem("key1");
+
+    // Verify item is still in cache
+    QVERIFY(m_cacheManager->contains("key1"));
 }
 
 QTEST_MAIN(PDFCacheManagerTest)

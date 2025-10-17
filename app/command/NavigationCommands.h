@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QString>
 #include <memory>
+#include <cstdint>
 #include "../logging/SimpleLogging.h"
 
 // Forward declarations
@@ -21,20 +22,25 @@ class NavigationCommand : public QObject {
 
 public:
     explicit NavigationCommand(const QString& name, QObject* parent = nullptr);
-    virtual ~NavigationCommand() = default;
+    ~NavigationCommand() override = default;
+
+    NavigationCommand(const NavigationCommand&) = delete;
+    NavigationCommand& operator=(const NavigationCommand&) = delete;
+    NavigationCommand(NavigationCommand&&) = delete;
+    NavigationCommand& operator=(NavigationCommand&&) = delete;
 
     // Command interface
     virtual bool execute() = 0;
-    virtual bool canExecute() const { return true; }
+    [[nodiscard]] virtual bool canExecute() const { return true; }
     virtual bool undo() { return false; }
 
     // Command metadata
-    QString name() const { return m_name; }
-    QString description() const { return m_description; }
+    [[nodiscard]] QString name() const { return m_name; }
+    [[nodiscard]] QString description() const { return m_description; }
 
     // Keyboard shortcut support
     void setShortcut(const QString& shortcut) { m_shortcut = shortcut; }
-    QString shortcut() const { return m_shortcut; }
+    [[nodiscard]] QString shortcut() const { return m_shortcut; }
 
 signals:
     void executed(bool success);
@@ -65,7 +71,7 @@ public:
                              QObject* parent = nullptr);
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -84,7 +90,7 @@ public:
                                  QObject* parent = nullptr);
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -103,10 +109,10 @@ public:
                              QObject* parent = nullptr);
 
     void setTargetPage(int page) { m_targetPage = page; }
-    int targetPage() const { return m_targetPage; }
+    [[nodiscard]] int targetPage() const { return m_targetPage; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -126,7 +132,7 @@ public:
                               QObject* parent = nullptr);
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -145,7 +151,7 @@ public:
                              QObject* parent = nullptr);
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -164,10 +170,10 @@ public:
                            QObject* parent = nullptr);
 
     void setZoomFactor(double factor) { m_factor = factor; }
-    double zoomFactor() const { return m_factor; }
+    [[nodiscard]] double zoomFactor() const { return m_factor; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -187,10 +193,10 @@ public:
                             QObject* parent = nullptr);
 
     void setZoomFactor(double factor) { m_factor = factor; }
-    double zoomFactor() const { return m_factor; }
+    [[nodiscard]] double zoomFactor() const { return m_factor; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -210,10 +216,10 @@ public:
                             QObject* parent = nullptr);
 
     void setZoomLevel(double level) { m_zoomLevel = level; }
-    double zoomLevel() const { return m_zoomLevel; }
+    [[nodiscard]] double zoomLevel() const { return m_zoomLevel; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -232,7 +238,7 @@ public:
     explicit FitWidthCommand(ViewWidget* viewWidget, QObject* parent = nullptr);
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -250,7 +256,7 @@ public:
     explicit FitPageCommand(ViewWidget* viewWidget, QObject* parent = nullptr);
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -265,17 +271,17 @@ class RotateViewCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    enum RotationDirection { Clockwise, CounterClockwise };
+    enum class RotationDirection : std::uint8_t { Clockwise, CounterClockwise };
 
     explicit RotateViewCommand(ViewWidget* viewWidget,
-                               RotationDirection direction = Clockwise,
+                               RotationDirection direction = RotationDirection::Clockwise,
                                int degrees = 90, QObject* parent = nullptr);
 
     void setDirection(RotationDirection dir) { m_direction = dir; }
     void setDegrees(int degrees) { m_degrees = degrees; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
@@ -296,7 +302,8 @@ public:
                                      QObject* parent = nullptr);
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
+    bool undo() override;
 
 private:
     QWidget* m_mainWindow;
@@ -310,22 +317,22 @@ class ChangeViewModeCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    enum ViewMode { SinglePage, Continuous, FacingPages, BookView };
+    enum class ViewMode : std::uint8_t { SinglePage, Continuous, FacingPages, BookView };
 
     explicit ChangeViewModeCommand(ViewWidget* viewWidget, ViewMode mode,
                                    QObject* parent = nullptr);
 
     void setViewMode(ViewMode mode) { m_mode = mode; }
-    ViewMode viewMode() const { return m_mode; }
+    [[nodiscard]] ViewMode viewMode() const { return m_mode; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:
     ViewWidget* m_viewWidget;
     ViewMode m_mode;
-    ViewMode m_previousMode = SinglePage;
+    ViewMode m_previousMode = ViewMode::SinglePage;
 };
 
 /**
@@ -335,20 +342,20 @@ class ScrollToPositionCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    enum ScrollDirection { Top, Bottom, Left, Right };
+    enum class ScrollDirection : std::uint8_t { Top, Bottom, Left, Right };
 
     explicit ScrollToPositionCommand(ViewWidget* viewWidget,
                                      ScrollDirection direction,
                                      QObject* parent = nullptr);
 
     void setDirection(ScrollDirection dir) { m_direction = dir; }
-    void setPosition(int x, int y) {
-        m_x = x;
-        m_y = y;
+    void setPosition(int xpos, int ypos) {
+        m_x = xpos;
+        m_y = ypos;
     }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:

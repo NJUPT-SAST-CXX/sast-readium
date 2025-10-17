@@ -13,7 +13,7 @@ class OnboardingManagerImpl;
 /**
  * Onboarding steps definition
  */
-enum class OnboardingStep {
+enum class OnboardingStep : std::uint8_t {
     Welcome = 0,
     OpenFile,
     Navigation,
@@ -29,7 +29,7 @@ enum class OnboardingStep {
 /**
  * Onboarding tutorial categories
  */
-enum class TutorialCategory {
+enum class TutorialCategory : std::uint8_t {
     GettingStarted,
     BasicFeatures,
     AdvancedFeatures,
@@ -47,15 +47,15 @@ class OnboardingManager : public QObject {
 
 public:
     explicit OnboardingManager(QObject* parent = nullptr);
-    ~OnboardingManager();
+    ~OnboardingManager() override;
 
     // Singleton instance
     static OnboardingManager& instance();
 
     // Onboarding control
-    bool isFirstTimeUser() const;
-    bool isOnboardingCompleted() const;
-    bool isOnboardingActive() const;
+    [[nodiscard]] bool isFirstTimeUser() const;
+    [[nodiscard]] bool isOnboardingCompleted() const;
+    [[nodiscard]] bool isOnboardingActive() const;
 
     void startOnboarding();
     void stopOnboarding();
@@ -63,29 +63,29 @@ public:
     void skipOnboarding();
 
     // Step management
-    OnboardingStep currentStep() const;
+    [[nodiscard]] OnboardingStep currentStep() const;
     void nextStep();
     void previousStep();
     void jumpToStep(OnboardingStep step);
-    bool isStepCompleted(OnboardingStep step) const;
+    [[nodiscard]] bool isStepCompleted(OnboardingStep step) const;
     void markStepCompleted(OnboardingStep step);
 
     // Tutorial management
     void startTutorial(TutorialCategory category);
     void startSpecificTutorial(const QString& tutorialId);
-    QJsonArray getAvailableTutorials() const;
-    QJsonObject getTutorialInfo(const QString& tutorialId) const;
+    [[nodiscard]] QJsonArray getAvailableTutorials() const;
+    [[nodiscard]] QJsonObject getTutorialInfo(const QString& tutorialId) const;
 
     // Progress tracking
-    int getCompletedStepsCount() const;
-    int getTotalStepsCount() const;
-    float getProgressPercentage() const;
-    QList<OnboardingStep> getCompletedSteps() const;
-    QList<OnboardingStep> getRemainingSteps() const;
+    [[nodiscard]] int getCompletedStepsCount() const;
+    [[nodiscard]] int getTotalStepsCount() const;
+    [[nodiscard]] float getProgressPercentage() const;
+    [[nodiscard]] QList<OnboardingStep> getCompletedSteps() const;
+    [[nodiscard]] QList<OnboardingStep> getRemainingSteps() const;
 
     // Widget management
     void setOnboardingWidget(OnboardingWidget* widget);
-    OnboardingWidget* onboardingWidget() const;
+    [[nodiscard]] OnboardingWidget* onboardingWidget() const;
     void attachToWidget(QWidget* widget);
     void detachFromWidget();
 
@@ -95,10 +95,16 @@ public:
     void resetSettings();
 
     // User preferences
-    bool shouldShowTips() const;
+    [[nodiscard]] bool shouldShowTips() const;
     void setShowTips(bool show);
-    bool shouldShowOnStartup() const;
+    [[nodiscard]] bool shouldShowOnStartup() const;
     void setShowOnStartup(bool show);
+
+    // Deleted copy/move operations (public for better error messages)
+    OnboardingManager(const OnboardingManager&) = delete;
+    OnboardingManager& operator=(const OnboardingManager&) = delete;
+    OnboardingManager(OnboardingManager&&) = delete;
+    OnboardingManager& operator=(OnboardingManager&&) = delete;
 
     // Analytics (for improvement tracking)
     void trackStepStarted(OnboardingStep step);
@@ -138,12 +144,12 @@ private:
 
     std::unique_ptr<OnboardingManagerImpl> pImpl;
 
-    // Constants
-    static const QString SETTINGS_GROUP;
-    static const QString SETTINGS_FIRST_TIME_KEY;
-    static const QString SETTINGS_COMPLETED_KEY;
-    static const QString SETTINGS_COMPLETED_STEPS_KEY;
-    static const QString SETTINGS_SHOW_TIPS_KEY;
-    static const QString SETTINGS_SHOW_ON_STARTUP_KEY;
-    static const QString SETTINGS_ANALYTICS_KEY;
+    // Constants (using constexpr to avoid static initialization exceptions)
+    static constexpr const char* SETTINGS_GROUP = "Onboarding";
+    static constexpr const char* SETTINGS_FIRST_TIME_KEY = "FirstTimeUser";
+    static constexpr const char* SETTINGS_COMPLETED_KEY = "Completed";
+    static constexpr const char* SETTINGS_COMPLETED_STEPS_KEY = "CompletedSteps";
+    static constexpr const char* SETTINGS_SHOW_TIPS_KEY = "ShowTips";
+    static constexpr const char* SETTINGS_SHOW_ON_STARTUP_KEY = "ShowOnStartup";
+    static constexpr const char* SETTINGS_ANALYTICS_KEY = "Analytics";
 };

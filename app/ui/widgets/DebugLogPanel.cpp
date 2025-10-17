@@ -21,6 +21,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMutexLocker>
+#include "ToastNotification.h"
 #include <QOverload>
 #include <QProgressBar>
 #include <QPushButton>
@@ -1100,9 +1101,7 @@ void DebugLogPanel::scrollToBottom() {
 void DebugLogPanel::exportToFile(const QString& filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(
-            this, tr("Export Error"),
-            tr("Could not open file for writing: %1").arg(filePath));
+        TOAST_ERROR(this, tr("Could not open file for writing: %1").arg(filePath));
         return;
     }
 
@@ -1124,18 +1123,86 @@ void DebugLogPanel::exportToFile(const QString& filePath) {
 
     file.close();
 
-    QMessageBox::information(
-        this, tr("Export Complete"),
-        tr("Log exported successfully to: %1").arg(filePath));
+    TOAST_SUCCESS(this, tr("Log exported successfully to: %1").arg(filePath));
 }
 
 void DebugLogPanel::showSettingsDialog() {
-    // This would open a settings dialog for configuring the debug panel
-    // For now, just show a placeholder message
-    QMessageBox::information(
-        this, tr("Settings"),
-        tr("Debug panel settings dialog would be implemented here."));
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Debug Panel Settings"));
+    dialog.setModal(true);
+
+    QVBoxLayout* layout = new QVBoxLayout(&dialog);
+
+    // Max entries
+    QHBoxLayout* maxEntriesLayout = new QHBoxLayout();
+    QLabel* maxEntriesLabel = new QLabel(tr("Max entries:"));
+    QSpinBox* maxEntriesSpin = new QSpinBox();
+    maxEntriesSpin->setRange(100, 1000000);
+    maxEntriesSpin->setValue(m_config.maxLogEntries);
+    maxEntriesLayout->addWidget(maxEntriesLabel);
+    maxEntriesLayout->addWidget(maxEntriesSpin);
+
+    // Auto-scroll
+    QCheckBox* autoScrollBox = new QCheckBox(tr("Auto-scroll"));
+    autoScrollBox->setChecked(m_config.autoScroll);
+
+    // Word wrap
+    QCheckBox* wordWrapBox = new QCheckBox(tr("Word wrap"));
+    wordWrapBox->setChecked(m_config.wordWrap);
+
+    // Timestamp format
+    QHBoxLayout* tsLayout = new QHBoxLayout();
+    QLabel* tsLabel = new QLabel(tr("Timestamp format:"));
+    QLineEdit* tsEdit = new QLineEdit(m_config.timestampFormat);
+    tsLayout->addWidget(tsLabel);
+    tsLayout->addWidget(tsEdit);
+
+    // Update interval
+    QHBoxLayout* updateLayout = new QHBoxLayout();
+    QLabel* updateLabel = new QLabel(tr("Update interval (ms):"));
+    QSpinBox* updateSpin = new QSpinBox();
+    updateSpin->setRange(10, 5000);
+    updateSpin->setValue(m_config.updateIntervalMs);
+    updateLayout->addWidget(updateLabel);
+    updateLayout->addWidget(updateSpin);
+
+    // Batch size
+    QHBoxLayout* batchLayout = new QHBoxLayout();
+    QLabel* batchLabel = new QLabel(tr("Batch size:"));
+    QSpinBox* batchSpin = new QSpinBox();
+    batchSpin->setRange(1, 10000);
+    batchSpin->setValue(m_config.batchSize);
+    batchLayout->addWidget(batchLabel);
+    batchLayout->addWidget(batchSpin);
+
+    // Buttons
+    QDialogButtonBox* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+
+    layout->addLayout(maxEntriesLayout);
+    layout->addWidget(autoScrollBox);
+    layout->addWidget(wordWrapBox);
+    layout->addLayout(tsLayout);
+    layout->addLayout(updateLayout);
+    layout->addLayout(batchLayout);
+    layout->addWidget(buttons);
+
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        m_config.maxLogEntries = maxEntriesSpin->value();
+        m_config.autoScroll = autoScrollBox->isChecked();
+        m_config.wordWrap = wordWrapBox->isChecked();
+        m_config.timestampFormat = tsEdit->text();
+        m_config.updateIntervalMs = updateSpin->value();
+        m_config.batchSize = batchSpin->value();
+        applyConfiguration();
+        saveConfiguration();
+        emit configurationChanged();
+        TOAST_SUCCESS(this, tr("Settings updated"));
+    }
 }
+
 
 void DebugLogPanel::applyTheme() {
     // Apply theme-based styling to the debug panel
@@ -1461,3 +1528,4 @@ void DebugLogPanel::changeEvent(QEvent* event) {
     }
     QWidget::changeEvent(event);
 }
+

@@ -1,8 +1,15 @@
 #include <QColor>
 #include <QDateTime>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QObject>
 #include <QSignalSpy>
 #include <QStringList>
+#include <QTemporaryDir>
 #include <QtTest/QtTest>
 #include "../../app/search/SearchConfiguration.h"
 #include "../../app/search/SearchFeatures.h"
@@ -393,13 +400,51 @@ void SearchFeaturesTest::verifyHistoryEntry(
 }
 
 void SearchFeaturesTest::testFuzzySearchPerformance() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    QStringList tokens;
+    for (int i = 0; i < 500; ++i) {
+        tokens << QString("test%1").arg(i)
+               << QString("tset%1").arg(i)
+               << QString("sample%1").arg(i);
+    }
+    QString largeText = tokens.join(' ');
+
+    QElapsedTimer timer;
+    timer.start();
+
+    QList<SearchFeatures::FuzzyMatch> matches =
+        m_features->fuzzySearch(largeText, "test", 2, 20);
+
+    qint64 elapsed = timer.elapsed();
+
+    QVERIFY(elapsed < 2000);
+    QVERIFY(!matches.isEmpty());
+    QVERIFY(matches.size() <= 20);
+
+    for (int i = 1; i < matches.size(); ++i) {
+        QVERIFY(matches[i - 1].similarity >= matches[i].similarity);
+    }
 }
 
 void SearchFeaturesTest::testHighlightInfo() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    QList<SearchFeatures::HighlightInfo> highlights =
+        m_features->generateHighlights(m_testResults, 1);
+
+    QCOMPARE(highlights.size(), m_testResults.size());
+
+    const SearchFeatures::HighlightInfo& current = highlights.first();
+    QVERIFY(current.isCurrentResult);
+    QCOMPARE(current.text, m_testResults[1].matchedText);
+    QCOMPARE(current.color, m_features->getCurrentHighlightColor());
+    QVERIFY(current.rect.isValid());
+    QVERIFY(current.priority > 0);
+
+    for (int i = 1; i < highlights.size(); ++i) {
+        const auto& highlight = highlights[i];
+        QVERIFY(!highlight.isCurrentResult);
+        QCOMPARE(highlight.color, m_features->getNormalHighlightColor());
+        QVERIFY(highlight.rect.isValid());
+        QVERIFY(highlight.priority > 0);
+    }
 }
 
 void SearchFeaturesTest::testClearHistory() {
@@ -410,93 +455,313 @@ void SearchFeaturesTest::testClearHistory() {
 }
 
 void SearchFeaturesTest::testRemoveHistoryEntry() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    SearchOptions options;
+    m_features->clearHistory();
+    m_features->addToHistory("query1", options, 5, 100);
+    m_features->addToHistory("query2", options, 3, 150);
+    m_features->addToHistory("query3", options, 8, 200);
+
+    QSignalSpy historySpy(m_features, &SearchFeatures::historyUpdated);
+    QList<SearchFeatures::HistoryEntry> history = m_features->getSearchHistory();
+    QCOMPARE(history.size(), 3);
+
+    m_features->removeHistoryEntry(1);
+    QVERIFY(historySpy.count() >= 1);
+
+    QList<SearchFeatures::HistoryEntry> updatedHistory =
+        m_features->getSearchHistory();
+    QCOMPARE(updatedHistory.size(), 2);
+    QVERIFY(updatedHistory.first().query != "query2");
+    QVERIFY(updatedHistory.last().query != "query2");
 }
 
 void SearchFeaturesTest::testGenerateSuggestions() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    QStringList corpus = {"search engine optimization",
+                          "advanced search features",
+                          "search history management",
+                          "testing utilities"};
+
+    m_features->updateSuggestionModel(corpus);
+
+    QStringList suggestions = m_features->generateSuggestions("sear", 5);
+    QVERIFY(!suggestions.isEmpty());
+    QVERIFY(suggestions.contains("search"));
+
+    QStringList fuzzySuggestions = m_features->generateSuggestions("srch", 5);
+    QVERIFY(!fuzzySuggestions.isEmpty());
 }
 
 void SearchFeaturesTest::testQueryCompletions() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    QStringList corpus = {"document", "documentation", "documented",
+                          "different"};
+    m_features->updateSuggestionModel(corpus);
+
+    QStringList completions = m_features->getQueryCompletions("doc", 5);
+    QVERIFY(!completions.isEmpty());
+    QVERIFY(completions.first().startsWith("doc"));
+
+    QStringList noMatch = m_features->getQueryCompletions("xyz", 5);
+    QVERIFY(noMatch.isEmpty());
 }
 
 void SearchFeaturesTest::testUpdateSuggestionModel() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    QStringList corpus = {"apple pie",    "apple tart",   "apply rules",
+                          "banana bread", "band practice", "bandage"};
+
+    m_features->updateSuggestionModel(corpus);
+
+    QStringList appSuggestions = m_features->generateSuggestions("app", 5);
+    QVERIFY(appSuggestions.contains("apple"));
+    QVERIFY(appSuggestions.contains("apply"));
+
+    QStringList bandSuggestions = m_features->generateSuggestions("ban", 5);
+    // Note: The actual implementation may use fuzzy matching or prefix matching
+    // Just verify we get some suggestions back
+    QVERIFY(bandSuggestions.size() > 0);
+    // At least one of the "ban" words should be in the suggestions
+    bool hasBanWord = bandSuggestions.contains("banana") ||
+                      bandSuggestions.contains("band") ||
+                      bandSuggestions.contains("bandage");
+    QVERIFY(hasBanWord);
 }
 
 void SearchFeaturesTest::testFilterResults() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    QList<SearchResult> results;
+    results.append(createTestResult(0, "test", "This is a test document", 5));
+    results.append(createTestResult(1, "example", "Example entry", 10));
+    results.append(createTestResult(2, "feature", "Feature rich content", 15));
+
+    QList<SearchResult> filtered = m_features->filterResults(results, "test");
+    QCOMPARE(filtered.size(), 1);
+    QCOMPARE(filtered.first().matchedText, QString("test"));
+
+    QList<SearchResult> contextFiltered =
+        m_features->filterResults(results, "Feature");
+    QCOMPARE(contextFiltered.size(), 1);
+    QCOMPARE(contextFiltered.first().contextText,
+             QString("Feature rich content"));
 }
 
 void SearchFeaturesTest::testSortResults() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    QList<SearchResult> results;
+    results.append(createTestResult(2, "alpha", "", 30));
+    results.append(createTestResult(0, "beta", "", 10));
+    results.append(createTestResult(1, "gamma", "", 20));
+
+    QList<SearchResult> byPage =
+        m_features->sortResults(results, SearchFeatures::ByPageNumber, true);
+    QCOMPARE(byPage[0].pageNumber, 0);
+    QCOMPARE(byPage[1].pageNumber, 1);
+    QCOMPARE(byPage[2].pageNumber, 2);
+
+    QList<SearchResult> byPosition =
+        m_features->sortResults(results, SearchFeatures::ByPosition, false);
+    QCOMPARE(byPosition[0].textPosition, 30);
+    QCOMPARE(byPosition[1].textPosition, 20);
+    QCOMPARE(byPosition[2].textPosition, 10);
 }
 
 void SearchFeaturesTest::testSortCriteria() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    QList<SearchResult> results;
+    results.append(createTestResult(0, "short", "", 5));
+    auto medium = createTestResult(0, "mediumlength", "", 15);
+    medium.textLength = medium.matchedText.length();
+    results.append(medium);
+    auto longRes = createTestResult(0, "averylongmatchingstring", "", 25);
+    longRes.textLength = longRes.matchedText.length();
+    results.append(longRes);
+
+    QList<SearchResult> byLength =
+        m_features->sortResults(results, SearchFeatures::ByLength, true);
+    QCOMPARE(byLength.first().matchedText, QString("short"));
+    QCOMPARE(byLength.last().matchedText,
+             QString("averylongmatchingstring"));
 }
 
 void SearchFeaturesTest::testSearchStatistics() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    m_features->resetStatistics();
+    SearchOptions options;
+    m_features->addToHistory("query1", options, 5, 100, true);
+    m_features->addToHistory("query2", options, 0, 50, false);
+    m_features->addToHistory("query3", options, 10, 200, true);
+    m_features->addToHistory("query1", options, 3, 150, true);
+
+    SearchFeatures::SearchStatistics stats = m_features->getSearchStatistics();
+
+    QCOMPARE(stats.totalSearches, 4);
+    QCOMPARE(stats.successfulSearches, 3);
+    QCOMPARE(stats.averageSearchTime, 125.0);
+    QCOMPARE(stats.averageResultCount, 4.5);
+    QVERIFY(stats.mostPopularQueries.contains("query1"));
+    QCOMPARE(stats.queryFrequency.value("query1"), 2);
+    QVERIFY(stats.lastSearchTime.isValid());
 }
 
 void SearchFeaturesTest::testResetStatistics() {
+    SearchOptions options;
+    m_features->addToHistory("temp", options, 2, 40, true);
+    QVERIFY(m_features->getSearchStatistics().totalSearches > 0);
+
     m_features->resetStatistics();
-    QVERIFY(true);
+    SearchFeatures::SearchStatistics stats = m_features->getSearchStatistics();
+    QCOMPARE(stats.totalSearches, 0);
+    QCOMPARE(stats.successfulSearches, 0);
+    QCOMPARE(stats.averageSearchTime, 0.0);
 }
 
 void SearchFeaturesTest::testStatisticsTracking() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    m_features->resetStatistics();
+    QSignalSpy statsSpy(m_features, &SearchFeatures::statisticsUpdated);
+
+    SearchFeatures::SearchStatistics initialStats =
+        m_features->getSearchStatistics();
+    QCOMPARE(initialStats.totalSearches, 0);
+    QCOMPARE(initialStats.successfulSearches, 0);
+
+    SearchOptions options;
+    m_features->addToHistory("test1", options, 5, 100, true);
+    QVERIFY(statsSpy.count() >= 1);
+
+    SearchFeatures::SearchStatistics stats1 =
+        m_features->getSearchStatistics();
+    QCOMPARE(stats1.totalSearches, 1);
+    QCOMPARE(stats1.successfulSearches, 1);
+
+    m_features->addToHistory("test2", options, 0, 50, false);
+    QVERIFY(statsSpy.count() >= 2);
+
+    SearchFeatures::SearchStatistics stats2 =
+        m_features->getSearchStatistics();
+    QCOMPARE(stats2.totalSearches, 2);
+    QCOMPARE(stats2.successfulSearches, 1);
+    QCOMPARE(stats2.averageSearchTime, 75.0);
+    QCOMPARE(stats2.averageResultCount, 2.5);
 }
 
 void SearchFeaturesTest::testExportSearchHistory() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    // Add some history
+    SearchOptions options;
+    m_features->addToHistory("export_test1", options, 5, 100);
+    m_features->addToHistory("export_test2", options, 3, 150);
+
+    // Export to temporary file
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString tempFile = tempDir.filePath("history_export.json");
+
+    bool exportSuccess = m_features->exportSearchHistory(tempFile);
+    QVERIFY(exportSuccess);
+
+    // Verify file was created
+    QVERIFY(QFile::exists(tempFile));
+
+    // Verify file has content
+    QFile file(tempFile);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QByteArray content = file.readAll();
+    file.close();
+
+    QVERIFY(content.size() > 0);
+
+    // Verify it's valid JSON
+    QJsonDocument doc = QJsonDocument::fromJson(content);
+    QVERIFY(!doc.isNull());
+
+    QVERIFY(QFile::remove(tempFile));
 }
 
 void SearchFeaturesTest::testImportSearchHistory() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    // First export some history
+    SearchOptions options;
+    m_features->clearHistory();
+    m_features->addToHistory("import_test1", options, 5, 100);
+    m_features->addToHistory("import_test2", options, 3, 150);
+
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+    QString tempFile = tempDir.filePath("history_import.json");
+    bool exportSuccess = m_features->exportSearchHistory(tempFile);
+    QVERIFY(exportSuccess);
+
+    // Clear history
+    m_features->clearHistory();
+    QList<SearchFeatures::HistoryEntry> emptyHistory = m_features->getSearchHistory();
+    QCOMPARE(emptyHistory.size(), 0);
+
+    // Import the history back
+    bool importSuccess = m_features->importSearchHistory(tempFile);
+    QVERIFY(importSuccess);
+
+    // Verify history was restored
+    QList<SearchFeatures::HistoryEntry> restoredHistory = m_features->getSearchHistory();
+    QVERIFY(restoredHistory.size() >= 2);
+
+    // Verify the queries are present
+    bool foundTest1 = false, foundTest2 = false;
+    for (const auto& entry : restoredHistory) {
+        if (entry.query == "import_test1") foundTest1 = true;
+        if (entry.query == "import_test2") foundTest2 = true;
+    }
+    QVERIFY(foundTest1);
+    QVERIFY(foundTest2);
+
+    QVERIFY(QFile::remove(tempFile));
 }
 
 void SearchFeaturesTest::testExportSearchResults() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    QList<SearchResult> results = m_testResults;
+
+    QString json = m_features->exportSearchResults(results, "json");
+    QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
+    QVERIFY(doc.isArray());
+    QCOMPARE(doc.array().size(), results.size());
+
+    QString csv = m_features->exportSearchResults(results, "csv");
+    QVERIFY(csv.contains("Page,Position"));
+    QVERIFY(csv.count('\n') >= results.size());
+
+    QString plain = m_features->exportSearchResults(results, "text");
+    QVERIFY(plain.contains("Page"));
+    QVERIFY(plain.contains("Context"));
 }
 
 void SearchFeaturesTest::testFuzzySearchCompletedSignal() {
     QSignalSpy spy(m_features, &SearchFeatures::fuzzySearchCompleted);
     QVERIFY(spy.isValid());
+    m_features->fuzzySearch(m_testText, "test", 2, 5);
+    QCOMPARE(spy.count(), 1);
 }
 
 void SearchFeaturesTest::testHighlightsGeneratedSignal() {
     QSignalSpy spy(m_features, &SearchFeatures::highlightsGenerated);
     QVERIFY(spy.isValid());
+    m_features->generateHighlights(m_testResults, 0);
+    QCOMPARE(spy.count(), 1);
 }
 
 void SearchFeaturesTest::testHistoryUpdatedSignal() {
     QSignalSpy spy(m_features, &SearchFeatures::historyUpdated);
     QVERIFY(spy.isValid());
+    SearchOptions options;
+    m_features->addToHistory("signal-test", options, 1, 10);
+    QCOMPARE(spy.count(), 1);
 }
 
 void SearchFeaturesTest::testSuggestionsReadySignal() {
     QSignalSpy spy(m_features, &SearchFeatures::suggestionsReady);
     QVERIFY(spy.isValid());
+    QStringList corpus = {"search", "searchable"};
+    m_features->updateSuggestionModel(corpus);
+    m_features->generateSuggestions("sear", 5);
+    QVERIFY(spy.count() >= 1);
 }
 
 void SearchFeaturesTest::testStatisticsUpdatedSignal() {
     QSignalSpy spy(m_features, &SearchFeatures::statisticsUpdated);
     QVERIFY(spy.isValid());
+    SearchOptions options;
+    m_features->addToHistory("stats-signal", options, 2, 30, true);
+    QCOMPARE(spy.count(), 1);
 }
 
 QTEST_MAIN(SearchFeaturesTest)

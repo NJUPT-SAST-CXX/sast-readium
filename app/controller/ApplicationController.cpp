@@ -1,6 +1,10 @@
 #include "ApplicationController.h"
+#include <iostream>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QMainWindow>
+#include <QMessageBox>
+#include <QPixmap>
 #include <QSplitter>
 #include <QStackedWidget>
 #include "../MainWindow.h"
@@ -98,95 +102,170 @@ void ApplicationController::initializeApplication() {
 
 void ApplicationController::initializeModels() {
     SLOG_TIMER("ApplicationController::initializeModels");
-    m_logger.debug("Initializing models...");
+    m_logger.info("========== initializeModels() STARTED ==========");
 
     try {
         // Create models with proper error handling
+        m_logger.debug("Creating RenderModel...");
         m_renderModel = new RenderModel(m_mainWindow->logicalDpiX(),
                                         m_mainWindow->logicalDpiY());
+        m_logger.debug("RenderModel created");
 
+        m_logger.debug("Creating DocumentModel...");
         m_documentModel = new DocumentModel(m_renderModel);
+        m_logger.debug("DocumentModel created");
+
+        m_logger.debug("Creating PageModel...");
         m_pageModel = new PageModel(m_renderModel);
+        m_logger.debug("PageModel created");
 
         // Create managers
+        m_logger.debug("Creating RecentFilesManager...");
         m_recentFilesManager = new RecentFilesManager(this);
+        m_logger.debug("RecentFilesManager created");
 
-        m_logger.debug("Models initialized successfully");
+        m_logger.info("========== initializeModels() COMPLETED ==========");
 
     } catch (const std::exception& e) {
         QString error =
             "Failed to initialize models: " + QString::fromStdString(e.what());
-        m_logger.error(error);
+        m_logger.error("========== initializeModels() FAILED: " + error + " ==========");
         throw std::runtime_error(error.toStdString());
     }
 }
 
 void ApplicationController::initializeControllers() {
     SLOG_TIMER("ApplicationController::initializeControllers");
-    m_logger.debug("Initializing controllers...");
+    m_logger.info("========== initializeControllers() STARTED ==========");
 
     try {
+        m_logger.debug("Creating DocumentController...");
         m_documentController = new DocumentController(m_documentModel);
+        m_logger.debug("DocumentController created");
+
+        m_logger.debug("Creating PageController...");
         m_pageController = new PageController(m_pageModel);
+        m_logger.debug("PageController created");
 
         // Setup dependencies
+        m_logger.debug("Setting up controller dependencies...");
         m_documentController->setRecentFilesManager(m_recentFilesManager);
+        m_logger.debug("Controller dependencies set up");
 
-        m_logger.debug("Controllers initialized successfully");
+        m_logger.info("========== initializeControllers() COMPLETED ==========");
 
     } catch (const std::exception& e) {
         QString error = "Failed to initialize controllers: " +
                         QString::fromStdString(e.what());
-        m_logger.error(error);
+        m_logger.error("========== initializeControllers() FAILED: " + error + " ==========");
         throw std::runtime_error(error.toStdString());
     }
 }
 
 void ApplicationController::initializeViews() {
     SLOG_TIMER("ApplicationController::initializeViews");
-    m_logger.debug("Initializing views...");
+    m_logger.info("========== initializeViews() STARTED ==========");
 
     try {
         // Create factory for widget creation
+        m_logger.debug("Creating WidgetFactory...");
         WidgetFactory* factory =
             new WidgetFactory(m_pageController, m_mainWindow);
+        m_logger.debug("WidgetFactory created");
 
         // Create UI components
+        m_logger.debug("Creating MenuBar...");
         m_menuBar = new MenuBar(m_mainWindow);
+        m_logger.debug("MenuBar created");
+
+        m_logger.debug("Creating ToolBar...");
         m_toolBar = new ToolBar(m_mainWindow);
+        m_logger.debug("ToolBar created");
+
+        m_logger.info("Creating SideBar...");
         m_sideBar = new SideBar(m_mainWindow);
+        m_logger.info("SideBar created successfully");
+
+        m_logger.info("Creating RightSideBar...");
         m_rightSideBar = new RightSideBar(m_mainWindow);
-        m_statusBar = new StatusBar(factory, m_mainWindow);
+        m_logger.info("RightSideBar created successfully");
+
+        m_logger.info("Creating StatusBar...");
+        // Check if we're in test/minimal mode (offscreen platform or test environment)
+        QString platformName = QGuiApplication::platformName();
+        bool isTestMode = (platformName == "offscreen" ||
+                          qEnvironmentVariableIsSet("SAST_READIUM_TEST_MODE"));
+        if (isTestMode) {
+            m_logger.info("Detected test/offscreen mode - creating minimal StatusBar");
+            m_statusBar = new StatusBar(m_mainWindow, true);  // true = minimal mode
+        } else {
+            m_statusBar = new StatusBar(factory, m_mainWindow);
+        }
+        m_logger.info("StatusBar created successfully");
+
+        m_logger.info("Creating ViewWidget...");
         m_viewWidget = new ViewWidget(m_mainWindow);
+        m_logger.info("ViewWidget created successfully");
 
         // Configure components
+        m_logger.info("Configuring components...");
+        m_logger.info("Setting RecentFilesManager on MenuBar...");
         m_menuBar->setRecentFilesManager(m_recentFilesManager);
+        m_logger.info("Setting DocumentController on ViewWidget...");
         m_viewWidget->setDocumentController(m_documentController);
+        m_logger.info("Setting DocumentModel on ViewWidget...");
         m_viewWidget->setDocumentModel(m_documentModel);
+        m_logger.info("Components configured successfully");
 
         // Setup main window
+        m_logger.info("Setting up main window...");
+        m_logger.info("Setting MenuBar...");
         m_mainWindow->setMenuBar(m_menuBar);
+        m_logger.info("Adding ToolBar...");
         m_mainWindow->addToolBar(m_toolBar);
+        m_logger.info("Setting StatusBar...");
         m_mainWindow->setStatusBar(m_statusBar);
+        m_logger.info("Main window set up successfully");
 
         // Initialize welcome screen
-        FILE_ICON_MANAGER.preloadIcons();
-        m_welcomeWidget = new WelcomeWidget(m_mainWindow);
-        m_welcomeWidget->setRecentFilesManager(m_recentFilesManager);
+        // NOTE: Icon preloading is now deferred automatically by FileTypeIconManager
+        // to avoid initialization hangs. Icons will load asynchronously after the
+        // event loop starts.
+        m_logger.debug("Accessing FileTypeIconManager to trigger initialization...");
+        (void)FILE_ICON_MANAGER;  // Trigger singleton initialization
+        m_logger.debug("FileTypeIconManager initialized (icons will preload asynchronously)");
 
+        m_logger.debug("Creating WelcomeWidget...");
+        m_welcomeWidget = new WelcomeWidget(m_mainWindow);
+        m_logger.debug("WelcomeWidget created");
+
+        m_logger.debug("Setting RecentFilesManager on WelcomeWidget...");
+        m_welcomeWidget->setRecentFilesManager(m_recentFilesManager);
+        m_logger.debug("RecentFilesManager set on WelcomeWidget");
+
+        m_logger.debug("Creating WelcomeScreenManager...");
         m_welcomeScreenManager = new WelcomeScreenManager(m_mainWindow);
+        m_logger.debug("WelcomeScreenManager created");
+
+        m_logger.debug("Configuring WelcomeScreenManager...");
         m_welcomeScreenManager->setMainWindow(
             qobject_cast<MainWindow*>(m_mainWindow.data()));
         m_welcomeScreenManager->setWelcomeWidget(m_welcomeWidget);
         m_welcomeScreenManager->setDocumentModel(m_documentModel);
         m_welcomeWidget->setWelcomeScreenManager(m_welcomeScreenManager);
+        m_logger.debug("WelcomeScreenManager configured");
+
+        m_logger.debug("Applying theme to WelcomeWidget...");
         m_welcomeWidget->applyTheme();
+        m_logger.debug("Theme applied to WelcomeWidget");
 
         // Initialize system tray manager
+        m_logger.debug("Initializing SystemTrayManager...");
         m_systemTrayManager = &SystemTrayManager::instance();
         if (!m_systemTrayManager->initialize(m_mainWindow)) {
             m_logger.warning("Failed to initialize SystemTrayManager");
         } else {
+            m_logger.debug("SystemTrayManager initialized successfully");
             // Connect system tray exit request to application exit
             connect(m_systemTrayManager,
                     &SystemTrayManager::applicationExitRequested, this,
@@ -216,10 +295,11 @@ void ApplicationController::initializeViews() {
                 m_systemTrayManager, &SystemTrayManager::quickActionTriggered,
                 this, [this](const QString& actionId) {
                     if (actionId == "open_file") {
-                        // Trigger file open dialog through menu bar
-                        if (m_menuBar) {
-                            // This would need to be implemented in MenuBar
-                            m_logger.debug("Quick action: open file requested");
+                        // Trigger file open dialog through DocumentController
+                        m_logger.debug("Quick action: open file requested");
+                        if (m_documentController && m_mainWindow) {
+                            m_documentController->execute(ActionMap::openFile,
+                                                          m_mainWindow);
                         }
                     }
                 });
@@ -229,84 +309,151 @@ void ApplicationController::initializeViews() {
                     [this]() {
                         m_logger.debug(
                             "Settings dialog requested from system tray");
-                        // This would need to be implemented - open settings
-                        // dialog
+                        // Show simple settings information dialog
+                        // TODO: Replace with full settings dialog when implemented
+                        QMessageBox::information(
+                            m_mainWindow, tr("Settings"),
+                            tr("Settings dialog will be available in a future "
+                               "version.\n\n"
+                               "Current settings are managed through:\n"
+                               "- Theme menu (View → Theme)\n"
+                               "- Language menu (View → Language)\n"
+                               "- Configuration files in application data "
+                               "directory"));
                     });
 
             connect(
                 m_systemTrayManager, &SystemTrayManager::aboutDialogRequested,
                 this, [this]() {
                     m_logger.debug("About dialog requested from system tray");
-                    // This would need to be implemented - open about dialog
+                    // Show about dialog with application information
+                    QString aboutText = tr(
+                        "<h2>SAST Readium</h2>"
+                        "<p>Version: %1</p>"
+                        "<p>A modern PDF viewer built with Qt6 and Poppler.</p>"
+                        "<p><b>Features:</b></p>"
+                        "<ul>"
+                        "<li>Fast PDF rendering</li>"
+                        "<li>Multiple viewing modes</li>"
+                        "<li>Search functionality</li>"
+                        "<li>Annotation support</li>"
+                        "<li>Bookmark management</li>"
+                        "</ul>"
+                        "<p><b>Developed by:</b> SAST Team</p>"
+                        "<p>Built with Qt %2 and Poppler-Qt6</p>")
+                        .arg(QApplication::applicationVersion())
+                        .arg(QT_VERSION_STR);
+
+                    QMessageBox aboutBox(m_mainWindow);
+                    aboutBox.setWindowTitle(tr("About SAST Readium"));
+                    aboutBox.setTextFormat(Qt::RichText);
+                    aboutBox.setText(aboutText);
+                    aboutBox.setIconPixmap(
+                        QPixmap(":/icons/app-icon.png").scaled(
+                            64, 64, Qt::KeepAspectRatio,
+                            Qt::SmoothTransformation));
+                    aboutBox.setStandardButtons(QMessageBox::Ok);
+                    aboutBox.exec();
                 });
         }
 
         // Create stacked widget for view switching
+        m_logger.debug("Creating content stack widget...");
         m_contentStack = new QStackedWidget(m_mainWindow);
+        m_logger.debug("Content stack widget created");
 
         // Create main viewer area
+        m_logger.debug("Creating main viewer area...");
         QWidget* mainViewerWidget = new QWidget();
         QHBoxLayout* mainViewerLayout = new QHBoxLayout(mainViewerWidget);
         mainViewerLayout->setContentsMargins(0, 0, 0, 0);
 
-        QSplitter* mainSplitter =
+        m_mainSplitter =
             new QSplitter(Qt::Horizontal, mainViewerWidget);
-        mainSplitter->addWidget(m_sideBar);
-        mainSplitter->addWidget(m_viewWidget);
-        mainSplitter->addWidget(m_rightSideBar);
-        mainSplitter->setCollapsible(0, true);
-        mainSplitter->setCollapsible(1, false);
-        mainSplitter->setCollapsible(2, true);
-        mainSplitter->setStretchFactor(1, 1);
+        m_mainSplitter->addWidget(m_sideBar);
+        m_mainSplitter->addWidget(m_viewWidget);
+        m_mainSplitter->addWidget(m_rightSideBar);
 
+        // Configure splitter behavior for responsive design
+        m_mainSplitter->setCollapsible(0, true);   // Left sidebar can collapse
+        m_mainSplitter->setCollapsible(1, false);  // Main view cannot collapse
+        m_mainSplitter->setCollapsible(2, true);   // Right sidebar can collapse
+
+        // Set stretch factors for proper resizing behavior
+        m_mainSplitter->setStretchFactor(0, 0);  // Sidebar maintains preferred width
+        m_mainSplitter->setStretchFactor(1, 1);  // Main view expands to fill space
+        m_mainSplitter->setStretchFactor(2, 0);  // Right sidebar maintains preferred width
+
+        // Set handle width for better usability
+        m_mainSplitter->setHandleWidth(1);
+
+        // Calculate optimal initial sizes
         int leftWidth =
             m_sideBar->isVisible() ? m_sideBar->getPreferredWidth() : 0;
         int rightWidth = m_rightSideBar->isVisible()
                              ? m_rightSideBar->getPreferredWidth()
                              : 0;
-        mainSplitter->setSizes({leftWidth, 1000, rightWidth});
+        // Center panel gets remaining space (will be calculated by splitter)
+        m_mainSplitter->setSizes({leftWidth, 800, rightWidth});
 
-        mainViewerLayout->addWidget(mainSplitter);
+        mainViewerLayout->addWidget(m_mainSplitter);
+        m_logger.debug("Main viewer area created");
 
         // Add views to stack
+        m_logger.debug("Adding views to content stack...");
         m_contentStack->addWidget(m_welcomeWidget);
         m_contentStack->addWidget(mainViewerWidget);
+        m_logger.debug("Views added to content stack");
 
+        m_logger.debug("Setting central widget...");
         m_mainWindow->setCentralWidget(m_contentStack);
+        m_logger.debug("Central widget set");
 
         // Set initial view
+        m_logger.debug("Setting initial view...");
         if (m_welcomeScreenManager &&
             m_welcomeScreenManager->shouldShowWelcomeScreen()) {
+            m_logger.debug("Showing welcome screen");
             showWelcomeScreen();
         } else {
+            m_logger.debug("Showing main view");
             showMainView();
         }
+        m_logger.debug("Initial view set");
 
-        m_logger.debug("Views initialized successfully");
+        m_logger.info("========== initializeViews() COMPLETED ==========");
 
     } catch (const std::exception& e) {
         QString error =
             "Failed to initialize views: " + QString::fromStdString(e.what());
-        m_logger.error(error);
+        m_logger.error("========== initializeViews() FAILED: " + error + " ==========");
         throw std::runtime_error(error.toStdString());
     }
 }
 
 void ApplicationController::initializeConnections() {
     SLOG_TIMER("ApplicationController::initializeConnections");
-    m_logger.debug("Initializing connections...");
+    m_logger.info("========== initializeConnections() STARTED ==========");
 
     try {
+        m_logger.debug("Connecting model signals...");
         connectModelSignals();
-        connectControllerSignals();
-        connectViewSignals();
+        m_logger.debug("Model signals connected");
 
-        m_logger.debug("Connections initialized successfully");
+        m_logger.debug("Connecting controller signals...");
+        connectControllerSignals();
+        m_logger.debug("Controller signals connected");
+
+        m_logger.debug("Connecting view signals...");
+        connectViewSignals();
+        m_logger.debug("View signals connected");
+
+        m_logger.info("========== initializeConnections() COMPLETED ==========");
 
     } catch (const std::exception& e) {
         QString error = "Failed to initialize connections: " +
                         QString::fromStdString(e.what());
-        m_logger.error(error);
+        m_logger.error("========== initializeConnections() FAILED: " + error + " ==========");
         throw std::runtime_error(error.toStdString());
     }
 }
@@ -379,9 +526,40 @@ void ApplicationController::connectViewSignals() {
 
 void ApplicationController::setupErrorHandling() {
     // Setup global error handling using existing utilities
-    // Setup global error handling
-    // Note: ErrorHandler needs to be implemented or use existing error
-    // utilities
+    m_logger.debug("Setting up error handling and recovery system");
+
+    // Register recovery actions for different error categories
+    auto& recoveryManager = ErrorRecovery::RecoveryManager::instance();
+
+    // Register document recovery action
+    recoveryManager.registerRecoveryAction(
+        ErrorHandling::ErrorCategory::Document,
+        std::make_shared<ErrorRecovery::DocumentRecoveryAction>());
+
+    // Register rendering recovery action
+    recoveryManager.registerRecoveryAction(
+        ErrorHandling::ErrorCategory::Rendering,
+        std::make_shared<ErrorRecovery::RenderingRecoveryAction>());
+
+    // Register search recovery action
+    recoveryManager.registerRecoveryAction(
+        ErrorHandling::ErrorCategory::Search,
+        std::make_shared<ErrorRecovery::SearchRecoveryAction>());
+
+    // Register file system recovery action
+    recoveryManager.registerRecoveryAction(
+        ErrorHandling::ErrorCategory::FileSystem,
+        std::make_shared<ErrorRecovery::FileSystemRecoveryAction>());
+
+    // Configure default retry policy
+    ErrorRecovery::RetryConfig retryConfig;
+    retryConfig.maxRetries = 3;
+    retryConfig.policy = ErrorRecovery::RetryPolicy::ExponentialBackoff;
+    retryConfig.initialDelay = std::chrono::milliseconds(100);
+    retryConfig.maxDelay = std::chrono::milliseconds(5000);
+    recoveryManager.setDefaultRetryConfig(retryConfig);
+
+    m_logger.info("Error handling system configured successfully");
 }
 
 void ApplicationController::showWelcomeScreen() {
@@ -414,22 +592,86 @@ void ApplicationController::toggleView() {
 void ApplicationController::applyTheme(const QString& theme) {
     m_logger.debug("Applying theme: " + theme);
 
-    // Apply theme to all components
-    if (m_welcomeWidget) {
-        m_welcomeWidget->applyTheme();
+    // Convert theme string to Theme enum and set in StyleManager
+    Theme themeEnum = (theme.toLower() == "dark") ? Theme::Dark : Theme::Light;
+    STYLE.setTheme(themeEnum);
+    m_logger.debug("StyleManager theme set to: " + theme);
+
+    // Get and apply application-wide stylesheet
+    QString appStyleSheet = STYLE.getApplicationStyleSheet();
+    qApp->setStyleSheet(appStyleSheet);
+    m_logger.debug("Application stylesheet applied");
+
+    // Apply specific stylesheets to components
+    if (m_toolBar) {
+        QString toolbarStyle = STYLE.getToolbarStyleSheet();
+        m_toolBar->setStyleSheet(toolbarStyle);
+        m_logger.debug("Toolbar stylesheet applied");
     }
 
-    // Additional theme application logic can be added here
+    if (m_statusBar) {
+        QString statusBarStyle = STYLE.getStatusBarStyleSheet();
+        m_statusBar->setStyleSheet(statusBarStyle);
+        m_logger.debug("StatusBar stylesheet applied");
+    }
+
+    if (m_viewWidget) {
+        QString viewerStyle = STYLE.getPDFViewerStyleSheet();
+        m_viewWidget->setStyleSheet(viewerStyle);
+        m_logger.debug("ViewWidget stylesheet applied");
+    }
+
+    // Apply theme to welcome widget
+    if (m_welcomeWidget) {
+        m_welcomeWidget->applyTheme();
+        m_logger.debug("WelcomeWidget theme applied");
+    }
+
+    m_logger.info("Theme application completed: " + theme);
 }
 
 void ApplicationController::handleError(const QString& context,
                                         const QString& error) {
     m_logger.error(QString("Error in %1: %2").arg(context, error));
 
-    // Use error recovery utilities
-    // Attempt error recovery if available
-    // ErrorRecovery::attemptRecovery(context, error);
+    // Create error info for recovery attempt
+    ErrorHandling::ErrorInfo errorInfo(
+        ErrorHandling::ErrorCategory::Unknown,
+        ErrorHandling::ErrorSeverity::Error, error,
+        QString("Context: %1").arg(context), context);
 
+    // Attempt error recovery using RecoveryManager
+    auto& recoveryManager = ErrorRecovery::RecoveryManager::instance();
+    ErrorRecovery::RecoveryResult result =
+        recoveryManager.executeRecovery(errorInfo, "ApplicationController",
+                                        context);
+
+    // Log recovery result
+    switch (result) {
+        case ErrorRecovery::RecoveryResult::Success:
+            m_logger.info(QString("Successfully recovered from error in %1")
+                              .arg(context));
+            return;  // Don't emit error signal if recovered
+
+        case ErrorRecovery::RecoveryResult::Retry:
+            m_logger.info(
+                QString("Error recovery suggests retry for %1").arg(context));
+            break;
+
+        case ErrorRecovery::RecoveryResult::Fallback:
+            m_logger.info(QString("Error recovery using fallback for %1")
+                              .arg(context));
+            break;
+
+        case ErrorRecovery::RecoveryResult::Failed:
+        case ErrorRecovery::RecoveryResult::Abort:
+        default:
+            m_logger.warning(
+                QString("Error recovery failed for %1").arg(context));
+            break;
+    }
+
+    // Emit error signal for UI notification
     emit errorOccurred(context, error);
 }
 

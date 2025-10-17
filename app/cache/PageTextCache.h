@@ -45,6 +45,7 @@
  */
 class PageTextCache : public QObject, public ICacheComponent {
     Q_OBJECT
+    Q_DISABLE_COPY_MOVE(PageTextCache)
 
 public:
     /**
@@ -135,33 +136,33 @@ public:
      * @brief Gets the maximum cache size
      * @return Maximum number of cache entries
      */
-    int getMaxCacheSize() const;
+    [[nodiscard]] int getMaxCacheSize() const;
 
     // Statistics
     /**
      * @brief Gets the current cache size
      * @return Number of cached entries
      */
-    int getCacheSize() const;
+    [[nodiscard]] int getCacheSize() const;
 
     /**
      * @brief Gets the cache hit ratio
      * @return Hit ratio as a value between 0.0 and 1.0
      */
-    double getHitRatio() const;
+    [[nodiscard]] double getHitRatio() const;
 
     // ICacheComponent interface implementation
     /**
      * @brief Gets current memory usage
      * @return Memory usage in bytes
      */
-    qint64 getMemoryUsage() const override;
+    [[nodiscard]] qint64 getMemoryUsage() const override;
 
     /**
      * @brief Gets maximum memory limit
      * @return Maximum memory limit in bytes
      */
-    qint64 getMaxMemoryLimit() const override;
+    [[nodiscard]] qint64 getMaxMemoryLimit() const override;
 
     /**
      * @brief Sets maximum memory limit
@@ -173,7 +174,7 @@ public:
      * @brief Gets number of cache entries
      * @return Number of cache entries
      */
-    int getEntryCount() const override;
+    [[nodiscard]] int getEntryCount() const override;
 
     /**
      * @brief Evicts least recently used entries
@@ -185,13 +186,13 @@ public:
      * @brief Gets total cache hits
      * @return Total cache hits
      */
-    qint64 getHitCount() const override;
+    [[nodiscard]] qint64 getHitCount() const override;
 
     /**
      * @brief Gets total cache misses
      * @return Total cache misses
      */
-    qint64 getMissCount() const override;
+    [[nodiscard]] qint64 getMissCount() const override;
 
     /**
      * @brief Resets cache statistics
@@ -208,7 +209,7 @@ public:
      * @brief Checks if cache is enabled
      * @return true if enabled, false otherwise
      */
-    bool isEnabled() const override;
+    [[nodiscard]] bool isEnabled() const override;
 
 signals:
     /**
@@ -234,11 +235,11 @@ signals:
 
 private:
     class Implementation;
-    std::unique_ptr<Implementation> d;
+    std::unique_ptr<Implementation> m_implementation;
 
     // Default values
     static const int DEFAULT_MAX_CACHE_SIZE = 200;
-    static const qint64 DEFAULT_MAX_MEMORY_USAGE = 50 * 1024 * 1024;
+    static const qint64 DEFAULT_MAX_MEMORY_USAGE = 50LL * 1024 * 1024;
 };
 
 /**
@@ -256,6 +257,7 @@ private:
  */
 class TextExtractorCacheAdapter : public QObject, public ICacheComponent {
     Q_OBJECT
+    Q_DISABLE_COPY_MOVE(TextExtractorCacheAdapter)
 
 public:
     /**
@@ -272,19 +274,19 @@ public:
     ~TextExtractorCacheAdapter() override;
 
     // ICacheComponent interface implementation
-    qint64 getMemoryUsage() const override;
-    qint64 getMaxMemoryLimit() const override;
+    [[nodiscard]] qint64 getMemoryUsage() const override;
+    [[nodiscard]] qint64 getMaxMemoryLimit() const override;
     void setMaxMemoryLimit(qint64 limit) override;
     void clear() override;
-    int getEntryCount() const override;
+    [[nodiscard]] int getEntryCount() const override;
     void evictLRU(qint64 bytesToFree) override;
-    qint64 getHitCount() const override;
-    qint64 getMissCount() const override;
+    [[nodiscard]] qint64 getHitCount() const override;
+    [[nodiscard]] qint64 getMissCount() const override;
     void resetStatistics() override;
     void setEnabled(bool enabled) override;
-    bool isEnabled() const override;
+    [[nodiscard]] bool isEnabled() const override;
 
 private:
     class Implementation;
-    std::unique_ptr<Implementation> d;
+    std::unique_ptr<Implementation> m_implementation;
 };

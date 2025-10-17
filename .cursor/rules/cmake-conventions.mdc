@@ -1,0 +1,358 @@
+---
+globs: CMakeLists.txt,*.cmake
+---
+
+# CMake Conventions for SAST Readium
+
+## CMake Version
+
+Minimum required version: **CMake 3.28**. This is specified in [CMakeLists.txt](mdc:CMakeLists.txt).
+
+## Project Structure
+
+### Module Organization
+Custom CMake modules are in [cmake/](mdc:cmake/):
+- **ProjectConfig.cmake**: Project options, compiler settings, platform detection
+- **Dependencies.cmake**: All project dependencies finding and configuration
+- **TargetUtils.cmake**: Utility functions for target configuration
+- **toolchains/**: Cross-compilation toolchain files
+
+### Main CMakeLists.txt
+Top-level [CMakeLists.txt](mdc:CMakeLists.txt) follows this structure:
+1. Minimum version and project declaration
+2. Include custom modules
+3. Setup project options and configuration
+4. Detect platform and environment
+5. Find dependencies
+6. Qt standard project setup
+7. Add subdirectories (app, tests)
+8. Setup clangd integration
+9. Print build summary
+
+## Build Presets
+
+### CMakePresets.json
+Use [CMakePresets.json](mdc:CMakePresets.json) for standardized build configurations:
+
+**System Package Builds (Recommended):**
+- `Debug-Unix` / `Release-Unix`: Linux/macOS with system packages
+- `Debug-MSYS2` / `Release-MSYS2`: Windows MSYS2 with system packages
+
+**vcpkg Builds (Alternative):**
+- `Debug-Windows` / `Release-Windows`: Windows with vcpkg
+- `Debug-Linux-vcpkg` / `Release-Linux-vcpkg`: Linux with vcpkg
+- `Debug-macOS-vcpkg` / `Release-macOS-vcpkg`: macOS Intel with vcpkg
+- `Debug-macOS-vcpkg-arm64` / `Release-macOS-vcpkg-arm64`: macOS Apple Silicon with vcpkg
+
+### Preset Configuration
+```json
+{
+  "name": "Release-Unix",
+  "cacheVariables": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "USE_VCPKG": "OFF"
+  }
+}
+```
+
+## Dependency Management
+
+### Finding Packages
+Use `find_package()` for all dependencies:
+```cmake
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Svg)
+find_package(Poppler REQUIRED COMPONENTS Qt6)
+find_package(spdlog REQUIRED)
+```
+
+### vcpkg Integration
+- Automatic if `VCPKG_ROOT` is set or `CMAKE_TOOLCHAIN_FILE` points to vcpkg
+- Control with `USE_VCPKG` and `FORCE_VCPKG` options
+- Triplet is auto-detected from preset or platform
+
+### System Packages vs vcpkg
+- **Prefer system packages** for faster builds and native integration
+- **Use vcpkg** for consistent versions or when system packages unavailable
+- See [docs/getting-started/dependency-management.md](mdc:docs/getting-started/dependency-management.md)
+
+## Target Configuration
+
+### Creating Targets
+Use CMake's modern target-based approach:
+```cmake
+add_executable(app main.cpp)
+target_sources(app PRIVATE file1.cpp file2.cpp)
+target_link_libraries(app PRIVATE Qt6::Core Qt6::Gui)
+target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+```
+
+### Library Targets
+```cmake
+add_library(mylib STATIC source1.cpp source2.cpp)
+target_link_libraries(mylib PUBLIC Qt6::Core PRIVATE spdlog::spdlog)
+target_compile_features(mylib PUBLIC cxx_std_20)
+```
+
+### Utility Functions
+Use functions from [TargetUtils.cmake](mdc:cmake/TargetUtils.cmake):
+- `add_standard_app()`: Add application target with standard configuration
+- `add_standard_test()`: Add test target with test utilities
+- `configure_target_warnings()`: Apply warning flags
+- `configure_target_sanitizers()`: Apply sanitizers
+
+## Qt Integration
+
+### qt_standard_project_setup()
+Must be called after finding Qt and before adding targets:
+```cmake
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+qt_standard_project_setup(I18N_TRANSLATED_LANGUAGES zh)
+```
+
+### Qt Resources
+Use `qt_add_resources()` for .qrc files:
+```cmake
+qt_add_resources(app "app_resources"
+    PREFIX "/"
+    FILES resources/icon.png
+)
+```
+
+### Qt UI Files
+Use `qt_wrap_ui()` or let Qt auto-process:
+```cmake
+qt_add_executable(app main.cpp dialog.ui)
+```
+
+### Translations
+Use `qt_add_translations()`:
+```cmake
+qt_add_translations(app
+    TS_FILES i18n/app_en.ts i18n/app_zh.ts
+    RESOURCE_PREFIX "/i18n"
+)
+```
+
+## Compiler Settings
+
+### Language Standard
+**C++20** is required:
+```cmake
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+```
+
+### Warning Flags
+Apply strict warnings:
+```cmake
+if(MSVC)
+    target_compile_options(app PRIVATE /W4)
+else()
+    target_compile_options(app PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+```
+
+### Optimization
+```cmake
+# Release builds
+target_compile_options(app PRIVATE
+    $<$<CONFIG:Release>:-O3>
+    $<$<CONFIG:Release>:-DNDEBUG>
+)
+
+# Debug builds
+target_compile_options(app PRIVATE
+    $<$<CONFIG:Debug>:-g>
+    $<$<CONFIG:Debug>:-O0>
+)
+```
+
+## Testing
+
+### Enabling Tests
+Use standard CMake testing:
+```cmake
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+```
+
+### Adding Tests
+```cmake
+add_executable(test_component test_component.cpp)
+target_link_libraries(test_component PRIVATE Qt6::Test component_lib)
+add_test(NAME ComponentTest COMMAND test_component)
+```
+
+### Test Discovery
+Use Qt Test discovery:
+```cmake
+include(QtTest)
+qt_add_test(test_component)
+```
+
+See [tests/CMakeLists.txt](mdc:tests/CMakeLists.txt) for test organization.
+
+## Platform Detection
+
+### Platform-Specific Code
+Use generator expressions or variables:
+```cmake
+target_sources(app PRIVATE
+    $<$<PLATFORM_ID:Windows>:windows_impl.cpp>
+    $<$<PLATFORM_ID:Linux>:linux_impl.cpp>
+    $<$<PLATFORM_ID:Darwin>:macos_impl.cpp>
+)
+```
+
+### MSYS2 Detection
+Project auto-detects MSYS2:
+```cmake
+if(MSYS OR MINGW)
+    set(IS_MSYS2 TRUE)
+endif()
+```
+
+## Installation
+
+### Install Rules
+Define installation for distribution:
+```cmake
+install(TARGETS app
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
+
+install(FILES config.json DESTINATION etc)
+install(DIRECTORY assets/ DESTINATION share/app)
+```
+
+### CPack Configuration
+For packaging:
+```cmake
+set(CPACK_PACKAGE_NAME "SAST-Readium")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+include(CPack)
+```
+
+## IDE Integration
+
+### clangd Configuration
+Project auto-generates `.clangd` config:
+- Controlled by `ENABLE_CLANGD_CONFIG` option (default: ON)
+- Configuration based on `compile_commands.json`
+- See [docs/clangd-configuration.md](mdc:docs/clangd-configuration.md)
+
+### Compile Commands
+Always generate for IDE support:
+```cmake
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+```
+
+### Visual Studio Code
+Project works with CMake Tools extension:
+- Select preset from command palette
+- CMake Tools auto-detects targets
+
+## Best Practices
+
+### Modern CMake
+- Use target-based commands (`target_*`), not directory-based (`include_directories()`)
+- Use generator expressions for conditional logic
+- Use `PRIVATE`, `PUBLIC`, `INTERFACE` correctly for dependencies
+- Avoid global variables; prefer target properties
+
+### Modular Design
+- Split complex CMakeLists into modules
+- Use functions to avoid variable leakage
+- Document complex logic with comments
+
+### Version Management
+- Use `project(name VERSION x.y.z)` for version
+- Generate version header with `configure_file()`
+- See [app/config.h.in](mdc:app/config.h.in) for version configuration
+
+### Cache Variables
+- Use `option()` for boolean options
+- Use `set(VAR "default" CACHE STRING "description")` for others
+- Document options with help strings
+
+### Build Validation
+Validate environment before build:
+```cmake
+if(NOT DEFINED Qt6_DIR)
+    message(FATAL_ERROR "Qt6 not found. Set Qt6_DIR or install Qt6.")
+endif()
+```
+
+## Documentation
+
+### Comments
+- Document purpose of complex logic
+- Explain platform-specific workarounds
+- Document required environment variables or options
+
+### Functions
+Document function signatures:
+```cmake
+#[[
+  Add a standard application target with Qt integration
+
+  Arguments:
+    TARGET_NAME - Name of the target
+    SOURCES - List of source files
+    DEPENDENCIES - List of dependencies
+]]
+function(add_standard_app TARGET_NAME)
+    # Implementation
+endfunction()
+```
+
+## Example Target Configuration
+
+```cmake
+# Define target
+add_executable(sast_readium
+    main.cpp
+    MainWindow.cpp
+    MainWindow.h
+)
+
+# Set properties
+set_target_properties(sast_readium PROPERTIES
+    OUTPUT_NAME "app"
+    CXX_STANDARD 20
+    AUTOMOC ON
+    AUTORCC ON
+    AUTOUIC ON
+)
+
+# Link libraries
+target_link_libraries(sast_readium PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Poppler::Qt6
+    spdlog::spdlog
+)
+
+# Include directories
+target_include_directories(sast_readium PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+# Compile definitions
+target_compile_definitions(sast_readium PRIVATE
+    APP_VERSION="${PROJECT_VERSION}"
+    $<$<CONFIG:Debug>:DEBUG_BUILD>
+)
+
+# Install rules
+install(TARGETS sast_readium
+    RUNTIME DESTINATION bin
+)
+```

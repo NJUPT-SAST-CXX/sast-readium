@@ -74,7 +74,7 @@ public:
          * Creates a unique hash by combining all key parameters to ensure
          * that different search configurations produce different cache keys.
          */
-        QString toHash() const {
+        [[nodiscard]] QString toHash() const {
             QString combined = QString("%1|%2|%3|%4|%5|%6|%7")
                                    .arg(query)
                                    .arg(options.caseSensitive ? "1" : "0")
@@ -112,18 +112,11 @@ public:
      */
     struct CacheEntry {
         QList<SearchResult> results;  ///< Cached search results
-        qint64 timestamp;             ///< Creation timestamp in milliseconds
-        qint64 accessCount;           ///< Number of times accessed
-        qint64 memorySize;            ///< Memory size in bytes
+        qint64 timestamp = 0;         ///< Creation timestamp in milliseconds
+        qint64 accessCount = 0;       ///< Number of times accessed
+        qint64 memorySize = 0;        ///< Memory size in bytes
         QString queryHash;   ///< Hash of the search query for quick lookup
         QString documentId;  ///< Document ID for invalidation
-
-        /**
-         * @brief Default constructor
-         *
-         * Initializes entry with default values.
-         */
-        CacheEntry() : timestamp(0), accessCount(0), memorySize(0) {}
     };
 
     /**
@@ -135,7 +128,13 @@ public:
     /**
      * @brief Destructor
      */
-    ~SearchResultCache();
+    ~SearchResultCache() override;
+
+    // Deleted copy/move operations
+    SearchResultCache(const SearchResultCache&) = delete;
+    SearchResultCache& operator=(const SearchResultCache&) = delete;
+    SearchResultCache(SearchResultCache&&) = delete;
+    SearchResultCache& operator=(SearchResultCache&&) = delete;
 
     // Cache operations
     /**
@@ -143,7 +142,7 @@ public:
      * @param key Cache key to check
      * @return true if results are cached, false otherwise
      */
-    bool hasResults(const CacheKey& key) const;
+    [[nodiscard]] bool hasResults(const CacheKey& key) const;
 
     /**
      * @brief Retrieves cached search results
@@ -194,19 +193,19 @@ public:
      * @brief Gets the current cache size
      * @return Number of cached entries
      */
-    int getCacheSize() const;
+    [[nodiscard]] int getCacheSize() const;
 
     /**
      * @brief Gets current memory usage
      * @return Memory usage in bytes
      */
-    qint64 getMemoryUsage() const override;
+    [[nodiscard]] qint64 getMemoryUsage() const override;
 
     /**
      * @brief Gets the cache hit ratio
      * @return Hit ratio as a value between 0.0 and 1.0
      */
-    double getHitRatio() const;
+    [[nodiscard]] double getHitRatio() const;
 
     /**
      * @brief Resets cache statistics
@@ -223,8 +222,8 @@ public:
      * Determines if the new search can reuse results from a previous
      * search by filtering or extending existing results.
      */
-    bool canUseIncrementalSearch(const CacheKey& newKey,
-                                 const CacheKey& previousKey) const;
+    [[nodiscard]] bool canUseIncrementalSearch(
+        const CacheKey& newKey, const CacheKey& previousKey) const;
 
     /**
      * @brief Gets incremental search results
@@ -240,7 +239,7 @@ public:
      * @brief Gets maximum memory limit
      * @return Maximum memory limit in bytes
      */
-    qint64 getMaxMemoryLimit() const override;
+    [[nodiscard]] qint64 getMaxMemoryLimit() const override;
 
     /**
      * @brief Sets maximum memory limit
@@ -252,7 +251,7 @@ public:
      * @brief Gets number of cache entries
      * @return Number of cache entries
      */
-    int getEntryCount() const override;
+    [[nodiscard]] int getEntryCount() const override;
 
     /**
      * @brief Evicts least recently used entries
@@ -264,13 +263,13 @@ public:
      * @brief Gets total cache hits
      * @return Total cache hits
      */
-    qint64 getHitCount() const override;
+    [[nodiscard]] qint64 getHitCount() const override;
 
     /**
      * @brief Gets total cache misses
      * @return Total cache misses
      */
-    qint64 getMissCount() const override;
+    [[nodiscard]] qint64 getMissCount() const override;
 
     /**
      * @brief Enables or disables the cache
@@ -282,7 +281,7 @@ public:
      * @brief Checks if cache is enabled
      * @return true if enabled, false otherwise
      */
-    bool isEnabled() const override;
+    [[nodiscard]] bool isEnabled() const override;
 
 signals:
     /**
@@ -315,12 +314,12 @@ private slots:
 
 private:
     class Implementation;
-    std::unique_ptr<Implementation> d;
+    std::unique_ptr<Implementation> m_pimpl;
 
     // Default values
     static const int DEFAULT_MAX_CACHE_SIZE = 100;
-    static const qint64 DEFAULT_MAX_MEMORY_USAGE = 64 * 1024 * 1024;
-    static const qint64 DEFAULT_EXPIRATION_TIME = 30 * 60 * 1000;
+    static const qint64 DEFAULT_MAX_MEMORY_USAGE = 64LL * 1024 * 1024;
+    static const qint64 DEFAULT_EXPIRATION_TIME = 30LL * 60 * 1000;
     static const int MAINTENANCE_INTERVAL = 5 * 60 * 1000;
 };
 
@@ -344,15 +343,8 @@ public:
     struct HighlightData {
         QList<QRectF> boundingRects;  ///< Bounding rectangles for highlights
         QString highlightColor;       ///< Highlight color specification
-        qint64 timestamp;             ///< Creation timestamp in milliseconds
-        qint64 accessCount;           ///< Number of times accessed
-
-        /**
-         * @brief Default constructor
-         *
-         * Initializes highlight data with default values.
-         */
-        HighlightData() : timestamp(0), accessCount(0) {}
+        qint64 timestamp = 0;         ///< Creation timestamp in milliseconds
+        qint64 accessCount = 0;       ///< Number of times accessed
     };
 
     /**
@@ -364,7 +356,13 @@ public:
     /**
      * @brief Destructor
      */
-    ~SearchHighlightCache();
+    ~SearchHighlightCache() override;
+
+    // Deleted copy/move operations
+    SearchHighlightCache(const SearchHighlightCache&) = delete;
+    SearchHighlightCache& operator=(const SearchHighlightCache&) = delete;
+    SearchHighlightCache(SearchHighlightCache&&) = delete;
+    SearchHighlightCache& operator=(SearchHighlightCache&&) = delete;
 
     // Cache operations
     /**
@@ -374,8 +372,9 @@ public:
      * @param query Search query
      * @return true if highlight data is cached, false otherwise
      */
-    bool hasHighlightData(const QString& documentId, int pageNumber,
-                          const QString& query) const;
+    [[nodiscard]] bool hasHighlightData(const QString& documentId,
+                                        int pageNumber,
+                                        const QString& query) const;
 
     /**
      * @brief Retrieves cached highlight data
@@ -420,13 +419,13 @@ public:
      * @brief Gets the current cache size
      * @return Number of cached entries
      */
-    int getCacheSize() const;
+    [[nodiscard]] int getCacheSize() const;
 
     /**
      * @brief Gets the cache hit ratio
      * @return Hit ratio as a value between 0.0 and 1.0
      */
-    double getHitRatio() const;
+    [[nodiscard]] double getHitRatio() const;
 
 signals:
     /**
@@ -437,7 +436,7 @@ signals:
 
 private:
     class Implementation;
-    std::unique_ptr<Implementation> d;
+    std::unique_ptr<Implementation> m_pimpl;
 
     // Default values
     static const int DEFAULT_MAX_CACHE_SIZE = 200;

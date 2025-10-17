@@ -10,6 +10,7 @@
 #include <QStringList>
 #include "../logging/LoggingMacros.h"
 #include "../ui/dialogs/DocumentMetadataDialog.h"
+#include "../ui/widgets/ToastNotification.h"
 
 void DocumentController::initializeCommandMap() {
     commandMap = {
@@ -44,7 +45,12 @@ void DocumentController::initializeCommandMap() {
                  }
              }
          }},
-        {ActionMap::save, [this](QWidget* ctx) { /*....save()....*/ }},
+        {ActionMap::save,
+         [this](QWidget* ctx) {
+             // PDF viewers typically don't modify the original file
+             // Implement "save" as "save as" to preserve the original
+             saveDocumentCopy(ctx);
+         }},
         {ActionMap::saveAs, [this](QWidget* ctx) { saveDocumentCopy(ctx); }},
         {ActionMap::newTab,
          [this](QWidget* ctx) {
@@ -181,8 +187,8 @@ void DocumentController::initializeCommandMap() {
                  recentFilesManager->clearRecentFiles();
              }
          }},
-        // 从合并分支添加的操作
-        {ActionMap::saveFile, [this](QWidget* ctx) { /*....save()....*/ }}};
+        // saveFile is an alias for save - both use saveDocumentCopy
+        {ActionMap::saveFile, [this](QWidget* ctx) { saveDocumentCopy(ctx); }}};
 }
 
 DocumentController::DocumentController(DocumentModel* model)
@@ -273,24 +279,17 @@ void DocumentController::setRecentFilesManager(RecentFilesManager* manager) {
 void DocumentController::showDocumentMetadata(QWidget* parent) {
     // 检查是否有当前文档
     if (documentModel->isEmpty()) {
-        QMessageBox::information(parent, tr("提示"), tr("请先打开一个PDF文档"));
+        TOAST_INFO(parent, tr("请先打开一个PDF文档"));
         return;
     }
 
     // 获取当前文档信息
     QString currentFilePath = documentModel->getCurrentFilePath();
-    QString currentFileName = documentModel->getCurrentFileName();
-
-    // 暂时使用简单的消息框显示基本信息，避免复杂的对话框导致编译问题
-    QString info =
-        QString("文档信息:\n文件名: %1\n路径: %2")
-            .arg(currentFileName.isEmpty() ? tr("未知") : currentFileName)
-            .arg(currentFilePath.isEmpty() ? tr("未知") : currentFilePath);
 
     // Get the current document from the model
     Poppler::Document* currentDoc = documentModel->getCurrentDocument();
 
-    // Use the full DocumentMetadataDialog instead of simple message box
+    // Display comprehensive document metadata using DocumentMetadataDialog
     DocumentMetadataDialog* dialog = new DocumentMetadataDialog(parent);
     dialog->setDocument(currentDoc, currentFilePath);
     dialog->exec();

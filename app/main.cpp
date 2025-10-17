@@ -8,11 +8,34 @@
 #include "MainWindow.h"
 #include "logging/SimpleLogging.h"
 #include "managers/I18nManager.h"
+#include "ui/widgets/EnhancedFocusIndicator.h"
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
+// Function to enable Windows console UTF-8 and ANSI support
+static void enableWindowsConsoleSupport() {
+#ifdef Q_OS_WIN
+    // Set console output to UTF-8
+    SetConsoleOutputCP(CP_UTF8);
+
+    // Enable ANSI escape sequences on Windows 10+
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut != INVALID_HANDLE_VALUE) {
+        DWORD dwMode = 0;
+        if (GetConsoleMode(hOut, &dwMode)) {
+            dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+            SetConsoleMode(hOut, dwMode);
+        }
+    }
+#endif
+}
 
 // Function to print colored text to console
-void printColored(const QString& text, const QString& color = "") {
+static void printColored(const QString& text, const QString& color = "") {
 #ifdef Q_OS_WIN
-    // Windows console color codes
+    // Windows console color codes (bright variants for better visibility)
     if (color == "cyan") {
         std::cout << "\033[96m" << text.toStdString() << "\033[0m";
     } else if (color == "green") {
@@ -42,13 +65,13 @@ void printColored(const QString& text, const QString& color = "") {
 }
 
 // Function to print the application logo
-void printLogo() {
+static void printLogo() {
     // SAST Readium ASCII Art Logo with gradient effect
     QString logoLines[] = {
         "\n",
         "    "
         "╔════════════════════════════════════════════════════════════════════"
-        "╗",
+        "╗\n",
         "    ║                                                                 "
         "   ║",
         "    ║   ███████╗ █████╗ ███████╗████████╗    ██████╗ ███████╗ █████╗  "
@@ -123,37 +146,67 @@ int main(int argc, char** argv) {
     // variable: QT_SCALE_FACTOR=2.0 (or any desired scale factor)
     // ============================================================================
 
+    // Enable Windows console UTF-8 and ANSI support BEFORE any console output
+    enableWindowsConsoleSupport();
+
     QApplication app(argc, argv);
 
-    // Configure application metadata early
-    app.setApplicationName(PROJECT_NAME);
-    app.setApplicationVersion(PROJECT_VER);
-    app.setApplicationDisplayName(APP_NAME);
-    app.setStyle("fusion");
+    // Initialize Qt resources from static library
+    // This is required when resources are compiled into a static library (app_lib)
+    Q_INIT_RESOURCE(app);
 
-    // Print application logo to console
+    // Configure application metadata early
+    QApplication::setApplicationName(PROJECT_NAME);
+    QApplication::setApplicationVersion(PROJECT_VER);
+    QApplication::setApplicationDisplayName(APP_NAME);
+    QApplication::setStyle("fusion");
+
+    // Print application logo to console (now with proper UTF-8 and ANSI support)
     printLogo();
 
     // Initialize logging system with simplified interface
     SastLogging::Config logConfig;
-    logConfig.level = SastLogging::Level::Debug;  // Development mode
+    logConfig.level = SastLogging::Level::Info;  // Production mode
     logConfig.logFile = "sast-readium.log";
-    logConfig.logDir =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
-        "/logs";
+
+    // ROBUST FIX: Use multi-tier fallback for log directory
+    // Tier 1: Try QStandardPaths (may fail on some systems/environments)
+    // Tier 2: Fall back to ./logs (current directory)
+    // Tier 3: Fall back to temp directory
+    QString logDir;
+    try {
+        logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        if (!logDir.isEmpty()) {
+            logDir += "/logs";
+            std::cout << "[INFO] Using AppData log directory: " << logDir.toStdString() << '\n';
+        } else {
+            throw std::runtime_error("QStandardPaths returned empty path");
+        }
+    } catch (const std::exception& e) {
+        std::cout << "[WARNING] QStandardPaths failed: " << e.what() << '\n';
+        std::cout << "[INFO] Falling back to ./logs" << '\n';
+        logDir = "./logs";
+    }
+    logConfig.logDir = logDir;
+
     logConfig.console = true;
     logConfig.file = true;
-    logConfig.async = true;  // Enable async logging for better performance
-    logConfig.maxFileSize = 50 * 1024 * 1024;  // 50MB per file
+    logConfig.async = false;  // CRITICAL: Disable async logging to prevent QTimer hang before event loop starts
+    logConfig.maxFileSize = static_cast<size_t>(50) * 1024 * 1024;  // 50MB per file
     logConfig.maxFiles = 5;                    // Keep 5 rotating files
     logConfig.pattern = "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v";
 
-    // Initialize logging
+    // Initialize logging with robust error handling
     if (!SastLogging::init(logConfig)) {
         // Fallback to console-only logging if file logging fails
-        qWarning() << "Failed to initialize file logging:"
-                   << SastLogging::getLastError();
-        SastLogging::init("", true, SastLogging::Level::Debug);
+        std::cerr << "[ERROR] Failed to initialize file logging: "
+                  << SastLogging::getLastError().toStdString() << '\n';
+        std::cerr << "[INFO] Falling back to console-only logging" << '\n';
+
+        if (!SastLogging::init("", true, SastLogging::Level::Info)) {
+            std::cerr << "[CRITICAL] Failed to initialize even console logging!" << '\n';
+            std::cerr << "[CRITICAL] Application will continue but logging is disabled" << '\n';
+        }
     }
 
     // Log application startup information
@@ -190,18 +243,25 @@ int main(int argc, char** argv) {
         mainLogger.info("I18n system initialized successfully");
     }
 
+    // Install FocusManager for global keyboard navigation and focus indicators
+    FocusManager::instance().installOnApplication();
+    mainLogger.info("FocusManager installed for accessibility support");
+
     try {
         // Performance timing for startup
         SLOG_TIMER("ApplicationStartup");
 
+        mainLogger.info("========== Creating MainWindow ==========");
         MainWindow w;
-        mainLogger.info("Main window created successfully");
+        mainLogger.info("========== MainWindow created successfully ==========");
 
+        mainLogger.info("========== Calling w.show() ==========");
         w.show();
-        mainLogger.info("Main window shown");
+        mainLogger.info("========== MainWindow shown successfully ==========");
         SLOG_INFO("Application startup completed successfully");
 
         // Run the application event loop
+        mainLogger.info("========== Starting Qt event loop ==========");
         int result = QApplication::exec();
 
         SLOG_INFO_F("Application exiting with code: %d", result);

@@ -1,12 +1,12 @@
 #include "InitializationCommand.h"
+
 #include "../controller/ApplicationController.h"
 #include "../managers/StyleManager.h"
-#include "../utils/ErrorHandling.h"
 
 // Base InitializationCommand
-InitializationCommand::InitializationCommand(const QString& name,
-                                             QObject* parent)
-    : QObject(parent), m_name(name), m_logger("InitializationCommand") {}
+InitializationCommand::InitializationCommand(QString name, QObject* parent)
+    : QObject(parent), m_name(std::move(name)),
+      m_logger("InitializationCommand") {}
 
 // InitializeModelsCommand
 InitializeModelsCommand::InitializeModelsCommand(
@@ -20,14 +20,23 @@ bool InitializeModelsCommand::execute() {
     }
 
     emit executionStarted(name());
+    Logger::instance().info(
+        "[InitCmd] InitializeModelsCommand::execute() STARTED");
 
     try {
+        Logger::instance().debug(
+            "[InitCmd] Calling m_controller->initializeModels()...");
         m_controller->initializeModels();
+        Logger::instance().info(
+            "[InitCmd] InitializeModelsCommand::execute() COMPLETED successfully");
         setExecuted(true);
         setSuccessful(true);
         emit executionCompleted(name(), true);
         return true;
     } catch (const std::exception& e) {
+        Logger::instance().error(
+            "[InitCmd] InitializeModelsCommand::execute() FAILED: {}",
+            e.what());
         setErrorMessage(QString::fromStdString(e.what()));
         setExecuted(true);
         setSuccessful(false);
@@ -53,14 +62,23 @@ bool InitializeControllersCommand::execute() {
     }
 
     emit executionStarted(name());
+    Logger::instance().info(
+        "[InitCmd] InitializeControllersCommand::execute() STARTED");
 
     try {
+        Logger::instance().debug(
+            "[InitCmd] Calling m_controller->initializeControllers()...");
         m_controller->initializeControllers();
+        Logger::instance().info(
+            "[InitCmd] InitializeControllersCommand::execute() COMPLETED successfully");
         setExecuted(true);
         setSuccessful(true);
         emit executionCompleted(name(), true);
         return true;
     } catch (const std::exception& e) {
+        Logger::instance().error(
+            "[InitCmd] InitializeControllersCommand::execute() FAILED: {}",
+            e.what());
         setErrorMessage(QString::fromStdString(e.what()));
         setExecuted(true);
         setSuccessful(false);
@@ -86,14 +104,23 @@ bool InitializeViewsCommand::execute() {
     }
 
     emit executionStarted(name());
+    Logger::instance().info(
+        "[InitCmd] InitializeViewsCommand::execute() STARTED");
 
     try {
+        Logger::instance().debug(
+            "[InitCmd] Calling m_controller->initializeViews()...");
         m_controller->initializeViews();
+        Logger::instance().info(
+            "[InitCmd] InitializeViewsCommand::execute() COMPLETED successfully");
         setExecuted(true);
         setSuccessful(true);
         emit executionCompleted(name(), true);
         return true;
     } catch (const std::exception& e) {
+        Logger::instance().error(
+            "[InitCmd] InitializeViewsCommand::execute() FAILED: {}",
+            e.what());
         setErrorMessage(QString::fromStdString(e.what()));
         setExecuted(true);
         setSuccessful(false);
@@ -119,14 +146,23 @@ bool InitializeConnectionsCommand::execute() {
     }
 
     emit executionStarted(name());
+    Logger::instance().info(
+        "[InitCmd] InitializeConnectionsCommand::execute() STARTED");
 
     try {
+        Logger::instance().debug(
+            "[InitCmd] Calling m_controller->initializeConnections()...");
         m_controller->initializeConnections();
+        Logger::instance().info(
+            "[InitCmd] InitializeConnectionsCommand::execute() COMPLETED successfully");
         setExecuted(true);
         setSuccessful(true);
         emit executionCompleted(name(), true);
         return true;
     } catch (const std::exception& e) {
+        Logger::instance().error(
+            "[InitCmd] InitializeConnectionsCommand::execute() FAILED: {}",
+            e.what());
         setErrorMessage(QString::fromStdString(e.what()));
         setExecuted(true);
         setSuccessful(false);
@@ -137,10 +173,10 @@ bool InitializeConnectionsCommand::execute() {
 
 // ApplyThemeCommand
 ApplyThemeCommand::ApplyThemeCommand(ApplicationController* controller,
-                                     const QString& theme, QObject* parent)
+                                     QString theme, QObject* parent)
     : InitializationCommand("Apply Theme", parent),
       m_controller(controller),
-      m_theme(theme) {}
+      m_theme(std::move(theme)) {}
 
 bool ApplyThemeCommand::execute() {
     if (!canExecute()) {
@@ -148,18 +184,29 @@ bool ApplyThemeCommand::execute() {
     }
 
     emit executionStarted(name());
+    Logger::instance().info(
+        "[InitCmd] ApplyThemeCommand::execute() STARTED - theme: {}",
+        m_theme.toStdString());
 
     try {
         // Save current theme for rollback
         m_previousTheme =
             (STYLE.currentTheme() == Theme::Light) ? "light" : "dark";
+        Logger::instance().debug(
+            "[InitCmd] Previous theme saved: {}", m_previousTheme.toStdString());
 
+        Logger::instance().debug(
+            "[InitCmd] Calling m_controller->applyTheme()...");
         m_controller->applyTheme(m_theme);
+        Logger::instance().info(
+            "[InitCmd] ApplyThemeCommand::execute() COMPLETED successfully");
         setExecuted(true);
         setSuccessful(true);
         emit executionCompleted(name(), true);
         return true;
     } catch (const std::exception& e) {
+        Logger::instance().error(
+            "[InitCmd] ApplyThemeCommand::execute() FAILED: {}", e.what());
         setErrorMessage(QString::fromStdString(e.what()));
         setExecuted(true);
         setSuccessful(false);
@@ -189,9 +236,9 @@ void CompositeInitializationCommand::addCommand(
     if (command) {
         // Connect progress signals
         connect(command.get(), &InitializationCommand::executionStarted, this,
-                [this](const QString& cmdName) {
-                    int progress =
-                        (m_executedCommands.size() * 100) / m_commands.size();
+                [this]() {
+                    int progress = static_cast<int>(
+                        (m_executedCommands.size() * 100) / m_commands.size());
                     emit executionProgress(name(), progress);
                 });
 
@@ -217,8 +264,8 @@ bool CompositeInitializationCommand::execute() {
     for (auto& command : m_commands) {
         if (command->execute()) {
             m_executedCommands.append(command.get());
-            int progress =
-                (m_executedCommands.size() * 100) / m_commands.size();
+            int progress = static_cast<int>(
+                (m_executedCommands.size() * 100) / m_commands.size());
             emit executionProgress(name(), progress);
         } else {
             // Command failed, rollback
@@ -242,9 +289,8 @@ bool CompositeInitializationCommand::execute() {
 
 bool CompositeInitializationCommand::undo() {
     // Undo in reverse order
-    for (auto it = m_executedCommands.rbegin(); it != m_executedCommands.rend();
-         ++it) {
-        (*it)->undo();
+    for (auto* command : m_executedCommands) {
+        command->undo();
     }
     m_executedCommands.clear();
     return true;
@@ -258,7 +304,8 @@ InitializationCommandFactory::createFullInitializationSequence(
         std::make_unique<CompositeInitializationCommand>("Full Initialization");
 
     // Determine theme
-    QString theme = (STYLE.currentTheme() == Theme::Light) ? "light" : "dark";
+    QString theme =
+        (STYLE.currentTheme() == Theme::Light) ? "light" : "dark";
 
     // Add commands in proper order
     composite->addCommand(
@@ -267,7 +314,8 @@ InitializationCommandFactory::createFullInitializationSequence(
         std::make_unique<InitializeModelsCommand>(controller));
     composite->addCommand(
         std::make_unique<InitializeControllersCommand>(controller));
-    composite->addCommand(std::make_unique<InitializeViewsCommand>(controller));
+    composite->addCommand(
+        std::make_unique<InitializeViewsCommand>(controller));
     composite->addCommand(
         std::make_unique<InitializeConnectionsCommand>(controller));
 

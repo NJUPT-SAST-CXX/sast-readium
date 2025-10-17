@@ -194,6 +194,14 @@ endif()
 # Integration Tests - Multi-component integration tests
 # ============================================================================
 
+# Application Startup Test - Comprehensive end-to-end startup verification
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_application_startup.cpp)
+    create_test_target(test_application_startup
+        SOURCES integration/test_application_startup.cpp
+        TIMEOUT 900
+    )
+endif()
+
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_search_integration.cpp)
     create_test_target(test_search_integration
         SOURCES integration/test_search_integration.cpp
@@ -327,9 +335,24 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_features_test.cpp)
     )
 endif()
 
+# New standardized test naming pattern (test_*.cpp)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_features.cpp)
+    create_test_target(test_search_features
+        SOURCES search/test_search_features.cpp
+        TIMEOUT 300
+    )
+endif()
+
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_metrics_test.cpp)
     create_test_target(search_metrics_test
         SOURCES search/search_metrics_test.cpp
+        TIMEOUT 300
+    )
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_metrics.cpp)
+    create_test_target(test_search_metrics
+        SOURCES search/test_search_metrics.cpp
         TIMEOUT 300
     )
 endif()
@@ -345,6 +368,13 @@ endif()
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_validator_test.cpp)
     create_test_target(search_validator_test
         SOURCES search/search_validator_test.cpp
+        TIMEOUT 300
+    )
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_validator.cpp)
+    create_test_target(test_search_validator
+        SOURCES search/test_search_validator.cpp
         TIMEOUT 300
     )
 endif()

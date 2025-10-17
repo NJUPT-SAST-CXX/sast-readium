@@ -14,13 +14,9 @@ ServiceLocator::ServiceLocator(QObject* parent)
 }
 
 ServiceLocator::~ServiceLocator() {
-    // Initialize logging safely - don't log if system not ready
-    try {
-        m_logger.debug("ServiceLocator destroying...");
-    } catch (...) {
-        // Logging system not initialized, continue silently
-    }
-    clearServices();
+    // Completely silent shutdown - no logging to avoid crashes
+    // during static destruction when logging system is already destroyed
+    clearServicesUnsafe();
 }
 
 ServiceLocator& ServiceLocator::instance() {
@@ -125,7 +121,28 @@ void ServiceLocator::removeService(const QString& typeName) {
 }
 
 void ServiceLocator::clearServices() {
-    m_logger.info("Clearing all services...");
+    // Don't log during shutdown to avoid crashes with destroyed logging system
+    try {
+        m_logger.info("Clearing all services...");
+    } catch (...) {
+        // Logging system may be destroyed during shutdown, continue silently
+    }
+
+    // Delete services we own
+    for (auto it = m_services.begin(); it != m_services.end(); ++it) {
+        if (it.value() && it.value()->parent() == this) {
+            it.value()->deleteLater();
+        }
+    }
+
+    m_services.clear();
+    m_factories.clear();
+    m_sharedServices.clear();
+}
+
+void ServiceLocator::clearServicesUnsafe() {
+    // Completely silent shutdown - no logging to avoid crashes
+    // during static destruction when logging system is already destroyed
 
     // Delete services we own
     for (auto it = m_services.begin(); it != m_services.end(); ++it) {

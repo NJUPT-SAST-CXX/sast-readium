@@ -2,6 +2,7 @@
 #include <QElapsedTimer>
 #include <QObject>
 #include <QSignalSpy>
+#include <QtConcurrent/QtConcurrent>
 #include <QtTest/QtTest>
 #include "../../app/search/SearchMetrics.h"
 #include "../TestUtilities.h"
@@ -379,13 +380,62 @@ void SearchMetricsTest::verifyStatistics(double expectedAvgTime,
 }
 
 void SearchMetricsTest::testHistoryManagement() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    const int totalMetrics = 1050;
+    for (int i = 0; i < totalMetrics; ++i) {
+        SearchMetrics::Metric metric =
+            createTestMetric(QString("history%1").arg(i), 40 + i,
+                             (i % 5) + 1);
+        metric.timestamp = QDateTime::currentDateTime().addSecs(i);
+        m_metrics->recordSearch(metric);
+    }
+
+    // History should keep only the most recent 1000 entries
+    QCOMPARE(m_metrics->totalSearches(), 1000);
+
+    QList<SearchMetrics::Metric> recent = m_metrics->recentMetrics(1000);
+    QCOMPARE(recent.size(), 1000);
+    QCOMPARE(recent.first().query, QString("history50"));
+    QCOMPARE(recent.last().query, QString("history1049"));
+
+    // Clearing history must reset all counters
+    m_metrics->clearHistory();
+    QCOMPARE(m_metrics->totalSearches(), 0);
+    QCOMPARE(m_metrics->totalCacheHits(), 0);
+    QCOMPARE(m_metrics->totalCacheMisses(), 0);
 }
 
 void SearchMetricsTest::testPerformanceAnalysis() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    // Record several searches with varying performance
+    SearchMetrics::Metric fastMetric;
+    fastMetric.query = "fast";
+    fastMetric.duration = 10;
+    fastMetric.resultCount = 5;
+    fastMetric.pagesSearched = 1;
+    fastMetric.cacheHit = true;
+    fastMetric.timestamp = QDateTime::currentDateTime();
+    m_metrics->recordSearch(fastMetric);
+
+    SearchMetrics::Metric slowMetric;
+    slowMetric.query = "slow";
+    slowMetric.duration = 500;
+    slowMetric.resultCount = 100;
+    slowMetric.pagesSearched = 50;
+    slowMetric.cacheHit = false;
+    slowMetric.timestamp = QDateTime::currentDateTime();
+    m_metrics->recordSearch(slowMetric);
+
+    // Analyze performance
+    SearchMetrics::Metric fastest = m_metrics->fastestSearch();
+    SearchMetrics::Metric slowest = m_metrics->slowestSearch();
+
+    // Verify fastest and slowest are identified correctly
+    QVERIFY(fastest.duration <= slowest.duration);
+    QCOMPARE(fastest.query, QString("fast"));
+    QCOMPARE(slowest.query, QString("slow"));
+
+    // Test percentile calculation
+    double p95 = m_metrics->percentile(0.95);
+    QVERIFY(p95 >= 0);
 }
 
 void SearchMetricsTest::testMetricsUpdatedSignal() {
@@ -404,28 +454,170 @@ void SearchMetricsTest::testEmptyMetrics() {
 }
 
 void SearchMetricsTest::testInvalidTimeRange() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    // Test with invalid time range (end before start)
+    QDateTime now = QDateTime::currentDateTime();
+    QDateTime future = now.addDays(1);
+    QDateTime past = now.addDays(-1);
+
+    // Query with end before start should return empty list
+    QList<SearchMetrics::Metric> invalidRange =
+        m_metrics->metricsInRange(future, past);
+
+    QVERIFY(invalidRange.isEmpty());
+
+    // Valid range should work
+    SearchMetrics::Metric metric;
+    metric.query = "test";
+    metric.duration = 100;
+    metric.timestamp = now;
+    m_metrics->recordSearch(metric);
+
+    QList<SearchMetrics::Metric> validRange =
+        m_metrics->metricsInRange(past, future);
+
+    QVERIFY(validRange.size() >= 1);
 }
 
 void SearchMetricsTest::testLargeDataset() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    // Test with a large number of metrics
+    m_metrics->clearHistory();
+
+    QElapsedTimer timer;
+    timer.start();
+
+    // Record 1000 metrics
+    for (int i = 0; i < 1000; ++i) {
+        SearchMetrics::Metric metric;
+        metric.query = QString("query_%1").arg(i);
+        metric.duration = (i % 100) + 10;  // Varying durations
+        metric.resultCount = i % 50;
+        metric.pagesSearched = (i % 10) + 1;
+        metric.cacheHit = (i % 2 == 0);
+        metric.timestamp = QDateTime::currentDateTime().addSecs(-i);
+        m_metrics->recordSearch(metric);
+    }
+
+    qint64 recordTime = timer.elapsed();
+
+    // Recording should be reasonably fast (< 1 second for 1000 entries)
+    QVERIFY(recordTime < 1000);
+
+    // Verify metrics were recorded
+    QVERIFY(m_metrics->totalSearches() >= 1000);
+
+    // Test retrieval performance
+    timer.restart();
+    QList<SearchMetrics::Metric> recent = m_metrics->recentMetrics(100);
+    qint64 retrievalTime = timer.elapsed();
+
+    QVERIFY(retrievalTime < 100);  // Should be very fast
+    QCOMPARE(recent.size(), 100);
+
+    // Test statistics calculation with large dataset
+    double avgTime = m_metrics->averageSearchTime();
+    QVERIFY(avgTime > 0);
+
+    double cacheRatio = m_metrics->cacheHitRatio();
+    QVERIFY(cacheRatio >= 0.0 && cacheRatio <= 1.0);
 }
 
 void SearchMetricsTest::testConcurrentAccess() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    const int threadCount = 4;
+    const int operationsPerThread = 50;
+
+    QList<QFuture<void>> futures;
+    futures.reserve(threadCount);
+    for (int t = 0; t < threadCount; ++t) {
+        futures.append(QtConcurrent::run([this, operationsPerThread, t]() {
+            for (int i = 0; i < operationsPerThread; ++i) {
+                SearchMetrics::Metric metric = createTestMetric(
+                    QString("thread%1-%2").arg(t).arg(i), 25 + i,
+                    (i % 5) + 1);
+                metric.incremental = (i % 2 == 0);
+                metric.timestamp = QDateTime::currentDateTime();
+                m_metrics->recordSearch(metric);
+
+                if (i % 3 == 0) {
+                    m_metrics->recordCacheHit(metric.query);
+                } else {
+                    m_metrics->recordCacheMiss(metric.query);
+                }
+            }
+        }));
+    }
+
+    for (QFuture<void>& future : futures) {
+        future.waitForFinished();
+    }
+
+    const int expectedSearches = threadCount * operationsPerThread;
+    QCOMPARE(m_metrics->totalSearches(), expectedSearches);
+
+    const int hitsPerThread = (operationsPerThread + 2) / 3;
+    const int expectedHits = hitsPerThread * threadCount;
+    QCOMPARE(m_metrics->totalCacheHits(), expectedHits);
+    QCOMPARE(m_metrics->totalCacheMisses(), expectedSearches - expectedHits);
+
+    QVERIFY(m_metrics->averageSearchTime() >= 25.0);
 }
 
 void SearchMetricsTest::testRealWorldScenario() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    SearchMetrics::Metric docSearch =
+        createTestMetric("full-document", 320, 12, false);
+    docSearch.pagesSearched = 75;
+    docSearch.memoryUsage = 4096;
+
+    SearchMetrics::Metric quickSearch =
+        createTestMetric("quick-update", 90, 4, true);
+    quickSearch.incremental = true;
+    quickSearch.pagesSearched = 8;
+    quickSearch.memoryUsage = 1024;
+
+    m_metrics->recordSearch(docSearch);
+    m_metrics->recordSearch(quickSearch);
+    m_metrics->recordCacheHit("full-document");
+    m_metrics->recordCacheMiss("quick-update");
+
+    QCOMPARE(m_metrics->totalSearches(), 2);
+    QCOMPARE(m_metrics->incrementalSearchRatio(), 0.5);
+    QCOMPARE(m_metrics->cacheHitRatio(), 0.5);
+
+    SearchMetrics::Metric fastest = m_metrics->fastestSearch();
+    SearchMetrics::Metric slowest = m_metrics->slowestSearch();
+    QCOMPARE(fastest.query, QString("quick-update"));
+    QCOMPARE(slowest.query, QString("full-document"));
+
+    QList<SearchMetrics::Metric> metrics =
+        m_metrics->metricsInRange(docSearch.timestamp.addSecs(-1),
+                                  quickSearch.timestamp.addSecs(1));
+    QCOMPARE(metrics.size(), 2);
 }
 
 void SearchMetricsTest::testMetricsAccuracy() {
-    // Stub implementation - test passes trivially
-    QVERIFY(true);
+    recordMultipleSearches(6);
+
+    QList<SearchMetrics::Metric> allMetrics = m_metrics->recentMetrics(6);
+    QCOMPARE(allMetrics.size(), 6);
+
+    qint64 totalDuration = 0;
+    for (const auto& metric : allMetrics) {
+        QVERIFY(metric.duration >= 100);
+        QVERIFY(metric.resultCount >= 0);
+        totalDuration += metric.duration;
+    }
+
+    double expectedAverage =
+        static_cast<double>(totalDuration) / allMetrics.size();
+    QCOMPARE(m_metrics->averageSearchTime(), expectedAverage);
+
+    SearchMetrics::Metric fastest = m_metrics->fastestSearch();
+    SearchMetrics::Metric slowest = m_metrics->slowestSearch();
+    QVERIFY(fastest.duration <= slowest.duration);
+
+    QList<SearchMetrics::Metric> range =
+        m_metrics->metricsInRange(fastest.timestamp.addSecs(-1),
+                                  slowest.timestamp.addSecs(1));
+    QVERIFY(range.size() >= 2);
 }
 
 QTEST_MAIN(SearchMetricsTest)

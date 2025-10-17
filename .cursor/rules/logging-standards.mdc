@@ -1,0 +1,408 @@
+---
+description: Logging standards and practices for SAST Readium
+---
+
+# Logging Standards for SAST Readium
+
+## Logging System
+
+SAST Readium uses a high-performance logging system based on **spdlog** with Qt integration. See [app/logging/README.md](mdc:app/logging/README.md) for comprehensive documentation.
+
+## Logging Architecture
+
+### Components
+- **Logger** ([app/logging/Logger.h](mdc:app/logging/Logger.h)): Core logging interface
+- **LoggingManager** ([app/logging/LoggingManager.h](mdc:app/logging/LoggingManager.h)): Configuration and management
+- **SimpleLogging** ([app/logging/SimpleLogging.h](mdc:app/logging/SimpleLogging.h)): Simplified API for common use cases
+- **QtSpdlogBridge** ([app/logging/QtSpdlogBridge.h](mdc:app/logging/QtSpdlogBridge.h)): Qt message handler integration
+
+## Using the Logger
+
+### Include Headers
+```cpp
+#include "logging/SimpleLogging.h"  // For most use cases
+// or
+#include "logging/Logger.h"         // For advanced usage
+```
+
+### Category Logger
+**Preferred approach** - use category loggers for component-specific logging:
+```cpp
+class MyClass {
+private:
+    SastLogging::CategoryLogger m_logger{"MyClass"};
+
+public:
+    void doSomething() {
+        m_logger.info("Operation started");
+        m_logger.debug("Processing item: {}", itemId);
+        m_logger.warn("Resource low: {} MB remaining", memory);
+        m_logger.error("Operation failed: {}", errorMsg);
+    }
+};
+```
+
+### Global Logger
+For simple cases or static functions:
+```cpp
+void freeFunction() {
+    LOG_INFO("Function called");
+    LOG_DEBUG("Parameter value: {}", param);
+    LOG_ERROR("Error occurred: {}", error);
+}
+```
+
+### Macros
+Use macros for convenience:
+```cpp
+#include "logging/LoggingMacros.h"
+
+LOG_TRACE("Detailed trace information");
+LOG_DEBUG("Debug information");
+LOG_INFO("Informational message");
+LOG_WARN("Warning message");
+LOG_ERROR("Error message");
+LOG_CRITICAL("Critical error");
+```
+
+## Log Levels
+
+### Level Hierarchy
+From most to least verbose:
+1. **TRACE**: Detailed trace information (development only)
+2. **DEBUG**: Debug information helpful during development
+3. **INFO**: General informational messages
+4. **WARN**: Warning messages for potential issues
+5. **ERROR**: Error messages for failures
+6. **CRITICAL**: Critical errors requiring immediate attention
+
+### Setting Log Level
+```cpp
+// Runtime configuration
+LoggingManager::instance().setLogLevel(spdlog::level::debug);
+
+// Per-category level
+LoggingManager::instance().setLogLevel("MyClass", spdlog::level::trace);
+```
+
+### Level Guidelines
+
+**TRACE**:
+- Function entry/exit
+- Detailed loop iterations
+- Variable state dumps
+- **Use sparingly** - high performance impact
+
+**DEBUG**:
+- Algorithm steps
+- Conditional branches taken
+- Resource acquisition/release
+- Cache hits/misses
+
+**INFO**:
+- Application lifecycle events (startup, shutdown)
+- User actions (document opened, search performed)
+- Configuration changes
+- Feature usage
+
+**WARN**:
+- Recoverable errors
+- Deprecated API usage
+- Performance degradation
+- Resource constraints
+
+**ERROR**:
+- Operation failures
+- Invalid state
+- Resource unavailability
+- User-facing errors
+
+**CRITICAL**:
+- Application crash imminent
+- Data corruption detected
+- Security violations
+- Unrecoverable errors
+
+## Formatting
+
+### Format String Syntax
+Use **fmt** library syntax (like Python's format):
+```cpp
+m_logger.info("User {} opened document: {}", userName, filePath);
+m_logger.debug("Processing page {}/{}", currentPage, totalPages);
+m_logger.warn("Memory usage: {:.2f} MB", memoryMB);
+```
+
+### Common Patterns
+```cpp
+// Simple message
+m_logger.info("Operation completed");
+
+// With parameters
+m_logger.info("Loaded {} items in {} ms", count, duration);
+
+// Formatting numbers
+m_logger.debug("Progress: {:.1f}%", progress * 100);
+m_logger.info("Size: {:L} bytes", fileSize);  // With thousands separator
+
+// Hex formatting
+m_logger.debug("Address: {:#x}", address);
+
+// Padding/alignment
+m_logger.info("{:<20} {:>10}", name, value);  // Left and right align
+```
+
+### Qt Types
+Convert Qt types to std types for logging:
+```cpp
+QString qstr = "text";
+m_logger.info("QString: {}", qstr.toStdString());
+
+QByteArray qbytes = data;
+m_logger.debug("QByteArray size: {}", qbytes.size());
+
+// For file paths
+QString filePath = "path/to/file";
+m_logger.info("File: {}", filePath.toStdString());
+```
+
+## Performance Considerations
+
+### Conditional Logging
+Check log level before expensive operations:
+```cpp
+if (m_logger.shouldLog(spdlog::level::debug)) {
+    QString expensiveString = computeExpensiveDebugInfo();
+    m_logger.debug("Debug info: {}", expensiveString.toStdString());
+}
+```
+
+### Avoid String Construction
+Don't construct strings if logging is disabled:
+```cpp
+// BAD - string always constructed
+QString msg = QString("Debug: %1").arg(expensiveComputation());
+LOG_DEBUG(msg.toStdString());
+
+// GOOD - only computed if debug is enabled
+if (LOG_SHOULD_DEBUG()) {
+    LOG_DEBUG("Debug: {}", expensiveComputation());
+}
+```
+
+### Minimize Allocations
+Reuse objects, avoid temporary allocations:
+```cpp
+// BAD - creates temporary QString
+LOG_INFO(QString("Count: %1").arg(count).toStdString());
+
+// GOOD - direct formatting
+LOG_INFO("Count: {}", count);
+```
+
+## Configuration
+
+### Configuration File
+Logging is configured via JSON files in [config/](mdc:config/):
+- **logging-dev.json**: Development configuration (verbose)
+- **logging.json**: Production configuration (minimal)
+
+Example configuration:
+```json
+{
+  "level": "info",
+  "pattern": "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v",
+  "sinks": [
+    {
+      "type": "stdout",
+      "level": "debug"
+    },
+    {
+      "type": "rotating_file",
+      "filename": "logs/app.log",
+      "max_size": 10485760,
+      "max_files": 3
+    }
+  ]
+}
+```
+
+### Runtime Configuration
+```cpp
+// Load configuration
+LoggingManager::instance().loadConfig("config/logging.json");
+
+// Set global level
+LoggingManager::instance().setLogLevel(spdlog::level::info);
+
+// Set category level
+LoggingManager::instance().setLogLevel("Search", spdlog::level::debug);
+
+// Set pattern
+LoggingManager::instance().setPattern("[%H:%M:%S] [%^%l%$] %v");
+```
+
+## Qt Integration
+
+### Qt Message Handler
+Qt messages (qDebug, qWarning, etc.) are automatically redirected to spdlog:
+```cpp
+// These are redirected to logging system
+qDebug() << "Debug message";
+qWarning() << "Warning message";
+qCritical() << "Critical message";
+```
+
+### Qt Logging Categories
+Define Qt logging categories for fine-grained control:
+```cpp
+Q_LOGGING_CATEGORY(lcMyCategory, "myapp.mycategory")
+
+qCDebug(lcMyCategory) << "Category debug message";
+qCWarning(lcMyCategory) << "Category warning";
+```
+
+### Installation
+Install Qt message handler early in `main()`:
+```cpp
+int main(int argc, char* argv[]) {
+    QApplication app(argc, argv);
+
+    // Setup logging
+    LoggingManager::instance().loadConfig("config/logging.json");
+    QtSpdlogBridge::installQtMessageHandler();
+
+    // Application code
+    return app.exec();
+}
+```
+
+## Best Practices
+
+### Do's
+- ✅ Use category loggers for components
+- ✅ Log at appropriate levels
+- ✅ Include context in messages (IDs, names, paths)
+- ✅ Use format strings for structured logging
+- ✅ Log errors with error details
+- ✅ Log user actions for support and debugging
+- ✅ Check log level for expensive operations
+- ✅ Use meaningful category names
+
+### Don'ts
+- ❌ Don't log sensitive data (passwords, tokens, personal info)
+- ❌ Don't log in tight loops without level checks
+- ❌ Don't use std::cout or qDebug directly
+- ❌ Don't construct expensive strings unconditionally
+- ❌ Don't log redundant information
+- ❌ Don't use TRACE in production
+- ❌ Don't mix logging APIs
+
+### Security
+**Never log sensitive information:**
+```cpp
+// BAD
+m_logger.info("User password: {}", password);
+m_logger.debug("API key: {}", apiKey);
+
+// GOOD
+m_logger.info("User authenticated: {}", username);
+m_logger.debug("API request sent");
+```
+
+### Error Logging
+Include full context for errors:
+```cpp
+// BAD
+m_logger.error("Failed");
+
+// GOOD
+m_logger.error("Failed to open document: {} (error: {})", 
+               filePath, errorCode);
+```
+
+### Structured Logging
+Use consistent formats for parsing:
+```cpp
+// Good - structured and parseable
+m_logger.info("DocumentOpened: path={}, pages={}, size={}", 
+              path, pages, size);
+
+// Bad - inconsistent format
+m_logger.info(QString("Opened %1 with %2 pages").arg(path).arg(pages));
+```
+
+## Examples
+
+### Component Lifecycle
+```cpp
+class DocumentController {
+private:
+    SastLogging::CategoryLogger m_logger{"DocumentController"};
+
+public:
+    DocumentController() {
+        m_logger.debug("DocumentController created");
+    }
+
+    ~DocumentController() {
+        m_logger.debug("DocumentController destroyed");
+    }
+
+    bool openDocument(const QString& path) {
+        m_logger.info("Opening document: {}", path.toStdString());
+
+        if (!QFile::exists(path)) {
+            m_logger.error("Document not found: {}", path.toStdString());
+            return false;
+        }
+
+        // Load document
+        m_logger.debug("Loading document from disk");
+        // ...
+
+        m_logger.info("Document opened successfully: {} pages", pageCount);
+        return true;
+    }
+};
+```
+
+### Error Handling
+```cpp
+void SearchEngine::search(const QString& query) {
+    m_logger.info("Search started: query='{}', options={}", 
+                  query.toStdString(), optionsToString());
+
+    try {
+        auto results = performSearch(query);
+        m_logger.info("Search completed: {} results in {} ms", 
+                      results.size(), elapsed);
+    }
+    catch (const std::exception& e) {
+        m_logger.error("Search failed: {} (exception: {})", 
+                       query.toStdString(), e.what());
+        throw;
+    }
+}
+```
+
+### Performance Logging
+```cpp
+void RenderModel::renderPage(int pageNum) {
+    auto start = std::chrono::steady_clock::now();
+
+    m_logger.debug("Rendering page {}", pageNum);
+
+    // Render
+    renderPageInternal(pageNum);
+
+    auto duration = std::chrono::steady_clock::now() - start;
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+    m_logger.info("Page {} rendered in {} ms", pageNum, ms);
+
+    if (ms > 1000) {
+        m_logger.warn("Slow rendering: page {} took {} ms", pageNum, ms);
+    }
+}
+```

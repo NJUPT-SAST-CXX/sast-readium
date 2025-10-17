@@ -23,6 +23,8 @@ Checks: >
   -readability-convert-member-functions-to-static,
   -readability-implicit-bool-conversion,
   -readability-braces-around-statements,
+  -readability-redundant-access-specifiers,
+  -readability-redundant-access-specifiers.*,
   performance-*,
   bugprone-*,
   -bugprone-easily-swappable-parameters,
@@ -47,13 +49,15 @@ Checks: >
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-slicing,
+  -cppcoreguidelines-owning-memory,
   google-*,
   -google-readability-todo,
   -google-runtime-references,
   hicpp-*,
   -hicpp-avoid-c-arrays,
   -hicpp-vararg,
-  -hicpp-no-array-decay
+  -hicpp-no-array-decay,
+  -hicpp-implicit-bool-conversion
 
 # Treat warnings as errors for critical issues only
 WarningsAsErrors: >
@@ -90,7 +94,7 @@ CheckOptions:
   readability-identifier-naming.VariableCase: camelBack
   readability-identifier-naming.ParameterCase: camelBack
   readability-identifier-naming.EnumCase: CamelCase
-  readability-identifier-naming.EnumConstantCase: UPPER_CASE
+  readability-identifier-naming.EnumConstantCase: CamelCase
   readability-identifier-naming.ConstantCase: UPPER_CASE
   readability-identifier-naming.MemberCase: camelBack
   readability-identifier-naming.MethodCase: camelBack

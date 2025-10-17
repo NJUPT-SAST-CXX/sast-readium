@@ -8,6 +8,7 @@
 #include <QPropertyAnimation>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QShortcut>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -93,6 +94,7 @@ private:
     void setupTipsSection();
     void setupKeyboardShortcuts();
     void setupConnections();
+    void setupKeyboardNavigation();
     void updateLayout();
     void updateLogo();
     void startFadeInAnimation();

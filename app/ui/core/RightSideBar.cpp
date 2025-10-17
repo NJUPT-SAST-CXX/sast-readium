@@ -12,6 +12,7 @@
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
+#include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
 #include "../widgets/DebugLogPanel.h"
 
@@ -45,24 +46,46 @@ RightSideBar::RightSideBar(QWidget* parent)
     applyTheme();
 }
 
+RightSideBar::~RightSideBar() {
+    // Save state before destruction
+    saveState();
+
+    // Stop animation if running
+    if (animation) {
+        animation->stop();
+        // Animation will be deleted by Qt parent-child ownership
+    }
+
+    // All widgets are deleted automatically by Qt parent-child ownership
+    // No manual deletion needed for widgets created with 'this' as parent
+
+    LOG_DEBUG("RightSideBar destroyed successfully");
+}
+
 void RightSideBar::initWindow() {
     setMinimumWidth(minimumWidth);
     setMaximumWidth(maximumWidth);
     resize(preferredWidth, height());
+
+    // Set size policy for responsive behavior
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 }
 
 void RightSideBar::initContent() {
     tabWidget = new QTabWidget(this);
+    tabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     QWidget* propertiesTab = createPropertiesTab();
     QWidget* toolsTab = createToolsTab();
     QWidget* debugTab = createDebugTab();
 
-    tabWidget->addTab(propertiesTab, "属性");
-    tabWidget->addTab(toolsTab, "工具");
-    tabWidget->addTab(debugTab, "调试");
+    tabWidget->addTab(propertiesTab, tr("Properties"));
+    tabWidget->addTab(toolsTab, tr("Tools"));
+    tabWidget->addTab(debugTab, tr("Debug"));
 
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(0, 0, 0, 0);  // No margins for sidebar
+    mainLayout->setSpacing(0);  // No spacing for tight layout
     mainLayout->addWidget(tabWidget);
 }
 
@@ -72,14 +95,14 @@ QWidget* RightSideBar::createPropertiesTab() {
     layout->setContentsMargins(8, 8, 8, 8);
     layout->setSpacing(8);
 
-    // 文档属性标签
-    QLabel* titleLabel = new QLabel("文档属性", propertiesTab);
+    // Document properties title
+    QLabel* titleLabel = new QLabel(tr("Document Properties"), propertiesTab);
     titleLabel->setStyleSheet("font-weight: bold; font-size: 12px;");
     layout->addWidget(titleLabel);
 
-    // 占位内容
+    // Placeholder content
     QLabel* placeholderLabel =
-        new QLabel("文档属性信息将在此显示", propertiesTab);
+        new QLabel(tr("Document properties will be displayed here"), propertiesTab);
     placeholderLabel->setStyleSheet("color: gray; font-size: 10px;");
     placeholderLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(placeholderLabel);
@@ -94,13 +117,13 @@ QWidget* RightSideBar::createToolsTab() {
     layout->setContentsMargins(8, 8, 8, 8);
     layout->setSpacing(8);
 
-    // 工具标签
-    QLabel* titleLabel = new QLabel("工具", toolsTab);
+    // Tools title
+    QLabel* titleLabel = new QLabel(tr("Tools"), toolsTab);
     titleLabel->setStyleSheet("font-weight: bold; font-size: 12px;");
     layout->addWidget(titleLabel);
 
-    // 占位内容
-    QLabel* placeholderLabel = new QLabel("工具面板将在此显示", toolsTab);
+    // Placeholder content
+    QLabel* placeholderLabel = new QLabel(tr("Tools panel will be displayed here"), toolsTab);
     placeholderLabel->setStyleSheet("color: gray; font-size: 10px;");
     placeholderLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(placeholderLabel);
@@ -164,7 +187,7 @@ void RightSideBar::hide(bool animated) {
     if (!isCurrentlyVisible)
         return;
 
-    lastWidth = width();  // 记住当前宽度
+    lastWidth = width();  // Remember current width
     isCurrentlyVisible = false;
 
     if (animated && animation) {
@@ -209,7 +232,7 @@ void RightSideBar::restoreState() {
     settings->endGroup();
 
     setPreferredWidth(width);
-    setVisible(visible, false);  // 恢复状态时不使用动画
+    setVisible(visible, false);  // Don't use animation when restoring state
 }
 
 void RightSideBar::onAnimationFinished() {

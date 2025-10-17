@@ -7,6 +7,7 @@
 #include <QFont>
 #include <QHash>
 #include <QModelIndex>
+#include <QMouseEvent>
 #include <QMutex>
 #include <QPainter>
 #include <QPersistentModelIndex>
@@ -509,11 +510,34 @@ void ThumbnailDelegate::resetPerformanceStats() {
 }
 
 bool ThumbnailDelegate::eventFilter(QObject* object, QEvent* event) {
-    // 处理鼠标事件以触发动画
-    if (auto* view = qobject_cast<QAbstractItemView*>(object)) {
-        if (event->type() == QEvent::MouseMove) {
-            // 处理悬停状态
+    if (!d->animationEnabled) {
+        return QStyledItemDelegate::eventFilter(object, event);
+    }
+
+    auto* view = qobject_cast<QAbstractItemView*>(object);
+    if (!view) {
+        return QStyledItemDelegate::eventFilter(object, event);
+    }
+
+    if (event->type() == QEvent::MouseMove) {
+        auto* mouseEvent = dynamic_cast<QMouseEvent*>(event);
+        if (!mouseEvent) {
+            return QStyledItemDelegate::eventFilter(object, event);
         }
+        QModelIndex index = view->indexAt(mouseEvent->pos());
+
+        // Update hover states for all items
+        for (auto it = d->animationStates.begin(); it != d->animationStates.end(); ++it) {
+            bool isHovered = (it.key() == index && index.isValid());
+            d->updateHoverState(it.key(), isHovered);
+        }
+
+        // Create animation state for newly hovered item if needed
+        if (index.isValid()) {
+            d->updateHoverState(index, true);
+        }
+
+        view->viewport()->update();
     }
 
     return QStyledItemDelegate::eventFilter(object, event);
@@ -664,42 +688,447 @@ void ThumbnailDelegate::Implementation::paintLoadingIndicator(
     QPainter* painter, const QRect& rect,
     const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
-    painter->fillRect(rect, QColor(255, 255, 255, 200));
-    // Simplified loading indicator - full implementation would include
-    // animation
+
+    StyleManager* styleManager = &StyleManager::instance();
+
+    // Get theme-aware colors
+    QColor baseColor;
+    QColor shimmerColor;
+    if (styleManager->currentTheme() == Theme::Light) {
+        baseColor = QColor(240, 240, 240);
+        shimmerColor = QColor(250, 250, 250);
+    } else {
+        baseColor = QColor(45, 45, 45);
+        shimmerColor = QColor(60, 60, 60);
+    }
+
+    // Fill background
+    painter->fillRect(rect, baseColor);
+
+    // Draw skeleton shapes to mimic thumbnail content
+    painter->setRenderHint(QPainter::Antialiasing);
+
+    // Calculate layout
+    int margin = styleManager->spacingSM();
+    int spacing = styleManager->spacingXS();
+    QRect contentRect = rect.adjusted(margin, margin, -margin, -margin);
+
+    // Draw main content rectangle (represents the page content)
+    int mainHeight = contentRect.height() * 0.7;
+    QRect mainRect(contentRect.x(), contentRect.y(),
+                   contentRect.width(), mainHeight);
+    painter->fillRect(mainRect, shimmerColor);
+
+    // Draw text line placeholders (represents page text)
+    int lineHeight = 4;
+    int lineY = mainRect.bottom() + spacing * 2;
+    int numLines = 3;
+
+    for (int i = 0; i < numLines && lineY + lineHeight < contentRect.bottom(); ++i) {
+        int lineWidth = contentRect.width();
+        if (i == numLines - 1) {
+            lineWidth = lineWidth * 0.6;  // Last line shorter
+        }
+
+        QRect lineRect(contentRect.x(), lineY, lineWidth, lineHeight);
+        painter->fillRect(lineRect, shimmerColor);
+
+        lineY += lineHeight + spacing;
+    }
+
+    // Draw a subtle shimmer effect using a gradient
+    // This creates a moving shimmer animation effect
+    static qreal shimmerPosition = 0.0;
+    shimmerPosition += 0.02;
+    if (shimmerPosition > 1.0) {
+        shimmerPosition = 0.0;
+    }
+
+    QLinearGradient gradient;
+    gradient.setStart(rect.left(), rect.center().y());
+    gradient.setFinalStop(rect.right(), rect.center().y());
+
+    qreal shimmerWidth = 0.3;
+    qreal shimmerStart = shimmerPosition - shimmerWidth / 2;
+    qreal shimmerEnd = shimmerPosition + shimmerWidth / 2;
+
+    gradient.setColorAt(qMax(0.0, shimmerStart), QColor(255, 255, 255, 0));
+    gradient.setColorAt(shimmerPosition, QColor(255, 255, 255, 30));
+    gradient.setColorAt(qMin(1.0, shimmerEnd), QColor(255, 255, 255, 0));
+
+    painter->fillRect(rect, gradient);
 }
 
 void ThumbnailDelegate::Implementation::paintErrorIndicator(
     QPainter* painter, const QRect& rect, const QString& errorMessage,
     const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
-    Q_UNUSED(errorMessage)
-    painter->fillRect(rect, QColor(255, 200, 200, 200));
-    // Simplified error indicator - full implementation would show error details
+
+    // Fill background with error color
+    painter->fillRect(rect, errorColor.lighter(150));
+
+    // Draw error icon (X mark)
+    painter->setRenderHint(QPainter::Antialiasing);
+    QPen errorPen(errorColor, 3);
+    painter->setPen(errorPen);
+
+    int iconSize = qMin(rect.width(), rect.height()) / 3;
+    QRect iconRect(rect.center().x() - iconSize / 2,
+                   rect.center().y() - iconSize / 2,
+                   iconSize, iconSize);
+
+    // Draw X
+    painter->drawLine(iconRect.topLeft(), iconRect.bottomRight());
+    painter->drawLine(iconRect.topRight(), iconRect.bottomLeft());
+
+    // Draw error message text
+    if (!errorMessage.isEmpty()) {
+        painter->setFont(errorFont);
+        painter->setPen(errorColor.darker(150));
+
+        QRect textRect = rect.adjusted(margin, iconRect.bottom() + 5, -margin, -margin);
+        QString displayText = errorMessage;
+
+        // Truncate if too long
+        QFontMetrics fm(errorFont);
+        if (fm.horizontalAdvance(displayText) > textRect.width()) {
+            displayText = fm.elidedText(displayText, Qt::ElideRight, textRect.width());
+        }
+
+        painter->drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap, displayText);
+    }
+}
+
+// Animation helper methods
+void ThumbnailDelegate::Implementation::updateHoverState(
+    const QModelIndex& index, bool hovered) {
+    if (!animationEnabled || !index.isValid()) {
+        return;
+    }
+
+    AnimationState* state = getAnimationState(index);
+    if (!state || !state->hoverAnimation) {
+        return;
+    }
+
+    qreal targetOpacity = hovered ? 1.0 : 0.0;
+    if (qAbs(state->hoverOpacity - targetOpacity) < 0.01) {
+        return;  // Already at target
+    }
+
+    state->hoverAnimation->stop();
+    state->hoverAnimation->setStartValue(state->hoverOpacity);
+    state->hoverAnimation->setEndValue(targetOpacity);
+    state->hoverAnimation->start();
+}
+
+void ThumbnailDelegate::Implementation::updateSelectionState(
+    const QModelIndex& index, bool selected) {
+    if (!animationEnabled || !index.isValid()) {
+        return;
+    }
+
+    AnimationState* state = getAnimationState(index);
+    if (!state || !state->selectionAnimation) {
+        return;
+    }
+
+    qreal targetOpacity = selected ? 1.0 : 0.0;
+    if (qAbs(state->selectionOpacity - targetOpacity) < 0.01) {
+        return;  // Already at target
+    }
+
+    state->selectionAnimation->stop();
+    state->selectionAnimation->setStartValue(state->selectionOpacity);
+    state->selectionAnimation->setEndValue(targetOpacity);
+    state->selectionAnimation->start();
+}
+
+void ThumbnailDelegate::Implementation::setupAnimations(
+    AnimationState* state, const QModelIndex& index) const {
+    Q_UNUSED(index)
+
+    if (!state) {
+        return;
+    }
+
+    // Setup hover animation
+    state->hoverAnimation = new QPropertyAnimation();
+    state->hoverAnimation->setDuration(HOVER_ANIMATION_DURATION);
+    state->hoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
+    QObject::connect(state->hoverAnimation, &QPropertyAnimation::valueChanged,
+                     q_ptr, [this, state](const QVariant& value) {
+                         state->hoverOpacity = value.toReal();
+                         state->needsUpdate = true;
+                     });
+
+    // Setup selection animation
+    state->selectionAnimation = new QPropertyAnimation();
+    state->selectionAnimation->setDuration(SELECTION_ANIMATION_DURATION);
+    state->selectionAnimation->setEasingCurve(QEasingCurve::OutCubic);
+    QObject::connect(state->selectionAnimation, &QPropertyAnimation::valueChanged,
+                     q_ptr, [this, state](const QVariant& value) {
+                         state->selectionOpacity = value.toReal();
+                         state->needsUpdate = true;
+                     });
 }
 
 // Additional method implementations
 ThumbnailDelegate::Implementation::AnimationState*
 ThumbnailDelegate::Implementation::getAnimationState(
     const QModelIndex& index) const {
-    Q_UNUSED(index)
-    return nullptr;  // Simplified - full implementation would manage animation
-                     // states
+    if (!index.isValid()) {
+        return nullptr;
+    }
+
+    QPersistentModelIndex persistentIndex(index);
+
+    // Check if animation state already exists
+    auto it = animationStates.find(persistentIndex);
+    if (it != animationStates.end()) {
+        return it.value();
+    }
+
+    // Create new animation state
+    auto* state = new AnimationState();
+    animationStates.insert(persistentIndex, state);
+    setupAnimations(state, index);
+
+    return state;
 }
 
 void ThumbnailDelegate::Implementation::paintOptimized(
     QPainter* painter, const QStyleOptionViewItem& option,
     const QModelIndex& index) const {
-    Q_UNUSED(painter)
-    Q_UNUSED(option)
-    Q_UNUSED(index)
-    // Simplified - full implementation would use caching
+    QString cacheKey = generateCacheKey(index, option);
+    RenderCache* cache = getRenderCache(cacheKey);
+
+    if (cache && cache->isValid && !cache->cachedBackground.isNull()) {
+        // Paint from cache
+        paintFromCache(painter, option.rect, cache->cachedBackground);
+        performanceStats.cacheHits++;
+        return;
+    }
+
+    // Cache miss - perform normal rendering
+    performanceStats.cacheMisses++;
+
+    painter->save();
+
+    if (antiAliasingEnabled) {
+        painter->setRenderHint(QPainter::Antialiasing);
+    }
+    if (smoothPixmapTransform) {
+        painter->setRenderHint(QPainter::SmoothPixmapTransform);
+    }
+    if (highQualityRendering) {
+        painter->setRenderHint(QPainter::TextAntialiasing);
+    }
+
+    // Get data
+    QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
+    bool isLoading = index.data(ThumbnailModel::LoadingRole).toBool();
+    bool hasError = index.data(ThumbnailModel::ErrorRole).toBool();
+    QString errorMessage = index.data(ThumbnailModel::ErrorMessageRole).toString();
+    int pageNumber = index.data(ThumbnailModel::PageNumberRole).toInt();
+
+    // Calculate rectangles
+    QRect thumbnailRect = getThumbnailRect(option.rect);
+    QRect pageNumberRect = getPageNumberRect(thumbnailRect);
+
+    // Paint background
+    paintBackground(painter, option.rect, option);
+
+    // Paint shadow
+    if (shadowEnabled) {
+        paintShadow(painter, thumbnailRect, option);
+    }
+
+    // Paint border
+    paintBorder(painter, thumbnailRect, option);
+
+    // Paint thumbnail content
+    if (hasError) {
+        paintErrorIndicator(painter, thumbnailRect, errorMessage, option);
+    } else if (isLoading) {
+        paintLoadingIndicator(painter, thumbnailRect, option);
+    } else if (!thumbnail.isNull()) {
+        paintThumbnail(painter, thumbnailRect, thumbnail, option);
+    }
+
+    // Paint page number
+    paintPageNumber(painter, pageNumberRect, pageNumber, option);
+
+    painter->restore();
+
+    // Optionally cache the result for future use
+    // (Caching disabled for now as it would require rendering to QPixmap first)
 }
 
 Qt::TransformationMode
 ThumbnailDelegate::Implementation::getOptimalTransformationMode(
     const QSize& sourceSize, const QSize& targetSize) const {
-    Q_UNUSED(sourceSize)
-    Q_UNUSED(targetSize)
+    if (!smoothPixmapTransform) {
+        return Qt::FastTransformation;
+    }
+
+    // Use fast transformation for large downscaling (>2x)
+    if (sourceSize.width() > targetSize.width() * 2 ||
+        sourceSize.height() > targetSize.height() * 2) {
+        return Qt::FastTransformation;
+    }
+
+    // Use smooth transformation for upscaling or moderate downscaling
     return Qt::SmoothTransformation;
+}
+
+// Cache management methods
+QString ThumbnailDelegate::Implementation::generateCacheKey(
+    const QModelIndex& index, const QStyleOptionViewItem& option) const {
+    if (!index.isValid()) {
+        return QString();
+    }
+
+    // Generate unique key based on index, size, and state
+    int state = 0;
+    if (option.state & QStyle::State_Selected) {
+        state |= 1;
+    }
+    if (option.state & QStyle::State_MouseOver) {
+        state |= 2;
+    }
+
+    return QString("%1_%2x%3_%4")
+        .arg(index.row())
+        .arg(option.rect.width())
+        .arg(option.rect.height())
+        .arg(state);
+}
+
+ThumbnailDelegate::Implementation::RenderCache*
+ThumbnailDelegate::Implementation::getRenderCache(const QString& key) const {
+    if (key.isEmpty()) {
+        return nullptr;
+    }
+
+    QMutexLocker locker(&cacheMutex);
+    auto iter = renderCache.find(key);
+    if (iter != renderCache.end()) {
+        RenderCache* cache = iter.value();
+        // Check if cache is still valid (not expired)
+        qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+        if (cache->isValid && (currentTime - cache->timestamp) < CACHE_EXPIRY_TIME) {
+            return cache;
+        } else {
+            // Cache expired
+            cache->isValid = false;
+        }
+    }
+    return nullptr;
+}
+
+void ThumbnailDelegate::Implementation::insertRenderCache(
+    const QString& key, RenderCache* cache) {
+    if (key.isEmpty() || !cache) {
+        return;
+    }
+
+    QMutexLocker locker(&cacheMutex);
+
+    // Check cache size limit
+    if (renderCache.size() >= maxCacheSize) {
+        // Remove oldest entry (simple LRU)
+        qint64 oldestTime = QDateTime::currentMSecsSinceEpoch();
+        QString oldestKey;
+
+        for (auto iter = renderCache.begin(); iter != renderCache.end(); ++iter) {
+            if (iter.value()->timestamp < oldestTime) {
+                oldestTime = iter.value()->timestamp;
+                oldestKey = iter.key();
+            }
+        }
+
+        if (!oldestKey.isEmpty()) {
+            delete renderCache.take(oldestKey);
+        }
+    }
+
+    cache->timestamp = QDateTime::currentMSecsSinceEpoch();
+    cache->isValid = true;
+    renderCache.insert(key, cache);
+}
+
+QPixmap ThumbnailDelegate::Implementation::renderToCache(
+    const QStyleOptionViewItem& option, const QModelIndex& index) const {
+    // Create a pixmap to render into
+    QPixmap pixmap(option.rect.size());
+    pixmap.fill(Qt::transparent);
+
+    QPainter pixmapPainter(&pixmap);
+    pixmapPainter.setRenderHint(QPainter::Antialiasing, antiAliasingEnabled);
+    pixmapPainter.setRenderHint(QPainter::SmoothPixmapTransform,
+                                smoothPixmapTransform);
+    pixmapPainter.setRenderHint(QPainter::TextAntialiasing, highQualityRendering);
+
+    // Get data
+    QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
+    bool isLoading = index.data(ThumbnailModel::LoadingRole).toBool();
+    bool hasError = index.data(ThumbnailModel::ErrorRole).toBool();
+    QString errorMessage =
+        index.data(ThumbnailModel::ErrorMessageRole).toString();
+    int pageNumber = index.data(ThumbnailModel::PageNumberRole).toInt();
+
+    // Calculate rectangles (relative to pixmap origin)
+    QRect localRect(0, 0, option.rect.width(), option.rect.height());
+    QRect thumbnailRect = getThumbnailRect(localRect);
+    QRect pageNumberRect = getPageNumberRect(thumbnailRect);
+
+    // Paint all components
+    paintBackground(&pixmapPainter, localRect, option);
+
+    if (shadowEnabled) {
+        paintShadow(&pixmapPainter, thumbnailRect, option);
+    }
+
+    paintBorder(&pixmapPainter, thumbnailRect, option);
+
+    if (hasError) {
+        paintErrorIndicator(&pixmapPainter, thumbnailRect, errorMessage, option);
+    } else if (isLoading) {
+        paintLoadingIndicator(&pixmapPainter, thumbnailRect, option);
+    } else if (!thumbnail.isNull()) {
+        paintThumbnail(&pixmapPainter, thumbnailRect, thumbnail, option);
+    }
+
+    paintPageNumber(&pixmapPainter, pageNumberRect, pageNumber, option);
+
+    return pixmap;
+}
+
+void ThumbnailDelegate::Implementation::paintFromCache(
+    QPainter* painter, const QRect& rect, const QPixmap& cached) const {
+    if (cached.isNull()) {
+        return;
+    }
+
+    painter->save();
+    painter->setRenderHint(QPainter::SmoothPixmapTransform, smoothPixmapTransform);
+    painter->drawPixmap(rect, cached);
+    painter->restore();
+}
+
+void ThumbnailDelegate::Implementation::updatePerformanceStats() const {
+    // Sample performance stats periodically
+    static int sampleCounter = 0;
+    sampleCounter++;
+
+    if (sampleCounter % static_cast<int>(1.0 / PERFORMANCE_SAMPLE_RATE) == 0) {
+        qDebug() << "ThumbnailDelegate Performance Stats:";
+        qDebug() << "  Paint calls:" << performanceStats.paintCalls.load();
+        qDebug() << "  Avg paint time:" << performanceStats.averagePaintTime()
+                 << "ms";
+        qDebug() << "  Cache hit rate:" << (performanceStats.cacheHitRate() * 100)
+                 << "%";
+        qDebug() << "  Cache size:" << renderCache.size();
+    }
 }

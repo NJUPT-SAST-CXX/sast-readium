@@ -1,14 +1,17 @@
 #include "MenuBar.h"
 #include <QAction>
 #include <QActionGroup>
+#include <QApplication>
 #include <QDebug>
 #include <QDir>
 #include <QEvent>
 #include <QFileInfo>
 #include <QMenu>
 #include <QMessageBox>
+#include "../../logging/LoggingMacros.h"
 #include "../../managers/FileTypeIconManager.h"
 #include "../../managers/I18nManager.h"
+#include "../widgets/ToastNotification.h"
 
 MenuBar::MenuBar(QWidget* parent)
     : QMenuBar(parent),
@@ -25,6 +28,14 @@ MenuBar::MenuBar(QWidget* parent)
     createViewMenu();
     createThemeMenu();
     setupRecentFileShortcuts();
+}
+
+MenuBar::~MenuBar() {
+    // Clean up shortcuts (will be deleted by Qt parent-child ownership)
+    // All menus and actions are deleted automatically by Qt parent-child ownership
+    // No manual deletion needed for widgets/actions created with 'this' as parent
+
+    LOG_DEBUG("MenuBar destroyed successfully");
 }
 
 void MenuBar::createFileMenu() {
@@ -75,6 +86,7 @@ void MenuBar::createFileMenu() {
             [this]() { emit onExecuted(ActionMap::saveAs); });
     connect(documentPropertiesAction, &QAction::triggered, this,
             [this]() { emit onExecuted(ActionMap::showDocumentMetadata); });
+    connect(exitAction, &QAction::triggered, qApp, &QApplication::quit);
 }
 
 void MenuBar::createTabMenu() {
@@ -446,8 +458,8 @@ void MenuBar::onRecentFileTriggered() {
             } else {
                 // 文件不存在，显示用户友好的错误消息
                 QString fileName = fileInfo.fileName();
-                QMessageBox::warning(
-                    this, tr("File Not Found"),
+                TOAST_WARNING(
+                    this,
                     tr("The file \"%1\" could not be found.\n\n"
                        "It may have been moved, renamed, or deleted.\n"
                        "The file has been removed from the recent files list.")

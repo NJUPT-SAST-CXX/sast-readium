@@ -1,4 +1,5 @@
 #include "PDFUtilities.h"
+#include "SafePDFRenderer.h"
 #include <poppler/qt6/poppler-qt6.h>
 #include <QBuffer>
 #include <QCryptographicHash>
@@ -629,23 +630,18 @@ QPixmap PDFUtilities::renderPageToPixmap(Poppler::Page* page, double dpi) {
 
     using namespace ErrorHandling;
 
-    auto result = safeExecute(
-        [&]() -> QPixmap {
-            QImage image = page->renderToImage(dpi, dpi);
-            if (image.isNull()) {
-                throw ApplicationException(createRenderingError(
-                    "render page to image",
-                    QString("Failed to render page at DPI %1").arg(dpi)));
-            }
-            return QPixmap::fromImage(image);
-        },
-        ErrorCategory::Rendering, "PDFUtilities::renderPageToPixmap");
+    // Use SafePDFRenderer for Qt PDF compatibility
+    SafePDFRenderer& renderer = SafePDFRenderer::instance();
+    SafePDFRenderer::RenderInfo renderInfo;
 
-    if (isError(result)) {
+    QImage image = renderer.safeRenderPage(page, dpi, &renderInfo);
+    if (!renderInfo.success || image.isNull()) {
+        Logger::instance().warning(
+            "[utils] SafePDFRenderer failed: {}", renderInfo.errorMessage.toStdString());
         return QPixmap();  // Return empty pixmap on error
     }
 
-    return getValue(result);
+    return QPixmap::fromImage(image);
 }
 
 QPixmap PDFUtilities::renderPageRegion(Poppler::Page* page,
@@ -654,8 +650,17 @@ QPixmap PDFUtilities::renderPageRegion(Poppler::Page* page,
         return QPixmap();
     }
 
-    QImage image = page->renderToImage(dpi, dpi, region.x(), region.y(),
-                                       region.width(), region.height());
+    // Use SafePDFRenderer for Qt PDF compatibility
+    SafePDFRenderer& renderer = SafePDFRenderer::instance();
+    SafePDFRenderer::RenderInfo renderInfo;
+
+    QImage image = renderer.safeRenderPageRegion(page, region, dpi, &renderInfo);
+    if (!renderInfo.success || image.isNull()) {
+        Logger::instance().warning(
+            "[utils] SafePDFRenderer region render failed: {}", renderInfo.errorMessage.toStdString());
+        return QPixmap();  // Return empty pixmap on error
+    }
+
     return QPixmap::fromImage(image);
 }
 

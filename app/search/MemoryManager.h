@@ -125,7 +125,7 @@ public:
     // Lazy loading
     void enableLazyLoading(bool enabled);
     bool isLazyLoadingEnabled() const;
-    void preloadResults(int start, int count);
+    void preloadResults(int start, int count) const;
 
 signals:
     void resultsAdded(int count);

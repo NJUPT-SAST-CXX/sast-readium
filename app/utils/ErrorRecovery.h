@@ -55,19 +55,20 @@ enum class RecoveryResult {
  */
 struct RetryConfig {
     RetryPolicy policy = RetryPolicy::ExponentialBackoff;
+    // Backward-compatible fields: both maxAttempts and maxRetries are supported
     int maxAttempts = 3;
+    int maxRetries = 3; // alias for legacy code paths
     std::chrono::milliseconds initialDelay{100};
     std::chrono::milliseconds maxDelay{5000};
     double backoffMultiplier = 2.0;
 
     RetryConfig() = default;
     RetryConfig(RetryPolicy p, int attempts, std::chrono::milliseconds delay)
-        : policy(p), maxAttempts(attempts), initialDelay(delay) {}
-};
+        : policy(p), maxAttempts(attempts), maxRetries(attempts), initialDelay(delay) {}
 
-/**
- * @brief Circuit breaker state
- */
+    // Effective attempts count considering both fields
+    int attempts() const { return (maxRetries > 0 ? maxRetries : maxAttempts); }
+};
 enum class CircuitState {
     Closed,   // Normal operation
     Open,     // Circuit open, failing fast
@@ -162,7 +163,7 @@ public:
         using ReturnType = decltype(func());
         using ResultType = ErrorHandling::Result<ReturnType>;
 
-        if (config.policy == RetryPolicy::None || config.maxAttempts <= 0) {
+        if (config.policy == RetryPolicy::None || config.attempts() <= 0) {
             return ErrorHandling::safeExecute(
                 std::forward<Func>(func), ErrorHandling::ErrorCategory::Unknown,
                 context);
@@ -170,7 +171,7 @@ public:
 
         ErrorHandling::ErrorInfo lastError;
 
-        for (int attempt = 1; attempt <= config.maxAttempts; ++attempt) {
+        for (int attempt = 1; attempt <= config.attempts(); ++attempt) {
             auto result = ErrorHandling::safeExecute(
                 std::forward<Func>(func), ErrorHandling::ErrorCategory::Unknown,
                 context);
@@ -186,12 +187,12 @@ public:
 
             lastError = ErrorHandling::getError(result);
 
-            if (attempt < config.maxAttempts) {
+            if (attempt < config.attempts()) {
                 auto delay = calculateDelay(config, attempt);
                 if (delay.count() > 0) {
                     Logger::instance().info(
                         "Retrying in {}ms (attempt {}/{}) for: {}",
-                        delay.count(), attempt, config.maxAttempts,
+                        delay.count(), attempt, config.attempts(),
                         context.toStdString());
                     QThread::msleep(static_cast<unsigned long>(delay.count()));
                 }
@@ -354,3 +355,6 @@ private:
 
 #define WITH_STATE_GUARD(state) \
     auto stateGuard = ErrorRecovery::Utils::StateGuard(state)
+
+
+

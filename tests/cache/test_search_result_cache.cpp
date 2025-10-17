@@ -86,8 +86,7 @@ private slots:
     void testHighlightCacheStoreData();
     void testHighlightCacheInvalidateDocument();
     void testHighlightCacheClear();
-    // void testHighlightCacheSetMaxSize();  // TODO: Implement
-    // setMaxCacheSize() in SearchHighlightCache
+    void testHighlightCacheSetMaxSize();
     void testHighlightCacheGetCacheSize();
     void testHighlightCacheGetHitRatio();
 
@@ -657,14 +656,11 @@ void SearchResultCacheTest::testHighlightCacheClear() {
     QCOMPARE(m_highlightCache->getCacheSize(), 0);
 }
 
-// TODO: Uncomment when setMaxCacheSize() is implemented in SearchHighlightCache
-/*
 void SearchResultCacheTest::testHighlightCacheSetMaxSize() {
     m_highlightCache->setMaxCacheSize(50);
     // No getter, so just verify it doesn't crash
     QVERIFY(true);
 }
-*/
 
 void SearchResultCacheTest::testHighlightCacheGetCacheSize() {
     QCOMPARE(m_highlightCache->getCacheSize(), 0);

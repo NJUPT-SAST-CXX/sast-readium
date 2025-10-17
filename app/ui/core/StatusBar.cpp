@@ -3,13 +3,18 @@
 #include <QEvent>
 #include <QFileInfo>
 #include <QFontMetrics>
-#include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QList>
 #include <QLabel>
 #include <QProgressBar>
 #include <QPropertyAnimation>
 #include <QResizeEvent>
+#include <QSizePolicy>
+#include <QStyle>
+#include <algorithm>
+#include "../../logging/LoggingMacros.h"
+#include "../../managers/StyleManager.h"
 
 // ExpandableInfoPanel Implementation
 ExpandableInfoPanel::ExpandableInfoPanel(const QString& title, QWidget* parent)
@@ -21,39 +26,16 @@ ExpandableInfoPanel::ExpandableInfoPanel(const QString& title, QWidget* parent)
     // Create toggle button
     m_toggleButton = new QPushButton(title, this);
     m_toggleButton->setCheckable(true);
-    m_toggleButton->setStyleSheet(
-        "QPushButton {"
-        "   text-align: left;"
-        "   padding: 6px 12px;"
-        "   border: none;"
-        "   background-color: #f8f9fa;"
-        "   border-bottom: 1px solid #dee2e6;"
-        "   font-weight: bold;"
-        "   color: #495057;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: #e9ecef;"
-        "}"
-        "QPushButton:checked {"
-        "   background-color: #007bff;"
-        "   color: white;"
-        "}");
+    m_toggleButton->setCursor(Qt::PointingHandCursor);
 
     // Create content frame
     m_contentFrame = new QFrame(this);
     m_contentFrame->setFrameStyle(QFrame::NoFrame);
     m_contentFrame->setMaximumHeight(0);
-    m_contentFrame->setStyleSheet(
-        "QFrame {"
-        "   background-color: #ffffff;"
-        "   border: 1px solid #dee2e6;"
-        "   border-top: none;"
-        "   padding: 8px;"
-        "}");
 
-    // Setup animation
+    // Setup animation with StyleManager duration
     m_animation = new QPropertyAnimation(m_contentFrame, "maximumHeight", this);
-    m_animation->setDuration(200);
+    m_animation->setDuration(STYLE.animationNormal());
     m_animation->setEasingCurve(QEasingCurve::InOutQuad);
 
     mainLayout->addWidget(m_toggleButton);
@@ -62,6 +44,10 @@ ExpandableInfoPanel::ExpandableInfoPanel(const QString& title, QWidget* parent)
     connect(m_toggleButton, &QPushButton::toggled, this,
             [this](bool checked) { setExpanded(checked); });
 
+    connect(&STYLE, &StyleManager::themeChanged, this,
+            [this](Theme) { applyTheme(); });
+
+    applyTheme();
     updateToggleButton();
 }
 
@@ -99,27 +85,108 @@ void ExpandableInfoPanel::setExpanded(bool expanded, bool animated) {
 }
 
 void ExpandableInfoPanel::updateToggleButton() {
-    QString arrow = m_expanded ? "▼" : "▶";
-    m_toggleButton->setText(arrow + " " + m_toggleButton->text().mid(2));
+    // Use ASCII-safe arrows to avoid encoding issues on some platforms
+    const QString arrow = m_expanded ? QString(">") : QString("v");
+
+    // Preserve the original title if already prefixed with an arrow
+    QString current = m_toggleButton->text();
+    if (current.startsWith("v ") || current.startsWith("> ")) {
+        current = current.mid(2);
+    }
+    m_toggleButton->setText(arrow + " " + current);
 }
 
+void ExpandableInfoPanel::applyTheme() {
+    const QString buttonStyle = STYLE.createToggleButtonStyle();
+    m_toggleButton->setStyleSheet(buttonStyle);
+
+    const QString frameStyle =
+        QStringLiteral("QFrame { %1 }").arg(STYLE.createCardStyle());
+    m_contentFrame->setStyleSheet(frameStyle);
+
+    if (auto* layout = m_contentFrame->layout()) {
+        layout->setContentsMargins(STYLE.spacingSM(), STYLE.spacingSM(),
+                                   STYLE.spacingSM(), STYLE.spacingSM());
+        layout->setSpacing(STYLE.spacingSM());
+    }
+}
+
+
 // StatusBar Implementation
-StatusBar::StatusBar(QWidget* parent)
+StatusBar::StatusBar(QWidget* parent, bool minimalMode)
     : QStatusBar(parent),
       m_currentTotalPages(0),
       m_currentPageNumber(0),
       m_compactMode(false) {
-    // Setup main horizontal layout
+
+    // Minimal mode: Skip all UI creation to avoid Qt platform issues in tests
+    if (minimalMode) {
+        // Initialize all pointers to nullptr
+        m_mainSection = nullptr;
+        m_fileNameLabel = nullptr;
+        m_pageLabel = nullptr;
+        m_pageInputEdit = nullptr;
+        m_zoomLabel = nullptr;
+        m_zoomInputEdit = nullptr;
+        m_clockLabel = nullptr;
+        m_clockTimer = nullptr;
+        m_messageLabel = nullptr;
+        m_messageTimer = nullptr;
+        m_messageAnimation = nullptr;
+        m_loadingProgressBar = nullptr;
+        m_loadingMessageLabel = nullptr;
+        m_progressAnimation = nullptr;
+        m_searchFrame = nullptr;
+        m_searchInput = nullptr;
+        m_searchResultsLabel = nullptr;
+        m_documentInfoPanel = nullptr;
+        m_statisticsPanel = nullptr;
+        m_securityPanel = nullptr;
+        m_quickActionsPanel = nullptr;
+        separatorLabel1 = nullptr;
+        separatorLabel2 = nullptr;
+        separatorLabel3 = nullptr;
+        m_titleLabel = nullptr;
+        m_authorLabel = nullptr;
+        m_subjectLabel = nullptr;
+        m_keywordsLabel = nullptr;
+        m_createdLabel = nullptr;
+        m_modifiedLabel = nullptr;
+        m_fileSizeLabel = nullptr;
+        m_wordCountLabel = nullptr;
+        m_charCountLabel = nullptr;
+        m_pageCountLabel = nullptr;
+        m_avgWordsPerPageLabel = nullptr;
+        m_readingTimeLabel = nullptr;
+        m_encryptionLabel = nullptr;
+        m_copyPermissionLabel = nullptr;
+        m_printPermissionLabel = nullptr;
+        m_modifyPermissionLabel = nullptr;
+        m_bookmarkBtn = nullptr;
+        m_annotateBtn = nullptr;
+        m_shareBtn = nullptr;
+        m_exportBtn = nullptr;
+
+        // Set a simple message using QStatusBar's built-in functionality
+        showMessage("StatusBar (Minimal Mode)", 0);
+        return;
+    }
+
+    // Normal mode: Full UI creation
+    // Setup main horizontal layout with optimized spacing
     QWidget* containerWidget = new QWidget(this);
+    containerWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
     QHBoxLayout* mainLayout = new QHBoxLayout(containerWidget);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(0);
+    mainLayout->setContentsMargins(STYLE.spacingXS(), STYLE.spacingXS(),
+                                   STYLE.spacingXS(), STYLE.spacingXS());
+    mainLayout->setSpacing(STYLE.spacingSM());
 
     // Setup main section (always visible)
     setupMainSection();
     mainLayout->addWidget(m_mainSection);
 
-    // Setup expandable panels
+    // Setup expandable panels (emoji characters replaced with ASCII for Windows compatibility)
     setupDocumentInfoPanel();
     setupStatisticsPanel();
     setupSecurityPanel();
@@ -135,14 +202,9 @@ StatusBar::StatusBar(QWidget* parent)
 
     // Setup message label (overlay)
     m_messageLabel = new QLabel(this);
-    m_messageLabel->setStyleSheet(
-        "QLabel {"
-        "   background-color: rgba(0, 0, 0, 0.8);"
-        "   color: white;"
-        "   padding: 8px 16px;"
-        "   border-radius: 4px;"
-        "   font-size: 14px;"
-        "}");
+    m_messageLabel->setAlignment(Qt::AlignCenter);
+    m_messageLabel->setMinimumWidth(280);
+    m_messageLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     m_messageLabel->hide();
 
     // Setup message timer
@@ -155,6 +217,8 @@ StatusBar::StatusBar(QWidget* parent)
     m_messageAnimation =
         new QPropertyAnimation(m_messageLabel, "windowOpacity", this);
     m_messageAnimation->setDuration(300);
+    connect(m_messageAnimation, &QPropertyAnimation::finished, this,
+            [this]() { m_messageLabel->hide(); });
 
     // Setup clock timer
     m_clockTimer = new QTimer(this);
@@ -163,9 +227,57 @@ StatusBar::StatusBar(QWidget* parent)
 
     // Apply enhanced styling
     applyEnhancedStyle();
+    connect(&STYLE, &StyleManager::themeChanged, this,
+            [this](Theme) { applyEnhancedStyle(); });
+
+    connect(this, &QStatusBar::messageChanged, this,
+            [this](const QString& text) {
+                if (!m_messageLabel) {
+                    return;
+                }
+                if (text.isEmpty()) {
+                    if (m_messageTimer) {
+                        m_messageTimer->stop();
+                    }
+                    if (m_messageAnimation) {
+                        m_messageAnimation->stop();
+                    }
+                    m_messageLabel->hide();
+                    m_messageLabel->clear();
+                }
+            });
 
     // Set initial state
     clearDocumentInfo();
+}
+
+StatusBar::~StatusBar() {
+    // Stop and clean up timers
+    if (m_clockTimer) {
+        m_clockTimer->stop();
+        // Timer will be deleted by Qt parent-child ownership
+    }
+
+    if (m_messageTimer) {
+        m_messageTimer->stop();
+        // Timer will be deleted by Qt parent-child ownership
+    }
+
+    // Stop animations
+    if (m_messageAnimation) {
+        m_messageAnimation->stop();
+        // Animation will be deleted by Qt parent-child ownership
+    }
+
+    if (m_progressAnimation) {
+        m_progressAnimation->stop();
+        // Animation will be deleted by Qt parent-child ownership
+    }
+
+    // All widgets are deleted automatically by Qt parent-child ownership
+    // No manual deletion needed for widgets created with 'this' as parent
+
+    LOG_DEBUG("StatusBar destroyed successfully");
 }
 
 void StatusBar::setupMainSection() {
@@ -173,24 +285,19 @@ void StatusBar::setupMainSection() {
     m_mainSection->setFrameStyle(QFrame::NoFrame);
 
     QHBoxLayout* layout = new QHBoxLayout(m_mainSection);
-    layout->setContentsMargins(8, 4, 8, 4);
-    layout->setSpacing(12);
+    layout->setContentsMargins(STYLE.spacingSM(), STYLE.spacingXS(),
+                               STYLE.spacingSM(), STYLE.spacingXS());
+    layout->setSpacing(STYLE.spacingMD());
 
     // File name
     m_fileNameLabel = new QLabel(tr("No Document"), this);
     m_fileNameLabel->setMinimumWidth(150);
     m_fileNameLabel->setMaximumWidth(300);
-    m_fileNameLabel->setStyleSheet(
-        "QLabel {"
-        "   font-weight: bold;"
-        "   color: #007bff;"
-        "}");
     layout->addWidget(m_fileNameLabel);
 
     // Separator
     separatorLabel1 = new QLabel("|", this);
     separatorLabel1->setAlignment(Qt::AlignCenter);
-    separatorLabel1->setStyleSheet("QLabel { color: gray; padding: 2px 4px; }");
     layout->addWidget(separatorLabel1);
 
     // Page navigation
@@ -201,26 +308,12 @@ void StatusBar::setupMainSection() {
     m_pageInputEdit->setMaximumWidth(60);
     m_pageInputEdit->setAlignment(Qt::AlignCenter);
     m_pageInputEdit->setPlaceholderText("0/0");
-    m_pageInputEdit->setStyleSheet(
-        "QLineEdit {"
-        "   border: 1px solid #ced4da;"
-        "   border-radius: 4px;"
-        "   padding: 2px 4px;"
-        "   background-color: white;"
-        "}"
-        "QLineEdit:hover {"
-        "   border-color: #80bdff;"
-        "}"
-        "QLineEdit:focus {"
-        "   border-color: #007bff;"
-        "   background-color: #f0f8ff;"
-        "}");
+    m_pageInputEdit->setAccessibleName(tr("Page number input"));
     layout->addWidget(m_pageInputEdit);
 
     // Separator
     separatorLabel2 = new QLabel("|", this);
     separatorLabel2->setAlignment(Qt::AlignCenter);
-    separatorLabel2->setStyleSheet("QLabel { color: gray; padding: 2px 4px; }");
     layout->addWidget(separatorLabel2);
 
     // Zoom
@@ -231,27 +324,30 @@ void StatusBar::setupMainSection() {
     m_zoomInputEdit->setMaximumWidth(60);
     m_zoomInputEdit->setAlignment(Qt::AlignCenter);
     m_zoomInputEdit->setText("100%");
-    m_zoomInputEdit->setStyleSheet(m_pageInputEdit->styleSheet());
+    m_zoomInputEdit->setAccessibleName(tr("Zoom percentage input"));
     layout->addWidget(m_zoomInputEdit);
+
+    // Separator
+    separatorLabel3 = new QLabel("|", this);
+    separatorLabel3->setAlignment(Qt::AlignCenter);
+    layout->addWidget(separatorLabel3);
 
     // Search
     m_searchFrame = new QFrame(this);
     QHBoxLayout* searchLayout = new QHBoxLayout(m_searchFrame);
     searchLayout->setContentsMargins(0, 0, 0, 0);
-    searchLayout->setSpacing(4);
+    searchLayout->setSpacing(STYLE.spacingXS());
 
-    QLabel* searchIcon = new QLabel("🔍", this);
+    QLabel* searchIcon = new QLabel(tr("Search:"), this);
     searchLayout->addWidget(searchIcon);
 
     m_searchInput = new QLineEdit(this);
     m_searchInput->setPlaceholderText(tr("Search..."));
     m_searchInput->setMinimumWidth(150);
-    m_searchInput->setStyleSheet(m_pageInputEdit->styleSheet());
+    m_searchInput->setAccessibleName(tr("Document search input"));
     searchLayout->addWidget(m_searchInput);
 
     m_searchResultsLabel = new QLabel("", this);
-    m_searchResultsLabel->setStyleSheet(
-        "QLabel { color: #6c757d; font-size: 11px; }");
     searchLayout->addWidget(m_searchResultsLabel);
 
     layout->addWidget(m_searchFrame);
@@ -263,22 +359,10 @@ void StatusBar::setupMainSection() {
     m_loadingProgressBar->setMaximumHeight(16);
     m_loadingProgressBar->setTextVisible(true);
     m_loadingProgressBar->hide();
-    m_loadingProgressBar->setStyleSheet(
-        "QProgressBar {"
-        "   border: 1px solid #ced4da;"
-        "   border-radius: 8px;"
-        "   text-align: center;"
-        "   font-size: 10px;"
-        "}"
-        "QProgressBar::chunk {"
-        "   background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "       stop:0 #28a745, stop:1 #20c997);"
-        "   border-radius: 7px;"
-        "}");
+    m_loadingProgressBar->setAccessibleName(tr("Document loading progress"));
 
     m_loadingMessageLabel = new QLabel("", this);
     m_loadingMessageLabel->hide();
-    m_loadingMessageLabel->setStyleSheet("QLabel { color: #6c757d; }");
 
     layout->addWidget(m_loadingMessageLabel);
     layout->addWidget(m_loadingProgressBar);
@@ -287,12 +371,6 @@ void StatusBar::setupMainSection() {
 
     // Clock
     m_clockLabel = new QLabel(this);
-    m_clockLabel->setStyleSheet(
-        "QLabel {"
-        "   color: #6c757d;"
-        "   font-family: 'Consolas', 'Monaco', monospace;"
-        "   font-size: 12px;"
-        "}");
     layout->addWidget(m_clockLabel);
     updateClock();
 
@@ -316,11 +394,13 @@ void StatusBar::setupMainSection() {
 }
 
 void StatusBar::setupDocumentInfoPanel() {
-    m_documentInfoPanel = new ExpandableInfoPanel(tr("▶ Document Info"), this);
+    // Use ASCII character instead of emoji for Windows compatibility
+    m_documentInfoPanel = new ExpandableInfoPanel(tr("Document Info"), this);
 
     QWidget* content = new QWidget();
     QGridLayout* layout = new QGridLayout(content);
-    layout->setSpacing(4);
+    layout->setSpacing(STYLE.spacingXS());
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setColumnStretch(1, 1);
 
     // Create labels
@@ -333,16 +413,6 @@ void StatusBar::setupDocumentInfoPanel() {
     m_fileSizeLabel = new QLabel(tr("Size: -"), this);
 
     // Style labels
-    QString labelStyle =
-        "QLabel { color: #495057; font-size: 11px; padding: 2px; }";
-    m_titleLabel->setStyleSheet(labelStyle);
-    m_authorLabel->setStyleSheet(labelStyle);
-    m_subjectLabel->setStyleSheet(labelStyle);
-    m_keywordsLabel->setStyleSheet(labelStyle);
-    m_createdLabel->setStyleSheet(labelStyle);
-    m_modifiedLabel->setStyleSheet(labelStyle);
-    m_fileSizeLabel->setStyleSheet(labelStyle);
-
     // Add to layout
     layout->addWidget(m_titleLabel, 0, 0, 1, 2);
     layout->addWidget(m_authorLabel, 1, 0, 1, 2);
@@ -356,11 +426,13 @@ void StatusBar::setupDocumentInfoPanel() {
 }
 
 void StatusBar::setupStatisticsPanel() {
-    m_statisticsPanel = new ExpandableInfoPanel(tr("▶ Statistics"), this);
+    // Use ASCII character instead of emoji for Windows compatibility
+    m_statisticsPanel = new ExpandableInfoPanel(tr("Statistics"), this);
 
     QWidget* content = new QWidget();
     QGridLayout* layout = new QGridLayout(content);
-    layout->setSpacing(4);
+    layout->setSpacing(STYLE.spacingXS());
+    layout->setContentsMargins(0, 0, 0, 0);
 
     // Create labels
     m_wordCountLabel = new QLabel(tr("Words: -"), this);
@@ -370,14 +442,6 @@ void StatusBar::setupStatisticsPanel() {
     m_readingTimeLabel = new QLabel(tr("Est. Reading Time: -"), this);
 
     // Style labels
-    QString labelStyle =
-        "QLabel { color: #495057; font-size: 11px; padding: 2px; }";
-    m_wordCountLabel->setStyleSheet(labelStyle);
-    m_charCountLabel->setStyleSheet(labelStyle);
-    m_pageCountLabel->setStyleSheet(labelStyle);
-    m_avgWordsPerPageLabel->setStyleSheet(labelStyle);
-    m_readingTimeLabel->setStyleSheet(labelStyle);
-
     // Add to layout
     layout->addWidget(m_pageCountLabel, 0, 0);
     layout->addWidget(m_wordCountLabel, 0, 1);
@@ -390,40 +454,29 @@ void StatusBar::setupStatisticsPanel() {
     chartPlaceholder->setMinimumHeight(60);
     chartPlaceholder->setFrameStyle(QFrame::Box);
     chartPlaceholder->setAlignment(Qt::AlignCenter);
-    chartPlaceholder->setText(tr("📊 Page Distribution"));
-    chartPlaceholder->setStyleSheet(
-        "QLabel {"
-        "   background-color: #f8f9fa;"
-        "   border: 1px solid #dee2e6;"
-        "   border-radius: 4px;"
-        "   color: #6c757d;"
-        "}");
+    chartPlaceholder->setText(tr("Page Distribution"));
+    chartPlaceholder->setObjectName("statisticsChartPlaceholder");
     layout->addWidget(chartPlaceholder, 3, 0, 1, 2);
 
     m_statisticsPanel->setContentWidget(content);
 }
 
 void StatusBar::setupSecurityPanel() {
-    m_securityPanel = new ExpandableInfoPanel(tr("▶ Security"), this);
+    // Use ASCII character instead of emoji for Windows compatibility
+    m_securityPanel = new ExpandableInfoPanel(tr("Security"), this);
 
     QWidget* content = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(content);
-    layout->setSpacing(4);
+    layout->setSpacing(STYLE.spacingXS());
+    layout->setContentsMargins(0, 0, 0, 0);
 
-    // Create labels
-    m_encryptionLabel = new QLabel(tr("🔒 Encryption: No"), this);
-    m_copyPermissionLabel = new QLabel(tr("📋 Copy: Allowed"), this);
-    m_printPermissionLabel = new QLabel(tr("🖨️ Print: Allowed"), this);
-    m_modifyPermissionLabel = new QLabel(tr("✏️ Modify: Not Allowed"), this);
+    // Create labels (using ASCII instead of emojis for Windows compatibility)
+    m_encryptionLabel = new QLabel(tr("Encryption: No"), this);
+    m_copyPermissionLabel = new QLabel(tr("Copy: Allowed"), this);
+    m_printPermissionLabel = new QLabel(tr("Print: Allowed"), this);
+    m_modifyPermissionLabel = new QLabel(tr("Modify: Not Allowed"), this);
 
     // Style labels
-    QString labelStyle =
-        "QLabel { color: #495057; font-size: 11px; padding: 4px; }";
-    m_encryptionLabel->setStyleSheet(labelStyle);
-    m_copyPermissionLabel->setStyleSheet(labelStyle);
-    m_printPermissionLabel->setStyleSheet(labelStyle);
-    m_modifyPermissionLabel->setStyleSheet(labelStyle);
-
     // Add to layout
     layout->addWidget(m_encryptionLabel);
     layout->addWidget(m_copyPermissionLabel);
@@ -434,41 +487,21 @@ void StatusBar::setupSecurityPanel() {
 }
 
 void StatusBar::setupQuickActionsPanel() {
-    m_quickActionsPanel = new ExpandableInfoPanel(tr("▶ Quick Actions"), this);
+    // Use ASCII character instead of emoji for Windows compatibility
+    m_quickActionsPanel = new ExpandableInfoPanel(tr("Quick Actions"), this);
 
     QWidget* content = new QWidget();
     QHBoxLayout* layout = new QHBoxLayout(content);
-    layout->setSpacing(8);
+    layout->setSpacing(STYLE.spacingSM());
+    layout->setContentsMargins(0, 0, 0, 0);
 
-    // Create action buttons
-    m_bookmarkBtn = new QPushButton(tr("🔖 Bookmark"), this);
-    m_annotateBtn = new QPushButton(tr("✏️ Annotate"), this);
-    m_shareBtn = new QPushButton(tr("📤 Share"), this);
-    m_exportBtn = new QPushButton(tr("💾 Export"), this);
+    // Create action buttons (using ASCII instead of emojis for Windows compatibility)
+    m_bookmarkBtn = new QPushButton(tr("Bookmark"), this);
+    m_annotateBtn = new QPushButton(tr("Annotate"), this);
+    m_shareBtn = new QPushButton(tr("Share"), this);
+    m_exportBtn = new QPushButton(tr("Export"), this);
 
     // Style buttons
-    QString buttonStyle =
-        "QPushButton {"
-        "   background-color: #007bff;"
-        "   color: white;"
-        "   border: none;"
-        "   border-radius: 4px;"
-        "   padding: 6px 12px;"
-        "   font-size: 12px;"
-        "   font-weight: bold;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: #0056b3;"
-        "}"
-        "QPushButton:pressed {"
-        "   background-color: #004085;"
-        "}";
-
-    m_bookmarkBtn->setStyleSheet(buttonStyle);
-    m_annotateBtn->setStyleSheet(buttonStyle);
-    m_shareBtn->setStyleSheet(buttonStyle);
-    m_exportBtn->setStyleSheet(buttonStyle);
-
     // Add to layout
     layout->addWidget(m_bookmarkBtn);
     layout->addWidget(m_annotateBtn);
@@ -480,24 +513,229 @@ void StatusBar::setupQuickActionsPanel() {
 }
 
 void StatusBar::applyEnhancedStyle() {
-    setStyleSheet(
-        "QStatusBar {"
-        "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-        "       stop:0 #ffffff, stop:1 #f8f9fa);"
-        "   border-top: 2px solid #dee2e6;"
-        "   min-height: 32px;"
-        "}");
+    setStyleSheet(STYLE.getStatusBarStyleSheet());
+    setFont(STYLE.defaultFont());
 
-    // Add drop shadow effect
-    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setBlurRadius(8);
-    shadow->setColor(QColor(0, 0, 0, 20));
-    shadow->setOffset(0, -2);
-    setGraphicsEffect(shadow);
+    const QString accent = STYLE.accentColor().name();
+    const QString secondary = STYLE.textSecondaryColor().name();
+    const QString mutedBorder = STYLE.mutedBorderColor().name();
+
+    if (m_mainSection) {
+        const QString frameStyle = QStringLiteral(
+            "QFrame { background-color: %1; border: 1px solid %2; "
+            "border-radius: %3px; }")
+                                      .arg(STYLE.surfaceColor().name())
+                                      .arg(mutedBorder)
+                                      .arg(STYLE.radiusLG());
+        m_mainSection->setStyleSheet(frameStyle);
+        if (auto* layout = qobject_cast<QHBoxLayout*>(m_mainSection->layout())) {
+            layout->setContentsMargins(STYLE.spacingSM(), STYLE.spacingXS(),
+                                       STYLE.spacingSM(), STYLE.spacingXS());
+            layout->setSpacing(STYLE.spacingMD());
+        }
+    }
+
+    if (m_fileNameLabel) {
+        m_fileNameLabel->setStyleSheet(
+            QStringLiteral("QLabel { font-weight: 600; color: %1; }")
+                .arg(accent));
+    }
+
+    const QString separatorStyle = QStringLiteral(
+        "QLabel { color: %1; padding: 0 %2px; }")
+                                        .arg(secondary)
+                                        .arg(STYLE.spacingXS());
+    if (separatorLabel1) separatorLabel1->setStyleSheet(separatorStyle);
+    if (separatorLabel2) separatorLabel2->setStyleSheet(separatorStyle);
+    if (separatorLabel3) separatorLabel3->setStyleSheet(separatorStyle);
+
+    if (m_clockLabel) {
+        m_clockLabel->setStyleSheet(
+            QStringLiteral(
+                "QLabel { color: %1; font-family: 'JetBrains Mono',"
+                " 'Consolas', 'Monaco', monospace; font-size: 12px; }")
+                .arg(secondary));
+    }
+
+    applyFieldStyles();
+    applyPanelTypography();
+    applyQuickActionStyles();
+
+    if (m_loadingMessageLabel) {
+        m_loadingMessageLabel->setStyleSheet(
+            QStringLiteral("QLabel { color: %1; }").arg(secondary));
+    }
+
+    if (m_loadingProgressBar) {
+        const QString progressStyle = QStringLiteral(
+            "QProgressBar { background-color: %1; border: 1px solid %2;"
+            " border-radius: %3px; text-align: center; font-size: 11px; }"
+            " QProgressBar::chunk { background-color: %4; border-radius: %3px;"
+            " }")
+                                            .arg(STYLE.surfaceAltColor().name())
+                                            .arg(mutedBorder)
+                                            .arg(STYLE.radiusLG())
+                                            .arg(STYLE.successColor().name());
+        m_loadingProgressBar->setStyleSheet(progressStyle);
+    }
+
+    if (m_searchResultsLabel) {
+        m_searchResultsLabel->setStyleSheet(
+            QStringLiteral(
+                "QLabel { color: %1; font-size: 11px; }")
+                .arg(secondary));
+    }
+
+    if (m_encryptionLabel) {
+        setDocumentSecurity(m_lastEncrypted, m_lastCopyAllowed,
+                            m_lastPrintAllowed);
+    }
+
+    if (m_messageLabel) {
+        m_messageLabel->setAttribute(Qt::WA_StyledBackground, true);
+        m_messageLabel->setAlignment(Qt::AlignCenter);
+        m_messageLabel->setFont(STYLE.headingFont());
+        updateMessageAppearance(STYLE.overlayColor(), STYLE.textColor());
+    }
+}
+
+void StatusBar::applyFieldStyles() {
+    const QString inputStyle = STYLE.createInputStyle();
+
+    auto styleLineEdit = [&](QLineEdit* edit) {
+        if (!edit) {
+            return;
+        }
+        edit->setStyleSheet(inputStyle);
+        edit->setFont(STYLE.defaultFont());
+        edit->setClearButtonEnabled(true);
+    };
+
+    styleLineEdit(m_pageInputEdit);
+    styleLineEdit(m_zoomInputEdit);
+    styleLineEdit(m_searchInput);
+
+    if (m_searchFrame) {
+        if (auto* layout = qobject_cast<QHBoxLayout*>(m_searchFrame->layout())) {
+            layout->setContentsMargins(0, 0, 0, 0);
+            layout->setSpacing(STYLE.spacingXS());
+        }
+    }
+
+    if (m_pageInputEdit) {
+        setLineEditInvalid(m_pageInputEdit,
+                           m_pageInputEdit->property("invalid").toBool());
+    }
+}
+
+void StatusBar::applyPanelTypography() {
+    const QString labelStyle = QStringLiteral(
+        "QLabel { color: %1; font-size: 11px; }")
+                                  .arg(STYLE.textSecondaryColor().name());
+
+    auto applyLabelStyle = [&](const QList<QLabel*>& labels) {
+        for (QLabel* label : labels) {
+            if (!label) {
+                continue;
+            }
+            label->setStyleSheet(labelStyle);
+            label->setFont(STYLE.captionFont());
+        }
+    };
+
+    applyLabelStyle({m_titleLabel, m_authorLabel, m_subjectLabel,
+                     m_keywordsLabel, m_createdLabel, m_modifiedLabel,
+                     m_fileSizeLabel});
+
+    applyLabelStyle({m_wordCountLabel, m_charCountLabel, m_pageCountLabel,
+                     m_avgWordsPerPageLabel, m_readingTimeLabel});
+
+    applyLabelStyle({m_pageLabel, m_zoomLabel});
+
+    if (QWidget* chart = m_statisticsPanel
+                             ? m_statisticsPanel->findChild<QWidget*>(
+                                   "statisticsChartPlaceholder")
+                             : nullptr) {
+        const QString chartStyle = QStringLiteral(
+            "QLabel#statisticsChartPlaceholder { background-color: %1;"
+            " border: 1px dashed %2; border-radius: %3px; color: %4; }")
+                                          .arg(STYLE.surfaceAltColor().name())
+                                          .arg(STYLE.mutedBorderColor().name())
+                                          .arg(STYLE.radiusMD())
+                                          .arg(STYLE.textSecondaryColor().name());
+        chart->setStyleSheet(chartStyle);
+        chart->setFont(STYLE.captionFont());
+    }
+
+}
+
+void StatusBar::applyQuickActionStyles() {
+    const QString buttonStyle = STYLE.createButtonStyle();
+    auto applyButton = [&](QPushButton* button) {
+        if (!button) {
+            return;
+        }
+        button->setStyleSheet(buttonStyle);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setMinimumHeight(STYLE.buttonHeight());
+        button->setMinimumWidth(STYLE.buttonMinWidth());
+        button->setFont(STYLE.buttonFont());
+    };
+
+    applyButton(m_bookmarkBtn);
+    applyButton(m_annotateBtn);
+    applyButton(m_shareBtn);
+    applyButton(m_exportBtn);
+}
+
+void StatusBar::updateMessageAppearance(const QColor& background,
+                                         const QColor& text) {
+    if (!m_messageLabel) {
+        return;
+    }
+    m_messageLabel->setStyleSheet(
+        STYLE.createMessageLabelStyle(background, text));
+}
+
+void StatusBar::setLineEditInvalid(QLineEdit* edit, bool invalid) {
+    if (!edit) {
+        return;
+    }
+    edit->setProperty("invalid", invalid);
+    edit->style()->unpolish(edit);
+    edit->style()->polish(edit);
+    edit->update();
+}
+
+void StatusBar::displayTransientMessage(const QString& text, int timeout,
+                                        const QColor& background,
+                                        const QColor& foreground) {
+    if (!m_messageLabel) {
+        return;
+    }
+
+    m_messageTimer->stop();
+    m_messageAnimation->stop();
+
+    updateMessageAppearance(background, foreground);
+    m_messageLabel->setText(text);
+    m_messageLabel->adjustSize();
+
+    const int x = (width() - m_messageLabel->width()) / 2;
+    const int y = height() - m_messageLabel->height() - STYLE.spacingMD();
+    m_messageLabel->move(std::max(0, x), std::max(0, y));
+    m_messageLabel->raise();
+    m_messageLabel->setWindowOpacity(1.0);
+    m_messageLabel->show();
+
+    if (timeout > 0) {
+        m_messageTimer->start(timeout);
+    }
 }
 
 void StatusBar::setDocumentInfo(const QString& fileName, int currentPage,
                                 int totalPages, double zoomLevel) {
+    if (!m_fileNameLabel) return;  // Skip if in minimal mode
     setFileName(fileName);
     setPageInfo(currentPage, totalPages);
     setZoomLevel(zoomLevel);
@@ -508,6 +746,7 @@ void StatusBar::setDocumentMetadata(const QString& title, const QString& author,
                                     const QString& keywords,
                                     const QDateTime& created,
                                     const QDateTime& modified) {
+    if (!m_titleLabel) return;  // Skip if in minimal mode
     m_titleLabel->setText(tr("Title: %1").arg(title.isEmpty() ? "-" : title));
     m_authorLabel->setText(
         tr("Author: %1").arg(author.isEmpty() ? "-" : author));
@@ -521,6 +760,7 @@ void StatusBar::setDocumentMetadata(const QString& title, const QString& author,
 
 void StatusBar::setDocumentStatistics(int wordCount, int charCount,
                                       int pageCount) {
+    if (!m_wordCountLabel) return;  // Skip if in minimal mode
     m_wordCountLabel->setText(tr("Words: %1").arg(wordCount));
     m_charCountLabel->setText(tr("Characters: %1").arg(charCount));
     m_pageCountLabel->setText(tr("Pages: %1").arg(pageCount));
@@ -547,50 +787,112 @@ void StatusBar::setDocumentStatistics(int wordCount, int charCount,
 
 void StatusBar::setDocumentSecurity(bool encrypted, bool copyAllowed,
                                     bool printAllowed) {
-    m_encryptionLabel->setText(
-        tr("🔒 Encryption: %1").arg(encrypted ? tr("Yes") : tr("No")));
-    m_copyPermissionLabel->setText(
-        tr("📋 Copy: %1").arg(copyAllowed ? tr("Allowed") : tr("Not Allowed")));
-    m_printPermissionLabel->setText(
-        tr("🖨️ Print: %1")
-            .arg(printAllowed ? tr("Allowed") : tr("Not Allowed")));
+    if (!m_encryptionLabel) {
+        return;  // Skip if in minimal mode
+    }
 
-    // Update colors based on permissions
-    if (!copyAllowed || !printAllowed) {
-        m_securityPanel->setStyleSheet("QLabel { color: #dc3545; }");
-    } else {
-        m_securityPanel->setStyleSheet("QLabel { color: #28a745; }");
+    m_lastEncrypted = encrypted;
+    m_lastCopyAllowed = copyAllowed;
+    m_lastPrintAllowed = printAllowed;
+
+    m_encryptionLabel->setText(
+        tr("Encryption: %1").arg(encrypted ? tr("Enabled") : tr("Disabled")));
+    m_copyPermissionLabel->setText(
+        tr("Copy: %1").arg(copyAllowed ? tr("Allowed") : tr("Not Allowed")));
+    m_printPermissionLabel->setText(
+        tr("Print: %1").arg(printAllowed ? tr("Allowed") : tr("Not Allowed")));
+    m_modifyPermissionLabel->setText(tr("Modify: %1")
+                                         .arg(tr("Not Allowed")));
+
+    const QString strongStyle = QStringLiteral(
+        "QLabel { color: %1; font-weight: 600; font-size: 11px; }");
+
+    if (m_encryptionLabel) {
+        const QColor color = encrypted ? STYLE.warningColor()
+                                       : STYLE.successColor();
+        m_encryptionLabel->setStyleSheet(strongStyle.arg(color.name()));
+    }
+    if (m_copyPermissionLabel) {
+        const QColor color = copyAllowed ? STYLE.successColor()
+                                         : STYLE.errorColor();
+        m_copyPermissionLabel->setStyleSheet(strongStyle.arg(color.name()));
+    }
+    if (m_printPermissionLabel) {
+        const QColor color = printAllowed ? STYLE.successColor()
+                                          : STYLE.errorColor();
+        m_printPermissionLabel->setStyleSheet(strongStyle.arg(color.name()));
+    }
+    if (m_modifyPermissionLabel) {
+        m_modifyPermissionLabel->setStyleSheet(QStringLiteral(
+            "QLabel { color: %1; font-size: 11px; }")
+                                                    .arg(STYLE.textSecondaryColor().name()));
     }
 }
 
 void StatusBar::setPageInfo(int current, int total) {
+    if (!m_pageLabel) return;  // Skip if in minimal mode
+
+    // Input validation
+    if (total < 0) {
+        LOG_WARNING("StatusBar::setPageInfo() - Invalid total pages: {}", total);
+        total = 0;
+    }
+
+    if (current < 0) {
+        LOG_WARNING("StatusBar::setPageInfo() - Invalid current page: {}", current);
+        current = 0;
+    }
+
+    if (current >= total && total > 0) {
+        LOG_WARNING("StatusBar::setPageInfo() - Current page {} exceeds total pages {}", current, total);
+        current = total - 1;
+    }
+
     m_currentTotalPages = total;
     m_currentPageNumber = current;
 
     if (total > 0) {
-        // 更新页码输入框的占位符文本
+        // 更新页码输入框的占位符文�?
         m_pageInputEdit->setPlaceholderText(
             QString("%1/%2").arg(current + 1).arg(total));
         m_pageInputEdit->setEnabled(true);
         m_pageInputEdit->setToolTip(
             tr("Enter page number (1-%1) and press Enter to jump").arg(total));
+        setLineEditInvalid(m_pageInputEdit, false);
     } else {
         m_pageInputEdit->setPlaceholderText("0/0");
         m_pageInputEdit->setEnabled(false);
         m_pageInputEdit->setToolTip("");
+        setLineEditInvalid(m_pageInputEdit, false);
     }
 }
 
 void StatusBar::setZoomLevel(int percent) {
+    if (!m_zoomInputEdit) return;  // Skip if in minimal mode
+
+    // Input validation - reasonable zoom range is 10% to 500%
+    if (percent < 10 || percent > 500) {
+        LOG_WARNING("StatusBar::setZoomLevel() - Zoom level {} out of range [10, 500]", percent);
+        percent = std::clamp(percent, 10, 500);
+    }
+
     m_zoomInputEdit->setText(QString("%1%").arg(percent));
 }
 
 void StatusBar::setZoomLevel(double percent) {
-    int roundedPercent = static_cast<int>(percent * 100 + 0.5);  // 四舍五入
+    // Input validation
+    if (percent < 0.1 || percent > 5.0) {
+        LOG_WARNING("StatusBar::setZoomLevel() - Zoom factor {} out of range [0.1, 5.0]", percent);
+        percent = std::clamp(percent, 0.1, 5.0);
+    }
+
+    int roundedPercent = static_cast<int>((percent * 100) + 0.5);  // 四舍五入
     setZoomLevel(roundedPercent);
 }
 
 void StatusBar::setFileName(const QString& fileName) {
+    if (!m_fileNameLabel) return;  // Skip if in minimal mode
+
     m_currentFileName = fileName;
     if (fileName.isEmpty()) {
         m_fileNameLabel->setText(tr("No Document"));
@@ -603,49 +905,29 @@ void StatusBar::setFileName(const QString& fileName) {
 }
 
 void StatusBar::setMessage(const QString& message) {
-    showMessage(message, 3000);
+    displayTransientMessage(message, 3000, STYLE.overlayColor(),
+                            STYLE.textColor());
+    QStatusBar::showMessage(message, 3000);
 }
 
 void StatusBar::setErrorMessage(const QString& message, int timeout) {
-    m_messageLabel->setStyleSheet(
-        "QLabel {"
-        "   background-color: rgba(220, 53, 69, 0.9);"
-        "   color: white;"
-        "   padding: 8px 16px;"
-        "   border-radius: 4px;"
-        "   font-size: 14px;"
-        "   font-weight: bold;"
-        "}");
-    setMessage("❌ " + message);
-    m_messageTimer->start(timeout);
+    displayTransientMessage(message, timeout, STYLE.errorColor(), Qt::white);
+    QStatusBar::showMessage(message, timeout);
 }
 
 void StatusBar::setSuccessMessage(const QString& message, int timeout) {
-    m_messageLabel->setStyleSheet(
-        "QLabel {"
-        "   background-color: rgba(40, 167, 69, 0.9);"
-        "   color: white;"
-        "   padding: 8px 16px;"
-        "   border-radius: 4px;"
-        "   font-size: 14px;"
-        "   font-weight: bold;"
-        "}");
-    setMessage("✅ " + message);
-    m_messageTimer->start(timeout);
+    displayTransientMessage(message, timeout, STYLE.successColor(),
+                            Qt::white);
+    QStatusBar::showMessage(message, timeout);
 }
 
 void StatusBar::setWarningMessage(const QString& message, int timeout) {
-    m_messageLabel->setStyleSheet(
-        "QLabel {"
-        "   background-color: rgba(255, 193, 7, 0.9);"
-        "   color: #212529;"
-        "   padding: 8px 16px;"
-        "   border-radius: 4px;"
-        "   font-size: 14px;"
-        "   font-weight: bold;"
-        "}");
-    setMessage("⚠️ " + message);
-    m_messageTimer->start(timeout);
+    const QColor warningText =
+        (STYLE.currentTheme() == Theme::Dark) ? STYLE.backgroundColor()
+                                              : QColor(QStringLiteral("#1f2933"));
+    displayTransientMessage(message, timeout, STYLE.warningColor(),
+                            warningText);
+    QStatusBar::showMessage(message, timeout);
 }
 
 void StatusBar::setSearchResults(int currentMatch, int totalMatches) {
@@ -666,33 +948,44 @@ void StatusBar::clearSearchResults() {
 }
 
 void StatusBar::clearDocumentInfo() {
+    // Skip if in minimal mode
+    if (!m_fileNameLabel) {
+        LOG_DEBUG("StatusBar::clearDocumentInfo() - Skipping in minimal mode");
+        return;
+    }
+
     m_fileNameLabel->setText(tr("No Document"));
     m_fileNameLabel->setToolTip("");
     m_pageInputEdit->setPlaceholderText("0/0");
     m_pageInputEdit->setEnabled(false);
     m_pageInputEdit->setToolTip("");
     m_pageInputEdit->clear();
+    setLineEditInvalid(m_pageInputEdit, false);
     m_zoomInputEdit->setText("100%");
     clearSearchResults();
 
-    // Clear metadata
-    m_titleLabel->setText(tr("Title: -"));
-    m_authorLabel->setText(tr("Author: -"));
-    m_subjectLabel->setText(tr("Subject: -"));
-    m_keywordsLabel->setText(tr("Keywords: -"));
-    m_createdLabel->setText(tr("Created: -"));
-    m_modifiedLabel->setText(tr("Modified: -"));
-    m_fileSizeLabel->setText(tr("Size: -"));
+    // Clear metadata (only if panels were created)
+    if (m_titleLabel) m_titleLabel->setText(tr("Title: -"));
+    if (m_authorLabel) m_authorLabel->setText(tr("Author: -"));
+    if (m_subjectLabel) m_subjectLabel->setText(tr("Subject: -"));
+    if (m_keywordsLabel) m_keywordsLabel->setText(tr("Keywords: -"));
+    if (m_createdLabel) m_createdLabel->setText(tr("Created: -"));
+    if (m_modifiedLabel) m_modifiedLabel->setText(tr("Modified: -"));
+    if (m_fileSizeLabel) m_fileSizeLabel->setText(tr("Size: -"));
 
-    // Clear statistics
-    m_wordCountLabel->setText(tr("Words: -"));
-    m_charCountLabel->setText(tr("Characters: -"));
-    m_pageCountLabel->setText(tr("Pages: -"));
-    m_avgWordsPerPageLabel->setText(tr("Avg Words/Page: -"));
-    m_readingTimeLabel->setText(tr("Est. Reading Time: -"));
+    // Clear statistics (only if panels were created)
+    if (m_wordCountLabel) m_wordCountLabel->setText(tr("Words: -"));
+    if (m_charCountLabel) m_charCountLabel->setText(tr("Characters: -"));
+    if (m_pageCountLabel) m_pageCountLabel->setText(tr("Pages: -"));
+    if (m_avgWordsPerPageLabel) m_avgWordsPerPageLabel->setText(tr("Avg Words/Page: -"));
+    if (m_readingTimeLabel) m_readingTimeLabel->setText(tr("Est. Reading Time: -"));
 
     m_currentTotalPages = 0;
     m_currentPageNumber = 0;
+
+    if (m_encryptionLabel) {
+        setDocumentSecurity(false, true, true);
+    }
 }
 
 void StatusBar::setCompactMode(bool compact) {
@@ -767,27 +1060,21 @@ void StatusBar::onPageInputReturnPressed() {
     }
 }
 
-void StatusBar::onPageInputEditingFinished() { m_pageInputEdit->clear(); }
+void StatusBar::onPageInputEditingFinished() {
+    if (m_pageInputEdit) {
+        m_pageInputEdit->clear();
+        setLineEditInvalid(m_pageInputEdit, false);
+    }
+}
 
 void StatusBar::onPageInputTextChanged(const QString& text) {
-    // 实时验证输入
-    if (text.isEmpty()) {
-        return;
+    bool invalid = false;
+    if (!text.isEmpty() && m_currentTotalPages > 0) {
+        bool ok = false;
+        const int pageNumber = text.toInt(&ok);
+        invalid = !ok || pageNumber < 1 || pageNumber > m_currentTotalPages;
     }
-
-    bool ok;
-    int pageNumber = text.toInt(&ok);
-
-    if (!ok || pageNumber < 1 || pageNumber > m_currentTotalPages) {
-        // 显示错误样式
-        m_pageInputEdit->setStyleSheet(
-            m_pageInputEdit->styleSheet() +
-            " QLineEdit:focus { border: 2px solid #dc3545; }");
-    } else {
-        // 恢复正常样式
-        m_pageInputEdit->setStyleSheet(m_pageInputEdit->styleSheet().replace(
-            "border: 2px solid #dc3545;", "border: 1px solid #ced4da;"));
-    }
+    setLineEditInvalid(m_pageInputEdit, invalid);
 }
 
 void StatusBar::onZoomInputReturnPressed() {
@@ -824,9 +1111,6 @@ void StatusBar::onMessageTimerTimeout() {
     m_messageAnimation->setStartValue(1.0);
     m_messageAnimation->setEndValue(0.0);
     m_messageAnimation->start();
-
-    connect(m_messageAnimation, &QPropertyAnimation::finished, this,
-            [this]() { m_messageLabel->hide(); });
 }
 
 bool StatusBar::validateAndJumpToPage(const QString& input) {
@@ -840,17 +1124,22 @@ bool StatusBar::validateAndJumpToPage(const QString& input) {
     if (!ok || pageNumber < 1 || pageNumber > m_currentTotalPages) {
         setErrorMessage(
             tr("Invalid page number (1-%1)").arg(m_currentTotalPages), 2000);
+        setLineEditInvalid(m_pageInputEdit, true);
         return false;
     }
 
     // 发出页码跳转信号
-    emit pageJumpRequested(pageNumber - 1);  // 转换为0-based
+    emit pageJumpRequested(pageNumber - 1);  // 转换�?-based
     setSuccessMessage(tr("Jumped to page %1").arg(pageNumber), 2000);
+    setLineEditInvalid(m_pageInputEdit, false);
     return true;
 }
 
 void StatusBar::enablePageInput(bool enabled) {
     pageInputEdit->setEnabled(enabled);
+    if (!enabled) {
+        setLineEditInvalid(pageInputEdit, false);
+    }
 }
 
 void StatusBar::setPageInputRange(int min, int max) {
@@ -860,6 +1149,7 @@ void StatusBar::setPageInputRange(int min, int max) {
             tr("Enter page number (%1-%2) and press Enter to jump")
                 .arg(min)
                 .arg(max));
+        setLineEditInvalid(pageInputEdit, false);
     }
 }
 
@@ -879,7 +1169,7 @@ void StatusBar::showLoadingProgress(const QString& message) {
     loadingProgressBar->setValue(0);
     loadingProgressBar->setVisible(true);
 
-    // 隐藏其他控件以节省空间
+    // 隐藏其他控件以节省空�?
     fileNameLabel->setVisible(false);
     separatorLabel1->setVisible(false);
 }
@@ -948,4 +1238,15 @@ void StatusBar::resizeEvent(QResizeEvent* event) {
     } else if (event->size().width() >= 800 && m_compactMode) {
         setCompactMode(false);
     }
+
+    if (m_messageLabel && m_messageLabel->isVisible()) {
+        const int x = (width() - m_messageLabel->width()) / 2;
+        const int y = height() - m_messageLabel->height() - STYLE.spacingMD();
+        m_messageLabel->move(std::max(0, x), std::max(0, y));
+    }
 }
+
+
+
+
+

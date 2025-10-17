@@ -36,7 +36,7 @@ public:
     /**
      * @brief Destructor
      */
-    ~SystemTrayManager();
+    ~SystemTrayManager() override;
 
     /**
      * @brief Get singleton instance
@@ -61,13 +61,13 @@ public:
      * @brief Check if system tray is available on this platform
      * @return true if system tray is available, false otherwise
      */
-    static bool isSystemTrayAvailable();
+    [[nodiscard]] static bool isSystemTrayAvailable();
 
     /**
      * @brief Check if system tray is currently enabled
      * @return true if enabled, false otherwise
      */
-    bool isEnabled() const;
+    [[nodiscard]] bool isEnabled() const;
 
     /**
      * @brief Enable or disable system tray functionality
@@ -79,7 +79,7 @@ public:
      * @brief Check if minimize-to-tray is enabled
      * @return true if minimize-to-tray is enabled, false otherwise
      */
-    bool isMinimizeToTrayEnabled() const;
+    [[nodiscard]] bool isMinimizeToTrayEnabled() const;
 
     /**
      * @brief Enable or disable minimize-to-tray functionality
@@ -103,7 +103,7 @@ public:
      * @brief Check if the main window is currently hidden to tray
      * @return true if hidden to tray, false otherwise
      */
-    bool isMainWindowHidden() const;
+    [[nodiscard]] bool isMainWindowHidden() const;
 
     /**
      * @brief Request application exit through proper channels
@@ -156,13 +156,13 @@ public:
      * @brief Get current application status
      * @return Current status string
      */
-    QString currentApplicationStatus() const;
+    [[nodiscard]] QString currentApplicationStatus() const;
 
     /**
      * @brief Check if enhanced features are enabled
      * @return true if enhanced features are enabled
      */
-    bool areEnhancedFeaturesEnabled() const;
+    [[nodiscard]] bool areEnhancedFeaturesEnabled() const;
 
     /**
      * @brief Set notification types that should be shown
@@ -175,13 +175,19 @@ public:
      * @brief Get current notification types setting
      * @return Comma-separated list of enabled notification types
      */
-    QString getNotificationTypes() const;
+    [[nodiscard]] QString getNotificationTypes() const;
 
     /**
      * @brief Connect to RecentFilesManager signals
      * @param recentFilesManager Pointer to RecentFilesManager instance
      */
     void connectToRecentFilesManager(RecentFilesManager* recentFilesManager);
+
+    // Deleted copy/move operations (public for better error messages)
+    SystemTrayManager(const SystemTrayManager&) = delete;
+    SystemTrayManager& operator=(const SystemTrayManager&) = delete;
+    SystemTrayManager(SystemTrayManager&&) = delete;
+    SystemTrayManager& operator=(SystemTrayManager&&) = delete;
 
 public slots:
     /**
@@ -374,7 +380,7 @@ private:
      * @param type Notification type to check
      * @return true if notification type is enabled
      */
-    bool isNotificationTypeEnabled(const QString& type) const;
+    [[nodiscard]] bool isNotificationTypeEnabled(const QString& type) const;
 
     /**
      * @brief Connect to application events for status updates

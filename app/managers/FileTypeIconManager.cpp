@@ -6,13 +6,13 @@
 #include <QHash>
 #include <QPainter>
 #include <QSvgRenderer>
+#include <QTimer>
 #include "../logging/Logger.h"
 
 // Private implementation class
 class FileTypeIconManagerImpl {
 public:
-    FileTypeIconManagerImpl()
-        : m_defaultIconSize(24), m_iconBasePath(":/images/filetypes/") {}
+    FileTypeIconManagerImpl() = default;
 
     // Helper methods
     QString getIconPath(const QString& extension) const;
@@ -26,8 +26,8 @@ public:
     mutable QHash<QString, QString> m_extensionToIconMap;
 
     // Settings
-    int m_defaultIconSize;
-    QString m_iconBasePath;
+    int m_defaultIconSize{24};
+    QString m_iconBasePath{":/images/filetypes/"};
 
     // Supported file types mapping
     QHash<QString, QString> m_fileTypeMapping;
@@ -44,7 +44,18 @@ FileTypeIconManager::FileTypeIconManager(QObject* parent)
         "[managers] Initializing FileTypeIconManager with base path: {}",
         pImpl->m_iconBasePath.toStdString());
     pImpl->initializeExtensionMapping();
-    preloadIcons();
+
+    // CRITICAL FIX: Defer icon preloading until after Qt event loop starts
+    // Preloading SVG icons synchronously during initialization (before QApplication::exec())
+    // can cause the application to hang. Instead, we defer this to the event loop.
+    Logger::instance().info(
+        "[managers] Deferring icon preloading to avoid initialization hang");
+    QTimer::singleShot(0, this, [this]() {
+        Logger::instance().info("[managers] Starting deferred icon preloading");
+        preloadIcons();
+        Logger::instance().info("[managers] Deferred icon preloading completed");
+    });
+
     Logger::instance().debug(
         "[managers] FileTypeIconManager initialized with {} file type mappings",
         pImpl->m_fileTypeMapping.size());
@@ -205,7 +216,7 @@ void FileTypeIconManager::preloadIcons() {
 }
 
 void FileTypeIconManager::clearCache() {
-    int cacheSize = pImpl->m_iconCache.size();
+    const auto cacheSize = pImpl->m_iconCache.size();
     pImpl->m_iconCache.clear();
     Logger::instance().info(
         "[managers] Icon cache cleared - removed {} cached icons", cacheSize);

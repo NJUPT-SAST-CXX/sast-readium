@@ -57,15 +57,6 @@ public:
 // Static member definitions
 OnboardingManager* OnboardingManager::s_instance = nullptr;
 
-const QString OnboardingManager::SETTINGS_GROUP = "Onboarding";
-const QString OnboardingManager::SETTINGS_FIRST_TIME_KEY = "FirstTimeUser";
-const QString OnboardingManager::SETTINGS_COMPLETED_KEY = "Completed";
-const QString OnboardingManager::SETTINGS_COMPLETED_STEPS_KEY =
-    "CompletedSteps";
-const QString OnboardingManager::SETTINGS_SHOW_TIPS_KEY = "ShowTips";
-const QString OnboardingManager::SETTINGS_SHOW_ON_STARTUP_KEY = "ShowOnStartup";
-const QString OnboardingManager::SETTINGS_ANALYTICS_KEY = "Analytics";
-
 OnboardingManager::OnboardingManager(QObject* parent)
     : QObject(parent), pImpl(std::make_unique<OnboardingManagerImpl>()) {
     pImpl->initializeSteps();

@@ -11,7 +11,7 @@ class QPainter;
 class QStyleOptionViewItem;
 class QModelIndex;
 class StyleManager;
-enum class Theme;
+enum class Theme : std::uint8_t;
 
 /**
  * @brief Chrome风格的缩略图渲染委托
@@ -31,27 +31,33 @@ public:
     explicit ThumbnailDelegate(QObject* parent = nullptr);
     ~ThumbnailDelegate() override;
 
+    // Disable copy and move (Qt parent-child ownership handles lifetime)
+    ThumbnailDelegate(const ThumbnailDelegate&) = delete;
+    ThumbnailDelegate& operator=(const ThumbnailDelegate&) = delete;
+    ThumbnailDelegate(ThumbnailDelegate&&) = delete;
+    ThumbnailDelegate& operator=(ThumbnailDelegate&&) = delete;
+
     // QStyledItemDelegate接口
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
                const QModelIndex& index) const override;
-    QSize sizeHint(const QStyleOptionViewItem& option,
-                   const QModelIndex& index) const override;
+    [[nodiscard]] QSize sizeHint(const QStyleOptionViewItem& option,
+                                  const QModelIndex& index) const override;
 
     // 自定义设置
     void setThumbnailSize(const QSize& size);
-    QSize thumbnailSize() const;
+    [[nodiscard]] QSize thumbnailSize() const;
 
     void setMargins(int margin);
-    int margins() const;
+    [[nodiscard]] int margins() const;
 
     void setBorderRadius(int radius);
-    int borderRadius() const;
+    [[nodiscard]] int borderRadius() const;
 
     void setShadowEnabled(bool enabled);
-    bool shadowEnabled() const;
+    [[nodiscard]] bool shadowEnabled() const;
 
     void setAnimationEnabled(bool enabled);
-    bool animationEnabled() const;
+    [[nodiscard]] bool animationEnabled() const;
 
     // 颜色主题
     void setLightTheme();
@@ -61,23 +67,23 @@ public:
 
     // 性能优化控制
     void setRenderCacheEnabled(bool enabled);
-    bool isRenderCacheEnabled() const;
+    [[nodiscard]] bool isRenderCacheEnabled() const;
 
     void setHighQualityRenderingEnabled(bool enabled);
-    bool isHighQualityRenderingEnabled() const;
+    [[nodiscard]] bool isHighQualityRenderingEnabled() const;
 
     void setAntiAliasingEnabled(bool enabled);
-    bool isAntiAliasingEnabled() const;
+    [[nodiscard]] bool isAntiAliasingEnabled() const;
 
     // 缓存管理
     void clearRenderCache();
     void setMaxCacheSize(int size);
-    int maxCacheSize() const;
+    [[nodiscard]] int maxCacheSize() const;
 
     // 性能监控
-    double averagePaintTime() const;
-    double cacheHitRate() const;
-    int totalPaintCalls() const;
+    [[nodiscard]] double averagePaintTime() const;
+    [[nodiscard]] double cacheHitRate() const;
+    [[nodiscard]] int totalPaintCalls() const;
     void resetPerformanceStats();
 
 protected:

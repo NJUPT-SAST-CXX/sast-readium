@@ -15,17 +15,23 @@ class CommandInterface {
 public:
     virtual ~CommandInterface() = default;
 
+    // Explicitly delete copy and move operations
+    CommandInterface(const CommandInterface&) = delete;
+    CommandInterface& operator=(const CommandInterface&) = delete;
+    CommandInterface(CommandInterface&&) = delete;
+    CommandInterface& operator=(CommandInterface&&) = delete;
+
     // Command identification
-    virtual QString name() const = 0;
-    virtual QString description() const = 0;
+    [[nodiscard]] virtual QString name() const = 0;
+    [[nodiscard]] virtual QString description() const = 0;
 
     // Command execution
-    virtual bool canExecute() const = 0;
+    [[nodiscard]] virtual bool canExecute() const = 0;
     virtual bool execute() = 0;
     virtual bool undo() = 0;
     virtual void reset() = 0;
 
     // Serialization
-    virtual QJsonObject serialize() const = 0;
+    [[nodiscard]] virtual QJsonObject serialize() const = 0;
     virtual void deserialize(const QJsonObject& data) = 0;
 };

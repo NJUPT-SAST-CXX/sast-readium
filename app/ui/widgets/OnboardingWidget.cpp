@@ -316,9 +316,55 @@ void OnboardingWidget::keyPressEvent(QKeyEvent* event) {
 }
 
 bool OnboardingWidget::eventFilter(QObject* watched, QEvent* event) {
-    Q_UNUSED(watched)
-    Q_UNUSED(event)
-    return false;
+    // Track highlighted widget movements and updates
+    if (watched == m_highlightedWidget && m_hasHighlight) {
+        switch (event->type()) {
+            case QEvent::Move:
+            case QEvent::Resize:
+            case QEvent::Show:
+            case QEvent::Hide:
+                // Update highlight area when widget changes
+                if (m_highlightedWidget) {
+                    m_highlightArea = m_highlightedWidget->geometry();
+                    if (m_highlightedWidget->parentWidget()) {
+                        QPoint globalTopLeft = m_highlightedWidget->parentWidget()
+                                                   ->mapToGlobal(m_highlightArea.topLeft());
+                        QPoint localTopLeft = mapFromGlobal(globalTopLeft);
+                        m_highlightArea.moveTopLeft(localTopLeft);
+                    }
+                    update();
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+// Public animation control methods
+void OnboardingWidget::startAnimation() {
+    if (!m_isAnimating) {
+        m_isAnimating = true;
+        if (m_pulseTimer) {
+            m_pulseTimer->start();
+        }
+    }
+}
+
+void OnboardingWidget::stopAnimation() {
+    if (m_isAnimating) {
+        m_isAnimating = false;
+        if (m_pulseTimer) {
+            m_pulseTimer->stop();
+        }
+        m_pulsePhase = 0.0;
+        update();
+    }
+}
+
+bool OnboardingWidget::isAnimating() const {
+    return m_isAnimating;
 }
 
 // Private slots
@@ -465,4 +511,71 @@ void OnboardingWidget::drawSpotlight(QPainter& painter, const QRect& rect) {
     painter.setCompositionMode(QPainter::CompositionMode_Clear);
     painter.fillRect(rect, Qt::transparent);
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+}
+
+void OnboardingWidget::setupNavigation() {
+    // Navigation is set up in initializeUI() where buttons are created
+    // and connected. This method is kept for potential future enhancements.
+}
+
+void OnboardingWidget::setupAnimations() {
+    // Animations are already set up in the constructor
+    // This method is kept for potential future enhancements.
+}
+
+void OnboardingWidget::setupConnections() {
+    // Connections are already set up in initializeUI()
+    // This method is kept for potential future enhancements.
+}
+
+void OnboardingWidget::positionTooltip() {
+    // Tooltip positioning is handled by updateLayout()
+    // This is an alias for consistency with the interface
+    updateLayout();
+}
+
+void OnboardingWidget::updateNavigationButtons() {
+    if (!m_manager || !m_previousButton || !m_nextButton)
+        return;
+
+    int currentStepNum = static_cast<int>(m_manager->currentStep()) + 1;
+    int totalSteps = m_manager->getTotalStepsCount();
+
+    // Enable/disable previous button based on current step
+    m_previousButton->setEnabled(currentStepNum > 1);
+
+    // Update next button text based on whether this is the last step
+    OnboardingStep currentStep = m_manager->currentStep();
+    m_nextButton->setText(currentStep == OnboardingStep::Complete ? "Finish" : "Next");
+}
+
+QRect OnboardingWidget::calculateHighlightRect(QWidget* widget) const {
+    if (!widget) {
+        return QRect();
+    }
+
+    QRect rect = widget->geometry();
+
+    // Convert to global coordinates if widget has a parent
+    if (widget->parentWidget()) {
+        QPoint globalTopLeft = widget->parentWidget()->mapToGlobal(rect.topLeft());
+        QPoint localTopLeft = mapFromGlobal(globalTopLeft);
+        rect.moveTopLeft(localTopLeft);
+    }
+
+    return rect;
+}
+
+void OnboardingWidget::drawOverlay(QPainter& painter) {
+    // Draw semi-transparent overlay over entire widget
+    painter.fillRect(rect(), QColor(0, 0, 0, int(255 * m_overlayOpacity * 0.6)));
+}
+
+void OnboardingWidget::drawHighlight(QPainter& painter) {
+    if (!m_hasHighlight) {
+        return;
+    }
+
+    // Draw spotlight effect on highlighted area
+    drawSpotlight(painter, m_highlightArea);
 }

@@ -44,7 +44,7 @@ bool CommandManager::executeCommand(const QString& commandId) {
     }
 
     QObject* command = createCommand(commandId);
-    if (!command) {
+    if (command == nullptr) {
         m_logger.error(QString("Failed to create command: %1").arg(commandId));
         return false;
     }
@@ -60,7 +60,7 @@ bool CommandManager::executeCommand(const QString& commandId) {
 }
 
 bool CommandManager::executeCommand(QObject* command) {
-    if (!command) {
+    if (command == nullptr) {
         m_logger.error("Cannot execute null command");
         return false;
     }
@@ -78,29 +78,29 @@ bool CommandManager::executeCommand(QObject* command) {
     return executeCommandObject(command);
 }
 
-void CommandManager::registerCommand(const QString& id,
-                                     CommandFactory factory) {
-    if (id.isEmpty()) {
+void CommandManager::registerCommand(const QString& commandId,
+                                     const CommandFactory& factory) {
+    if (commandId.isEmpty()) {
         m_logger.error("Cannot register command with empty ID");
         return;
     }
 
     if (!factory) {
         m_logger.error(
-            QString("Cannot register command with null factory: %1").arg(id));
+            QString("Cannot register command with null factory: %1").arg(commandId));
         return;
     }
 
-    m_commandFactories[id] = factory;
-    m_logger.debug(QString("Registered command: %1").arg(id));
+    m_commandFactories[commandId] = factory;
+    m_logger.debug(QString("Registered command: %1").arg(commandId));
 }
 
-void CommandManager::registerCommand(const QString& id, CommandFactory factory,
+void CommandManager::registerCommand(const QString& commandId, const CommandFactory& factory,
                                      const QString& shortcut) {
-    registerCommand(id, factory);
+    registerCommand(commandId, factory);
 
     if (!shortcut.isEmpty()) {
-        registerShortcut(id, shortcut);
+        registerShortcut(commandId, shortcut);
     }
 }
 
@@ -110,15 +110,16 @@ bool CommandManager::canRedo() const { return !m_redoStack.isEmpty(); }
 
 QString CommandManager::undoCommandName() const {
     if (m_undoStack.isEmpty()) {
-        return QString();
+        return {};
     }
 
     QObject* command = m_undoStack.top();
 
     // Try to get command name from different command types
-    if (auto navCommand = qobject_cast<NavigationCommand*>(command)) {
+    if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
         return navCommand->name();
-    } else if (auto docCommand = qobject_cast<DocumentCommand*>(command)) {
+    }
+    if (auto* docCommand = qobject_cast<DocumentCommand*>(command)) {
         return docCommand->name();
     }
 
@@ -127,15 +128,16 @@ QString CommandManager::undoCommandName() const {
 
 QString CommandManager::redoCommandName() const {
     if (m_redoStack.isEmpty()) {
-        return QString();
+        return {};
     }
 
     QObject* command = m_redoStack.top();
 
     // Try to get command name from different command types
-    if (auto navCommand = qobject_cast<NavigationCommand*>(command)) {
+    if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
         return navCommand->name();
-    } else if (auto docCommand = qobject_cast<DocumentCommand*>(command)) {
+    }
+    if (auto* docCommand = qobject_cast<DocumentCommand*>(command)) {
         return docCommand->name();
     }
 
@@ -161,25 +163,25 @@ void CommandManager::setHistorySize(int size) {
     m_logger.debug(QString("History size set to: %1").arg(size));
 }
 
-QObject* CommandManager::createCommand(const QString& id) const {
-    auto it = m_commandFactories.find(id);
-    if (it != m_commandFactories.end()) {
+QObject* CommandManager::createCommand(const QString& commandId) const {
+    auto iterator = m_commandFactories.find(commandId);
+    if (iterator != m_commandFactories.end()) {
         try {
-            return it.value()();
+            return iterator.value()();
         } catch (const std::exception& e) {
             m_logger.error(QString("Exception creating command %1: %2")
-                               .arg(id)
+                               .arg(commandId)
                                .arg(e.what()));
             return nullptr;
         }
     }
 
-    m_logger.warning(QString("Unknown command ID: %1").arg(id));
+    m_logger.warning(QString("Unknown command ID: %1").arg(commandId));
     return nullptr;
 }
 
-bool CommandManager::hasCommand(const QString& id) const {
-    return m_commandFactories.contains(id);
+bool CommandManager::hasCommand(const QString& commandId) const {
+    return m_commandFactories.contains(commandId);
 }
 
 QStringList CommandManager::availableCommands() const {
@@ -201,7 +203,7 @@ void CommandManager::registerShortcut(const QString& commandId,
 }
 
 void CommandManager::registerShortcuts(QWidget* widget) {
-    if (!widget) {
+    if (widget == nullptr) {
         m_logger.warning("Cannot register shortcuts on null widget");
         return;
     }
@@ -210,7 +212,7 @@ void CommandManager::registerShortcuts(QWidget* widget) {
         const QString& commandId = it.key();
         const QString& shortcut = it.value();
 
-        QShortcut* shortcutObj = new QShortcut(QKeySequence(shortcut), widget);
+        auto* shortcutObj = new QShortcut(QKeySequence(shortcut), widget);
         connect(shortcutObj, &QShortcut::activated, this,
                 [this, commandId]() { executeCommand(commandId); });
 
@@ -222,7 +224,7 @@ void CommandManager::registerShortcuts(QWidget* widget) {
 }
 
 QString CommandManager::shortcutForCommand(const QString& commandId) const {
-    return m_shortcuts.value(commandId, QString());
+    return m_shortcuts.value(commandId, {});
 }
 
 QStringList CommandManager::commandsWithShortcuts() const {
@@ -239,7 +241,7 @@ QString CommandManager::findCommandByShortcut(const QString& shortcut) const {
             return it.key();
         }
     }
-    return QString();
+    return {};
 }
 
 bool CommandManager::isShortcutRegistered(const QString& shortcut) const {
@@ -282,9 +284,9 @@ QStringList CommandManager::commandHistory() const {
     QStringList history;
 
     for (QObject* command : m_undoStack) {
-        if (auto navCommand = qobject_cast<NavigationCommand*>(command)) {
+        if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
             history.append(navCommand->name());
-        } else if (auto docCommand = qobject_cast<DocumentCommand*>(command)) {
+        } else if (auto* docCommand = qobject_cast<DocumentCommand*>(command)) {
             history.append(docCommand->name());
         } else {
             history.append("Unknown Command");
@@ -311,9 +313,9 @@ void CommandManager::undo() {
         bool success = false;
 
         // Try to undo the command based on its type
-        if (auto navCommand = qobject_cast<NavigationCommand*>(command)) {
+        if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
             success = navCommand->undo();
-        } else if (auto docCommand = qobject_cast<DocumentCommand*>(command)) {
+        } else if (auto* docCommand = qobject_cast<DocumentCommand*>(command)) {
             success = docCommand->undo();
         }
 
@@ -372,7 +374,7 @@ void CommandManager::redo() {
 
 // Private methods implementation
 bool CommandManager::executeCommandObject(QObject* command) {
-    if (!command) {
+    if (command == nullptr) {
         return false;
     }
 
@@ -383,9 +385,9 @@ bool CommandManager::executeCommandObject(QObject* command) {
         connectCommandSignals(command);
 
         // Execute the command based on its type
-        if (auto navCommand = qobject_cast<NavigationCommand*>(command)) {
+        if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
             success = navCommand->execute();
-        } else if (auto docCommand = qobject_cast<DocumentCommand*>(command)) {
+        } else if (auto* docCommand = qobject_cast<DocumentCommand*>(command)) {
             success = docCommand->execute();
         } else {
             m_logger.error("Unknown command type");
@@ -398,9 +400,9 @@ bool CommandManager::executeCommandObject(QObject* command) {
 
         // Emit signal with command name
         QString commandName = "Unknown Command";
-        if (auto navCommand = qobject_cast<NavigationCommand*>(command)) {
+        if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
             commandName = navCommand->name();
-        } else if (auto docCommand = qobject_cast<DocumentCommand*>(command)) {
+        } else if (auto* docCommand = qobject_cast<DocumentCommand*>(command)) {
             commandName = docCommand->name();
         }
         emit commandExecuted(commandName, success);
@@ -411,9 +413,9 @@ bool CommandManager::executeCommandObject(QObject* command) {
         success = false;
 
         QString commandName = "Unknown Command";
-        if (auto navCommand = qobject_cast<NavigationCommand*>(command)) {
+        if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
             commandName = navCommand->name();
-        } else if (auto docCommand = qobject_cast<DocumentCommand*>(command)) {
+        } else if (auto* docCommand = qobject_cast<DocumentCommand*>(command)) {
             commandName = docCommand->name();
         }
         emit commandExecuted(commandName, false);
@@ -424,7 +426,7 @@ bool CommandManager::executeCommandObject(QObject* command) {
 }
 
 void CommandManager::addToHistory(QObject* command) {
-    if (!command) {
+    if (command == nullptr) {
         return;
     }
 
@@ -455,14 +457,14 @@ void CommandManager::updateUndoRedoActions() {
     bool canUndoNow = canUndo();
     bool canRedoNow = canRedo();
 
-    if (m_undoAction) {
+    if (m_undoAction != nullptr) {
         m_undoAction->setEnabled(canUndoNow);
         QString undoText =
             canUndoNow ? QString("Undo %1").arg(undoCommandName()) : "Undo";
         m_undoAction->setText(undoText);
     }
 
-    if (m_redoAction) {
+    if (m_redoAction != nullptr) {
         m_redoAction->setEnabled(canRedoNow);
         QString redoText =
             canRedoNow ? QString("Redo %1").arg(redoCommandName()) : "Redo";
@@ -475,17 +477,17 @@ void CommandManager::updateUndoRedoActions() {
 }
 
 void CommandManager::connectCommandSignals(QObject* command) {
-    if (!command) {
+    if (command == nullptr) {
         return;
     }
 
     // Connect signals based on command type
-    if (auto navCommand = qobject_cast<NavigationCommand*>(command)) {
+    if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
         connect(navCommand, &NavigationCommand::executed, this,
                 [this, navCommand](bool success) {
                     emit commandExecuted(navCommand->name(), success);
                 });
-    } else if (auto docCommand = qobject_cast<DocumentCommand*>(command)) {
+    } else if (auto* docCommand = qobject_cast<DocumentCommand*>(command)) {
         connect(docCommand, &DocumentCommand::executed, this,
                 [this, docCommand](bool success) {
                     emit commandExecuted(docCommand->name(), success);
@@ -504,8 +506,8 @@ bool GlobalCommandManager::execute(const QString& commandId) {
 }
 
 void GlobalCommandManager::registerCommand(
-    const QString& id, CommandManager::CommandFactory factory) {
-    instance().registerCommand(id, factory);
+    const QString& commandId, const CommandManager::CommandFactory &factory) {
+    instance().registerCommand(commandId, factory);
 }
 
 void GlobalCommandManager::registerShortcut(const QString& commandId,
@@ -544,7 +546,7 @@ bool GlobalCommandManager::isEnabled() { return instance().isEnabled(); }
 // CommandInvoker implementation
 CommandInvoker::CommandInvoker(CommandManager* manager, QObject* parent)
     : QObject(parent), m_manager(manager), m_sequenceTimer(new QTimer(this)) {
-    if (!m_manager) {
+    if (m_manager == nullptr) {
         m_manager = &GlobalCommandManager::instance();
     }
 
@@ -554,7 +556,7 @@ CommandInvoker::CommandInvoker(CommandManager* manager, QObject* parent)
 }
 
 void CommandInvoker::invoke(const QString& commandId) {
-    if (!m_manager) {
+    if (m_manager == nullptr) {
         emit invocationCompleted(commandId, false);
         return;
     }
@@ -563,21 +565,21 @@ void CommandInvoker::invoke(const QString& commandId) {
     emit invocationCompleted(commandId, success);
 }
 
-void CommandInvoker::invoke(const QString& commandId, const QVariant& param) {
+void CommandInvoker::invoke(const QString& commandId, const QVariant& /*param*/) {
     // For now, just invoke without parameters
     // Parameter support would require extending the command system
     invoke(commandId);
 }
 
 void CommandInvoker::invoke(const QString& commandId,
-                            const QVariantList& params) {
+                            const QVariantList& /*params*/) {
     // For now, just invoke without parameters
     // Parameter support would require extending the command system
     invoke(commandId);
 }
 
 void CommandInvoker::invoke(const QString& commandId,
-                            const QVariantMap& params) {
+                            const QVariantMap& /*params*/) {
     // For now, just invoke without parameters
     // Parameter support would require extending the command system
     invoke(commandId);
@@ -631,7 +633,7 @@ void CommandInvoker::executeNextInSequence() {
 // CommandRecorder implementation
 CommandRecorder::CommandRecorder(CommandManager* manager, QObject* parent)
     : QObject(parent), m_manager(manager) {
-    if (!m_manager) {
+    if (m_manager == nullptr) {
         m_manager = &GlobalCommandManager::instance();
     }
 
@@ -662,7 +664,7 @@ void CommandRecorder::stopRecording() {
 void CommandRecorder::playback() { playbackWithDelay(0); }
 
 void CommandRecorder::playbackWithDelay(int delayMs) {
-    if (!m_manager || m_recordedCommands.isEmpty()) {
+    if (m_manager == nullptr || m_recordedCommands.isEmpty()) {
         emit playbackCompleted();
         return;
     }

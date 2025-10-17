@@ -15,6 +15,7 @@
 #include <QtGui>
 #include <QtWidgets>
 #include "../../delegate/ThumbnailDelegate.h"
+#include "../../logging/LoggingMacros.h"
 #include "../../model/ThumbnailModel.h"
 #include "../thumbnail/ThumbnailListView.h"
 
@@ -44,14 +45,34 @@ SideBar::SideBar(QWidget* parent)
     restoreState();
 }
 
+SideBar::~SideBar() {
+    // Save state before destruction
+    saveState();
+
+    // Stop animation if running
+    if (animation) {
+        animation->stop();
+        // Animation will be deleted by Qt parent-child ownership
+    }
+
+    // All widgets are deleted automatically by Qt parent-child ownership
+    // No manual deletion needed for widgets created with 'this' as parent
+
+    LOG_DEBUG("SideBar destroyed successfully");
+}
+
 void SideBar::initWindow() {
     setMinimumWidth(minimumWidth);
     setMaximumWidth(maximumWidth);
     resize(preferredWidth, height());
+
+    // Set size policy for responsive behavior
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 }
 
 void SideBar::initContent() {
     tabWidget = new QTabWidget(this);
+    tabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     QWidget* thumbnailsTab = createThumbnailsTab();
     QWidget* bookmarksTab = createBookmarksTab();
@@ -60,6 +81,8 @@ void SideBar::initContent() {
     tabWidget->addTab(bookmarksTab, tr("Bookmarks"));
 
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(0, 0, 0, 0);  // No margins for sidebar
+    mainLayout->setSpacing(0);  // No spacing for tight layout
     mainLayout->addWidget(tabWidget);
 }
 

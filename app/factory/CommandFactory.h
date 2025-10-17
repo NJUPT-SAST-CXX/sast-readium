@@ -92,7 +92,7 @@ signals:
 
 private:
     // Helper methods
-    ActionMap mapStringToAction(const QString& actionStr) const;
+    ActionMap mapStringToAction(const QString& actionStr);
     QString mapActionToString(ActionMap action) const;
     bool validateDependencies() const;
 
@@ -167,10 +167,16 @@ private:
 
 /**
  * @brief CommandPrototypeRegistry - Registry for command prototypes
+ *
+ * Note: This implements a "pseudo-prototype" pattern. Since Qt command objects
+ * don't have built-in clone() methods, the registry stores prototype instances
+ * for reference but creates new instances via the factory when cloning.
+ * The registry owns all registered prototypes and will delete them on destruction.
  */
 class CommandPrototypeRegistry {
 public:
     explicit CommandPrototypeRegistry(CommandFactory* factory);
+    ~CommandPrototypeRegistry();
 
     // Register prototypes
     void registerPrototype(const QString& name, QObject* prototype);

@@ -68,6 +68,7 @@ public:
     bool hasService(const QString& typeName) const;
     void removeService(const QString& typeName);
     void clearServices();
+    void clearServicesUnsafe();  // Safe shutdown without logging
     QStringList registeredServices() const;
 
     // Direct access for special cases (use with caution)

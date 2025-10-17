@@ -178,7 +178,7 @@ public:
     enum PageLoadState { NotLoaded, Loading, Loaded, LoadError };
 
     PDFViewer(QWidget* parent = nullptr, bool enableStyling = true);
-    ~PDFViewer() = default;
+    ~PDFViewer();
 
     // 文档操作
     void setDocument(Poppler::Document* document);
@@ -207,6 +207,7 @@ public:
     void rotateRight();
     void resetRotation();
     void setRotation(int degrees);
+    int getRotation() const { return currentRotation; }
 
     // 滚动操作 (for undo/redo support)
     QPoint getScrollPosition() const;
@@ -395,6 +396,8 @@ private:
 
     // 文档数据
     Poppler::Document* document;
+    std::unique_ptr<Poppler::Page> currentPage;  // Owned page for single page mode
+    std::map<int, std::unique_ptr<Poppler::Page>> continuousPages;  // Owned pages for continuous mode
     int currentPageNumber;
     double currentZoomFactor;
     PDFViewMode currentViewMode;

@@ -11,6 +11,7 @@
 #include <QStandardPaths>
 #include <stdexcept>
 #include "../../model/ThumbnailModel.h"
+#include "../widgets/ToastNotification.h"
 
 // 常量定义
 const QString ThumbnailContextMenu::DEFAULT_EXPORT_FORMAT = "PNG";
@@ -416,14 +417,14 @@ void ThumbnailContextMenu::exportPageToFile(int pageNumber) {
             }
         }
 
-        QMessageBox::information(parentWidget(), "导出成功",
-                                 QString("第 %1 页已成功导出到:\n%2")
-                                     .arg(pageNumber + 1)
-                                     .arg(filePath));
+        TOAST_SUCCESS(parentWidget(),
+                      QString("第 %1 页已成功导出到:\n%2")
+                          .arg(pageNumber + 1)
+                          .arg(filePath));
 
     } catch (const std::exception& e) {
-        QMessageBox::critical(parentWidget(), "错误",
-                              QString("导出页面时发生错误: %1").arg(e.what()));
+        TOAST_ERROR(parentWidget(),
+                    QString("导出页面时发生错误: %1").arg(e.what()));
     }
 }
 
@@ -434,12 +435,9 @@ void ThumbnailContextMenu::showPageInfoDialog(int pageNumber) {
 
     QString infoText = getPageInfoText(pageNumber);
 
-    QMessageBox infoDialog(parentWidget());
-    infoDialog.setWindowTitle(QString("第 %1 页信息").arg(pageNumber + 1));
-    infoDialog.setText(infoText);
-    infoDialog.setIcon(QMessageBox::Information);
-    infoDialog.setStandardButtons(QMessageBox::Ok);
-    infoDialog.exec();
+    // Use toast notification for page info
+    TOAST_INFO(parentWidget(),
+               QString("第 %1 页信息\n%2").arg(pageNumber + 1).arg(infoText));
 }
 
 QString ThumbnailContextMenu::getDefaultExportPath(int pageNumber) const {

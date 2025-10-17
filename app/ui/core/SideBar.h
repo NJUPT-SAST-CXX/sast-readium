@@ -16,10 +16,30 @@ namespace Poppler {
 class Document;
 }
 
+/**
+ * @brief Left sidebar with thumbnails and bookmarks tabs
+ *
+ * @details Provides document navigation via:
+ * - Thumbnail view with synchronized selection
+ * - Bookmark/outline tree view
+ * - Animated show/hide with state persistence
+ * - Configurable width with min/max constraints
+ *
+ * @note State (visibility, width, active tab) is persisted via QSettings
+ */
 class SideBar : public QWidget {
     Q_OBJECT
 public:
+    /**
+     * @brief Construct a new Side Bar object
+     * @param parent Parent widget (optional)
+     */
     SideBar(QWidget* parent = nullptr);
+
+    /**
+     * @brief Destroy the Side Bar object and clean up resources
+     */
+    ~SideBar();
 
     // 显示/隐藏控制
     bool isVisible() const;
@@ -47,6 +67,9 @@ public:
     void refreshThumbnails();
     ThumbnailListView* getThumbnailView() const { return thumbnailView; }
     ThumbnailModel* getThumbnailModel() const { return thumbnailModel.get(); }
+
+    // Tab widget access for delegate
+    QTabWidget* getTabWidget() const { return tabWidget; }
 
 public slots:
     void show(bool animated = true);

@@ -13,6 +13,9 @@ file(GLOB UIs "${CMAKE_CURRENT_SOURCE_DIR}/*.ui")
 message(STATUS "Discovering application sources...")
 discover_app_sources(APP_SOURCES)
 
+# Add Qt resource file for automatic compilation
+list(APPEND APP_SOURCES app.qrc)
+
 # Add platform-specific sources
 if(WIN32)
     list(APPEND APP_SOURCES app.rc)
@@ -69,7 +72,8 @@ target_precompile_headers(app_lib PRIVATE
 # Create executable with platform-specific configuration
 if(WIN32)
     add_executable(app "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
-    set_target_properties(app PROPERTIES WIN32_EXECUTABLE TRUE)
+    # Temporarily disable WIN32_EXECUTABLE for debugging
+    set_target_properties(app PROPERTIES WIN32_EXECUTABLE FALSE)
 else()
     add_executable(app "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
 endif()

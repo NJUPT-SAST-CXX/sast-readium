@@ -21,10 +21,10 @@ public:
     static FileTypeIconManager& instance();
 
     // Icon retrieval
-    QIcon getFileTypeIcon(const QString& filePath, int size = 24) const;
-    QIcon getFileTypeIcon(const QFileInfo& fileInfo, int size = 24) const;
-    QPixmap getFileTypePixmap(const QString& filePath, int size = 24) const;
-    QPixmap getFileTypePixmap(const QFileInfo& fileInfo, int size = 24) const;
+    [[nodiscard]] QIcon getFileTypeIcon(const QString& filePath, int size = 24) const;
+    [[nodiscard]] QIcon getFileTypeIcon(const QFileInfo& fileInfo, int size = 24) const;
+    [[nodiscard]] QPixmap getFileTypePixmap(const QString& filePath, int size = 24) const;
+    [[nodiscard]] QPixmap getFileTypePixmap(const QFileInfo& fileInfo, int size = 24) const;
 
     // Icon management
     void preloadIcons();
@@ -32,14 +32,18 @@ public:
     void setIconSize(int size);
 
     // Supported file types
-    QStringList getSupportedExtensions() const;
-    bool isSupported(const QString& extension) const;
+    [[nodiscard]] QStringList getSupportedExtensions() const;
+    [[nodiscard]] bool isSupported(const QString& extension) const;
 
-private:
-    FileTypeIconManager(QObject* parent = nullptr);
-    ~FileTypeIconManager();
+    // Deleted copy/move operations (public for better error messages)
     FileTypeIconManager(const FileTypeIconManager&) = delete;
     FileTypeIconManager& operator=(const FileTypeIconManager&) = delete;
+    FileTypeIconManager(FileTypeIconManager&&) = delete;
+    FileTypeIconManager& operator=(FileTypeIconManager&&) = delete;
+
+private:
+    explicit FileTypeIconManager(QObject* parent = nullptr);
+    ~FileTypeIconManager() override;
 
     std::unique_ptr<FileTypeIconManagerImpl> pImpl;
 };

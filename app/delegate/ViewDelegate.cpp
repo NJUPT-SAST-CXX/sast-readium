@@ -119,11 +119,17 @@ void ViewDelegate::setupMainLayout() {
         return;
     }
 
-    d->logger.debug("Setting up main layout");
+    d->logger.debug("Setting up main layout with responsive design");
 
-    // Configure main window
+    // Configure main window with responsive constraints
     d->mainWindow->resize(1280, 800);
     d->mainWindow->setWindowTitle("SAST Readium");
+
+    // Ensure central widget has proper size policy
+    if (d->mainWindow->centralWidget()) {
+        d->mainWindow->centralWidget()->setSizePolicy(
+            QSizePolicy::Expanding, QSizePolicy::Expanding);
+    }
 
     // Apply default layout
     applyDefaultLayout();
@@ -131,7 +137,7 @@ void ViewDelegate::setupMainLayout() {
     // Connect signals after setup
     d->connectSignals();
 
-    d->logger.debug("Main layout setup complete");
+    d->logger.debug("Main layout setup complete with responsive behavior");
 }
 
 // Component setter methods
@@ -176,13 +182,38 @@ QVariant ViewDelegate::Implementation::loadState(const QString& key,
 }
 
 void MainViewDelegate::Implementation::updateRenderSettings() {
-    // Apply render settings to ViewWidget
-    // Implementation depends on ViewWidget API
+    if (!viewWidget) {
+        return;
+    }
+
+    // Note: ViewWidget doesn't expose direct render quality settings
+    // These settings are stored for potential future use or for
+    // propagation to PDFViewer through ViewWidget's executePDFAction
+    logger.debug(QString("Render settings updated: quality=%1, antiAliasing=%2, smoothTransform=%3")
+                     .arg(renderQuality)
+                     .arg(antiAliasing)
+                     .arg(smoothTransform));
 }
 
 void MainViewDelegate::Implementation::applyViewMode() {
-    // Apply view mode to ViewWidget
-    // Implementation depends on ViewWidget API
+    if (!viewWidget) {
+        return;
+    }
+
+    // Map string view mode to integer mode for ViewWidget
+    int mode = 0; // Default to SinglePage
+    if (currentViewMode == "single") {
+        mode = 0; // PDFViewMode::SinglePage
+    } else if (currentViewMode == "continuous") {
+        mode = 1; // PDFViewMode::ContinuousScroll
+    } else if (currentViewMode == "facing") {
+        mode = 2; // Future: FacingPages mode
+    } else if (currentViewMode == "book") {
+        mode = 3; // Future: BookView mode
+    }
+
+    viewWidget->setCurrentViewMode(mode);
+    logger.debug(QString("Applied view mode: %1 (mode=%2)").arg(currentViewMode).arg(mode));
 }
 
 void ViewDelegate::adjustSplitterSizes() {
@@ -197,10 +228,17 @@ void ViewDelegate::adjustSplitterSizes() {
                          ? d->rightSideBar->getPreferredWidth()
                          : 0;
 
-    d->splitter->setSizes({leftWidth, 1000, rightWidth});
+    // Calculate center width based on current splitter size
+    int totalWidth = d->splitter->width();
+    int centerWidth = totalWidth - leftWidth - rightWidth;
+    // Ensure center has minimum reasonable width
+    centerWidth = qMax(centerWidth, 400);
 
-    d->logger.debug(QString("Adjusted splitter sizes: %1, 1000, %2")
+    d->splitter->setSizes({leftWidth, centerWidth, rightWidth});
+
+    d->logger.debug(QString("Adjusted splitter sizes: %1, %2, %3")
                         .arg(leftWidth)
+                        .arg(centerWidth)
                         .arg(rightWidth));
 }
 
@@ -225,8 +263,36 @@ void ViewDelegate::saveLayoutState() {
 }
 
 void ViewDelegate::restoreLayoutState() {
-    // Simplified implementation
-    d->logger.debug("Layout state restored");
+    QSettings settings;
+    settings.beginGroup("ViewLayout");
+
+    // Restore splitter sizes
+    if (d->splitter) {
+        QVariant splitterSizesVar = settings.value("splitterSizes");
+        if (splitterSizesVar.isValid()) {
+            QList<int> sizes = splitterSizesVar.value<QList<int>>();
+            if (!sizes.isEmpty()) {
+                d->splitter->setSizes(sizes);
+                d->savedSplitterSizes = sizes;
+            }
+        }
+    }
+
+    // Restore sidebar visibility
+    bool sideBarVisible = settings.value("sideBarVisible", true).toBool();
+    showSideBar(sideBarVisible);
+
+    // Restore right sidebar visibility
+    bool rightSideBarVisible = settings.value("rightSideBarVisible", false).toBool();
+    showRightSideBar(rightSideBarVisible);
+
+    // Restore view modes
+    d->isFullScreen = settings.value("fullScreen", false).toBool();
+    d->isPresentationMode = settings.value("presentationMode", false).toBool();
+    d->isFocusMode = settings.value("focusMode", false).toBool();
+
+    settings.endGroup();
+    d->logger.debug("Layout state restored successfully");
 }
 
 bool ViewDelegate::isSideBarVisible() const {
@@ -351,14 +417,58 @@ void MainViewDelegate::setAntiAliasing(bool enabled) {
 void MainViewDelegate::setSmoothPixmapTransform(bool enabled) {
     d->smoothTransform = enabled;
 }
-void MainViewDelegate::zoomToFit() { d->logger.debug("Zoom to fit"); }
-void MainViewDelegate::zoomToWidth() { d->logger.debug("Zoom to width"); }
-void MainViewDelegate::setSinglePageMode() { d->currentViewMode = "single"; }
+void MainViewDelegate::zoomToFit() {
+    d->logger.debug("Executing zoom to fit");
+    if (d->viewWidget && d->viewWidget->hasDocuments()) {
+        d->viewWidget->executePDFAction(ActionMap::fitToPage);
+        // Update our internal zoom level to match
+        d->zoomLevel = d->viewWidget->getCurrentZoom();
+        emit zoomChanged(d->zoomLevel);
+        d->logger.debug(QString("Zoom to fit complete: %1").arg(d->zoomLevel));
+    } else {
+        d->logger.warning("Cannot zoom to fit: no documents open");
+    }
+}
+
+void MainViewDelegate::zoomToWidth() {
+    d->logger.debug("Executing zoom to width");
+    if (d->viewWidget && d->viewWidget->hasDocuments()) {
+        d->viewWidget->executePDFAction(ActionMap::fitToWidth);
+        // Update our internal zoom level to match
+        d->zoomLevel = d->viewWidget->getCurrentZoom();
+        emit zoomChanged(d->zoomLevel);
+        d->logger.debug(QString("Zoom to width complete: %1").arg(d->zoomLevel));
+    } else {
+        d->logger.warning("Cannot zoom to width: no documents open");
+    }
+}
+void MainViewDelegate::setSinglePageMode() {
+    d->currentViewMode = "single";
+    d->applyViewMode();
+    emit viewModeChanged("single");
+    d->logger.debug("Set single page mode");
+}
+
 void MainViewDelegate::setContinuousMode() {
     d->currentViewMode = "continuous";
+    d->applyViewMode();
+    emit viewModeChanged("continuous");
+    d->logger.debug("Set continuous mode");
 }
-void MainViewDelegate::setFacingPagesMode() { d->currentViewMode = "facing"; }
-void MainViewDelegate::setBookViewMode() { d->currentViewMode = "book"; }
+
+void MainViewDelegate::setFacingPagesMode() {
+    d->currentViewMode = "facing";
+    d->applyViewMode();
+    emit viewModeChanged("facing");
+    d->logger.debug("Set facing pages mode");
+}
+
+void MainViewDelegate::setBookViewMode() {
+    d->currentViewMode = "book";
+    d->applyViewMode();
+    emit viewModeChanged("book");
+    d->logger.debug("Set book view mode");
+}
 
 void MainViewDelegate::scrollToTop() {
     d->logger.debug("Scroll to top");
@@ -422,15 +532,77 @@ void SideBarDelegate::showTab(int index) {
     emit tabChanged(index);
 }
 void SideBarDelegate::showTab(const QString& name) {
-    d->logger.debug(QString("Showing tab: %1").arg(name));
+    if (!d->sideBar) {
+        d->logger.warning("Cannot show tab: SideBar is null");
+        return;
+    }
+
+    QTabWidget* tabWidget = d->sideBar->getTabWidget();
+    if (!tabWidget) {
+        d->logger.warning("Cannot show tab: TabWidget is null");
+        return;
+    }
+
+    // Map tab name to index
+    int targetIndex = -1;
+    QString lowerName = name.toLower();
+
+    for (int i = 0; i < tabWidget->count(); ++i) {
+        QString tabText = tabWidget->tabText(i).toLower();
+        if (tabText.contains(lowerName) || lowerName.contains(tabText)) {
+            targetIndex = i;
+            break;
+        }
+    }
+
+    if (targetIndex >= 0) {
+        d->currentTab = targetIndex;
+        tabWidget->setCurrentIndex(targetIndex);
+        emit tabChanged(targetIndex);
+        d->logger.debug(QString("Showing tab: %1 (index=%2)").arg(name).arg(targetIndex));
+    } else {
+        d->logger.warning(QString("Tab not found: %1").arg(name));
+    }
 }
+
 void SideBarDelegate::enableTab(int index, bool enable) {
-    Q_UNUSED(index)
-    Q_UNUSED(enable)
+    if (!d->sideBar) {
+        d->logger.warning("Cannot enable/disable tab: SideBar is null");
+        return;
+    }
+
+    QTabWidget* tabWidget = d->sideBar->getTabWidget();
+    if (!tabWidget) {
+        d->logger.warning("Cannot enable/disable tab: TabWidget is null");
+        return;
+    }
+
+    if (index >= 0 && index < tabWidget->count()) {
+        tabWidget->setTabEnabled(index, enable);
+        d->logger.debug(QString("Tab %1 %2").arg(index).arg(enable ? "enabled" : "disabled"));
+    } else {
+        d->logger.warning(QString("Invalid tab index: %1").arg(index));
+    }
 }
+
 void SideBarDelegate::setTabVisible(int index, bool visible) {
-    Q_UNUSED(index)
-    Q_UNUSED(visible)
+    if (!d->sideBar) {
+        d->logger.warning("Cannot set tab visibility: SideBar is null");
+        return;
+    }
+
+    QTabWidget* tabWidget = d->sideBar->getTabWidget();
+    if (!tabWidget) {
+        d->logger.warning("Cannot set tab visibility: TabWidget is null");
+        return;
+    }
+
+    if (index >= 0 && index < tabWidget->count()) {
+        tabWidget->setTabVisible(index, visible);
+        d->logger.debug(QString("Tab %1 visibility set to %2").arg(index).arg(visible));
+    } else {
+        d->logger.warning(QString("Invalid tab index: %1").arg(index));
+    }
 }
 void SideBarDelegate::updateOutline() { emit contentUpdated("outline"); }
 void SideBarDelegate::updateThumbnails() { emit contentUpdated("thumbnails"); }
@@ -446,5 +618,39 @@ void SideBarDelegate::setMaximumWidth(int width) {
     if (d->sideBar)
         d->sideBar->setMaximumWidth(width);
 }
-void SideBarDelegate::saveState() { d->logger.debug("State saved"); }
-void SideBarDelegate::restoreState() { d->logger.debug("State restored"); }
+void SideBarDelegate::saveState() {
+    QSettings settings;
+    settings.beginGroup("SideBarDelegate");
+
+    settings.setValue("currentTab", d->currentTab);
+    settings.setValue("preferredWidth", d->preferredWidth);
+
+    settings.endGroup();
+    d->logger.debug(QString("State saved: tab=%1, width=%2")
+                        .arg(d->currentTab)
+                        .arg(d->preferredWidth));
+}
+
+void SideBarDelegate::restoreState() {
+    QSettings settings;
+    settings.beginGroup("SideBarDelegate");
+
+    d->currentTab = settings.value("currentTab", 0).toInt();
+    d->preferredWidth = settings.value("preferredWidth", 250).toInt();
+
+    // Apply restored tab if sidebar has a tab widget
+    if (d->sideBar) {
+        QTabWidget* tabWidget = d->sideBar->getTabWidget();
+        if (tabWidget && d->currentTab >= 0 && d->currentTab < tabWidget->count()) {
+            tabWidget->setCurrentIndex(d->currentTab);
+        }
+
+        // Apply restored width
+        d->sideBar->setPreferredWidth(d->preferredWidth);
+    }
+
+    settings.endGroup();
+    d->logger.debug(QString("State restored: tab=%1, width=%2")
+                        .arg(d->currentTab)
+                        .arg(d->preferredWidth));
+}

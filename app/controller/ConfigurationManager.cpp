@@ -507,11 +507,141 @@ void ConfigurationProfileManager::applyActiveProfile() {
 }
 
 void ConfigurationProfileManager::saveProfiles() {
-    // Implementation would save profiles to persistent storage
+    try {
+        // Get profiles directory path
+        QString appDataPath = QStandardPaths::writableLocation(
+            QStandardPaths::AppDataLocation);
+        QString profilesDir = appDataPath + "/profiles";
+
+        // Create profiles directory if it doesn't exist
+        QDir dir;
+        if (!dir.mkpath(profilesDir)) {
+            m_logger.error(QString("Failed to create profiles directory: %1")
+                               .arg(profilesDir));
+            return;
+        }
+
+        // Save each profile to a separate JSON file
+        for (auto it = m_profiles.begin(); it != m_profiles.end(); ++it) {
+            const QString& profileName = it.key();
+            ConfigurationProfile* profile = it.value();
+
+            if (!profile) {
+                continue;
+            }
+
+            // Create file path for this profile
+            QString fileName = profileName;
+            // Sanitize filename - remove invalid characters
+            fileName.replace(QRegularExpression("[<>:\"/\\\\|?*]"), "_");
+            QString filePath = profilesDir + "/" + fileName + ".json";
+
+            // Serialize profile to JSON
+            QByteArray jsonData = profile->serialize();
+            QFile file(filePath);
+
+            if (!file.open(QIODevice::WriteOnly)) {
+                m_logger.warning(QString("Failed to save profile '%1' to: %2")
+                                     .arg(profileName)
+                                     .arg(filePath));
+                continue;
+            }
+
+            file.write(jsonData);
+            file.close();
+
+            m_logger.debug(QString("Saved profile '%1' to: %2")
+                               .arg(profileName)
+                               .arg(filePath));
+        }
+
+        // Save active profile name to QSettings
+        QSettings settings;
+        settings.beginGroup("ConfigurationProfiles");
+        settings.setValue("activeProfile", m_activeProfileName);
+        settings.endGroup();
+        settings.sync();
+
+        m_logger.info(
+            QString("Saved %1 configuration profiles").arg(m_profiles.size()));
+
+    } catch (const std::exception& e) {
+        m_logger.error(
+            QString("Exception while saving profiles: %1").arg(e.what()));
+    }
 }
 
 void ConfigurationProfileManager::loadProfiles() {
-    // Implementation would load profiles from persistent storage
+    try {
+        // Get profiles directory path
+        QString appDataPath = QStandardPaths::writableLocation(
+            QStandardPaths::AppDataLocation);
+        QString profilesDir = appDataPath + "/profiles";
+
+        // Check if profiles directory exists
+        QDir dir(profilesDir);
+        if (!dir.exists()) {
+            m_logger.debug(
+                "Profiles directory does not exist, no profiles to load");
+            return;
+        }
+
+        // Get all JSON files in the profiles directory
+        QStringList filters;
+        filters << "*.json";
+        QFileInfoList fileList =
+            dir.entryInfoList(filters, QDir::Files | QDir::Readable);
+
+        int loadedCount = 0;
+        for (const QFileInfo& fileInfo : fileList) {
+            QString filePath = fileInfo.absoluteFilePath();
+            QFile file(filePath);
+
+            if (!file.open(QIODevice::ReadOnly)) {
+                m_logger.warning(
+                    QString("Failed to open profile file: %1").arg(filePath));
+                continue;
+            }
+
+            QByteArray jsonData = file.readAll();
+            file.close();
+
+            // Deserialize profile from JSON
+            auto profile = std::make_unique<ConfigurationProfile>("");
+            if (profile->deserialize(jsonData)) {
+                QString profileName = profile->name();
+                addProfile(std::move(profile));
+                loadedCount++;
+
+                m_logger.debug(QString("Loaded profile '%1' from: %2")
+                                   .arg(profileName)
+                                   .arg(filePath));
+            } else {
+                m_logger.warning(
+                    QString("Failed to deserialize profile from: %1")
+                        .arg(filePath));
+            }
+        }
+
+        // Load active profile name from QSettings
+        QSettings settings;
+        settings.beginGroup("ConfigurationProfiles");
+        QString savedActiveProfile = settings.value("activeProfile").toString();
+        settings.endGroup();
+
+        // Set active profile if it exists
+        if (!savedActiveProfile.isEmpty() &&
+            m_profiles.contains(savedActiveProfile)) {
+            setActiveProfile(savedActiveProfile);
+        }
+
+        m_logger.info(
+            QString("Loaded %1 configuration profiles").arg(loadedCount));
+
+    } catch (const std::exception& e) {
+        m_logger.error(
+            QString("Exception while loading profiles: %1").arg(e.what()));
+    }
 }
 
 bool ConfigurationProfileManager::exportProfile(const QString& name,

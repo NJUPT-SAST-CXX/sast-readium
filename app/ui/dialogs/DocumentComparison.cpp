@@ -15,6 +15,7 @@
 // // #include <QtConcurrent> // Not available in this MSYS2 setup // Not
 // available in this MSYS2 setup
 #include <QDebug>
+#include "../../managers/StyleManager.h"
 
 DocumentComparison::DocumentComparison(QWidget* parent)
     : QWidget(parent),
@@ -29,10 +30,17 @@ DocumentComparison::DocumentComparison(QWidget* parent)
 }
 
 void DocumentComparison::setupUI() {
-    m_mainLayout = new QVBoxLayout(this);
+    StyleManager* styleManager = &StyleManager::instance();
 
-    // Toolbar
+    m_mainLayout = new QVBoxLayout(this);
+    m_mainLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingMD(),
+                                    styleManager->spacingMD(), styleManager->spacingMD());
+    m_mainLayout->setSpacing(styleManager->spacingMD());
+
+    // Toolbar with optimized layout
     m_toolbarLayout = new QHBoxLayout();
+    m_toolbarLayout->setSpacing(styleManager->spacingSM());
+
     m_compareButton = new QPushButton("Compare Documents", this);
     m_stopButton = new QPushButton("Stop", this);
     m_stopButton->setEnabled(false);
@@ -42,10 +50,14 @@ void DocumentComparison::setupUI() {
 
     m_viewModeCombo = new QComboBox(this);
     m_viewModeCombo->addItems({"Side by Side", "Overlay", "Differences Only"});
+    m_viewModeCombo->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     m_statusLabel = new QLabel("Ready", this);
+    m_statusLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
     m_progressBar = new QProgressBar(this);
     m_progressBar->setVisible(false);
+    m_progressBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     m_toolbarLayout->addWidget(m_compareButton);
     m_toolbarLayout->addWidget(m_stopButton);
@@ -59,11 +71,16 @@ void DocumentComparison::setupUI() {
 
     m_mainLayout->addLayout(m_toolbarLayout);
 
-    // Options panel (initially hidden)
+    // Options panel (initially hidden) with optimized layout
     m_optionsGroup = new QGroupBox("Comparison Options", this);
     m_optionsGroup->setVisible(false);
+    m_optionsGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     QGridLayout* optionsLayout = new QGridLayout(m_optionsGroup);
+    optionsLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingMD(),
+                                     styleManager->spacingMD(), styleManager->spacingMD());
+    optionsLayout->setHorizontalSpacing(styleManager->spacingMD());
+    optionsLayout->setVerticalSpacing(styleManager->spacingSM());
 
     m_compareTextCheck = new QCheckBox("Compare Text", this);
     m_compareTextCheck->setChecked(true);

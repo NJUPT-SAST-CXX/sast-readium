@@ -36,13 +36,59 @@ private:
     bool m_expanded;
 
     void updateToggleButton();
+    void applyTheme();
 };
 
+/**
+ * @brief Enhanced status bar with document information, progress tracking, and expandable panels
+ *
+ * @details This status bar provides comprehensive document status information including:
+ * - File name, page info, and zoom level
+ * - Document metadata (title, author, subject, keywords, dates)
+ * - Document statistics (word count, character count, reading time)
+ * - Security information (encryption, permissions)
+ * - Search results display
+ * - Loading progress tracking
+ * - Quick action buttons
+ *
+ * **Minimal Mode:**
+ * The status bar supports a minimal mode (enabled via constructor parameter) designed for:
+ * - Headless testing environments without Qt platform plugins
+ * - Unit testing where UI widgets are not needed
+ * - Reduced memory footprint scenarios
+ *
+ * When minimal mode is enabled:
+ * - All widget pointers are initialized to nullptr
+ * - All public methods perform null checks and return early if widgets don't exist
+ * - No UI elements are created or displayed
+ * - The status bar acts as a no-op interface for testing purposes
+ *
+ * @note All public methods are safe to call in minimal mode - they will gracefully handle
+ *       nullptr widgets and return without error.
+ *
+ * @see ExpandableInfoPanel for the collapsible panel implementation
+ */
 class StatusBar : public QStatusBar {
     Q_OBJECT
 public:
-    explicit StatusBar(QWidget* parent = nullptr);
+    /**
+     * @brief Construct a new Status Bar object
+     * @param parent Parent widget (optional)
+     * @param minimalMode If true, creates a minimal status bar without UI widgets for testing (default: false)
+     */
+    explicit StatusBar(QWidget* parent = nullptr, bool minimalMode = false);
+
+    /**
+     * @brief Construct a new Status Bar object using WidgetFactory
+     * @param factory Widget factory for creating UI components
+     * @param parent Parent widget (optional)
+     */
     StatusBar(WidgetFactory* factory, QWidget* parent = nullptr);
+
+    /**
+     * @brief Destroy the Status Bar object and clean up resources
+     */
+    ~StatusBar();
 
     // 状态信息更新接口
     void setDocumentInfo(const QString& fileName, int currentPage,
@@ -122,6 +168,15 @@ private:
     void animateWidget(QWidget* widget, const QString& property,
                        const QVariant& start, const QVariant& end,
                        int duration = 200);
+    void applyFieldStyles();
+    void applyPanelTypography();
+    void applyQuickActionStyles();
+    void updateMessageAppearance(const QColor& background,
+                                 const QColor& text);
+    void setLineEditInvalid(QLineEdit* edit, bool invalid);
+    void displayTransientMessage(const QString& text, int timeout,
+                                 const QColor& background,
+                                 const QColor& foreground);
 
     // 主要区域控件
     QFrame* m_mainSection;
@@ -187,6 +242,9 @@ private:
     int m_currentPageNumber;
     QString m_currentFileName;
     bool m_compactMode;
+    bool m_lastEncrypted = false;
+    bool m_lastCopyAllowed = true;
+    bool m_lastPrintAllowed = true;
 
     // 保留兼容性的别名
     QLabel*& fileNameLabel = m_fileNameLabel;

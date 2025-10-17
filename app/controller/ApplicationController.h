@@ -2,12 +2,12 @@
 
 #include <QObject>
 #include <QPointer>
-#include <memory>
 #include "../logging/SimpleLogging.h"
 
 // Forward declarations
 class QMainWindow;
 class QStackedWidget;
+class QSplitter;
 class DocumentController;
 class PageController;
 class DocumentModel;
@@ -39,7 +39,11 @@ class ApplicationController : public QObject {
 public:
     explicit ApplicationController(QMainWindow* mainWindow,
                                    QObject* parent = nullptr);
-    ~ApplicationController();
+    ~ApplicationController() override;
+
+    // Explicitly delete copy operations due to destructor
+    ApplicationController(const ApplicationController&) = delete;
+    ApplicationController& operator=(const ApplicationController&) = delete;
 
     // Initialization methods (following Interface Segregation)
     void initializeApplication();
@@ -54,25 +58,26 @@ public:
     void toggleView();
 
     // Component access (for dependency injection)
-    DocumentController* documentController() const {
+    [[nodiscard]] DocumentController* documentController() const {
         return m_documentController;
     }
-    PageController* pageController() const { return m_pageController; }
-    DocumentModel* documentModel() const { return m_documentModel; }
-    PageModel* pageModel() const { return m_pageModel; }
-    RenderModel* renderModel() const { return m_renderModel; }
-    RecentFilesManager* recentFilesManager() const {
+    [[nodiscard]] PageController* pageController() const { return m_pageController; }
+    [[nodiscard]] DocumentModel* documentModel() const { return m_documentModel; }
+    [[nodiscard]] PageModel* pageModel() const { return m_pageModel; }
+    [[nodiscard]] RenderModel* renderModel() const { return m_renderModel; }
+    [[nodiscard]] RecentFilesManager* recentFilesManager() const {
         return m_recentFilesManager;
     }
-    SystemTrayManager* systemTrayManager() const { return m_systemTrayManager; }
+    [[nodiscard]] SystemTrayManager* systemTrayManager() const { return m_systemTrayManager; }
 
     // View components access
-    MenuBar* menuBar() const { return m_menuBar; }
-    ToolBar* toolBar() const { return m_toolBar; }
-    SideBar* sideBar() const { return m_sideBar; }
-    RightSideBar* rightSideBar() const { return m_rightSideBar; }
-    StatusBar* statusBar() const { return m_statusBar; }
-    ViewWidget* viewWidget() const { return m_viewWidget; }
+    [[nodiscard]] MenuBar* menuBar() const { return m_menuBar; }
+    [[nodiscard]] ToolBar* toolBar() const { return m_toolBar; }
+    [[nodiscard]] SideBar* sideBar() const { return m_sideBar; }
+    [[nodiscard]] RightSideBar* rightSideBar() const { return m_rightSideBar; }
+    [[nodiscard]] StatusBar* statusBar() const { return m_statusBar; }
+    [[nodiscard]] ViewWidget* viewWidget() const { return m_viewWidget; }
+    [[nodiscard]] QSplitter* mainSplitter() const { return m_mainSplitter; }
 
     // Application-wide operations
     void applyTheme(const QString& theme);
@@ -122,6 +127,7 @@ private:
     ViewWidget* m_viewWidget = nullptr;
     WelcomeWidget* m_welcomeWidget = nullptr;
     QStackedWidget* m_contentStack = nullptr;
+    QSplitter* m_mainSplitter = nullptr;
 
     // State
     bool m_isInitialized = false;

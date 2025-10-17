@@ -21,7 +21,7 @@ public:
                 "\\x00",           // Null bytes
                 "\\x1f",           // Control characters
                 "\\.\\./",         // Path traversal
-                "\\\\\\.\\.\\\\",  // Windows path traversal
+                R"(\\\.\.\\)",     // Windows path traversal
             };
         }
     }
@@ -488,8 +488,8 @@ SearchValidator::ValidationResult SearchValidator::applyCustomRules(
 
 // ValidationScope implementation
 ValidationScope::ValidationScope(SearchValidator* validator,
-                                 const QString& operation)
-    : m_validator(validator), m_operation(operation), m_valid(true) {}
+                                 QString operation)
+    : m_validator(validator), m_operation(std::move(operation)), m_valid(true) {}
 
 ValidationScope::~ValidationScope() {
     if (!m_valid && m_validator) {
@@ -527,7 +527,7 @@ SearchValidator::ValidationResult SearchValidator::validateMemoryLimit(
     }
 
     // Check against reasonable limits (e.g., 1GB max)
-    const qint64 maxMemoryLimit = 1024 * 1024 * 1024;  // 1GB
+    const qint64 maxMemoryLimit = static_cast<qint64>(1024) * 1024 * 1024;  // 1GB
     if (memoryLimit > maxMemoryLimit) {
         result.addError(ResourceLimit,
                         QString("Memory limit %1 exceeds maximum allowed %2")
@@ -536,7 +536,7 @@ SearchValidator::ValidationResult SearchValidator::validateMemoryLimit(
     }
 
     // Check against minimum reasonable limit (e.g., 1MB)
-    const qint64 minMemoryLimit = 1024 * 1024;  // 1MB
+    const qint64 minMemoryLimit = static_cast<qint64>(1024) * 1024;  // 1MB
     if (memoryLimit > 0 && memoryLimit < minMemoryLimit) {
         result.addError(
             InvalidRange,
@@ -642,8 +642,13 @@ SearchValidator::ValidationResult SearchValidator::validateForSecurityThreats(
                         "Potential script injection detected");
     }
 
-    // Check for path traversal patterns
-    if (input.contains("..") || input.contains("../")) {
+    // Check for path traversal patterns (including URL-encoded and Unicode variants)
+    QString lowerInput = input.toLower();
+    if (input.contains("..") || input.contains("../") || input.contains("..\\") ||
+        lowerInput.contains("%2e%2e%2f") || lowerInput.contains("%2e%2e%5c") ||
+        lowerInput.contains("..%2f") || lowerInput.contains("..%5c") ||
+        lowerInput.contains("%252e%252e%252f") || lowerInput.contains("%252e%252e%252") ||
+        input.contains(R"(\u002e\u002e\u002f)") || input.contains(R"(\u002E\u002E\u002F)")) {
         result.addError(SecurityViolation, "Potential path traversal detected");
     }
 
@@ -793,17 +798,56 @@ SearchValidator::Implementation::validateRegexPattern(
             result.addError(InvalidFormat,
                             QString("Invalid regular expression: %1")
                                 .arg(regex.errorString()));
+            return result;
         }
 
-        // Check for dangerous patterns that could cause catastrophic
-        // backtracking
-        static const QRegularExpression dangerousPatterns(
-            "(\\.\\*){2,}|(\\.\\+){2,}|\\(.*\\)\\*\\(.*\\)\\*|\\(.*\\)\\+\\(.*"
-            "\\)\\+");
-        if (pattern.contains(dangerousPatterns)) {
-            result.addError(SecurityViolation,
-                            "Regular expression contains patterns that could "
-                            "cause catastrophic backtracking");
+        auto flag = [&](const QString& message) {
+            result.addError(SecurityViolation, message);
+        };
+
+        // Check for repeated greedy quantifiers like (.*){2,} or (.+){2,}
+        static const QRegularExpression repeatedGreedy(R"(\([^)]*[\.\*\+][^)]*\)\{[0-9]+,\})");
+        if (repeatedGreedy.match(pattern).hasMatch()) {
+            flag("Regular expression repeats greedy groups with quantified ranges");
+        }
+
+        // Check for multiple sequential greedy patterns like (.*).* (.*)
+        static const QRegularExpression sequentialGreedy(R"(\([^)]*\.\*[^)]*\)[^(]*\.\*[^(]*\([^)]*\.\*[^)]*\))");
+        if (sequentialGreedy.match(pattern).hasMatch()) {
+            flag("Regular expression contains multiple greedy groups that may overlap");
+        }
+
+        // Check for lookaround with quantifiers
+        static const QRegularExpression lookaroundQuant(R"(\(\?[=!<][^)]*\)[*+?{])");
+        if (lookaroundQuant.match(pattern).hasMatch()) {
+            flag("Regular expression applies quantifiers directly to lookaround assertions");
+        }
+
+        // Check for broad Unicode categories with heavy quantifiers
+        static const QRegularExpression unicodeQuant(R"(\\[pP]\{[^}]+\}[*+]\{[0-9]+,\})");
+        if (unicodeQuant.match(pattern).hasMatch()) {
+            flag("Regular expression uses broad Unicode categories with heavy quantifiers");
+        }
+
+        // Check for backreferences with repeated quantifiers
+        static const QRegularExpression backrefExplosion(R"(\\[0-9]+[*+]\{[0-9]+,\})");
+        if (backrefExplosion.match(pattern).hasMatch()) {
+            flag("Regular expression applies repeated quantifiers to backreferences");
+        }
+
+        if (!result.hasError(SecurityViolation)) {
+            int quantifierCount = static_cast<int>(pattern.count(QRegularExpression("[*+?]")));
+            int groupCount = static_cast<int>(pattern.count(QRegularExpression("[()]")));
+            if (quantifierCount > 10 && groupCount > 5) {
+                flag("Regular expression appears too complex and may cause performance issues");
+            }
+        }
+
+        if (!result.hasError(SecurityViolation)) {
+            int alternationCount = static_cast<int>(pattern.count('|'));
+            if (alternationCount > 20) {
+                flag("Regular expression contains too many alternations and may cause performance issues");
+            }
         }
 
     } catch (...) {
@@ -852,14 +896,11 @@ SearchValidator::Implementation::validateAgainstForbiddenPatterns(
 
 bool SearchValidator::Implementation::containsScriptInjection(
     const QString& input) const {
-    for (const QString& pattern : config.forbiddenPatterns) {
+    return std::ranges::any_of(config.forbiddenPatterns, [&input](const QString& pattern) {
         QRegularExpression regex(pattern,
                                  QRegularExpression::CaseInsensitiveOption);
-        if (input.contains(regex)) {
-            return true;
-        }
-    }
-    return false;
+        return input.contains(regex);
+    });
 }
 
 bool SearchValidator::Implementation::containsPathTraversal(
@@ -867,28 +908,21 @@ bool SearchValidator::Implementation::containsPathTraversal(
     static const QStringList pathTraversalPatterns = {
         "../", "..\\", "%2e%2e%2f", "%2e%2e%5c", "..%2f", "..%5c"};
 
-    for (const QString& pattern : pathTraversalPatterns) {
-        if (input.contains(pattern, Qt::CaseInsensitive)) {
-            return true;
-        }
-    }
-    return false;
+    return std::ranges::any_of(pathTraversalPatterns, [&input](const QString& pattern) {
+        return input.contains(pattern, Qt::CaseInsensitive);
+    });
 }
 
 bool SearchValidator::Implementation::containsResourceExhaustion(
     const QString& input) const {
     // Check for patterns that could cause resource exhaustion
-    if (input.length() > config.maxQueryLength * 2) {
+    if (input.length() > static_cast<qsizetype>(config.maxQueryLength) * 2) {
         return true;
     }
 
     // Check for excessive repetition
     static const QRegularExpression repetition("(.)\\1{50,}");
-    if (input.contains(repetition)) {
-        return true;
-    }
-
-    return false;
+    return input.contains(repetition);
 }
 
 QString SearchValidator::Implementation::removeControlCharacters(
@@ -941,8 +975,8 @@ void SearchValidator::Implementation::recordValidation(
         stats.failedValidations++;
 
         // Update error counts
-        for (int i = 0; i < 32; ++i) {
-            ValidationError error = static_cast<ValidationError>(1 << i);
+        for (unsigned int i = 0; i < 32; ++i) {
+            auto error = static_cast<ValidationError>(1U << i);
             if (result.hasError(error)) {
                 stats.errorCounts[error]++;
             }

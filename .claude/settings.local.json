@@ -55,7 +55,17 @@
       "Bash(QT_LOGGING_RULES=\"*=true\" build/Debug-MSYS2/test_search_performance.exe:*)",
       "Bash(cp:*)",
       "Bash(clang-tidy:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(gh pr:*)",
+      "Bash(./test_smoke.exe:*)",
+      "Bash(./test_cache_manager.exe:*)",
+      "Bash(./tests/test_search_integration.exe:*)",
+      "Bash(./test_search_integration.exe:*)",
+      "Bash(./test_search_optimizations.exe:*)",
+      "Bash(mingw64/pkg-config:*)",
+      "Bash(pacman:*)",
+      "Bash(build/tests/test_search_integration.exe)",
+      "Bash(build:*)"
     ],
     "deny": [],
     "ask": []

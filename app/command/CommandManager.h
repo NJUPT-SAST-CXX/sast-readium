@@ -6,6 +6,7 @@
 #include <QStack>
 #include <functional>
 #include <memory>
+
 #include "../logging/SimpleLogging.h"
 
 // Forward declarations
@@ -28,7 +29,13 @@ class CommandManager : public QObject {
 
 public:
     explicit CommandManager(QObject* parent = nullptr);
-    ~CommandManager();
+    ~CommandManager() override;
+
+    // Explicitly delete copy and move operations
+    CommandManager(const CommandManager&) = delete;
+    CommandManager& operator=(const CommandManager&) = delete;
+    CommandManager(CommandManager&&) = delete;
+    CommandManager& operator=(CommandManager&&) = delete;
 
     // Command execution
     bool executeCommand(const QString& commandId);
@@ -43,8 +50,10 @@ public:
 
     // Command registration
     using CommandFactory = std::function<QObject*()>;
-    void registerCommand(const QString& id, CommandFactory factory);
-    void registerCommand(const QString& id, CommandFactory factory,
+    void registerCommand(const QString& commandId,
+                         const CommandFactory& factory);
+    void registerCommand(const QString& commandId,
+                         const CommandFactory& factory,
                          const QString& shortcut);
 
     // Undo/Redo support
@@ -56,8 +65,8 @@ public:
     void setHistorySize(int size);
 
     // Command lookup
-    QObject* createCommand(const QString& id) const;
-    bool hasCommand(const QString& id) const;
+    QObject* createCommand(const QString& commandId) const;
+    bool hasCommand(const QString& commandId) const;
     QStringList availableCommands() const;
 
     // Shortcut management
@@ -80,7 +89,6 @@ public:
     void clearHistory();
     QStringList commandHistory() const;
 
-public slots:
     void undo();
     void redo();
 
@@ -130,10 +138,16 @@ class GlobalCommandManager {
 public:
     static CommandManager& instance();
 
+    // Explicitly delete copy and move operations
+    GlobalCommandManager(const GlobalCommandManager&) = delete;
+    GlobalCommandManager& operator=(const GlobalCommandManager&) = delete;
+    GlobalCommandManager(GlobalCommandManager&&) = delete;
+    GlobalCommandManager& operator=(GlobalCommandManager&&) = delete;
+
     // Convenience methods
     static bool execute(const QString& commandId);
-    static void registerCommand(const QString& id,
-                                CommandManager::CommandFactory factory);
+    static void registerCommand(const QString& commandId,
+                                const CommandManager::CommandFactory& factory);
     static void registerShortcut(const QString& commandId,
                                  const QString& shortcut);
     static bool canUndo();
@@ -150,8 +164,6 @@ public:
 private:
     GlobalCommandManager() = default;
     ~GlobalCommandManager() = default;
-    GlobalCommandManager(const GlobalCommandManager&) = delete;
-    GlobalCommandManager& operator=(const GlobalCommandManager&) = delete;
 };
 
 /**
@@ -177,14 +189,13 @@ signals:
     void invocationCompleted(const QString& commandId, bool success);
     void batchCompleted(int successCount, int failureCount);
 
-private slots:
-    void executeNextInSequence();
-
 private:
     CommandManager* m_manager;
     QStringList m_sequenceQueue;
     int m_sequenceDelay = 0;
     QTimer* m_sequenceTimer = nullptr;
+
+    void executeNextInSequence();
 };
 
 /**
@@ -200,10 +211,12 @@ public:
     // Recording control
     void startRecording();
     void stopRecording();
-    bool isRecording() const { return m_isRecording; }
+    [[nodiscard]] bool isRecording() const { return m_isRecording; }
 
     // Recorded commands
-    QStringList recordedCommands() const { return m_recordedCommands; }
+    [[nodiscard]] QStringList recordedCommands() const {
+        return m_recordedCommands;
+    }
     void clearRecording() { m_recordedCommands.clear(); }
 
     // Playback
@@ -216,11 +229,10 @@ signals:
     void commandRecorded(const QString& commandId);
     void playbackCompleted();
 
-private slots:
-    void onCommandExecuted(const QString& commandId, bool success);
-
 private:
     CommandManager* m_manager;
     bool m_isRecording = false;
     QStringList m_recordedCommands;
+
+    void onCommandExecuted(const QString& commandId, bool success);
 };

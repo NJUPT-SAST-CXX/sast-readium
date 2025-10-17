@@ -28,6 +28,7 @@
 #include <QWheelEvent>
 #include <QtCore>
 #include <QtGlobal>
+#include "../../utils/SafePDFRenderer.h"
 #include <QtWidgets>
 #include <cmath>
 #include <memory>
@@ -257,13 +258,33 @@ void PDFPageWidget::renderPage() {
         // High-quality rendering is achieved through optimized DPI and render
         // hints
 
-        // 渲染页面为图像，包含旋转和优化设置
-        QImage image = currentPage->renderToImage(
-            optimizedDpi, optimizedDpi, -1, -1, -1, -1,
-            static_cast<Poppler::Page::Rotation>(currentRotation / 90));
-        if (image.isNull()) {
-            setText("Failed to render page");
+        // 渲染页面为图像，包含旋转和优化设置 - 使用安全渲染器
+        SafePDFRenderer& renderer = SafePDFRenderer::instance();
+        SafePDFRenderer::RenderInfo renderInfo;
+
+        // 检查文档兼容性 - 从父PDFViewer获取文档
+        PDFViewer* parentViewer = qobject_cast<PDFViewer*>(parent());
+        if (parentViewer && parentViewer->hasDocument()) {
+            // 对于Qt生成的PDF，使用保守的渲染设置以避免崩溃
+            // 这里我们使用较低的DPI作为预防措施
+            if (optimizedDpi > 150.0) {
+                qDebug() << "Using conservative DPI settings for PDF compatibility";
+                optimizedDpi = qMin(optimizedDpi, 150.0);
+            }
+        }
+
+        QImage image = renderer.safeRenderPage(currentPage, optimizedDpi, &renderInfo);
+
+        if (!renderInfo.success || image.isNull()) {
+            QString errorMsg = renderInfo.errorMessage.isEmpty() ? "Failed to render page" : renderInfo.errorMessage;
+            setText(errorMsg);
             renderState = RenderError;
+
+            // 记录详细信息
+            qWarning() << "PDF rendering failed:" << errorMsg
+                      << "Attempts:" << renderInfo.attemptCount
+                      << "Compatibility:" << static_cast<int>(renderInfo.compatibility)
+                      << "Used fallback:" << renderInfo.usedFallback;
             return;
         }
 
@@ -945,6 +966,11 @@ void PDFViewer::setupViewModes() {
     singlePageScrollArea = new QScrollArea(this);
     singlePageWidget = new PDFPageWidget(singlePageScrollArea);
     singlePageWidget->setDPICalculator(this);  // Enable DPI caching
+
+    // Enable async rendering for single page widget
+    singlePageWidget->setAsyncRenderingEnabled(true);
+    singlePageWidget->setPrerenderer(prerenderer);
+
     singlePageScrollArea->setWidget(singlePageWidget);
     singlePageScrollArea->setWidgetResizable(true);
     singlePageScrollArea->setAlignment(Qt::AlignCenter);
@@ -1219,11 +1245,40 @@ void PDFViewer::setupShortcuts() {
     });
 }
 
+PDFViewer::~PDFViewer() {
+    // Cancel all pending renders before destroying pages
+    if (singlePageWidget) {
+        singlePageWidget->cancelPendingRender();
+    }
+
+    // Cancel all pending renders in continuous mode
+    for (auto it = activePageWidgets.begin(); it != activePageWidgets.end(); ++it) {
+        if (it.value()) {
+            it.value()->cancelPendingRender();
+        }
+    }
+
+    // Wait a bit for any in-flight renders to complete
+    QThread::msleep(50);
+
+    // Now it's safe to destroy the pages
+    currentPage.reset();
+    continuousPages.clear();
+}
+
 void PDFViewer::setDocument(Poppler::Document* doc) {
     try {
         // 清理旧文档
         if (document) {
             clearPageCache();  // 清理缓存
+            currentPage.reset();  // Release the current page
+            continuousPages.clear();  // Release continuous mode pages
+
+            // Stop prerendering for old document
+            if (prerenderer) {
+                prerenderer->stopPrerendering();
+                prerenderer->setDocument(nullptr);
+            }
         }
 
         document = doc;
@@ -1250,6 +1305,19 @@ void PDFViewer::setDocument(Poppler::Document* doc) {
             pageNumberSpinBox->setRange(1, numPages);
             pageNumberSpinBox->setValue(1);
             pageCountLabel->setText(QString("/ %1").arg(numPages));
+
+            // Initialize prerenderer with new document
+            qDebug() << "PDFViewer::setDocument - About to initialize prerenderer, ptr=" << prerenderer;
+            if (prerenderer) {
+                qDebug() << "PDFViewer::setDocument - Calling prerenderer->setDocument()";
+                prerenderer->setDocument(document);
+                qDebug() << "PDFViewer::setDocument - Calling prerenderer->startPrerendering()";
+                prerenderer->startPrerendering();
+                qDebug() << "PDFPrerenderer initialized with" << numPages << "pages";
+            } else {
+                qDebug() << "PDFViewer::setDocument - WARNING: prerenderer is nullptr!";
+            }
+
             updatePageDisplay();
 
             // 如果是连续模式，创建所有页面
@@ -1452,6 +1520,7 @@ void PDFViewer::updatePageDisplay() {
     if (!document || currentPageNumber < 0 ||
         currentPageNumber >= document->numPages()) {
         if (currentViewMode == PDFViewMode::SinglePage) {
+            currentPage.reset();  // Release the old page
             singlePageWidget->setPage(nullptr, currentZoomFactor,
                                       currentRotation);
         }
@@ -1467,10 +1536,11 @@ void PDFViewer::updatePageDisplay() {
             fadeAnimation->start();
         }
 
-        std::unique_ptr<Poppler::Page> page(document->page(currentPageNumber));
-        if (page) {
+        // Store the page in member variable to keep it alive during rendering
+        currentPage = document->page(currentPageNumber);
+        if (currentPage) {
             singlePageWidget->setPageNumber(currentPageNumber);
-            singlePageWidget->setPage(page.get(), currentZoomFactor,
+            singlePageWidget->setPage(currentPage.get(), currentZoomFactor,
                                       currentRotation);
         }
     }
@@ -1684,6 +1754,7 @@ void PDFViewer::createContinuousPages() {
     pageHeights.clear();
     pageLoadStates.clear();
     pendingLoads.clear();
+    continuousPages.clear();  // Clear owned pages
 
     if (isVirtualScrollingEnabled) {
         setupVirtualScrolling();
@@ -1694,11 +1765,12 @@ void PDFViewer::createContinuousPages() {
             PDFPageWidget* pageWidget = new PDFPageWidget(continuousWidget);
             pageWidget->setDPICalculator(this);  // Enable DPI caching
 
-            std::unique_ptr<Poppler::Page> page(document->page(i));
-            if (page) {
+            // Store the page in hash map to keep it alive during rendering
+            continuousPages[i] = document->page(i);
+            if (continuousPages[i]) {
                 // 阻止信号发出，避免在初始化时触发缩放循环
                 pageWidget->blockSignals(true);
-                pageWidget->setPage(page.get(), currentZoomFactor,
+                pageWidget->setPage(continuousPages[i].get(), currentZoomFactor,
                                     currentRotation);
                 pageWidget->blockSignals(false);
             }
@@ -2161,12 +2233,12 @@ void PDFViewer::setRotation(int degrees) {
                 if (currentViewMode == PDFViewMode::SinglePage) {
                     if (currentPageNumber >= 0 &&
                         currentPageNumber < document->numPages()) {
-                        std::unique_ptr<Poppler::Page> page(
-                            document->page(currentPageNumber));
-                        if (page) {
+                        // Store the page to keep it alive during rendering
+                        currentPage = document->page(currentPageNumber);
+                        if (currentPage) {
                             singlePageWidget->setPageNumber(currentPageNumber);
                             singlePageWidget->setPage(
-                                page.get(), currentZoomFactor, currentRotation);
+                                currentPage.get(), currentZoomFactor, currentRotation);
                         } else {
                             throw std::runtime_error(
                                 "Failed to get page for rotation");
@@ -2286,11 +2358,11 @@ void PDFViewer::updateContinuousViewRotation() {
             PDFPageWidget* pageWidget = it.value();
             if (pageWidget) {
                 try {
-                    std::unique_ptr<Poppler::Page> page(
-                        document->page(pageNumber));
-                    if (page) {
+                    // Store page to keep it alive during rendering
+                    continuousPages[pageNumber] = document->page(pageNumber);
+                    if (continuousPages[pageNumber]) {
                         pageWidget->blockSignals(true);
-                        pageWidget->setPage(page.get(), currentZoomFactor,
+                        pageWidget->setPage(continuousPages[pageNumber].get(), currentZoomFactor,
                                             currentRotation);
                         pageWidget->blockSignals(false);
                         successCount++;
@@ -2324,11 +2396,12 @@ void PDFViewer::updateContinuousViewRotation() {
                     PDFPageWidget* pageWidget =
                         qobject_cast<PDFPageWidget*>(item->widget());
                     if (pageWidget && i < document->numPages()) {
-                        std::unique_ptr<Poppler::Page> page(document->page(i));
-                        if (page) {
+                        // Store page to keep it alive during rendering
+                        continuousPages[i] = document->page(i);
+                        if (continuousPages[i]) {
                             // 阻止信号发出，避免循环
                             pageWidget->blockSignals(true);
-                            pageWidget->setPage(page.get(), currentZoomFactor,
+                            pageWidget->setPage(continuousPages[i].get(), currentZoomFactor,
                                                 currentRotation);
                             pageWidget->blockSignals(false);
                             successCount++;
@@ -2802,11 +2875,11 @@ void PDFViewer::createPageWidget(int pageNumber) {
         }
     }
 
-    // Load page content
-    std::unique_ptr<Poppler::Page> page(document->page(pageNumber));
-    if (page) {
+    // Load page content - store in hash map to keep it alive
+    continuousPages[pageNumber] = document->page(pageNumber);
+    if (continuousPages[pageNumber]) {
         pageWidget->blockSignals(true);
-        pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+        pageWidget->setPage(continuousPages[pageNumber].get(), currentZoomFactor, currentRotation);
         pageWidget->blockSignals(false);
     }
 }
@@ -2818,6 +2891,7 @@ void PDFViewer::destroyPageWidget(int pageNumber) {
 
     PDFPageWidget* pageWidget = activePageWidgets[pageNumber];
     activePageWidgets.remove(pageNumber);
+    continuousPages.erase(pageNumber);  // Also remove the owned page
 
     // Replace with placeholder
     int index = continuousLayout->indexOf(pageWidget);

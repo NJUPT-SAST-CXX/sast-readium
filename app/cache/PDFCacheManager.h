@@ -33,6 +33,8 @@
 #include <QThread>
 #include <QThreadPool>
 #include <QTimer>
+#include <array>
+#include <cstdint>
 
 /**
  * @brief Enumeration of cache item types
@@ -41,13 +43,13 @@
  * PDFCacheManager. Each type has specific characteristics and
  * memory usage patterns.
  */
-enum class CacheItemType {
-    RenderedPage,   ///< Rendered page pixmap for display
-    Thumbnail,      ///< Page thumbnail for navigation
-    TextContent,    ///< Extracted text content for search
-    PageImage,      ///< Raw page image data
-    SearchResults,  ///< Search result data and highlights
-    Annotations     ///< Page annotations and markup
+enum class CacheItemType : std::uint8_t {
+    RenderedPage = 0,   ///< Rendered page pixmap for display
+    Thumbnail = 1,      ///< Page thumbnail for navigation
+    TextContent = 2,    ///< Extracted text content for search
+    PageImage = 3,      ///< Raw page image data
+    SearchResults = 4,  ///< Search result data and highlights
+    Annotations = 5     ///< Page annotations and markup
 };
 
 /**
@@ -56,11 +58,11 @@ enum class CacheItemType {
  * Defines priority levels that influence cache eviction decisions.
  * Higher priority items are kept longer in the cache.
  */
-enum class CachePriority {
-    Low,      ///< Can be evicted first when memory is needed
-    Normal,   ///< Standard priority for most cache items
-    High,     ///< Keep longer, evict only under pressure
-    Critical  ///< Never evict automatically, manual removal only
+enum class CachePriority : std::uint8_t {
+    Low = 0,      ///< Can be evicted first when memory is needed
+    Normal = 1,   ///< Standard priority for most cache items
+    High = 2,     ///< Keep longer, evict only under pressure
+    Critical = 3  ///< Never evict automatically, manual removal only
 };
 
 /**
@@ -70,29 +72,18 @@ enum class CachePriority {
  * including access tracking, priority, and memory usage information.
  */
 struct CacheItem {
-    QVariant data;           ///< The actual cached data
-    CacheItemType type;      ///< Type of cached item
-    CachePriority priority;  ///< Priority level for eviction
-    qint64 timestamp;        ///< Creation timestamp in milliseconds
-    qint64 accessCount;      ///< Number of times accessed
-    qint64 lastAccessed;     ///< Last access timestamp in milliseconds
-    int pageNumber;          ///< Associated page number (-1 if not applicable)
-    QString key;             ///< Unique cache key
-    qint64 memorySize;       ///< Memory size in bytes
-
-    /**
-     * @brief Default constructor
-     *
-     * Initializes a cache item with default values and current timestamp.
-     */
-    CacheItem()
-        : type(CacheItemType::RenderedPage),
-          priority(CachePriority::Normal),
-          timestamp(QDateTime::currentMSecsSinceEpoch()),
-          accessCount(0),
-          lastAccessed(0),
-          pageNumber(-1),
-          memorySize(0) {}
+    QVariant data;  ///< The actual cached data
+    CacheItemType type = CacheItemType::RenderedPage;  ///< Type of cached item
+    CachePriority priority =
+        CachePriority::Normal;  ///< Priority level for eviction
+    qint64 timestamp =
+        QDateTime::currentMSecsSinceEpoch();  ///< Creation timestamp in
+                                              ///< milliseconds
+    qint64 accessCount = 0;                   ///< Number of times accessed
+    qint64 lastAccessed = 0;  ///< Last access timestamp in milliseconds
+    int pageNumber = -1;      ///< Associated page number (-1 if not applicable)
+    QString key;              ///< Unique cache key
+    qint64 memorySize = 0;    ///< Memory size in bytes
 
     /**
      * @brief Updates access information
@@ -109,14 +100,14 @@ struct CacheItem {
      * @brief Calculates the memory size of the cached item
      * @return Memory size in bytes
      */
-    qint64 calculateSize() const;
+    [[nodiscard]] qint64 calculateSize() const;
 
     /**
      * @brief Checks if the item has expired
      * @param maxAge Maximum age in milliseconds
      * @return true if expired, false otherwise
      */
-    bool isExpired(qint64 maxAge) const;
+    [[nodiscard]] bool isExpired(qint64 maxAge) const;
 };
 
 /**
@@ -126,35 +117,15 @@ struct CacheItem {
  * patterns. Used for monitoring, optimization, and debugging purposes.
  */
 struct CacheStatistics {
-    int totalItems;            ///< Total number of cached items
-    qint64 totalMemoryUsage;   ///< Total memory usage in bytes
-    qint64 hitCount;           ///< Total number of cache hits
-    qint64 missCount;          ///< Total number of cache misses
-    double hitRate;            ///< Cache hit rate (0.0 to 1.0)
-    int itemsByType[6];        ///< Number of items by type (one for each
-                               ///< CacheItemType)
-    qint64 averageAccessTime;  ///< Average access time in milliseconds
-    qint64 oldestItemAge;      ///< Age of oldest item in milliseconds
-    qint64 newestItemAge;      ///< Age of newest item in milliseconds
-
-    /**
-     * @brief Default constructor
-     *
-     * Initializes all statistics to zero or default values.
-     */
-    CacheStatistics()
-        : totalItems(0),
-          totalMemoryUsage(0),
-          hitCount(0),
-          missCount(0),
-          hitRate(0.0),
-          averageAccessTime(0),
-          oldestItemAge(0),
-          newestItemAge(0) {
-        for (int i = 0; i < 6; ++i) {
-            itemsByType[i] = 0;
-        }
-    }
+    int totalItems = 0;                   ///< Total number of cached items
+    qint64 totalMemoryUsage = 0;          ///< Total memory usage in bytes
+    qint64 hitCount = 0;                  ///< Total number of cache hits
+    qint64 missCount = 0;                 ///< Total number of cache misses
+    double hitRate = 0.0;                 ///< Cache hit rate (0.0 to 1.0)
+    std::array<int, 6> itemsByType = {};  ///< Number of items by type
+    qint64 averageAccessTime = 0;  ///< Average access time in milliseconds
+    qint64 oldestItemAge = 0;      ///< Age of oldest item in milliseconds
+    qint64 newestItemAge = 0;      ///< Age of newest item in milliseconds
 };
 
 /**
@@ -225,7 +196,13 @@ public:
     /**
      * @brief Destructor
      */
-    ~PDFCacheManager();
+    ~PDFCacheManager() override;
+
+    // Deleted copy/move operations
+    PDFCacheManager(const PDFCacheManager&) = delete;
+    PDFCacheManager& operator=(const PDFCacheManager&) = delete;
+    PDFCacheManager(PDFCacheManager&&) = delete;
+    PDFCacheManager& operator=(PDFCacheManager&&) = delete;
 
     // Cache configuration
     /**
@@ -238,7 +215,7 @@ public:
      * @brief Gets the maximum memory usage limit
      * @return Maximum memory usage in bytes
      */
-    qint64 getMaxMemoryUsage() const;
+    [[nodiscard]] qint64 getMaxMemoryUsage() const;
 
     /**
      * @brief Sets the maximum number of items in the cache
@@ -250,7 +227,7 @@ public:
      * @brief Gets the maximum number of items allowed
      * @return Maximum number of cache items
      */
-    int getMaxItems() const;
+    [[nodiscard]] int getMaxItems() const;
 
     /**
      * @brief Sets the maximum age for cache items
@@ -262,7 +239,7 @@ public:
      * @brief Gets the maximum age for cache items
      * @return Maximum age in milliseconds
      */
-    qint64 getItemMaxAge() const;
+    [[nodiscard]] qint64 getItemMaxAge() const;
 
     // Cache operations
     /**
@@ -290,7 +267,7 @@ public:
      * @param key Cache key to check
      * @return true if key exists, false otherwise
      */
-    bool contains(const QString& key) const;
+    [[nodiscard]] bool contains(const QString& key) const;
 
     /**
      * @brief Removes an item from the cache
@@ -364,7 +341,7 @@ public:
      * @brief Checks if preloading is enabled
      * @return true if preloading is enabled, false otherwise
      */
-    bool isPreloadingEnabled() const;
+    [[nodiscard]] bool isPreloadingEnabled() const;
 
     /**
      * @brief Preloads specific pages in the background
@@ -414,19 +391,19 @@ public:
      * @brief Gets comprehensive cache statistics
      * @return Cache statistics structure
      */
-    CacheStatistics getStatistics() const;
+    [[nodiscard]] CacheStatistics getStatistics() const;
 
     /**
      * @brief Gets current memory usage
      * @return Current memory usage in bytes
      */
-    qint64 getCurrentMemoryUsage() const;
+    [[nodiscard]] qint64 getCurrentMemoryUsage() const;
 
     /**
      * @brief Gets cache hit rate
      * @return Hit rate as a value between 0.0 and 1.0
      */
-    double getHitRate() const;
+    [[nodiscard]] double getHitRate() const;
 
     /**
      * @brief Resets all cache statistics
@@ -444,7 +421,7 @@ public:
      * @brief Gets the current eviction policy
      * @return Current eviction policy name
      */
-    QString getEvictionPolicy() const;
+    [[nodiscard]] QString getEvictionPolicy() const;
 
     /**
      * @brief Sets priority weights for eviction scoring
@@ -472,7 +449,7 @@ public:
      * @param filePath Path to the export file
      * @return true if export was successful, false otherwise
      */
-    bool exportCacheToFile(const QString& filePath) const;
+    bool exportCacheToFile(const QString& filePath);
 
     /**
      * @brief Imports cache data from a file
@@ -491,35 +468,36 @@ public:
      * @brief Gets all cache keys
      * @return List of all cache keys
      */
-    QStringList getCacheKeys() const;
+    [[nodiscard]] QStringList getCacheKeys() const;
 
     /**
      * @brief Gets cache keys filtered by item type
      * @param type Cache item type to filter by
      * @return List of cache keys for the specified type
      */
-    QStringList getCacheKeysByType(CacheItemType type) const;
+    [[nodiscard]] QStringList getCacheKeysByType(CacheItemType type) const;
 
     /**
      * @brief Gets cache keys filtered by priority
      * @param priority Cache priority to filter by
      * @return List of cache keys for the specified priority
      */
-    QStringList getCacheKeysByPriority(CachePriority priority) const;
+    [[nodiscard]] QStringList getCacheKeysByPriority(
+        CachePriority priority) const;
 
     /**
      * @brief Gets the number of cache items of a specific type
      * @param type Cache item type
      * @return Number of cache items of the specified type
      */
-    int getCacheItemCount(CacheItemType type) const;
+    [[nodiscard]] int getCacheItemCount(CacheItemType type) const;
 
     /**
      * @brief Gets memory usage for a specific cache item type
      * @param type Cache item type
      * @return Memory usage in bytes for the specified type
      */
-    qint64 getCacheMemoryUsage(CacheItemType type) const;
+    [[nodiscard]] qint64 getCacheMemoryUsage(CacheItemType type) const;
 
     // Cache management functions
     /**
@@ -569,6 +547,17 @@ signals:
      * @param threshold Memory threshold that was exceeded
      */
     void memoryThresholdExceeded(qint64 currentUsage, qint64 threshold);
+
+    /**
+     * @brief Emitted when preloading is requested
+     * @param pageNumber Page number to preload
+     * @param type Type of item to preload
+     *
+     * This signal is emitted when a preload request is queued. The document
+     * owner should connect to this signal and execute the preload using
+     * PreloadTask with their document reference.
+     */
+    void preloadRequested(int pageNumber, CacheItemType type);
 
     /**
      * @brief Emitted when preloading is completed
@@ -630,5 +619,5 @@ private slots:
 
 private:
     class Implementation;
-    std::unique_ptr<Implementation> d;
+    std::unique_ptr<Implementation> m_pimpl;
 };

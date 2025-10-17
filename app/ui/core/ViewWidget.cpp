@@ -1,32 +1,68 @@
 #include "ViewWidget.h"
 #include <QDebug>
 #include <QLabel>
+#include <QProgressBar>
 #include "../viewer/PDFViewer.h"
+#include "../widgets/ToastNotification.h"
+#include "../../logging/LoggingMacros.h"
+#include "../../managers/StyleManager.h"
 
 ViewWidget::ViewWidget(QWidget* parent)
     : QWidget(parent),
+      mainLayout(nullptr),
+      tabWidget(nullptr),
+      viewerStack(nullptr),
+      emptyWidget(nullptr),
       documentController(nullptr),
       documentModel(nullptr),
       outlineModel(nullptr) {
     setupUI();
 }
 
+ViewWidget::~ViewWidget() {
+    // Close all documents and clean up viewers
+    LOG_DEBUG("ViewWidget::~ViewWidget() - Closing {} documents", pdfViewers.size());
+
+    // Clear all PDF viewers (will be deleted by Qt parent-child ownership)
+    pdfViewers.clear();
+
+    // Clear outline models
+    outlineModels.clear();
+
+    // Clear loading widgets and progress bars
+    loadingWidgets.clear();
+    progressBars.clear();
+
+    // All other widgets are deleted automatically by Qt parent-child ownership
+    // No manual deletion needed for widgets created with 'this' as parent
+
+    LOG_DEBUG("ViewWidget destroyed successfully");
+}
+
 void ViewWidget::setupUI() {
+    // Set size policy for main view widget (should expand to fill available space)
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
     mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
     // 创建标签页组件
     tabWidget = new DocumentTabWidget(this);
+    tabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     // 创建堆叠组件用于显示不同的PDF查看器
     viewerStack = new QStackedWidget(this);
+    viewerStack->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     // 创建空状态组件
     emptyWidget = new QWidget(this);
-    QVBoxLayout* emptyLayout = new QVBoxLayout(emptyWidget);
-    QLabel* emptyLabel =
-        new QLabel("没有打开的PDF文档\n点击文件菜单打开PDF文档", emptyWidget);
+    auto* emptyLayout = new QVBoxLayout(emptyWidget);
+    emptyLayout->setContentsMargins(20, 20, 20, 20);  // Padding for empty state
+    emptyLayout->setSpacing(0);
+
+    auto* emptyLabel =
+        new QLabel(tr("No PDF documents open\nClick File menu to open a PDF document"), emptyWidget);
     emptyLabel->setAlignment(Qt::AlignCenter);
     emptyLabel->setStyleSheet("color: gray; font-size: 14px;");
     emptyLayout->addWidget(emptyLabel);
@@ -34,7 +70,7 @@ void ViewWidget::setupUI() {
     viewerStack->addWidget(emptyWidget);
 
     mainLayout->addWidget(tabWidget);
-    mainLayout->addWidget(viewerStack, 1);
+    mainLayout->addWidget(viewerStack, 1);  // Stretch factor 1 for viewer stack
 
     // 初始显示空状态
     showEmptyState();
@@ -90,21 +126,56 @@ void ViewWidget::setOutlineModel(PDFOutlineModel* model) {
 }
 
 void ViewWidget::openDocument(const QString& filePath) {
-    if (documentController) {
-        documentController->openDocument(filePath);
+    // Input validation
+    if (filePath.isEmpty()) {
+        LOG_ERROR("ViewWidget::openDocument() - Empty file path provided");
+        return;
     }
+
+    if (!documentController) {
+        LOG_ERROR("ViewWidget::openDocument() - Document controller not set");
+        return;
+    }
+
+    // Note: Duplicate document detection is handled by DocumentController
+    // which has access to file paths. We just forward the request.
+
+    LOG_DEBUG("ViewWidget::openDocument() - Opening document: {}", filePath.toStdString());
+    documentController->openDocument(filePath);
 }
 
 void ViewWidget::closeDocument(int index) {
-    if (documentController) {
-        documentController->closeDocument(index);
+    // Bounds checking
+    if (index < 0 || index >= pdfViewers.size()) {
+        LOG_WARNING("ViewWidget::closeDocument() - Invalid index: {} (valid range: 0-{})",
+                    index, pdfViewers.size() - 1);
+        return;
     }
+
+    if (!documentController) {
+        LOG_ERROR("ViewWidget::closeDocument() - Document controller not set");
+        return;
+    }
+
+    LOG_DEBUG("ViewWidget::closeDocument() - Closing document at index {}", index);
+    documentController->closeDocument(index);
 }
 
 void ViewWidget::switchToDocument(int index) {
-    if (documentController) {
-        documentController->switchToDocument(index);
+    // Bounds checking
+    if (index < 0 || index >= pdfViewers.size()) {
+        LOG_WARNING("ViewWidget::switchToDocument() - Invalid index: {} (valid range: 0-{})",
+                    index, pdfViewers.size() - 1);
+        return;
     }
+
+    if (!documentController) {
+        LOG_ERROR("ViewWidget::switchToDocument() - Document controller not set");
+        return;
+    }
+
+    LOG_DEBUG("ViewWidget::switchToDocument() - Switching to document at index {}", index);
+    documentController->switchToDocument(index);
 }
 
 void ViewWidget::goToPage(int pageNumber) {
@@ -122,10 +193,21 @@ void ViewWidget::setCurrentViewMode(int mode) {
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
         PDFViewer* currentViewer = pdfViewers[currentIndex];
         if (currentViewer) {
-            PDFViewMode viewMode = static_cast<PDFViewMode>(mode);
+            auto viewMode = static_cast<PDFViewMode>(mode);
             currentViewer->setViewMode(viewMode);
         }
     }
+}
+
+int ViewWidget::getCurrentViewMode() const {
+    int currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
+        PDFViewer* currentViewer = pdfViewers[currentIndex];
+        if (currentViewer) {
+            return static_cast<int>(currentViewer->getViewMode());
+        }
+    }
+    return 0;  // Default to SinglePage mode
 }
 
 void ViewWidget::executePDFAction(ActionMap action) {
@@ -135,8 +217,9 @@ void ViewWidget::executePDFAction(ActionMap action) {
     }
 
     PDFViewer* currentViewer = pdfViewers[currentIndex];
-    if (!currentViewer)
+    if (!currentViewer) {
         return;
+    }
 
     // 执行相应的PDF操作
     switch (action) {
@@ -174,8 +257,8 @@ void ViewWidget::executePDFAction(ActionMap action) {
             currentViewer->rotateRight();
             break;
         default:
-            qWarning() << "Unhandled PDF action in ViewWidget:"
-                       << static_cast<int>(action);
+            LOG_WARNING("ViewWidget::executePDFAction() - Unhandled PDF action: {}",
+                       static_cast<int>(action));
             break;
     }
 }
@@ -223,9 +306,19 @@ double ViewWidget::getCurrentZoom() const {
     return 1.0;
 }
 
+int ViewWidget::getCurrentRotation() const {
+    int currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
+        PDFViewer* viewer = pdfViewers[currentIndex];
+        return viewer ? viewer->getRotation() : 0;
+    }
+    return 0;  // Default to no rotation
+}
+
 void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
-    if (!documentModel)
+    if (!documentModel) {
         return;
+    }
 
     QString filePath = documentModel->getDocumentFilePath(index);
     Poppler::Document* document = documentModel->getDocument(index);
@@ -235,7 +328,7 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
     viewer->setDocument(document);
 
     // 创建目录模型并解析目录
-    PDFOutlineModel* docOutlineModel = new PDFOutlineModel(this);
+    auto* docOutlineModel = new PDFOutlineModel(this);
     docOutlineModel->parseOutline(document);
 
     // 检查是否已经有加载中的占位组件需要替换
@@ -259,6 +352,14 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
         }
     }
 
+    // Clean up loading widget tracking
+    if (loadingWidgets.contains(filePath)) {
+        loadingWidgets.remove(filePath);
+    }
+    if (progressBars.contains(filePath)) {
+        progressBars.remove(filePath);
+    }
+
     // 如果没有找到加载中的组件，按原来的方式添加
     if (!hasLoadingWidget) {
         viewerStack->insertWidget(index + 1, viewer);
@@ -277,8 +378,9 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
 }
 
 void ViewWidget::onDocumentClosed(int index) {
-    if (index < 0 || index >= pdfViewers.size())
+    if (index < 0 || index >= pdfViewers.size()) {
         return;
+    }
 
     // 移除PDF查看器和目录模型
     removePDFViewer(index);
@@ -342,14 +444,21 @@ void ViewWidget::onDocumentLoadingStarted(const QString& filePath) {
         }
     }
 
-    // 如果没有现有标签页，创建新的
+    // If no existing tab, create a new one
     if (!tabExists) {
         int tabIndex =
-            tabWidget->addDocumentTab(fileName + " (加载中...)", filePath);
+            tabWidget->addDocumentTab(fileName + tr(" (Loading...)"), filePath);
 
         // 创建加载中的占位组件
         QWidget* loadingWidget = createLoadingWidget(fileName);
         viewerStack->insertWidget(tabIndex + 1, loadingWidget);
+
+        // Track loading widget and find progress bar
+        loadingWidgets[filePath] = loadingWidget;
+        auto* progressBar = loadingWidget->findChild<QProgressBar*>("documentLoadingProgress");
+        if (progressBar) {
+            progressBars[filePath] = progressBar;
+        }
 
         // 如果这是第一个文档，切换到加载界面
         if (pdfViewers.isEmpty()) {
@@ -362,8 +471,15 @@ void ViewWidget::onDocumentLoadingStarted(const QString& filePath) {
 }
 
 void ViewWidget::onDocumentLoadingProgress(int progress) {
-    // 更新当前加载文档的进度
-    // 这里可以更新加载界面的进度条
+    // Update progress bar for the currently loading document
+    // Find the progress bar by iterating through tracked progress bars
+    for (auto it = progressBars.begin(); it != progressBars.end(); ++it) {
+        QProgressBar* progressBar = it.value();
+        if (progressBar) {
+            progressBar->setValue(progress);
+        }
+    }
+
     qDebug() << "Loading progress:" << progress << "%";
 }
 
@@ -374,8 +490,35 @@ void ViewWidget::onDocumentLoadingFailed(const QString& error,
 
     qDebug() << "Document loading failed:" << fileName << "Error:" << error;
 
-    // 可以显示错误消息或移除失败的标签页
-    // 这里暂时只输出调试信息
+    // Show error toast notification
+    TOAST_ERROR(this, tr("Loading failed: %1\n%2").arg(fileName, error));
+
+    // Clean up loading widget
+    if (loadingWidgets.contains(filePath)) {
+        QWidget* loadingWidget = loadingWidgets.take(filePath);
+        if (loadingWidget) {
+            viewerStack->removeWidget(loadingWidget);
+            loadingWidget->deleteLater();
+        }
+    }
+
+    // Clean up progress bar tracking
+    if (progressBars.contains(filePath)) {
+        progressBars.remove(filePath);
+    }
+
+    // Find and remove the tab
+    for (int i = 0; i < tabWidget->count(); i++) {
+        if (tabWidget->getTabFilePath(i) == filePath) {
+            tabWidget->removeTab(i);
+            break;
+        }
+    }
+
+    // If no documents remain, show empty state
+    if (pdfViewers.isEmpty() && tabWidget->count() == 0) {
+        showEmptyState();
+    }
 }
 
 void ViewWidget::onTabCloseRequested(int index) { closeDocument(index); }
@@ -402,7 +545,7 @@ void ViewWidget::onTabMoved(int from, int to) {
 }
 
 PDFViewer* ViewWidget::createPDFViewer() {
-    PDFViewer* viewer = new PDFViewer(this);
+    auto* viewer = new PDFViewer(this);
 
     // 连接PDF查看器的信号
     connect(viewer, &PDFViewer::pageChanged, this,
@@ -414,39 +557,53 @@ PDFViewer* ViewWidget::createPDFViewer() {
 }
 
 QWidget* ViewWidget::createLoadingWidget(const QString& fileName) {
-    QWidget* loadingWidget = new QWidget(this);
-    QVBoxLayout* layout = new QVBoxLayout(loadingWidget);
-    layout->setAlignment(Qt::AlignCenter);
+    StyleManager* styleManager = &StyleManager::instance();
 
-    // 添加加载图标或动画
-    QLabel* iconLabel = new QLabel(loadingWidget);
-    iconLabel->setText("⏳");  // 使用简单的emoji作为加载图标
-    iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setStyleSheet("font-size: 48px; color: #666;");
+    // Create modern skeleton loading widget
+    auto* skeletonWidget = new DocumentSkeletonWidget(this);
 
-    // 添加加载文本
-    QLabel* textLabel =
-        new QLabel(QString("正在加载 %1...").arg(fileName), loadingWidget);
+    // Create container widget
+    auto* container = new QWidget(this);
+    auto* layout = new QVBoxLayout(container);
+    layout->setContentsMargins(styleManager->spacingXL(), styleManager->spacingXL(),
+                              styleManager->spacingXL(), styleManager->spacingXL());
+    layout->setSpacing(styleManager->spacingLG());
+
+    // Add skeleton widget
+    layout->addWidget(skeletonWidget);
+
+    // Add loading text
+    auto* textLabel = new QLabel(tr("Loading %1...").arg(fileName), container);
     textLabel->setAlignment(Qt::AlignCenter);
-    textLabel->setStyleSheet("font-size: 16px; color: #666; margin-top: 10px;");
+    textLabel->setObjectName("loadingLabel");
+    layout->addWidget(textLabel);
 
-    // 添加进度条
-    QProgressBar* progressBar = new QProgressBar(loadingWidget);
+    // Add progress bar
+    auto* progressBar = new QProgressBar(container);
     progressBar->setRange(0, 100);
     progressBar->setValue(0);
-    progressBar->setMaximumWidth(300);
-    progressBar->setStyleSheet("margin-top: 10px;");
+    progressBar->setTextVisible(true);
+    progressBar->setFormat("%p%");
+    progressBar->setMaximumWidth(400);
+    progressBar->setMinimumHeight(8);
+    progressBar->setObjectName("documentLoadingProgress");
 
-    layout->addWidget(iconLabel);
-    layout->addWidget(textLabel);
-    layout->addWidget(progressBar);
+    // Center the progress bar
+    auto* progressLayout = new QHBoxLayout();
+    progressLayout->addStretch();
+    progressLayout->addWidget(progressBar);
+    progressLayout->addStretch();
+    layout->addLayout(progressLayout);
 
-    return loadingWidget;
+    layout->addStretch();
+
+    return container;
 }
 
 void ViewWidget::removePDFViewer(int index) {
-    if (index < 0 || index >= pdfViewers.size())
+    if (index < 0 || index >= pdfViewers.size()) {
         return;
+    }
 
     PDFViewer* viewer = pdfViewers.takeAt(index);
     viewerStack->removeWidget(viewer);
@@ -475,7 +632,7 @@ void ViewWidget::hideEmptyState() { tabWidget->show(); }
 
 void ViewWidget::onPDFPageChanged(int pageNumber) {
     // 只有当前活动的PDF查看器的信号才需要处理
-    PDFViewer* sender = qobject_cast<PDFViewer*>(QObject::sender());
+    auto* sender = qobject_cast<PDFViewer*>(QObject::sender());
     int currentIndex = getCurrentDocumentIndex();
 
     if (currentIndex >= 0 && currentIndex < pdfViewers.size() &&
@@ -487,7 +644,7 @@ void ViewWidget::onPDFPageChanged(int pageNumber) {
 
 void ViewWidget::onPDFZoomChanged(double zoomFactor) {
     // 只有当前活动的PDF查看器的信号才需要处理
-    PDFViewer* sender = qobject_cast<PDFViewer*>(QObject::sender());
+    auto* sender = qobject_cast<PDFViewer*>(QObject::sender());
     int currentIndex = getCurrentDocumentIndex();
 
     if (currentIndex >= 0 && currentIndex < pdfViewers.size() &&

@@ -1,15 +1,15 @@
 #include "PageTextCache.h"
+
 #include <QDateTime>
 #include <climits>
-#include <memory>
 
 // PageTextCache Implementation class
 class PageTextCache::Implementation {
 public:
     explicit Implementation(PageTextCache* qParent)
-        : qPtr(qParent),
-          maxCacheSize(PageTextCache::DEFAULT_MAX_CACHE_SIZE),
-          maxMemoryUsage(PageTextCache::DEFAULT_MAX_MEMORY_USAGE) {}
+        : qPtr(qParent)
+
+    {}
 
     PageTextCache* qPtr;
 
@@ -18,8 +18,8 @@ public:
     QHash<QString, CacheEntry> cache;
 
     // Configuration
-    int maxCacheSize;
-    qint64 maxMemoryUsage;
+    int maxCacheSize = PageTextCache::DEFAULT_MAX_CACHE_SIZE;
+    qint64 maxMemoryUsage = PageTextCache::DEFAULT_MAX_MEMORY_USAGE;
     qint64 currentMemoryUsage = 0;
     bool enabled = true;
 
@@ -59,30 +59,25 @@ void PageTextCache::Implementation::evictLeastRecentlyUsed() {
     }
 
     QString oldestKey;
-    qint64 oldestTime = LLONG_MAX;    // Initialize to maximum value to find the
-                                      // actual oldest entry
-    int lowestAccessCount = INT_MAX;  // Use access count as first tiebreaker
-    int lowestPageNumber =
-        INT_MAX;  // Use page number as second tiebreaker for stable ordering
+    qint64 oldestTime = LLONG_MAX;
+    int lowestAccessCount = INT_MAX;
+    int lowestPageNumber = INT_MAX;
 
     for (auto entryIt = cache.begin(); entryIt != cache.end(); ++entryIt) {
         const auto& entry = entryIt.value();
-        // Find entry with oldest timestamp, using access count and page number
-        // as tiebreakers This ensures deterministic eviction when timestamps
-        // are identical
-        bool shouldEvict = false;
-        if (entry.timestamp < oldestTime) {
-            shouldEvict = true;
-        } else if (entry.timestamp == oldestTime) {
-            if (entry.accessCount < lowestAccessCount) {
-                shouldEvict = true;
-            } else if (entry.accessCount == lowestAccessCount &&
-                       entry.pageNumber < lowestPageNumber) {
-                shouldEvict = true;
-            }
-        }
 
-        if (shouldEvict) {
+        // Find entry with oldest timestamp, using access count and page number
+        // as tiebreakers for deterministic eviction
+        bool isOlder = entry.timestamp < oldestTime;
+        bool isSameTimeButLessAccessed = entry.timestamp == oldestTime &&
+                                         entry.accessCount < lowestAccessCount;
+        bool isSameTimeAndAccessButLowerPage =
+            entry.timestamp == oldestTime &&
+            entry.accessCount == lowestAccessCount &&
+            entry.pageNumber < lowestPageNumber;
+
+        if (isOlder || isSameTimeButLessAccessed ||
+            isSameTimeAndAccessButLowerPage) {
             oldestTime = entry.timestamp;
             lowestAccessCount = entry.accessCount;
             lowestPageNumber = entry.pageNumber;
@@ -101,58 +96,60 @@ void PageTextCache::Implementation::evictLeastRecentlyUsed() {
 }
 
 PageTextCache::PageTextCache(QObject* parent)
-    : QObject(parent), d(std::make_unique<Implementation>(this)) {}
+    : QObject(parent),
+      m_implementation(std::make_unique<Implementation>(this)) {}
 
 PageTextCache::~PageTextCache() = default;
 
 bool PageTextCache::hasPageText(const QString& documentId,
                                 int pageNumber) const {
-    if (!d->enabled) {
+    if (!m_implementation->enabled) {
         return false;
     }
 
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_implementation->cacheMutex);
     QString key = Implementation::getCacheKey(documentId, pageNumber);
-    return d->cache.contains(key);
+    return m_implementation->cache.contains(key);
 }
 
 QString PageTextCache::getPageText(const QString& documentId, int pageNumber) {
-    if (!d->enabled) {
+    if (!m_implementation->enabled) {
         return {};
     }
 
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_implementation->cacheMutex);
     QString key = Implementation::getCacheKey(documentId, pageNumber);
 
-    auto entryIt = d->cache.find(key);
-    if (entryIt != d->cache.end()) {
+    auto entryIt = m_implementation->cache.find(key);
+    if (entryIt != m_implementation->cache.end()) {
         Implementation::updateAccessInfo(entryIt.value());
-        d->cacheHits++;
+        m_implementation->cacheHits++;
         emit cacheHit(documentId, pageNumber);
         return entryIt.value().text;
     }
 
-    d->cacheMisses++;
+    m_implementation->cacheMisses++;
     emit cacheMiss(documentId, pageNumber);
     return {};
 }
 
 void PageTextCache::storePageText(const QString& documentId, int pageNumber,
                                   const QString& text) {
-    if (!d->enabled || text.isEmpty()) {
+    if (!m_implementation->enabled || text.isEmpty()) {
         return;
     }
 
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_implementation->cacheMutex);
 
     QString key = Implementation::getCacheKey(documentId, pageNumber);
     qint64 textSize = Implementation::calculateTextMemorySize(text);
 
     // Check if we need to evict entries
-    while ((d->cache.size() >= d->maxCacheSize ||
-            d->currentMemoryUsage + textSize > d->maxMemoryUsage) &&
-           !d->cache.isEmpty()) {
-        d->evictLeastRecentlyUsed();
+    while ((m_implementation->cache.size() >= m_implementation->maxCacheSize ||
+            m_implementation->currentMemoryUsage + textSize >
+                m_implementation->maxMemoryUsage) &&
+           !m_implementation->cache.isEmpty()) {
+        m_implementation->evictLeastRecentlyUsed();
     }
 
     CacheEntry entry;
@@ -163,99 +160,111 @@ void PageTextCache::storePageText(const QString& documentId, int pageNumber,
     entry.accessCount = 1;
     entry.memorySize = textSize;
 
-    d->cache[key] = entry;
-    d->currentMemoryUsage += textSize;
+    m_implementation->cache[key] = entry;
+    m_implementation->currentMemoryUsage += textSize;
 
-    emit cacheUpdated(static_cast<int>(d->cache.size()), d->currentMemoryUsage);
+    emit cacheUpdated(static_cast<int>(m_implementation->cache.size()),
+                      m_implementation->currentMemoryUsage);
 }
 
 void PageTextCache::invalidateDocument(const QString& documentId) {
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_implementation->cacheMutex);
 
-    auto entryIt = d->cache.begin();
-    while (entryIt != d->cache.end()) {
+    auto entryIt = m_implementation->cache.begin();
+    while (entryIt != m_implementation->cache.end()) {
         if (entryIt.value().documentId == documentId) {
-            d->currentMemoryUsage -= entryIt.value().memorySize;
-            entryIt = d->cache.erase(entryIt);
+            m_implementation->currentMemoryUsage -= entryIt.value().memorySize;
+            entryIt = m_implementation->cache.erase(entryIt);
         } else {
             ++entryIt;
         }
     }
 
-    emit cacheUpdated(static_cast<int>(d->cache.size()), d->currentMemoryUsage);
+    emit cacheUpdated(static_cast<int>(m_implementation->cache.size()),
+                      m_implementation->currentMemoryUsage);
 }
 
 void PageTextCache::clear() {
-    QMutexLocker locker(&d->cacheMutex);
-    d->cache.clear();
-    d->currentMemoryUsage = 0;
+    QMutexLocker locker(&m_implementation->cacheMutex);
+    m_implementation->cache.clear();
+    m_implementation->currentMemoryUsage = 0;
     emit cacheUpdated(0, 0);
 }
 
 double PageTextCache::getHitRatio() const {
-    qint64 total = d->cacheHits + d->cacheMisses;
-    return total > 0
-               ? static_cast<double>(d->cacheHits) / static_cast<double>(total)
-               : 0.0;
+    qint64 total = m_implementation->cacheHits + m_implementation->cacheMisses;
+    return total > 0 ? static_cast<double>(m_implementation->cacheHits) /
+                           static_cast<double>(total)
+                     : 0.0;
 }
 
 // ICacheComponent interface implementation
-qint64 PageTextCache::getMemoryUsage() const { return d->currentMemoryUsage; }
+qint64 PageTextCache::getMemoryUsage() const {
+    return m_implementation->currentMemoryUsage;
+}
 
-qint64 PageTextCache::getMaxMemoryLimit() const { return d->maxMemoryUsage; }
+qint64 PageTextCache::getMaxMemoryLimit() const {
+    return m_implementation->maxMemoryUsage;
+}
 
 void PageTextCache::setMaxMemoryLimit(qint64 limit) {
-    d->maxMemoryUsage = limit;
+    m_implementation->maxMemoryUsage = limit;
 }
 
 int PageTextCache::getEntryCount() const {
-    QMutexLocker locker(&d->cacheMutex);
-    return static_cast<int>(d->cache.size());
+    QMutexLocker locker(&m_implementation->cacheMutex);
+    return static_cast<int>(m_implementation->cache.size());
 }
 
 void PageTextCache::evictLRU(qint64 bytesToFree) {
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_implementation->cacheMutex);
 
     qint64 freedBytes = 0;
-    while (freedBytes < bytesToFree && !d->cache.isEmpty()) {
-        qint64 sizeBefore = d->currentMemoryUsage;
-        d->evictLeastRecentlyUsed();
-        freedBytes += (sizeBefore - d->currentMemoryUsage);
+    while (freedBytes < bytesToFree && !m_implementation->cache.isEmpty()) {
+        qint64 sizeBefore = m_implementation->currentMemoryUsage;
+        m_implementation->evictLeastRecentlyUsed();
+        freedBytes += (sizeBefore - m_implementation->currentMemoryUsage);
     }
 }
 
-qint64 PageTextCache::getHitCount() const { return d->cacheHits; }
+qint64 PageTextCache::getHitCount() const {
+    return m_implementation->cacheHits;
+}
 
-qint64 PageTextCache::getMissCount() const { return d->cacheMisses; }
+qint64 PageTextCache::getMissCount() const {
+    return m_implementation->cacheMisses;
+}
 
 void PageTextCache::resetStatistics() {
-    d->cacheHits = 0;
-    d->cacheMisses = 0;
+    m_implementation->cacheHits = 0;
+    m_implementation->cacheMisses = 0;
 }
 
 void PageTextCache::setEnabled(bool enabled) {
-    d->enabled = enabled;
+    m_implementation->enabled = enabled;
     if (!enabled) {
         clear();
     }
 }
 
-bool PageTextCache::isEnabled() const { return d->enabled; }
+bool PageTextCache::isEnabled() const { return m_implementation->enabled; }
 
 // Getter methods that were converted from inline
 void PageTextCache::setMaxCacheSize(int maxEntries) {
-    d->maxCacheSize = maxEntries;
+    m_implementation->maxCacheSize = maxEntries;
 }
 
 void PageTextCache::setMaxMemoryUsage(qint64 maxBytes) {
-    d->maxMemoryUsage = maxBytes;
+    m_implementation->maxMemoryUsage = maxBytes;
 }
 
-int PageTextCache::getMaxCacheSize() const { return d->maxCacheSize; }
+int PageTextCache::getMaxCacheSize() const {
+    return m_implementation->maxCacheSize;
+}
 
 int PageTextCache::getCacheSize() const {
-    QMutexLocker locker(&d->cacheMutex);
-    return static_cast<int>(d->cache.size());
+    QMutexLocker locker(&m_implementation->cacheMutex);
+    return static_cast<int>(m_implementation->cache.size());
 }
 
 // TextExtractorCacheAdapter Implementation class
@@ -264,43 +273,45 @@ int PageTextCache::getCacheSize() const {
 class TextExtractorCacheAdapter::Implementation {
 public:
     explicit Implementation(TextExtractor* extractor)
-        : textExtractor(extractor),
-          maxMemoryLimit(100 * 1024 * 1024)  // 100MB default
-    {}
+        : textExtractor(extractor) {}
 
     TextExtractor* textExtractor;
-    qint64 maxMemoryLimit;
+    qint64 maxMemoryLimit = 100LL * 1024 * 1024;
 };
 
 TextExtractorCacheAdapter::TextExtractorCacheAdapter(
     TextExtractor* textExtractor, QObject* parent)
-    : QObject(parent), d(std::make_unique<Implementation>(textExtractor)) {}
+    : QObject(parent),
+      m_implementation(std::make_unique<Implementation>(textExtractor)) {}
 
 TextExtractorCacheAdapter::~TextExtractorCacheAdapter() = default;
 
 qint64 TextExtractorCacheAdapter::getMemoryUsage() const {
-    return d->textExtractor ? d->textExtractor->cacheMemoryUsage() : 0;
+    return m_implementation->textExtractor != nullptr
+               ? m_implementation->textExtractor->cacheMemoryUsage()
+               : 0;
 }
 
 qint64 TextExtractorCacheAdapter::getMaxMemoryLimit() const {
-    return d->maxMemoryLimit;
+    return m_implementation->maxMemoryLimit;
 }
 
 void TextExtractorCacheAdapter::setMaxMemoryLimit(qint64 limit) {
-    d->maxMemoryLimit = limit;
+    m_implementation->maxMemoryLimit = limit;
 }
 
 void TextExtractorCacheAdapter::clear() {
-    if (d->textExtractor) {
-        d->textExtractor->clearCache();
+    if (m_implementation->textExtractor != nullptr) {
+        m_implementation->textExtractor->clearCache();
     }
 }
 
 int TextExtractorCacheAdapter::getEntryCount() const {
     // TextExtractor doesn't expose entry count, estimate from memory usage
     qint64 memUsage = getMemoryUsage();
-    if (memUsage == 0)
+    if (memUsage == 0) {
         return 0;
+    }
     // Rough estimate: average 1KB per entry
     return static_cast<int>(memUsage / 1024);
 }
@@ -308,10 +319,10 @@ int TextExtractorCacheAdapter::getEntryCount() const {
 void TextExtractorCacheAdapter::evictLRU(qint64 bytesToFree) {
     // TextExtractor doesn't support selective eviction
     // Clear entire cache if needed
-    if (bytesToFree > 0 && d->textExtractor) {
+    if (bytesToFree > 0 && m_implementation->textExtractor != nullptr) {
         qint64 currentUsage = getMemoryUsage();
         if (currentUsage > bytesToFree) {
-            d->textExtractor->clearCache();
+            m_implementation->textExtractor->clearCache();
         }
     }
 }
@@ -331,11 +342,13 @@ void TextExtractorCacheAdapter::resetStatistics() {
 }
 
 void TextExtractorCacheAdapter::setEnabled(bool enabled) {
-    if (d->textExtractor) {
-        d->textExtractor->setCacheEnabled(enabled);
+    if (m_implementation->textExtractor != nullptr) {
+        m_implementation->textExtractor->setCacheEnabled(enabled);
     }
 }
 
 bool TextExtractorCacheAdapter::isEnabled() const {
-    return d->textExtractor ? d->textExtractor->isCacheEnabled() : false;
+    return m_implementation->textExtractor != nullptr
+               ? m_implementation->textExtractor->isCacheEnabled()
+               : false;
 }

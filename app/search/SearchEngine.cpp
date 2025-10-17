@@ -26,7 +26,7 @@ public:
           isSearching(false),
           cacheEnabled(true),
           incrementalSearchEnabled(true),
-          backgroundProcessingEnabled(true),
+          backgroundProcessingEnabled(false),
           documentMutex(SearchThreadSafety::MutexHierarchy::DocumentLevel),
           searchMutex(SearchThreadSafety::MutexHierarchy::SearchLevel),
           cacheMutex(SearchThreadSafety::MutexHierarchy::CacheLevel),
@@ -234,8 +234,8 @@ public:
             return;
         }
 
-        QElapsedTimer timer;
-        timer.start();
+        auto timer = std::make_shared<QElapsedTimer>();
+        timer->start();
 
         // Check cache first
         if (cacheEnabled.isSet()) {
@@ -253,7 +253,7 @@ public:
                 // Record metrics
                 SearchMetrics::Metric metric;
                 metric.query = query;
-                metric.duration = timer.elapsed();
+                metric.duration = timer->elapsed();
                 metric.resultCount = cachedResults.size();
                 metric.cacheHit = true;
                 metric.incremental = false;
@@ -281,7 +281,7 @@ public:
                 // Record metrics
                 SearchMetrics::Metric metric;
                 metric.query = query;
-                metric.duration = timer.elapsed();
+                metric.duration = timer->elapsed();
                 metric.resultCount = refinedResults.size();
                 metric.cacheHit = false;
                 metric.incremental = true;
@@ -301,30 +301,38 @@ public:
 
         if (backgroundProcessingEnabled.isSet()) {
             // Asynchronous search
-            backgroundProcessor->executeAsync([this, query, options, timer]() {
-                QList<SearchResult> results = executeFullSearch(query, options);
+            backgroundProcessor->executeAsync(
+                [this, query, options, timer]() {
+                    QList<SearchResult> results;
+                    QMetaObject::invokeMethod(
+                        q_ptr,
+                        [this, &results, &query, &options]() {
+                            results = executeFullSearch(query, options);
+                        },
+                        Qt::BlockingQueuedConnection);
 
-                // Record metrics
-                SearchMetrics::Metric metric;
-                metric.query = query;
-                metric.duration = timer.elapsed();
-                metric.resultCount = results.size();
-                metric.pagesSearched = document->numPages();
-                metric.cacheHit = false;
-                metric.incremental = false;
-                metric.timestamp = QDateTime::currentDateTime();
-                metrics->recordSearch(metric);
+                    SearchMetrics::Metric metric;
+                    metric.query = query;
+                    metric.duration = timer->elapsed();
+                    metric.resultCount = results.size();
+                    metric.cacheHit = false;
+                    metric.incremental = false;
+                    metric.timestamp = QDateTime::currentDateTime();
 
-                // Update state on main thread
-                QMetaObject::invokeMethod(
-                    q_ptr,
-                    [this, results]() {
-                        currentResults.set(results);
-                        isSearching.clear();
-                        emit q_ptr->searchFinished(results);
-                    },
-                    Qt::QueuedConnection);
-            });
+                    QMetaObject::invokeMethod(
+                        q_ptr,
+                        [this, metric, results]() {
+                            SearchMetrics::Metric metricCopy = metric;
+                            metricCopy.pagesSearched =
+                                document ? document->numPages() : 0;
+                            metrics->recordSearch(metricCopy);
+
+                            currentResults.set(results);
+                            isSearching.clear();
+                            emit q_ptr->searchFinished(results);
+                        },
+                        Qt::QueuedConnection);
+                });
         } else {
             // Synchronous search
             QList<SearchResult> results = executeFullSearch(query, options);
@@ -332,7 +340,7 @@ public:
             // Record metrics
             SearchMetrics::Metric metric;
             metric.query = query;
-            metric.duration = timer.elapsed();
+            metric.duration = timer->elapsed();
             metric.resultCount = results.size();
             metric.pagesSearched = document->numPages();
             metric.cacheHit = false;
@@ -433,10 +441,15 @@ public:
     }
 
     void cancelCurrentSearch() {
-        if (isSearching.isSet()) {
-            backgroundProcessor->cancelAll();
-            incrementalManager->cancelScheduledSearch();
-            isSearching.clear();
+        const bool hadActiveSearch =
+            isSearching.isSet() || !backgroundProcessor->isIdle();
+
+        backgroundProcessor->cancelAll();
+        backgroundProcessor->waitForDone(-1);
+        incrementalManager->cancelScheduledSearch();
+        isSearching.clear();
+
+        if (hadActiveSearch) {
             emit q_ptr->searchCancelled();
         }
     }

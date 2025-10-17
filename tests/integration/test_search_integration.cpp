@@ -12,6 +12,7 @@
 #include "../../app/search/IncrementalSearchManager.h"
 #include "../../app/search/SearchEngine.h"
 #include "../../app/search/SearchFeatures.h"
+#include "../../app/utils/SafePDFRenderer.h"
 #include "../TestUtilities.h"
 
 class TestSearchIntegration : public TestBase {
@@ -60,6 +61,15 @@ void TestSearchIntegration::initTestCase() {
     // Setup services for all tests
     setupServices();
 
+    // Configure safe renderer for tests
+    SafePDFRenderer& renderer = SafePDFRenderer::instance();
+    SafePDFRenderer::RenderConfig config = renderer.getRenderConfig();
+    config.enableCompatibilityCheck = true;
+    config.fallbackStrategy = SafePDFRenderer::FallbackStrategy::UsePlaceholder;
+    config.maxRetries = 1;  // Faster tests
+    config.fallbackDPI = 72.0;
+    renderer.setRenderConfig(config);
+
     // Create test PDF
     m_testPdfPath =
         QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
@@ -79,6 +89,13 @@ void TestSearchIntegration::initTestCase() {
 
     m_testDocument = Poppler::Document::load(m_testPdfPath).release();
     QVERIFY(m_testDocument != nullptr);
+
+    // Check compatibility and log for debugging
+    SafePDFRenderer::CompatibilityResult compatibility = renderer.checkCompatibility(m_testDocument);
+    qDebug() << "Search test PDF compatibility:" << static_cast<int>(compatibility);
+    if (compatibility == SafePDFRenderer::CompatibilityResult::QtGenerated) {
+        qDebug() << "Qt-generated PDF detected in search test - using safe rendering";
+    }
 }
 
 void TestSearchIntegration::cleanupTestCase() {

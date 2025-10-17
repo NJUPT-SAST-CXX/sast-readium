@@ -77,11 +77,12 @@ WelcomeWidget::WelcomeWidget(QWidget* parent)
     initializeUI();
 
     // 设置动画效果
+    StyleManager* styleManager = &StyleManager::instance();
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
 
     m_fadeAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
-    m_fadeAnimation->setDuration(300);
+    m_fadeAnimation->setDuration(styleManager->animationSlow());
     m_fadeAnimation->setEasingCurve(QEasingCurve::InOutQuad);
 
     // 设置刷新定时器
@@ -306,6 +307,10 @@ void WelcomeWidget::onStartTourClicked() {
 void WelcomeWidget::initializeUI() {
     LOG_DEBUG("WelcomeWidget: Initializing UI components...");
 
+    // Set size policy for welcome widget
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    setMinimumSize(400, 300);  // Minimum size for readability
+
     // 创建主布局
     m_mainLayout = new QVBoxLayout(this);
     m_mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -317,6 +322,7 @@ void WelcomeWidget::initializeUI() {
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_scrollArea->setFrameShape(QFrame::NoFrame);
+    m_scrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     // 创建内容容器
     m_contentWidget = new QWidget();
@@ -352,71 +358,94 @@ void WelcomeWidget::setupLayout() {
     // 添加弹性空间以居中内容
     contentLayout->addStretch(1);
 
-    // Logo区域
+    // Logo区域 - Enhanced with better spacing
     m_logoWidget = new QWidget();
     m_logoWidget->setObjectName("WelcomeLogoWidget");
     contentLayout->addWidget(m_logoWidget, 0, Qt::AlignCenter);
 
-    // 操作按钮区域
+    // 操作按钮区域 - Optimized layout for better visual hierarchy
     m_actionsWidget = new QWidget();
     m_actionsWidget->setObjectName("WelcomeActionsWidget");
     contentLayout->addWidget(m_actionsWidget, 0, Qt::AlignCenter);
 
-    // 分隔线1
+    // 分隔线1 - Enhanced visual design
     m_separatorLine = new QFrame();
     m_separatorLine->setObjectName("WelcomeSeparatorLine");
     m_separatorLine->setFrameShape(QFrame::HLine);
     m_separatorLine->setFrameShadow(QFrame::Plain);
-    m_separatorLine->setFixedHeight(1);
+    m_separatorLine->setFixedHeight(2);  // Increased visibility
     m_separatorLine->setMaximumWidth(CONTENT_MAX_WIDTH);
     contentLayout->addWidget(m_separatorLine, 0, Qt::AlignCenter);
 
-    // Quick Actions区域
+    // Create a horizontal layout for better content organization
+    QHBoxLayout* mainContentLayout = new QHBoxLayout();
+    mainContentLayout->setSpacing(SPACING_LARGE);
+    mainContentLayout->setAlignment(Qt::AlignCenter);
+
+    // Left column - Quick Actions and Tutorial Cards
+    QVBoxLayout* leftColumnLayout = new QVBoxLayout();
+    leftColumnLayout->setSpacing(SPACING_LARGE);
+    leftColumnLayout->setAlignment(Qt::AlignTop);
+
+    // Quick Actions区域 - Compact and efficient
     m_quickActionsWidget = new QWidget();
     m_quickActionsWidget->setObjectName("WelcomeQuickActionsWidget");
-    m_quickActionsWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
-    contentLayout->addWidget(m_quickActionsWidget, 0, Qt::AlignCenter);
+    m_quickActionsWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 - SPACING_LARGE / 2);
+    leftColumnLayout->addWidget(m_quickActionsWidget, 0, Qt::AlignTop);
 
-    // Tutorial Cards区域
+    // Tutorial Cards区域 - Enhanced layout
     m_tutorialCardsWidget = new QWidget();
     m_tutorialCardsWidget->setObjectName("WelcomeTutorialCardsWidget");
-    m_tutorialCardsWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
-    contentLayout->addWidget(m_tutorialCardsWidget, 0, Qt::AlignCenter);
+    m_tutorialCardsWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 - SPACING_LARGE / 2);
+    leftColumnLayout->addWidget(m_tutorialCardsWidget, 0, Qt::AlignTop);
 
-    // 分隔线2
-    m_separatorLine2 = new QFrame();
-    m_separatorLine2->setObjectName("WelcomeSeparatorLine2");
-    m_separatorLine2->setFrameShape(QFrame::HLine);
-    m_separatorLine2->setFrameShadow(QFrame::Plain);
-    m_separatorLine2->setFixedHeight(1);
-    m_separatorLine2->setMaximumWidth(CONTENT_MAX_WIDTH);
-    contentLayout->addWidget(m_separatorLine2, 0, Qt::AlignCenter);
+    leftColumnLayout->addStretch();
 
-    // 最近文件区域
+    // Right column - Recent Files (Primary focus)
+    QVBoxLayout* rightColumnLayout = new QVBoxLayout();
+    rightColumnLayout->setSpacing(SPACING_LARGE);
+    rightColumnLayout->setAlignment(Qt::AlignTop);
+
+    // 最近文件区域 - Enhanced prominence and organization
     m_recentFilesWidget = new QWidget();
     m_recentFilesWidget->setObjectName("WelcomeRecentFilesWidget");
-    m_recentFilesWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
-    contentLayout->addWidget(m_recentFilesWidget, 0, Qt::AlignCenter);
+    m_recentFilesWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 - SPACING_LARGE / 2);
+    rightColumnLayout->addWidget(m_recentFilesWidget, 0, Qt::AlignTop);
 
-    // 分隔线3
-    m_separatorLine3 = new QFrame();
-    m_separatorLine3->setObjectName("WelcomeSeparatorLine3");
-    m_separatorLine3->setFrameShape(QFrame::HLine);
-    m_separatorLine3->setFrameShadow(QFrame::Plain);
-    m_separatorLine3->setFixedHeight(1);
-    m_separatorLine3->setMaximumWidth(CONTENT_MAX_WIDTH);
-    contentLayout->addWidget(m_separatorLine3, 0, Qt::AlignCenter);
-
-    // Tips区域
+    // Tips区域 - Repositioned for better UX
     m_tipsWidget = new QWidget();
     m_tipsWidget->setObjectName("WelcomeTipsWidget");
-    m_tipsWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
-    contentLayout->addWidget(m_tipsWidget, 0, Qt::AlignCenter);
+    m_tipsWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 - SPACING_LARGE / 2);
+    rightColumnLayout->addWidget(m_tipsWidget, 0, Qt::AlignTop);
 
-    // Keyboard Shortcuts区域
+    rightColumnLayout->addStretch();
+
+    // Add columns to main layout
+    QWidget* leftColumnWidget = new QWidget();
+    leftColumnWidget->setLayout(leftColumnLayout);
+    mainContentLayout->addWidget(leftColumnWidget);
+
+    // 分隔线2 - Vertical separator between columns
+    QFrame* verticalSeparator = new QFrame();
+    verticalSeparator->setFrameShape(QFrame::VLine);
+    verticalSeparator->setFrameShadow(QFrame::Plain);
+    verticalSeparator->setFixedWidth(2);
+    mainContentLayout->addWidget(verticalSeparator);
+
+    QWidget* rightColumnWidget = new QWidget();
+    rightColumnWidget->setLayout(rightColumnLayout);
+    mainContentLayout->addWidget(rightColumnWidget);
+
+    // Add the main content layout
+    QWidget* mainContentContainer = new QWidget();
+    mainContentContainer->setLayout(mainContentLayout);
+    mainContentContainer->setMaximumWidth(CONTENT_MAX_WIDTH);
+    contentLayout->addWidget(mainContentContainer, 0, Qt::AlignCenter);
+
+    // Keyboard Shortcuts区域 - Moved to bottom for less frequent access
     m_shortcutsWidget = new QWidget();
     m_shortcutsWidget->setObjectName("WelcomeShortcutsWidget");
-    m_shortcutsWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
+    m_shortcutsWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2);
     contentLayout->addWidget(m_shortcutsWidget, 0, Qt::AlignCenter);
 
     // 添加底部弹性空间
@@ -516,29 +545,50 @@ void WelcomeWidget::setupActions() {
     if (!m_actionsWidget)
         return;
 
-    m_actionsLayout = new QHBoxLayout(m_actionsWidget);
-    m_actionsLayout->setContentsMargins(0, 0, 0, 0);
-    m_actionsLayout->setSpacing(SPACING_LARGE);
-    m_actionsLayout->setAlignment(Qt::AlignCenter);
+    // Create a more visually appealing action button layout
+    QHBoxLayout* actionsContainerLayout = new QHBoxLayout(m_actionsWidget);
+    actionsContainerLayout->setContentsMargins(0, 0, 0, 0);
+    actionsContainerLayout->setSpacing(SPACING_MEDIUM);
+    actionsContainerLayout->setAlignment(Qt::AlignCenter);
 
-    // 新建文件按钮
-    m_newFileButton = new QPushButton(tr("New File"));
-    m_newFileButton->setObjectName("WelcomeNewFileButton");
-    m_newFileButton->setCursor(Qt::PointingHandCursor);
+    // Create a visual container for the primary actions
+    QWidget* primaryActionsWidget = new QWidget();
+    primaryActionsWidget->setObjectName("PrimaryActionsWidget");
+    QHBoxLayout* primaryActionsLayout = new QHBoxLayout(primaryActionsWidget);
+    primaryActionsLayout->setSpacing(SPACING_MEDIUM);
+    primaryActionsLayout->setContentsMargins(SPACING_SMALL, SPACING_SMALL, SPACING_SMALL, SPACING_SMALL);
 
-    // 打开文件按钮
+    // Primary action - Open File (most common action)
     m_openFileButton = new QPushButton(tr("Open File..."));
     m_openFileButton->setObjectName("WelcomeOpenFileButton");
     m_openFileButton->setCursor(Qt::PointingHandCursor);
+    m_openFileButton->setProperty("buttonRole", "primary");  // For styling
 
-    // 打开文件夹按钮
+    // Secondary actions
+    m_newFileButton = new QPushButton(tr("New File"));
+    m_newFileButton->setObjectName("WelcomeNewFileButton");
+    m_newFileButton->setCursor(Qt::PointingHandCursor);
+    m_newFileButton->setProperty("buttonRole", "secondary");
+
     m_openFolderButton = new QPushButton(tr("Open Folder..."));
     m_openFolderButton->setObjectName("WelcomeOpenFolderButton");
     m_openFolderButton->setCursor(Qt::PointingHandCursor);
+    m_openFolderButton->setProperty("buttonRole", "secondary");
 
-    m_actionsLayout->addWidget(m_newFileButton);
-    m_actionsLayout->addWidget(m_openFileButton);
-    m_actionsLayout->addWidget(m_openFolderButton);
+    // Add buttons with proper visual hierarchy
+    primaryActionsLayout->addWidget(m_newFileButton);
+    primaryActionsLayout->addWidget(m_openFileButton);
+    primaryActionsLayout->addWidget(m_openFolderButton);
+
+    // Add the primary actions container to the main layout
+    actionsContainerLayout->addWidget(primaryActionsWidget, 0, Qt::AlignCenter);
+
+    // Add keyboard shortcut hints for better UX
+    QLabel* shortcutsHint = new QLabel(tr("Quick access: Ctrl+O to open, Ctrl+N for new file"));
+    shortcutsHint->setObjectName("ShortcutsHintLabel");
+    shortcutsHint->setAlignment(Qt::AlignCenter);
+    shortcutsHint->setStyleSheet("color: #8c8c8c; font-size: 11px; margin-top: 8px;");
+    actionsContainerLayout->addWidget(shortcutsHint, 0, Qt::AlignCenter);
 }
 
 void WelcomeWidget::setupRecentFiles() {
@@ -755,26 +805,63 @@ void WelcomeWidget::setupKeyboardShortcuts() {
 }
 
 void WelcomeWidget::setupConnections() {
-    // 按钮连接
+    // 按钮连接 - Enhanced with accessibility and keyboard shortcuts
     if (m_newFileButton) {
         connect(m_newFileButton, &QPushButton::clicked, this,
                 &WelcomeWidget::onNewFileClicked);
+        // Set accessibility properties
+        m_newFileButton->setAccessibleName(tr("Create new PDF document"));
+        m_newFileButton->setAccessibleDescription(tr("Click to create a new PDF document or press Ctrl+N"));
+        m_newFileButton->setShortcut(QKeySequence::New);
     }
 
     if (m_openFileButton) {
         connect(m_openFileButton, &QPushButton::clicked, this,
                 &WelcomeWidget::onOpenFileClicked);
+        // Set accessibility properties
+        m_openFileButton->setAccessibleName(tr("Open PDF file"));
+        m_openFileButton->setAccessibleDescription(tr("Click to open an existing PDF file or press Ctrl+O"));
+        m_openFileButton->setShortcut(QKeySequence::Open);
     }
 
     if (m_openFolderButton) {
         connect(m_openFolderButton, &QPushButton::clicked, this,
                 &WelcomeWidget::onOpenFolderClicked);
+        // Set accessibility properties
+        m_openFolderButton->setAccessibleName(tr("Open folder containing PDF files"));
+        m_openFolderButton->setAccessibleDescription(tr("Click to open a folder and browse PDF files or press Ctrl+Shift+O"));
+        m_openFolderButton->setShortcut(QKeySequence("Ctrl+Shift+O"));
     }
 
-    // 最近文件列表连接
+    // 最近文件列表连接 - Enhanced accessibility
     if (m_recentFilesList) {
         connect(m_recentFilesList, &RecentFileListWidget::fileClicked, this,
                 &WelcomeWidget::onRecentFileClicked);
+        m_recentFilesList->setAccessibleName(tr("Recent files list"));
+        m_recentFilesList->setAccessibleDescription(tr("List of recently opened PDF files. Use arrow keys to navigate and Enter to open."));
+    }
+
+    // Quick action buttons accessibility
+    for (QToolButton* button : m_quickActionButtons) {
+        if (button) {
+            QString action = button->text();
+            if (action == tr("Search")) {
+                button->setAccessibleName(tr("Search in documents"));
+                button->setAccessibleDescription(tr("Search for text within PDF documents or press Ctrl+F"));
+                button->setShortcut(QKeySequence::Find);
+            } else if (action == tr("Bookmarks")) {
+                button->setAccessibleName(tr("Bookmarks"));
+                button->setAccessibleDescription(tr("View and manage bookmarks or press Ctrl+B"));
+                button->setShortcut(QKeySequence("Ctrl+B"));
+            } else if (action == tr("Settings")) {
+                button->setAccessibleName(tr("Application settings"));
+                button->setAccessibleDescription(tr("Open application settings and preferences"));
+            } else if (action == tr("Help")) {
+                button->setAccessibleName(tr("Help and documentation"));
+                button->setAccessibleDescription(tr("Get help and view documentation or press F1"));
+                button->setShortcut(QKeySequence::HelpContents);
+            }
+        }
     }
 
     // 动画连接
@@ -792,6 +879,43 @@ void WelcomeWidget::setupConnections() {
     // 主题管理器连接
     connect(&StyleManager::instance(), &StyleManager::themeChanged, this,
             &WelcomeWidget::onThemeChanged);
+
+    // Setup keyboard navigation for the entire widget
+    setupKeyboardNavigation();
+}
+
+void WelcomeWidget::setupKeyboardNavigation() {
+    // Set overall accessibility
+    setAccessibleName(tr("Welcome screen"));
+    setAccessibleDescription(tr("SAST Readium PDF viewer welcome screen. Use Tab to navigate between sections."));
+
+    // Enable keyboard focus
+    setFocusPolicy(Qt::TabFocus);
+
+    // Setup global keyboard shortcuts for enhanced accessibility
+    QShortcut* shortcut1 = new QShortcut(QKeySequence("Ctrl+1"), this);
+    connect(shortcut1, &QShortcut::activated, [this]() {
+        if (m_openFileButton) {
+            m_openFileButton->click();
+        }
+    });
+
+    QShortcut* shortcut2 = new QShortcut(QKeySequence("Ctrl+2"), this);
+    connect(shortcut2, &QShortcut::activated, [this]() {
+        if (m_newFileButton) {
+            m_newFileButton->click();
+        }
+    });
+
+    QShortcut* shortcut3 = new QShortcut(QKeySequence("Ctrl+3"), this);
+    connect(shortcut3, &QShortcut::activated, [this]() {
+        if (m_openFolderButton) {
+            m_openFolderButton->click();
+        }
+    });
+
+    // Focus management for better accessibility
+    setFocusProxy(m_openFileButton ? m_openFileButton : m_newFileButton);
 }
 
 void WelcomeWidget::updateLayout() {

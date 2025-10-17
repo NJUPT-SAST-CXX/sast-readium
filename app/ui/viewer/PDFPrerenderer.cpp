@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include "../../model/RenderModel.h"
+#include "../../utils/SafePDFRenderer.h"
 
 // PDFPrerenderer Implementation
 PDFPrerenderer::PDFPrerenderer(QObject* parent)
@@ -650,11 +651,15 @@ QPixmap PDFRenderWorker::renderPage(
     double dpi = calculateOptimalDPI(request.scaleFactor);
     double deviceRatio = qApp != nullptr ? qApp->devicePixelRatio() : 1.0;
 
-    QImage image = page->renderToImage(
-        dpi, dpi, -1, -1, -1, -1,
-        static_cast<Poppler::Page::Rotation>(request.rotation / 90));
+    // Use SafePDFRenderer for Qt PDF compatibility
+    SafePDFRenderer& renderer = SafePDFRenderer::instance();
+    SafePDFRenderer::RenderInfo renderInfo;
 
-    if (image.isNull()) {
+    QImage image = renderer.safeRenderPage(page.get(), dpi, &renderInfo);
+    if (!renderInfo.success || image.isNull()) {
+        // For prerendering, we can safely fail silently
+        qDebug() << "PDFPrerenderer: Safe rendering failed for page" << request.pageNumber
+                 << "Error:" << renderInfo.errorMessage;
         return QPixmap();
     }
 

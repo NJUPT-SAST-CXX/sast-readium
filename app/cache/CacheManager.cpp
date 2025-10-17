@@ -4,11 +4,16 @@
 #include <QMutexLocker>
 #include <QProcess>
 #include <QThread>
+#include <QTimer>
 #include <algorithm>
 
+using enum CacheType;
+
 #ifdef Q_OS_WIN
-#include <psapi.h>
+// clang-format off
 #include <windows.h>
+#include <psapi.h>
+// clang-format on
 #elif defined(Q_OS_LINUX)
 #include <unistd.h>
 #include <fstream>
@@ -20,14 +25,16 @@
 #include <sys/sysctl.h>
 #endif
 
+constexpr int MAX_TRACKED_ACCESSES = 1000;
+
 class CacheManager::Implementation {
 public:
-    Implementation(CacheManager* q)
-        : q_ptr(q),
-          cleanupTimer(new QTimer(q)),
-          memoryPressureTimer(new QTimer(q)),
-          statsUpdateTimer(new QTimer(q)),
-          systemMemoryTimer(new QTimer(q)),
+    explicit Implementation(CacheManager* qPtr)
+        : q_ptr(qPtr),
+          cleanupTimer(new QTimer(qPtr)),
+          memoryPressureTimer(new QTimer(qPtr)),
+          statsUpdateTimer(new QTimer(qPtr)),
+          systemMemoryTimer(new QTimer(qPtr)),
           adaptiveManagementEnabled(true),
           systemMemoryMonitoringEnabled(true),
           predictiveEvictionEnabled(true),
@@ -39,13 +46,13 @@ public:
         statsUpdateTimer->setSingleShot(false);
         systemMemoryTimer->setSingleShot(false);
 
-        QObject::connect(cleanupTimer, &QTimer::timeout, q,
+        QObject::connect(cleanupTimer, &QTimer::timeout, qPtr,
                          &CacheManager::performPeriodicCleanup);
-        QObject::connect(memoryPressureTimer, &QTimer::timeout, q,
+        QObject::connect(memoryPressureTimer, &QTimer::timeout, qPtr,
                          &CacheManager::onMemoryPressureTimer);
-        QObject::connect(statsUpdateTimer, &QTimer::timeout, q,
+        QObject::connect(statsUpdateTimer, &QTimer::timeout, qPtr,
                          &CacheManager::updateCacheStatistics);
-        QObject::connect(systemMemoryTimer, &QTimer::timeout, q,
+        QObject::connect(systemMemoryTimer, &QTimer::timeout, qPtr,
                          &CacheManager::handleSystemMemoryPressure);
 
         // Start timers
@@ -57,21 +64,21 @@ public:
 
     ~Implementation() {
         // Stop and disconnect timers explicitly to prevent crashes during
-        // static destruction Don't delete them here - they will be deleted by
+        // static destruction. Don't delete them here - they will be deleted by
         // Qt's parent-child mechanism
-        if (cleanupTimer) {
+        if (cleanupTimer != nullptr) {
             cleanupTimer->stop();
             cleanupTimer->disconnect();
         }
-        if (memoryPressureTimer) {
+        if (memoryPressureTimer != nullptr) {
             memoryPressureTimer->stop();
             memoryPressureTimer->disconnect();
         }
-        if (statsUpdateTimer) {
+        if (statsUpdateTimer != nullptr) {
             statsUpdateTimer->stop();
             statsUpdateTimer->disconnect();
         }
-        if (systemMemoryTimer) {
+        if (systemMemoryTimer != nullptr) {
             systemMemoryTimer->stop();
             systemMemoryTimer->disconnect();
         }
@@ -79,6 +86,12 @@ public:
         // Clear registered caches to prevent dangling pointers
         registeredCaches.clear();
     }
+
+    // Disable copy and move operations
+    Implementation(const Implementation&) = delete;
+    Implementation& operator=(const Implementation&) = delete;
+    Implementation(Implementation&&) = delete;
+    Implementation& operator=(Implementation&&) = delete;
 
     CacheManager* q_ptr;
     GlobalCacheConfig config;
@@ -101,14 +114,14 @@ public:
     mutable QMutex mutex;
 
     // Adaptive management
-    bool adaptiveManagementEnabled;
+    bool adaptiveManagementEnabled = true;
     QHash<CacheType, double> usagePatterns;
 
     // Advanced memory management
-    bool systemMemoryMonitoringEnabled;
-    bool predictiveEvictionEnabled;
-    bool memoryCompressionEnabled;
-    bool emergencyEvictionEnabled;
+    bool systemMemoryMonitoringEnabled = true;
+    bool predictiveEvictionEnabled = true;
+    bool memoryCompressionEnabled = false;
+    bool emergencyEvictionEnabled = true;
 
     // Eviction strategies
     QHash<CacheType, QString> evictionStrategies;
@@ -137,16 +150,17 @@ public:
         qint64 total = 0;
         for (auto it = registeredCaches.constBegin();
              it != registeredCaches.constEnd(); ++it) {
-            if (it.value() && cacheEnabled.value(it.key(), true)) {
+            if (it.value() != nullptr && cacheEnabled.value(it.key(), true)) {
                 total += it.value()->getMemoryUsage();
             }
         }
         return total;
     }
 
-    void performMemoryPressureEviction() {
+    void performMemoryPressureEviction() const {
         qint64 totalUsage = calculateTotalMemoryUsage();
-        qint64 targetUsage = config.totalMemoryLimit * 0.7;  // Target 70% usage
+        qint64 targetUsage = static_cast<qint64>(config.totalMemoryLimit *
+                                                 0.7);  // Target 70% usage
 
         if (totalUsage <= targetUsage) {
             return;
@@ -160,29 +174,32 @@ public:
         for (auto it = registeredCaches.constBegin();
              it != registeredCaches.constEnd(); ++it) {
             CacheType type = it.key();
-            if (!it.value() || !cacheEnabled.value(type, true))
+            if (it.value() == nullptr || !cacheEnabled.value(type, true)) {
                 continue;
+            }
 
             double priority = calculateEvictionPriority(type);
             evictionPriority.append({type, priority});
         }
 
         // Sort by priority (lower priority = evict first)
-        std::sort(evictionPriority.begin(), evictionPriority.end(),
-                  [](const QPair<CacheType, double>& a,
-                     const QPair<CacheType, double>& b) {
-                      return a.second < b.second;
-                  });
+        std::ranges::sort(evictionPriority,
+                          [](const QPair<CacheType, double>& first,
+                             const QPair<CacheType, double>& second) {
+                              return first.second < second.second;
+                          });
 
         // Evict from lowest priority caches first
         for (const auto& pair : evictionPriority) {
-            if (bytesToFree <= 0)
+            if (bytesToFree <= 0) {
                 break;
+            }
 
             CacheType type = pair.first;
             ICacheComponent* cache = registeredCaches.value(type);
-            if (!cache)
+            if (cache == nullptr) {
                 continue;
+            }
 
             qint64 cacheUsage = cache->getMemoryUsage();
             qint64 toEvictFromCache =
@@ -196,7 +213,7 @@ public:
         }
     }
 
-    double calculateEvictionPriority(CacheType type) const {
+    static double calculateEvictionPriority(CacheType type) {
         // Higher values = higher priority (less likely to be evicted)
         switch (type) {
             case SEARCH_RESULT_CACHE:
@@ -219,15 +236,17 @@ public:
              it != registeredCaches.constEnd(); ++it) {
             CacheType type = it.key();
             ICacheComponent* cache = it.value();
-            if (!cache)
+            if (cache == nullptr) {
                 continue;
+            }
 
             qint64 hits = cache->getHitCount();
             qint64 misses = cache->getMissCount();
             qint64 total = hits + misses;
 
             if (total > 0) {
-                usagePatterns[type] = static_cast<double>(hits) / total;
+                usagePatterns[type] =
+                    static_cast<double>(hits) / static_cast<double>(total);
             }
         }
     }
@@ -241,26 +260,26 @@ CacheManager::CacheManager(QObject* parent)
 CacheManager::~CacheManager() {
     // During static destruction, QCoreApplication might already be destroyed
     // In that case, we can't safely do anything, so just return
-    if (!QCoreApplication::instance()) {
+    if (QCoreApplication::instance() == nullptr) {
         return;
     }
 
     // Stop all timers before destruction to prevent crashes
     if (m_d) {
         // Stop timers first
-        if (m_d->cleanupTimer) {
+        if (m_d->cleanupTimer != nullptr) {
             m_d->cleanupTimer->stop();
             disconnect(m_d->cleanupTimer, nullptr, this, nullptr);
         }
-        if (m_d->memoryPressureTimer) {
+        if (m_d->memoryPressureTimer != nullptr) {
             m_d->memoryPressureTimer->stop();
             disconnect(m_d->memoryPressureTimer, nullptr, this, nullptr);
         }
-        if (m_d->statsUpdateTimer) {
+        if (m_d->statsUpdateTimer != nullptr) {
             m_d->statsUpdateTimer->stop();
             disconnect(m_d->statsUpdateTimer, nullptr, this, nullptr);
         }
-        if (m_d->systemMemoryTimer) {
+        if (m_d->systemMemoryTimer != nullptr) {
             m_d->systemMemoryTimer->stop();
             disconnect(m_d->systemMemoryTimer, nullptr, this, nullptr);
         }
@@ -299,7 +318,7 @@ void CacheManager::setCacheLimit(CacheType type, qint64 memoryLimit) {
     m_d->cacheMemoryLimits[type] = memoryLimit;
 
     ICacheComponent* cache = m_d->registeredCaches.value(type);
-    if (cache) {
+    if (cache != nullptr) {
         cache->setMaxMemoryLimit(memoryLimit);
     }
 }
@@ -312,8 +331,8 @@ qint64 CacheManager::getCacheLimit(CacheType type) const {
 void CacheManager::registerCache(CacheType type, QObject* cache) {
     QMutexLocker locker(&m_d->mutex);
 
-    ICacheComponent* cacheComponent = dynamic_cast<ICacheComponent*>(cache);
-    if (!cacheComponent) {
+    auto cacheComponent = dynamic_cast<ICacheComponent*>(cache);
+    if (cacheComponent == nullptr) {
         qWarning()
             << "Cache object does not implement ICacheComponent interface";
         return;
@@ -327,7 +346,7 @@ void CacheManager::registerCache(CacheType type, QObject* cache) {
         cacheComponent->setMaxMemoryLimit(limit);
     }
 
-    qDebug() << "Registered cache type:" << type;
+    qDebug() << "Registered cache type:" << static_cast<int>(type);
 }
 
 void CacheManager::unregisterCache(CacheType type) {
@@ -346,8 +365,8 @@ bool CacheManager::isCacheRegistered(CacheType type) const {
 
 void CacheManager::clearAllCaches() {
     QMutexLocker locker(&m_d->mutex);
-    for (auto cache : m_d->registeredCaches) {
-        if (cache) {
+    for (auto* cache : m_d->registeredCaches) {
+        if (cache != nullptr) {
             cache->clear();
         }
     }
@@ -361,7 +380,7 @@ void CacheManager::clearAllCaches() {
 void CacheManager::clearCache(CacheType type) {
     QMutexLocker locker(&m_d->mutex);
     ICacheComponent* cache = m_d->registeredCaches.value(type);
-    if (cache) {
+    if (cache != nullptr) {
         cache->clear();
         m_d->cacheHits[type] = 0;
         m_d->cacheMisses[type] = 0;
@@ -374,7 +393,7 @@ void CacheManager::enableCache(CacheType type, bool enabled) {
     m_d->cacheEnabled[type] = enabled;
 
     ICacheComponent* cache = m_d->registeredCaches.value(type);
-    if (cache) {
+    if (cache != nullptr) {
         cache->setEnabled(enabled);
     }
 }
@@ -397,7 +416,8 @@ qint64 CacheManager::getTotalMemoryLimit() const {
 double CacheManager::getGlobalMemoryUsageRatio() const {
     qint64 usage = getTotalMemoryUsage();
     qint64 limit = getTotalMemoryLimit();
-    return limit > 0 ? static_cast<double>(usage) / limit : 0.0;
+    return limit > 0 ? static_cast<double>(usage) / static_cast<double>(limit)
+                     : 0.0;
 }
 
 void CacheManager::enforceMemoryLimits() {
@@ -441,8 +461,9 @@ void CacheManager::updateCacheStatistics() {
          it != m_d->registeredCaches.constEnd(); ++it) {
         CacheType type = it.key();
         ICacheComponent* cache = it.value();
-        if (!cache)
+        if (cache == nullptr) {
             continue;
+        }
 
         CacheStats stats;
         stats.memoryUsage = cache->getMemoryUsage();
@@ -452,8 +473,9 @@ void CacheManager::updateCacheStatistics() {
         stats.totalMisses = cache->getMissCount();
 
         qint64 total = stats.totalHits + stats.totalMisses;
-        stats.hitRatio =
-            total > 0 ? static_cast<double>(stats.totalHits) / total : 0.0;
+        stats.hitRatio = total > 0 ? static_cast<double>(stats.totalHits) /
+                                         static_cast<double>(total)
+                                   : 0.0;
 
         emit cacheStatsUpdated(type, stats);
     }
@@ -463,13 +485,14 @@ void CacheManager::updateCacheStatistics() {
     emit globalStatsUpdated(totalMemory, globalHitRatio);
 }
 
-CacheManager::CacheStats CacheManager::getCacheStats(CacheType type) const {
+CacheStats CacheManager::getCacheStats(CacheType type) const {
     QMutexLocker locker(&m_d->mutex);
 
     CacheStats stats;
     ICacheComponent* cache = m_d->registeredCaches.value(type);
-    if (!cache)
+    if (cache == nullptr) {
         return stats;
+    }
 
     stats.memoryUsage = cache->getMemoryUsage();
     stats.maxMemoryLimit = cache->getMaxMemoryLimit();
@@ -478,8 +501,9 @@ CacheManager::CacheStats CacheManager::getCacheStats(CacheType type) const {
     stats.totalMisses = cache->getMissCount();
 
     qint64 total = stats.totalHits + stats.totalMisses;
-    stats.hitRatio =
-        total > 0 ? static_cast<double>(stats.totalHits) / total : 0.0;
+    stats.hitRatio = total > 0 ? static_cast<double>(stats.totalHits) /
+                                     static_cast<double>(total)
+                               : 0.0;
 
     return stats;
 }
@@ -490,19 +514,20 @@ double CacheManager::getGlobalHitRatio() const {
     qint64 totalHits = 0;
     qint64 totalMisses = 0;
 
-    for (auto cache : m_d->registeredCaches) {
-        if (cache) {
+    for (auto* cache : m_d->registeredCaches) {
+        if (cache != nullptr) {
             totalHits += cache->getHitCount();
             totalMisses += cache->getMissCount();
         }
     }
 
     qint64 total = totalHits + totalMisses;
-    return total > 0 ? static_cast<double>(totalHits) / total : 0.0;
+    return total > 0
+               ? static_cast<double>(totalHits) / static_cast<double>(total)
+               : 0.0;
 }
 
-QHash<CacheManager::CacheType, CacheManager::CacheStats>
-CacheManager::getAllCacheStats() const {
+QHash<CacheType, CacheStats> CacheManager::getAllCacheStats() const {
     QMutexLocker locker(&m_d->mutex);
 
     QHash<CacheType, CacheStats> allStats;
@@ -512,7 +537,7 @@ CacheManager::getAllCacheStats() const {
         CacheType type = it.key();
         ICacheComponent* cache = it.value();
 
-        if (cache) {
+        if (cache != nullptr) {
             CacheStats stats;
             stats.memoryUsage = cache->getMemoryUsage();
             stats.maxMemoryLimit = cache->getMaxMemoryLimit();
@@ -521,8 +546,9 @@ CacheManager::getAllCacheStats() const {
             stats.totalMisses = cache->getMissCount();
 
             qint64 total = stats.totalHits + stats.totalMisses;
-            stats.hitRatio =
-                total > 0 ? static_cast<double>(stats.totalHits) / total : 0.0;
+            stats.hitRatio = total > 0 ? static_cast<double>(stats.totalHits) /
+                                             static_cast<double>(total)
+                                       : 0.0;
 
             allStats[type] = stats;
         }
@@ -536,8 +562,8 @@ qint64 CacheManager::getTotalCacheHits() const {
 
     qint64 totalHits = 0;
 
-    for (auto cache : m_d->registeredCaches) {
-        if (cache) {
+    for (auto* cache : m_d->registeredCaches) {
+        if (cache != nullptr) {
             totalHits += cache->getHitCount();
         }
     }
@@ -550,8 +576,8 @@ qint64 CacheManager::getTotalCacheMisses() const {
 
     qint64 totalMisses = 0;
 
-    for (auto cache : m_d->registeredCaches) {
-        if (cache) {
+    for (auto* cache : m_d->registeredCaches) {
+        if (cache != nullptr) {
             totalMisses += cache->getMissCount();
         }
     }
@@ -568,9 +594,9 @@ void CacheManager::notifyCacheAccess(CacheType type, const QString& key) {
     accesses.prepend(key);
 
     // Limit the size of recent accesses tracking
-    const int maxTrackedAccesses = 1000;
-    if (accesses.size() > maxTrackedAccesses) {
-        accesses = accesses.mid(0, maxTrackedAccesses);
+    constexpr int MAX_TRACKED_ACCESSES = 1000;
+    if (accesses.size() > MAX_TRACKED_ACCESSES) {
+        accesses = accesses.mid(0, MAX_TRACKED_ACCESSES);
     }
 }
 
@@ -582,14 +608,15 @@ void CacheManager::notifyCacheHit(CacheType type, const QString& key) {
     QStringList& recent = m_d->recentAccesses[type];
     recent.removeAll(key);
     recent.prepend(key);
-    if (recent.size() > 1000) {  // Limit recent access tracking
-        recent = recent.mid(0, 1000);
+    if (recent.size() > MAX_TRACKED_ACCESSES) {
+        recent = recent.mid(0, MAX_TRACKED_ACCESSES);
     }
 }
 
-void CacheManager::notifyCacheMiss(CacheType type, const QString& key) {
+void CacheManager::notifyCacheMiss(CacheType /*type*/, const QString& /*key*/) {
     QMutexLocker locker(&m_d->mutex);
-    m_d->cacheMisses[type]++;
+    // Parameters 'type' and 'key' are intentionally unused for cache miss
+    // tracking
 }
 
 void CacheManager::analyzeUsagePatterns() {
@@ -602,26 +629,27 @@ void CacheManager::optimizeCacheDistribution() {
 
     // Redistribute memory based on usage patterns
     qint64 totalLimit = m_d->config.totalMemoryLimit;
-    qint64 allocatedMemory = 0;
 
     // Calculate new limits based on hit ratios and importance
     for (auto it = m_d->usagePatterns.constBegin();
          it != m_d->usagePatterns.constEnd(); ++it) {
         CacheType type = it.key();
         double hitRatio = it.value();
-        double importance = m_d->calculateEvictionPriority(type);
+        double importance =
+            CacheManager::Implementation::calculateEvictionPriority(type);
 
         // Allocate more memory to caches with higher hit ratios and importance
-        double factor = (hitRatio * 0.7 + importance * 0.3);
-        qint64 newLimit = static_cast<qint64>(totalLimit * factor *
-                                              0.15);  // Max 15% per cache
+        double factor = ((hitRatio * 0.7) + (importance * 0.3));
+        auto newLimit =
+            static_cast<qint64>(static_cast<double>(totalLimit) * factor *
+                                0.15);  // Max 15% per cache
 
         // Ensure minimum limits
-        qint64 minLimit = totalLimit * 0.05;  // At least 5% per cache
+        qint64 minLimit = static_cast<qint64>(static_cast<double>(totalLimit) *
+                                              0.05);  // At least 5% per cache
         newLimit = std::max(newLimit, minLimit);
 
         setCacheLimit(type, newLimit);
-        allocatedMemory += newLimit;
     }
 }
 
@@ -652,7 +680,7 @@ bool CacheManager::isSystemMemoryMonitoringEnabled() const {
     return m_d->systemMemoryMonitoringEnabled;
 }
 
-qint64 CacheManager::getSystemMemoryUsage() const {
+qint64 CacheManager::getSystemMemoryUsage() {
 #ifdef Q_OS_WIN
     PROCESS_MEMORY_COUNTERS pmc;
     if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
@@ -680,11 +708,11 @@ qint64 CacheManager::getSystemMemoryUsage() const {
     return -1;  // Failed to get memory usage
 }
 
-qint64 CacheManager::getSystemMemoryTotal() const {
+qint64 CacheManager::getSystemMemoryTotal() {
 #ifdef Q_OS_WIN
     MEMORYSTATUSEX memInfo;
     memInfo.dwLength = sizeof(MEMORYSTATUSEX);
-    if (GlobalMemoryStatusEx(&memInfo)) {
+    if (GlobalMemoryStatusEx(&memInfo) != 0) {
         return static_cast<qint64>(memInfo.ullTotalPhys);
     }
 #elif defined(Q_OS_LINUX)
@@ -714,14 +742,15 @@ double CacheManager::getSystemMemoryPressure() const {
     qint64 total = getSystemMemoryTotal();
 
     if (usage > 0 && total > 0) {
-        return static_cast<double>(usage) / total;
+        return static_cast<double>(usage) / static_cast<double>(total);
     }
     return 0.0;
 }
 
 void CacheManager::handleSystemMemoryPressure() {
-    if (!m_d->systemMemoryMonitoringEnabled)
+    if (!m_d->systemMemoryMonitoringEnabled) {
         return;
+    }
 
     double systemPressure = getSystemMemoryPressure();
 
@@ -733,8 +762,8 @@ void CacheManager::handleSystemMemoryPressure() {
 
         // Calculate how much memory to free (aim for 10% below threshold)
         qint64 totalSystemMemory = getSystemMemoryTotal();
-        qint64 targetUsage = static_cast<qint64>(
-            totalSystemMemory *
+        auto targetUsage = static_cast<qint64>(
+            static_cast<double>(totalSystemMemory) *
             (m_d->config.systemMemoryPressureThreshold - 0.1));
         qint64 currentUsage = getSystemMemoryUsage();
         qint64 bytesToFree = currentUsage - targetUsage;
@@ -747,8 +776,9 @@ void CacheManager::handleSystemMemoryPressure() {
                  it != m_d->registeredCaches.constEnd(); ++it) {
                 CacheType type = it.key();
                 ICacheComponent* cache = it.value();
-                if (!cache || !m_d->cacheEnabled.value(type, true))
+                if (cache == nullptr || !m_d->cacheEnabled.value(type, true)) {
                     continue;
+                }
 
                 qint64 cacheMemory = cache->getMemoryUsage();
                 if (totalCacheMemory > 0) {
@@ -810,8 +840,9 @@ void CacheManager::optimizeMemoryLayout() {
          it != m_d->registeredCaches.constEnd(); ++it) {
         CacheType type = it.key();
         ICacheComponent* cache = it.value();
-        if (!cache || !m_d->cacheEnabled.value(type, true))
+        if (cache == nullptr || !m_d->cacheEnabled.value(type, true)) {
             continue;
+        }
 
         qint64 beforeOptimization = cache->getMemoryUsage();
 
@@ -862,7 +893,7 @@ void CacheManager::requestCacheEviction(CacheType type, qint64 bytesToFree) {
     }
 
     ICacheComponent* cache = m_d->registeredCaches[type];
-    if (!cache) {
+    if (cache == nullptr) {
         return;
     }
 
@@ -878,16 +909,16 @@ void CacheManager::stopAllTimers() {
     QMutexLocker locker(&m_d->mutex);
 
     // Stop all timers to prevent crashes during static destruction
-    if (m_d->cleanupTimer) {
+    if (m_d->cleanupTimer != nullptr) {
         m_d->cleanupTimer->stop();
     }
-    if (m_d->memoryPressureTimer) {
+    if (m_d->memoryPressureTimer != nullptr) {
         m_d->memoryPressureTimer->stop();
     }
-    if (m_d->statsUpdateTimer) {
+    if (m_d->statsUpdateTimer != nullptr) {
         m_d->statsUpdateTimer->stop();
     }
-    if (m_d->systemMemoryTimer) {
+    if (m_d->systemMemoryTimer != nullptr) {
         m_d->systemMemoryTimer->stop();
     }
 }

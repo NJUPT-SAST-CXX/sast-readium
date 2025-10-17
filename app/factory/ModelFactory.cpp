@@ -314,22 +314,59 @@ ModelFactory::ModelSet ModelFactory::createCompleteModelSet(int dpiX,
 
     // Create core models
     models.renderModel = createRenderModel(dpiX, dpiY);
-    if (!models.renderModel)
+    if (!models.renderModel) {
+        m_logger.error("Failed to create RenderModel - aborting model set creation");
+        emit creationError("ModelSet", "Failed to create RenderModel");
         return models;
+    }
 
     models.documentModel = createDocumentModel(models.renderModel);
-    if (!models.documentModel)
+    if (!models.documentModel) {
+        m_logger.error("Failed to create DocumentModel - cleaning up and aborting");
+        emit creationError("ModelSet", "Failed to create DocumentModel");
+        // Clean up already-created models if auto-delete is enabled
+        if (m_autoDelete && models.renderModel) {
+            delete models.renderModel;
+            models.renderModel = nullptr;
+        }
         return models;
+    }
 
     models.pageModel = createPageModel(models.renderModel);
+    if (!models.pageModel) {
+        m_logger.warning("Failed to create PageModel - continuing with partial set");
+    }
 
-    // Create auxiliary models
+    // Create auxiliary models - failures are non-critical
     models.thumbnailModel = createThumbnailModel(models.documentModel);
+    if (!models.thumbnailModel) {
+        m_logger.warning("Failed to create ThumbnailModel - continuing");
+    }
+
     models.bookmarkModel = createBookmarkModel(models.documentModel);
+    if (!models.bookmarkModel) {
+        m_logger.warning("Failed to create BookmarkModel - continuing");
+    }
+
     models.annotationModel = createAnnotationModel(models.documentModel);
+    if (!models.annotationModel) {
+        m_logger.warning("Failed to create AnnotationModel - continuing");
+    }
+
     models.searchModel = createSearchModel(models.documentModel);
+    if (!models.searchModel) {
+        m_logger.warning("Failed to create SearchModel - continuing");
+    }
+
     models.outlineModel = createPDFOutlineModel(models.documentModel);
+    if (!models.outlineModel) {
+        m_logger.warning("Failed to create PDFOutlineModel - continuing");
+    }
+
     models.documentLoader = createAsyncDocumentLoader(models.documentModel);
+    if (!models.documentLoader) {
+        m_logger.warning("Failed to create AsyncDocumentLoader - continuing");
+    }
 
     emit modelSetCreated(models);
     m_logger.info("Complete model set created successfully");
@@ -344,14 +381,28 @@ ModelFactory::ModelSet ModelFactory::createMinimalModelSet(int dpiX, int dpiY) {
 
     // Create only essential models
     models.renderModel = createRenderModel(dpiX, dpiY);
-    if (!models.renderModel)
+    if (!models.renderModel) {
+        m_logger.error("Failed to create RenderModel - aborting minimal model set creation");
+        emit creationError("ModelSet", "Failed to create RenderModel");
         return models;
+    }
 
     models.documentModel = createDocumentModel(models.renderModel);
-    if (!models.documentModel)
+    if (!models.documentModel) {
+        m_logger.error("Failed to create DocumentModel - cleaning up and aborting");
+        emit creationError("ModelSet", "Failed to create DocumentModel");
+        // Clean up already-created models if auto-delete is enabled
+        if (m_autoDelete && models.renderModel) {
+            delete models.renderModel;
+            models.renderModel = nullptr;
+        }
         return models;
+    }
 
     models.pageModel = createPageModel(models.renderModel);
+    if (!models.pageModel) {
+        m_logger.warning("Failed to create PageModel - continuing with partial set");
+    }
 
     emit modelSetCreated(models);
     m_logger.info("Minimal model set created successfully");
@@ -366,17 +417,43 @@ ModelFactory::ModelSet ModelFactory::createViewerModelSet(int dpiX, int dpiY) {
 
     // Create models needed for viewing
     models.renderModel = createRenderModel(dpiX, dpiY);
-    if (!models.renderModel)
+    if (!models.renderModel) {
+        m_logger.error("Failed to create RenderModel - aborting viewer model set creation");
+        emit creationError("ModelSet", "Failed to create RenderModel");
         return models;
+    }
 
     models.documentModel = createDocumentModel(models.renderModel);
-    if (!models.documentModel)
+    if (!models.documentModel) {
+        m_logger.error("Failed to create DocumentModel - cleaning up and aborting");
+        emit creationError("ModelSet", "Failed to create DocumentModel");
+        // Clean up already-created models if auto-delete is enabled
+        if (m_autoDelete && models.renderModel) {
+            delete models.renderModel;
+            models.renderModel = nullptr;
+        }
         return models;
+    }
 
     models.pageModel = createPageModel(models.renderModel);
+    if (!models.pageModel) {
+        m_logger.warning("Failed to create PageModel - continuing");
+    }
+
     models.thumbnailModel = createThumbnailModel(models.documentModel);
+    if (!models.thumbnailModel) {
+        m_logger.warning("Failed to create ThumbnailModel - continuing");
+    }
+
     models.outlineModel = createPDFOutlineModel(models.documentModel);
+    if (!models.outlineModel) {
+        m_logger.warning("Failed to create PDFOutlineModel - continuing");
+    }
+
     models.searchModel = createSearchModel(models.documentModel);
+    if (!models.searchModel) {
+        m_logger.warning("Failed to create SearchModel - continuing");
+    }
 
     emit modelSetCreated(models);
     m_logger.info("Viewer model set created successfully");
@@ -435,8 +512,25 @@ void ModelFactory::configureModel(QObject* model) {
 }
 
 bool ModelFactory::validateDependencies(QObject* model) {
-    // Validate that model has required dependencies
-    return model != nullptr;
+    // Validate that model pointer is valid
+    // Note: Dependency validation (e.g., DocumentModel has RenderModel) is
+    // performed during model creation in the individual factory methods.
+    // This method serves as a final sanity check that the model was created
+    // successfully.
+    if (!model) {
+        m_logger.warning("Model validation failed: null model pointer");
+        return false;
+    }
+
+    // Verify the model has a valid object name (set by configureModel)
+    if (model->objectName().isEmpty()) {
+        m_logger.warning(
+            QString("Model validation warning: %1 has no object name")
+                .arg(model->metaObject()->className()));
+        // This is a warning, not a failure - continue
+    }
+
+    return true;
 }
 
 // SingletonModelFactory implementation

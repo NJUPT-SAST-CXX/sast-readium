@@ -20,7 +20,7 @@ struct RecentFileInfo {
 
     RecentFileInfo() : fileSize(0) {}
 
-    RecentFileInfo(const QString& path) : filePath(path), fileSize(0) {
+    explicit RecentFileInfo(const QString& path) : filePath(path), fileSize(0) {
         QFileInfo info(path);
         fileName = info.fileName();
         lastOpened = QDateTime::currentDateTime();
@@ -29,7 +29,7 @@ struct RecentFileInfo {
         }
     }
 
-    bool isValid() const {
+    [[nodiscard]] bool isValid() const {
         return !filePath.isEmpty() && QFileInfo(filePath).exists();
     }
 
@@ -47,26 +47,32 @@ class RecentFilesManager : public QObject {
 
 public:
     explicit RecentFilesManager(QObject* parent = nullptr);
-    ~RecentFilesManager();
+    ~RecentFilesManager() override;
 
     // 文件操作
     virtual void addRecentFile(const QString& filePath);
-    QList<RecentFileInfo> getRecentFiles() const;
-    QStringList getRecentFilePaths() const;
+    [[nodiscard]] QList<RecentFileInfo> getRecentFiles() const;
+    [[nodiscard]] QStringList getRecentFilePaths() const;
     void clearRecentFiles();
     void removeRecentFile(const QString& filePath);
 
     // 配置管理
     void setMaxRecentFiles(int maxFiles);
-    int getMaxRecentFiles() const;
+    [[nodiscard]] int getMaxRecentFiles() const;
 
     // 实用功能
-    bool hasRecentFiles() const;
-    int getRecentFilesCount() const;
+    [[nodiscard]] bool hasRecentFiles() const;
+    [[nodiscard]] int getRecentFilesCount() const;
     void cleanupInvalidFiles();
 
     // 异步初始化
     void initializeAsync();
+
+    // Deleted copy/move operations (public for better error messages)
+    RecentFilesManager(const RecentFilesManager&) = delete;
+    RecentFilesManager& operator=(const RecentFilesManager&) = delete;
+    RecentFilesManager(RecentFilesManager&&) = delete;
+    RecentFilesManager& operator=(RecentFilesManager&&) = delete;
 
 signals:
     void recentFilesChanged();

@@ -146,6 +146,9 @@ void RecentFileItemWidget::mousePressEvent(QMouseEvent* event) {
         m_isPressed = true;
         startPressAnimation();
         update();
+    } else if (event->button() == Qt::RightButton) {
+        // Show context menu for additional actions
+        showContextMenu(event->globalPosition().toPoint());
     }
     QFrame::mousePressEvent(event);
 }
@@ -159,6 +162,75 @@ void RecentFileItemWidget::mouseReleaseEvent(QMouseEvent* event) {
         update();
     }
     QFrame::mouseReleaseEvent(event);
+}
+
+void RecentFileItemWidget::showContextMenu(const QPoint& globalPos) {
+    QMenu contextMenu(this);
+    contextMenu.setTitle(tr("Recent File Actions"));
+
+    QAction* openAction = contextMenu.addAction(tr("Open"));
+    openAction->setShortcut(QKeySequence::Open);
+    openAction->setIcon(QIcon(":/icons/open"));
+
+    QAction* openInNewTabAction = contextMenu.addAction(tr("Open in New Tab"));
+    openInNewTabAction->setShortcut(QKeySequence("Ctrl+T"));
+    openInNewTabAction->setIcon(QIcon(":/icons/new-tab"));
+
+    contextMenu.addSeparator();
+
+    QAction* removeAction = contextMenu.addAction(tr("Remove from Recent"));
+    removeAction->setIcon(QIcon(":/icons/remove"));
+
+    QAction* clearAllAction = contextMenu.addAction(tr("Clear All Recent Files"));
+    clearAllAction->setIcon(QIcon(":/icons/clear-all"));
+
+    // Connect actions
+    connect(openAction, &QAction::triggered, [this]() {
+        emit clicked(m_fileInfo.filePath);
+    });
+
+    connect(openInNewTabAction, &QAction::triggered, [this]() {
+        emit openInNewTabRequested(m_fileInfo.filePath);
+    });
+
+    connect(removeAction, &QAction::triggered, [this]() {
+        emit removeRequested(m_fileInfo.filePath);
+    });
+
+    connect(clearAllAction, &QAction::triggered, [this]() {
+        emit clearAllRecentRequested();
+    });
+
+    // Show the context menu
+    contextMenu.exec(globalPos);
+}
+
+void RecentFileItemWidget::keyPressEvent(QKeyEvent* event) {
+    switch (event->key()) {
+        case Qt::Key_Return:
+        case Qt::Key_Enter:
+            emit clicked(m_fileInfo.filePath);
+            break;
+        case Qt::Key_Delete:
+        case Qt::Key_Backspace:
+            emit removeRequested(m_fileInfo.filePath);
+            break;
+        case Qt::Key_Down:
+            // Navigate to next item
+            if (nextInFocusChain()) {
+                nextInFocusChain()->setFocus();
+            }
+            break;
+        case Qt::Key_Up:
+            // Navigate to previous item
+            if (previousInFocusChain()) {
+                previousInFocusChain()->setFocus();
+            }
+            break;
+        default:
+            QFrame::keyPressEvent(event);
+            break;
+    }
 }
 
 void RecentFileItemWidget::enterEvent(QEnterEvent* event) {
@@ -607,10 +679,6 @@ void RecentFileListWidget::setupUI() {
 
     m_scrollArea->setWidget(m_contentWidget);
     m_mainLayout->addWidget(m_scrollArea);
-}
-
-void RecentFileListWidget::setupConnections() {
-    // 连接已在setRecentFilesManager中处理
 }
 
 void RecentFileListWidget::addFileItem(const RecentFileInfo& fileInfo) {

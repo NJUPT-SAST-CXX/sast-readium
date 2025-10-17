@@ -22,20 +22,73 @@ CommandFactory::~CommandFactory() {
 
 void CommandFactory::initializeActionMap() {
     // Map string names to ActionMap enum values
+    // Document operations
     m_actionMap["openFile"] = ActionMap::openFile;
-    m_actionMap["closeFile"] = ActionMap::closeFile;
+    m_actionMap["openFolder"] = ActionMap::openFolder;
+    m_actionMap["save"] = ActionMap::save;
     m_actionMap["saveAs"] = ActionMap::saveAs;
+    m_actionMap["saveFile"] = ActionMap::saveFile;
+    m_actionMap["closeFile"] = ActionMap::closeFile;
+    m_actionMap["exportFile"] = ActionMap::exportFile;
     m_actionMap["printFile"] = ActionMap::printFile;
     m_actionMap["reloadFile"] = ActionMap::reloadFile;
     m_actionMap["showDocumentMetadata"] = ActionMap::showDocumentMetadata;
-    m_actionMap["nextPage"] = ActionMap::nextPage;
-    m_actionMap["previousPage"] = ActionMap::previousPage;
+
+    // Tab operations
+    m_actionMap["newTab"] = ActionMap::newTab;
+    m_actionMap["closeTab"] = ActionMap::closeTab;
+    m_actionMap["closeCurrentTab"] = ActionMap::closeCurrentTab;
+    m_actionMap["closeAllTabs"] = ActionMap::closeAllTabs;
+    m_actionMap["nextTab"] = ActionMap::nextTab;
+    m_actionMap["prevTab"] = ActionMap::prevTab;
+    m_actionMap["switchToTab"] = ActionMap::switchToTab;
+
+    // Sidebar operations
+    m_actionMap["toggleSideBar"] = ActionMap::toggleSideBar;
+    m_actionMap["showSideBar"] = ActionMap::showSideBar;
+    m_actionMap["hideSideBar"] = ActionMap::hideSideBar;
+
+    // View mode operations
+    m_actionMap["setSinglePageMode"] = ActionMap::setSinglePageMode;
+    m_actionMap["setContinuousScrollMode"] = ActionMap::setContinuousScrollMode;
+
+    // Page navigation operations
     m_actionMap["firstPage"] = ActionMap::firstPage;
+    m_actionMap["previousPage"] = ActionMap::previousPage;
+    m_actionMap["nextPage"] = ActionMap::nextPage;
     m_actionMap["lastPage"] = ActionMap::lastPage;
+    m_actionMap["goToPage"] = ActionMap::goToPage;
+
+    // Zoom operations
     m_actionMap["zoomIn"] = ActionMap::zoomIn;
     m_actionMap["zoomOut"] = ActionMap::zoomOut;
     m_actionMap["fitToWidth"] = ActionMap::fitToWidth;
     m_actionMap["fitToPage"] = ActionMap::fitToPage;
+    m_actionMap["fitToHeight"] = ActionMap::fitToHeight;
+
+    // Rotation operations
+    m_actionMap["rotateLeft"] = ActionMap::rotateLeft;
+    m_actionMap["rotateRight"] = ActionMap::rotateRight;
+
+    // Theme operations
+    m_actionMap["toggleTheme"] = ActionMap::toggleTheme;
+
+    // Search operations
+    m_actionMap["showSearch"] = ActionMap::showSearch;
+    m_actionMap["hideSearch"] = ActionMap::hideSearch;
+    m_actionMap["toggleSearch"] = ActionMap::toggleSearch;
+    m_actionMap["findNext"] = ActionMap::findNext;
+    m_actionMap["findPrevious"] = ActionMap::findPrevious;
+    m_actionMap["clearSearch"] = ActionMap::clearSearch;
+
+    // Recent files operations
+    m_actionMap["openRecentFile"] = ActionMap::openRecentFile;
+    m_actionMap["clearRecentFiles"] = ActionMap::clearRecentFiles;
+
+    // Fullscreen operation
+    m_actionMap["fullScreen"] = ActionMap::fullScreen;
+
+    m_logger.debug(QString("Initialized action map with %1 entries").arg(m_actionMap.size()));
 }
 
 std::unique_ptr<DocumentCommand> CommandFactory::createDocumentCommand(
@@ -139,10 +192,14 @@ std::unique_ptr<DocumentCommand> CommandFactory::createPropertiesCommand() {
         return nullptr;
     }
 
-    // Properties command might not exist in DocumentCommandFactory
-    // Return a basic implementation or nullptr
-    m_logger.warning("Properties command not implemented");
-    return nullptr;
+    // Get the main window widget for dialog parent
+    QWidget* parentWidget = nullptr;
+    if (m_mainWindow) {
+        parentWidget = m_mainWindow;
+    }
+
+    return std::make_unique<ShowDocumentPropertiesCommand>(
+        m_documentController, parentWidget);
 }
 
 std::unique_ptr<NavigationCommand> CommandFactory::createNavigationCommand(
@@ -268,16 +325,16 @@ std::unique_ptr<NavigationCommand> CommandFactory::createViewModeCommand(
     // Map mode string to ChangeViewModeCommand::ViewMode
     if (mode == "single-page") {
         return std::make_unique<ChangeViewModeCommand>(
-            m_viewWidget, ChangeViewModeCommand::SinglePage);
+            m_viewWidget, ChangeViewModeCommand::ViewMode::SinglePage);
     } else if (mode == "continuous") {
         return std::make_unique<ChangeViewModeCommand>(
-            m_viewWidget, ChangeViewModeCommand::Continuous);
+            m_viewWidget, ChangeViewModeCommand::ViewMode::Continuous);
     } else if (mode == "facing-pages") {
         return std::make_unique<ChangeViewModeCommand>(
-            m_viewWidget, ChangeViewModeCommand::FacingPages);
+            m_viewWidget, ChangeViewModeCommand::ViewMode::FacingPages);
     } else if (mode == "book-view") {
         return std::make_unique<ChangeViewModeCommand>(
-            m_viewWidget, ChangeViewModeCommand::BookView);
+            m_viewWidget, ChangeViewModeCommand::ViewMode::BookView);
     }
 
     m_logger.warning(QString("Unknown view mode: %1").arg(mode));
@@ -291,8 +348,8 @@ std::unique_ptr<NavigationCommand> CommandFactory::createRotateCommand(
         return nullptr;
     }
 
-    auto direction = clockwise ? RotateViewCommand::Clockwise
-                               : RotateViewCommand::CounterClockwise;
+    auto direction = clockwise ? RotateViewCommand::RotationDirection::Clockwise
+                               : RotateViewCommand::RotationDirection::CounterClockwise;
     return std::make_unique<RotateViewCommand>(m_viewWidget, direction);
 }
 
@@ -378,8 +435,13 @@ void CommandFactory::configureCommand(QObject* command,
     }
 }
 
-ActionMap CommandFactory::mapStringToAction(const QString& actionStr) const {
-    return m_actionMap.value(actionStr, ActionMap::openFile);
+ActionMap CommandFactory::mapStringToAction(const QString& actionStr) {
+    if (!m_actionMap.contains(actionStr)) {
+        m_logger.warning(QString("Unknown action string '%1' - no mapping available").arg(actionStr));
+        // Return a safe default but log the issue
+        return ActionMap::openFile;
+    }
+    return m_actionMap.value(actionStr);
 }
 
 QString CommandFactory::mapActionToString(ActionMap action) const {
@@ -525,6 +587,12 @@ QObject* CommandBuilder::buildRaw() {
 CommandPrototypeRegistry::CommandPrototypeRegistry(CommandFactory* factory)
     : m_factory(factory) {}
 
+CommandPrototypeRegistry::~CommandPrototypeRegistry() {
+    // Delete all registered prototypes to prevent memory leaks
+    qDeleteAll(m_prototypes);
+    m_prototypes.clear();
+}
+
 void CommandPrototypeRegistry::registerPrototype(const QString& name,
                                                  QObject* prototype) {
     if (m_prototypes.contains(name)) {
@@ -534,19 +602,121 @@ void CommandPrototypeRegistry::registerPrototype(const QString& name,
 }
 
 void CommandPrototypeRegistry::registerStandardPrototypes() {
-    // Register standard command prototypes
-    // This would typically create prototype instances of common commands
-    // For now, this is a placeholder
+    if (!m_factory) {
+        return;
+    }
+
+    // Register standard document command prototypes
+    // Note: These are prototype instances that can be cloned for creating new
+    // commands The actual cloning mechanism would need to be implemented based
+    // on specific requirements
+
+    // Document commands
+    registerPrototype("open-document",
+                      m_factory->createOpenCommand().release());
+    registerPrototype("close-document",
+                      m_factory->createCloseCommand().release());
+    registerPrototype("save-as", m_factory->createSaveAsCommand().release());
+    registerPrototype("print", m_factory->createPrintCommand().release());
+    registerPrototype("reload", m_factory->createReloadCommand().release());
+    registerPrototype("properties",
+                      m_factory->createPropertiesCommand().release());
+
+    // Navigation commands
+    registerPrototype("next-page", m_factory->createNextPageCommand().release());
+    registerPrototype("previous-page",
+                      m_factory->createPreviousPageCommand().release());
+    registerPrototype("first-page",
+                      m_factory->createFirstPageCommand().release());
+    registerPrototype("last-page", m_factory->createLastPageCommand().release());
+    registerPrototype("goto-page", m_factory->createGoToPageCommand(1).release());
+
+    // Zoom commands
+    registerPrototype("zoom-in", m_factory->createZoomInCommand().release());
+    registerPrototype("zoom-out", m_factory->createZoomOutCommand().release());
+    registerPrototype("zoom-fit-width",
+                      m_factory->createFitWidthCommand().release());
+    registerPrototype("zoom-fit-page",
+                      m_factory->createFitPageCommand().release());
+    registerPrototype("zoom-100",
+                      m_factory->createSetZoomCommand(1.0).release());
+
+    // Rotation commands
+    registerPrototype("rotate-clockwise",
+                      m_factory->createRotateCommand(true).release());
+    registerPrototype("rotate-counterclockwise",
+                      m_factory->createRotateCommand(false).release());
+
+    // View mode commands
+    registerPrototype("fullscreen",
+                      m_factory->createFullscreenCommand().release());
 }
 
 QObject* CommandPrototypeRegistry::cloneCommand(const QString& prototypeName) {
-    if (!m_prototypes.contains(prototypeName)) {
+    if (!m_prototypes.contains(prototypeName) || !m_factory) {
         return nullptr;
     }
 
-    // Qt doesn't have built-in object cloning
-    // This would require implementing a custom cloning mechanism
-    // For now, return nullptr as a placeholder
+    // PSEUDO-PROTOTYPE PATTERN IMPLEMENTATION:
+    // This is not a true prototype pattern with clone() methods.
+    // Since Qt command objects don't implement a clone() interface,
+    // we store prototype instances for reference/registration purposes,
+    // but create new instances via the factory when "cloning".
+    //
+    // The stored prototypes serve as a registry of available command types,
+    // but the actual "cloning" is just factory recreation based on the name.
+    // This approach avoids the complexity of implementing clone() methods
+    // on all command classes while still providing a prototype-like API.
+
+    // Document commands
+    if (prototypeName == "open-document") {
+        return m_factory->createOpenCommand().release();
+    } else if (prototypeName == "close-document") {
+        return m_factory->createCloseCommand().release();
+    } else if (prototypeName == "save-as") {
+        return m_factory->createSaveAsCommand().release();
+    } else if (prototypeName == "print") {
+        return m_factory->createPrintCommand().release();
+    } else if (prototypeName == "reload") {
+        return m_factory->createReloadCommand().release();
+    } else if (prototypeName == "properties") {
+        return m_factory->createPropertiesCommand().release();
+    }
+    // Navigation commands
+    else if (prototypeName == "next-page") {
+        return m_factory->createNextPageCommand().release();
+    } else if (prototypeName == "previous-page") {
+        return m_factory->createPreviousPageCommand().release();
+    } else if (prototypeName == "first-page") {
+        return m_factory->createFirstPageCommand().release();
+    } else if (prototypeName == "last-page") {
+        return m_factory->createLastPageCommand().release();
+    } else if (prototypeName == "goto-page") {
+        return m_factory->createGoToPageCommand(1).release();
+    }
+    // Zoom commands
+    else if (prototypeName == "zoom-in") {
+        return m_factory->createZoomInCommand().release();
+    } else if (prototypeName == "zoom-out") {
+        return m_factory->createZoomOutCommand().release();
+    } else if (prototypeName == "zoom-fit-width") {
+        return m_factory->createFitWidthCommand().release();
+    } else if (prototypeName == "zoom-fit-page") {
+        return m_factory->createFitPageCommand().release();
+    } else if (prototypeName == "zoom-100") {
+        return m_factory->createSetZoomCommand(1.0).release();
+    }
+    // Rotation commands
+    else if (prototypeName == "rotate-clockwise") {
+        return m_factory->createRotateCommand(true).release();
+    } else if (prototypeName == "rotate-counterclockwise") {
+        return m_factory->createRotateCommand(false).release();
+    }
+    // View mode commands
+    else if (prototypeName == "fullscreen") {
+        return m_factory->createFullscreenCommand().release();
+    }
+
     return nullptr;
 }
 

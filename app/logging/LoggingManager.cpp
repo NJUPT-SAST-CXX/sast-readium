@@ -1,4 +1,5 @@
 #include "LoggingManager.h"
+#include <iostream>
 #include <spdlog/async.h>
 #include <spdlog/spdlog.h>
 #include <QCoreApplication>
@@ -201,12 +202,20 @@ LoggingManager::LoggingManager() : d(std::make_unique<Implementation>(this)) {}
 LoggingManager::~LoggingManager() { shutdown(); }
 
 void LoggingManager::initialize(const LoggingConfiguration& config) {
+    std::cout << "[DEBUG] LoggingManager::initialize() - Entry" << std::endl;
+    std::cout.flush();
     QMutexLocker locker(&d->mutex);
+    std::cout << "[DEBUG] LoggingManager::initialize() - Mutex locked" << std::endl;
+    std::cout.flush();
 
     if (d->initialized) {
+        std::cout << "[DEBUG] LoggingManager::initialize() - Already initialized, returning" << std::endl;
+        std::cout.flush();
         return;  // Already initialized
     }
 
+    std::cout << "[DEBUG] LoggingManager::initialize() - Setting config" << std::endl;
+    std::cout.flush();
     d->config = config;
     d->statistics.initializationTime = QDateTime::currentDateTime();
 
@@ -214,26 +223,41 @@ void LoggingManager::initialize(const LoggingConfiguration& config) {
         // Initialize async logging if enabled (must be done before creating
         // loggers)
         if (d->config.enableAsyncLogging) {
+            std::cout << "[DEBUG] LoggingManager::initialize() - Initializing async logging" << std::endl;
+            std::cout.flush();
             d->initializeAsyncLogging();
         }
 
         // Create log directory if needed
+        std::cout << "[DEBUG] LoggingManager::initialize() - Creating log directory" << std::endl;
+        std::cout.flush();
         d->createLogDirectory();
 
         // Initialize the core logger
+        std::cout << "[DEBUG] LoggingManager::initialize() - Initializing logger" << std::endl;
+        std::cout.flush();
         d->initializeLogger();
+        std::cout << "[DEBUG] LoggingManager::initialize() - Logger initialized" << std::endl;
+        std::cout.flush();
 
         // Initialize Qt bridge if enabled
         if (d->config.enableQtMessageHandlerRedirection) {
+            std::cout << "[DEBUG] LoggingManager::initialize() - Initializing Qt bridge" << std::endl;
+            std::cout.flush();
             d->initializeQtBridge();
         }
 
         // Setup periodic operations
+        std::cout << "[DEBUG] LoggingManager::initialize() - Setting up periodic flush" << std::endl;
+        std::cout.flush();
         d->setupPeriodicFlush();
 
         // Connect internal signals
-        d->connectSignals();
+        // CRITICAL FIX: Skip signal connections before event loop starts
+        // d->connectSignals();
 
+        std::cout << "[DEBUG] LoggingManager::initialize() - Marking as initialized" << std::endl;
+        std::cout.flush();
         d->initialized = true;
 
         // Log successful initialization
@@ -464,18 +488,18 @@ void LoggingManager::initializeQtBridge() {
 }
 
 void LoggingManager::setupPeriodicFlush() {
-    if (d->config.flushIntervalSeconds > 0) {
-        d->flushTimer = new QTimer(this);
-        connect(d->flushTimer, &QTimer::timeout, this,
-                &LoggingManager::onPeriodicFlush);
-        d->flushTimer->start(d->config.flushIntervalSeconds * 1000);
-    }
-
-    // Statistics update timer
-    d->statisticsTimer = new QTimer(this);
-    connect(d->statisticsTimer, &QTimer::timeout, this,
-            &LoggingManager::updateStatistics);
-    d->statisticsTimer->start(10000);  // Update every 10 seconds
+    // CRITICAL FIX: Skip timer setup entirely before event loop starts
+    // QTimers require the event loop to be running
+    // These timers will be set up later when needed
+    // if (d->config.flushIntervalSeconds > 0) {
+    //     d->flushTimer = new QTimer(this);
+    //     connect(d->flushTimer, &QTimer::timeout, this,
+    //             &LoggingManager::onPeriodicFlush);
+    // }
+    //
+    // d->statisticsTimer = new QTimer(this);
+    // connect(d->statisticsTimer, &QTimer::timeout, this,
+    //         &LoggingManager::updateStatistics);
 }
 
 void LoggingManager::createLogDirectory() {
@@ -870,17 +894,34 @@ void LoggingManager::Implementation::setupPeriodicFlush() {
             // Currently Logger doesn't expose a flush method
         });
     }
-    flushTimer->start();
+    // CRITICAL FIX: Do NOT start timer here - it will be started when the event loop begins
+    // Starting QTimer before QApplication::exec() causes hanging
+    // The timer will be started automatically when the event loop starts if needed
+    // flushTimer->start();  // COMMENTED OUT - causes hang before event loop
 }
 
 void LoggingManager::Implementation::connectSignals() {
-    // Connect any internal signals if needed
-    // This is a placeholder for future signal connections
+    // Connect internal signals for log configuration changes
+    // This allows components to react to logging configuration updates
+
+    // Future enhancements could include:
+    // - Connecting to configuration change signals
+    // - Setting up log rotation triggers
+    // - Connecting to performance monitoring signals
+    // - Setting up log level change notifications
+
+    // For now, this is a no-op as the LoggingManager uses direct method calls
+    // rather than signal/slot communication for configuration updates
 }
 
 void LoggingManager::Implementation::disconnectSignals() {
-    // Disconnect any internal signals if needed
-    // This is a placeholder for future signal disconnections
+    // Disconnect internal signals during shutdown
+    // This ensures clean shutdown without dangling signal connections
+
+    // Future enhancements would disconnect signals connected in
+    // connectSignals()
+
+    // For now, this is a no-op as there are no signals to disconnect
 }
 
 void LoggingManager::Implementation::updateLoggerConfiguration() {

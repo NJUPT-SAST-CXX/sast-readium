@@ -5,7 +5,9 @@
 #include <QFrame>
 #include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPropertyAnimation>
 #include <QPushButton>
@@ -39,6 +41,8 @@ public:
 signals:
     void clicked(const QString& filePath);
     void removeRequested(const QString& filePath);
+    void openInNewTabRequested(const QString& filePath);
+    void clearAllRecentRequested();
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
@@ -46,6 +50,7 @@ protected:
     void enterEvent(QEnterEvent* event) override;
     void leaveEvent(QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
 
 private slots:
     void onRemoveClicked();
@@ -57,6 +62,7 @@ private:
     void setHovered(bool hovered);
     void startHoverAnimation(bool hovered);
     void startPressAnimation();
+    void showContextMenu(const QPoint& globalPos);
 
     RecentFileInfo m_fileInfo;
 
@@ -128,7 +134,6 @@ private slots:
 
 private:
     void setupUI();
-    void setupConnections();
     void addFileItem(const RecentFileInfo& fileInfo);
     void removeFileItem(const QString& filePath);
     void updateEmptyState();

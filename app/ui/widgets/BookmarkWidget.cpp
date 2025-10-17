@@ -8,6 +8,7 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
+#include "ToastNotification.h"
 
 BookmarkWidget::BookmarkWidget(QWidget* parent)
     : QWidget(parent),
@@ -218,9 +219,7 @@ bool BookmarkWidget::addBookmark(const QString& documentPath, int pageNumber,
 
     // Check if bookmark already exists
     if (m_bookmarkModel->hasBookmarkForPage(documentPath, pageNumber)) {
-        QMessageBox::information(
-            this, tr("Bookmark Exists"),
-            tr("Page %1 already has a bookmark").arg(pageNumber + 1));
+        TOAST_INFO(this, tr("Page %1 already has a bookmark").arg(pageNumber + 1));
         return false;
     }
 
@@ -284,8 +283,7 @@ void BookmarkWidget::onBookmarkSelectionChanged() { updateBookmarkActions(); }
 
 void BookmarkWidget::onAddBookmarkRequested() {
     if (m_currentDocument.isEmpty()) {
-        QMessageBox::warning(this, tr("Cannot Add Bookmark"),
-                             tr("Please open a PDF document first"));
+        TOAST_WARNING(this, tr("Please open a PDF document first"));
         return;
     }
 

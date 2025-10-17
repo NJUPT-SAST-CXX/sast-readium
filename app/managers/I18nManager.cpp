@@ -11,20 +11,19 @@
 // Private implementation class
 class I18nManagerImpl {
 public:
-    I18nManagerImpl()
-        : m_currentLanguage(I18nManager::System), m_initialized(false) {
+    I18nManagerImpl() {
         // Set translation path relative to application directory
         m_translationPath = QApplication::applicationDirPath();
     }
 
     bool loadTranslation(const QString& languageCode);
     void removeTranslators();
-    QString getSystemLanguageCode() const;
+    [[nodiscard]] QString getSystemLanguageCode() const;
 
-    I18nManager::Language m_currentLanguage;
+    I18nManager::Language m_currentLanguage{I18nManager::Language::System};
     std::vector<std::unique_ptr<QTranslator>> m_translators;
     QString m_translationPath;
-    bool m_initialized;
+    bool m_initialized{false};
 };
 
 I18nManager::I18nManager(QObject* parent)
@@ -205,37 +204,37 @@ QString I18nManager::currentLanguageName() const {
 
 QString I18nManager::languageToCode(Language lang) {
     switch (lang) {
-        case English:
+        case Language::English:
             return "en";
-        case Chinese:
+        case Language::Chinese:
             return "zh";
-        case System:
+        case Language::System:
             return "system";
-        default:
-            return "en";
     }
+    return "en";  // Default fallback
 }
 
 I18nManager::Language I18nManager::codeToLanguage(const QString& code) {
     if (code == "zh" || code.startsWith("zh_")) {
-        return Chinese;
-    } else if (code == "en" || code.startsWith("en_")) {
-        return English;
-    } else if (code == "system") {
-        return System;
+        return Language::Chinese;
     }
-    return English;  // Default
+    if (code == "en" || code.startsWith("en_")) {
+        return Language::English;
+    }
+    if (code == "system") {
+        return Language::System;
+    }
+    return Language::English;  // Default
 }
 
 QString I18nManager::languageToName(Language lang) {
     switch (lang) {
-        case English:
+        case Language::English:
             return QObject::tr("English");
-        case Chinese:
+        case Language::Chinese:
             return QObject::tr("简体中文");
-        case System:
+        case Language::System:
             return QObject::tr("System Default");
-        default:
-            return QObject::tr("Unknown");
     }
+    return QObject::tr("Unknown");  // Default fallback
 }

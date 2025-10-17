@@ -275,20 +275,29 @@ void SearchPerformanceTest::testGetLastSearchMetrics() {
     // Perform a search to generate metrics
     m_performance->boyerMooreSearch(m_testText, "test", false, -1);
 
-    // Skip metrics retrieval due to mutex issues
-    // TODO: Fix getLastSearchMetrics() mutex deadlock
-    QVERIFY(true);
+    // Retrieve metrics (mutex issue was a test design problem, not an actual deadlock)
+    SearchPerformance::PerformanceMetrics metrics =
+        m_performance->getLastSearchMetrics();
+
+    // Verify metrics were populated
+    QVERIFY(metrics.algorithmTime >= 0);
+    QVERIFY(metrics.resultsFound >= 0);
+    QCOMPARE(metrics.algorithmUsed, QString("Boyer-Moore"));
 }
 
 void SearchPerformanceTest::testResetMetrics() {
     // Perform a search to generate metrics
     m_performance->boyerMooreSearch(m_testText, "test", false, -1);
 
+    // Reset metrics
     m_performance->resetMetrics();
 
-    // Skip metrics retrieval due to mutex issues
-    // TODO: Fix getLastSearchMetrics() mutex deadlock
-    QVERIFY(true);
+    // Verify metrics were reset
+    SearchPerformance::PerformanceMetrics metrics =
+        m_performance->getLastSearchMetrics();
+    QCOMPARE(metrics.algorithmTime, 0);
+    QCOMPARE(metrics.resultsFound, 0);
+    QCOMPARE(metrics.algorithmUsed, QString("None"));
 }
 
 void SearchPerformanceTest::testInitializeMemoryPool() {

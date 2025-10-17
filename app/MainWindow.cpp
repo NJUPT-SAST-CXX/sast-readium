@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include <iostream>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QMessageBox>
@@ -7,26 +8,39 @@
 #include "delegate/ViewDelegate.h"
 #include "factory/ModelFactory.h"
 #include "managers/SystemTrayManager.h"
+#include "ui/widgets/NotificationHelper.h"
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), m_logger("MainWindow") {
     SLOG_TIMER("MainWindow::Constructor");
 
+    m_logger.info("========== MainWindow Constructor STARTED ==========");
     m_logger.debug("Creating MainWindow with modular architecture...");
 
-    // Set initial window properties
+    // Set initial window properties with responsive design constraints
     setWindowTitle("SAST Readium");
+    setMinimumSize(800, 600);  // Prevent UI breaking at small sizes
     resize(1280, 800);
+
+    // Set size policy for proper resizing behavior
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    m_logger.debug("Window properties set: title='SAST Readium', size=1280x800, minimum=800x600");
 
     try {
         // Create the application controller which manages all subsystems
+        m_logger.info("Creating ApplicationController...");
         m_applicationController =
             std::make_unique<ApplicationController>(this, this);
+        m_logger.info("ApplicationController created successfully");
 
         // Create view delegate for UI management
+        m_logger.info("Creating ViewDelegate...");
         m_viewDelegate = std::make_unique<ViewDelegate>(this, this);
+        m_logger.info("ViewDelegate created successfully");
 
         // Connect initialization signals
+        m_logger.debug("Connecting initialization signals...");
         connect(m_applicationController.get(),
                 &ApplicationController::initializationCompleted, this,
                 &MainWindow::onInitializationCompleted);
@@ -36,11 +50,14 @@ MainWindow::MainWindow(QWidget* parent)
         connect(m_applicationController.get(),
                 &ApplicationController::errorOccurred, this,
                 &MainWindow::onApplicationError);
+        m_logger.debug("Initialization signals connected");
 
         // Use command pattern for initialization
+        m_logger.info("Creating initialization command sequence...");
         auto initCommand =
             InitializationCommandFactory::createFullInitializationSequence(
                 m_applicationController.get());
+        m_logger.info("Initialization command sequence created");
 
         // Connect command progress signals
         connect(initCommand.get(), &InitializationCommand::executionProgress,
@@ -49,18 +66,23 @@ MainWindow::MainWindow(QWidget* parent)
                 });
 
         // Execute initialization
+        m_logger.info("Executing initialization command sequence...");
         if (!initCommand->execute()) {
             QString error = initCommand->errorMessage();
-            m_logger.error("Initialization failed: " + error);
+            m_logger.error("Initialization command execution FAILED: " + error);
             onInitializationFailed(error);
+        } else {
+            m_logger.info("Initialization command execution SUCCEEDED");
         }
 
     } catch (const std::exception& e) {
         QString error = QString::fromStdString(e.what());
-        m_logger.error("Failed to create application components: " + error);
+        m_logger.error("EXCEPTION in MainWindow constructor: " + error);
         QMessageBox::critical(this, "Initialization Error",
                               "Failed to initialize application: " + error);
     }
+
+    m_logger.info("========== MainWindow Constructor COMPLETED ==========");
 }
 
 MainWindow::~MainWindow() noexcept {
@@ -112,6 +134,7 @@ void MainWindow::onInitializationCompleted() {
         m_viewDelegate->setStatusBar(m_applicationController->statusBar());
         m_viewDelegate->setToolBar(m_applicationController->toolBar());
         m_viewDelegate->setMenuBar(m_applicationController->menuBar());
+        m_viewDelegate->setSplitter(m_applicationController->mainSplitter());
 
         // Setup and restore layout
         m_viewDelegate->setupMainLayout();
@@ -134,8 +157,7 @@ void MainWindow::onApplicationError(const QString& context,
                                     const QString& error) {
     m_logger.error(QString("Application error in %1: %2").arg(context, error));
 
-    // Show error to user
-    QMessageBox::warning(
-        this, "Application Error",
-        QString("An error occurred in %1:\n\n%2").arg(context, error));
+    // Show error to user with modern toast notification
+    NotificationHelper::showError(
+        this, QString("Error in %1: %2").arg(context, error), 6000);
 }

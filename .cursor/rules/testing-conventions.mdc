@@ -1,0 +1,533 @@
+---
+globs: tests/**/*.cpp,tests/**/*.h
+---
+
+# Testing Conventions for SAST Readium
+
+## Test Framework
+
+### Qt Test
+Project uses **Qt Test** framework with custom extensions. See [tests/README.md](mdc:tests/README.md) for comprehensive documentation.
+
+### TestUtilities Base Class
+All tests inherit from `TestBase` in [TestUtilities.h](mdc:tests/TestUtilities.h):
+```cpp
+#include "../TestUtilities.h"
+
+class TestComponent : public TestBase {
+    Q_OBJECT
+private slots:
+    void testFeature();
+};
+```
+
+## Test Categories
+
+### Directory Structure
+```
+tests/
+├── unit/                    # Unit tests for individual components
+├── integration/             # Integration tests for component interactions
+├── command/                 # Command pattern tests
+├── controller/              # Controller and service tests
+├── factory/                 # Factory pattern tests
+├── performance/             # Performance benchmarks
+├── real_world/             # Real-world scenario tests
+└── TestUtilities.h/cpp     # Test framework base
+```
+
+### Unit Tests
+Test individual components in isolation:
+```cpp
+class TestSearchEngine : public TestBase {
+    Q_OBJECT
+private slots:
+    void testBasicSearch();
+    void testCaseSensitiveSearch();
+    void testRegexSearch();
+    void testErrorHandling();
+};
+```
+
+### Integration Tests
+Test interaction between components:
+```cpp
+class TestSearchIntegration : public TestBase {
+    Q_OBJECT
+private slots:
+    void testSearchWithCache();
+    void testSearchWithEventBus();
+    void testSearchPipeline();
+};
+```
+
+### Performance Tests
+Benchmark operations:
+```cpp
+class TestRenderingPerformance : public TestBase {
+    Q_OBJECT
+private slots:
+    void benchmarkPageRendering();
+    void testMemoryUsage();
+    void testConcurrentLoad();
+};
+```
+
+## Test Structure
+
+### Standard Test Pattern
+```cpp
+#include "../TestUtilities.h"
+#include "../../app/ComponentToTest.h"
+
+class TestComponent : public TestBase {
+    Q_OBJECT
+
+private slots:
+    // Lifecycle methods (all optional)
+    void initTestCase() override;    // Once before all tests
+    void cleanupTestCase() override; // Once after all tests
+    void init() override;             // Before each test
+    void cleanup() override;          // After each test
+
+    // Test methods
+    void testFeatureOne();
+    void testFeatureTwo();
+    void testErrorCondition();
+
+private:
+    // Test data
+    ComponentToTest* m_component = nullptr;
+};
+
+void TestComponent::initTestCase() {
+    // Global setup (e.g., initialize services)
+    setupServices();
+}
+
+void TestComponent::init() {
+    // Per-test setup
+    m_component = new ComponentToTest();
+}
+
+void TestComponent::cleanup() {
+    // Per-test cleanup
+    delete m_component;
+    m_component = nullptr;
+}
+
+void TestComponent::testFeatureOne() {
+    // Arrange
+    m_component->setValue(42);
+
+    // Act
+    int result = m_component->getValue();
+
+    // Assert
+    QCOMPARE(result, 42);
+}
+
+// Required: Qt Test main and moc include
+QTEST_MAIN(TestComponent)
+#include "test_component.moc"
+```
+
+## Assertions
+
+### Common Qt Test Macros
+```cpp
+// Boolean checks
+QVERIFY(condition);
+QVERIFY2(condition, "failure message");
+
+// Equality checks
+QCOMPARE(actual, expected);
+QCOMPARE_EQ(actual, expected);  // C++20
+QCOMPARE_NE(actual, expected);  // Not equal
+
+// Floating point comparison
+QCOMPARE(actualFloat, expectedFloat);  // Uses epsilon
+
+// Exception checks
+QVERIFY_EXCEPTION_THROWN(expression, ExceptionType);
+
+// Timeout checks (custom from TestUtilities)
+QVERIFY_TIMEOUT(condition, timeoutMs);
+
+// Skip tests
+QSKIP("Reason for skipping");
+
+// Fail test
+QFAIL("Test failed for specific reason");
+```
+
+### Custom Assertions
+From [TestUtilities.h](mdc:tests/TestUtilities.h):
+```cpp
+// Wait with timeout
+QVERIFY_TIMEOUT(spy.count() > 0, 5000);  // 5 second timeout
+
+// Process events
+processEvents();  // Process Qt event loop
+
+// Wait specific time
+waitMs(100);  // Wait 100 milliseconds
+```
+
+## Testing Patterns
+
+### Testing Asynchronous Operations
+```cpp
+void TestComponent::testAsyncOperation() {
+    // Setup signal spy
+    QSignalSpy spy(m_component, &Component::operationComplete);
+
+    // Trigger async operation
+    m_component->startAsync();
+
+    // Wait for signal
+    QVERIFY_TIMEOUT(spy.count() > 0, 5000);
+
+    // Verify signal arguments
+    QCOMPARE(spy.count(), 1);
+    auto arguments = spy.takeFirst();
+    QCOMPARE(arguments.at(0).toBool(), true);
+}
+```
+
+### Testing Qt Signals
+```cpp
+void TestComponent::testSignalEmission() {
+    QSignalSpy changedSpy(m_component, &Component::valueChanged);
+    QSignalSpy errorSpy(m_component, &Component::errorOccurred);
+
+    m_component->setValue(100);
+
+    QCOMPARE(changedSpy.count(), 1);
+    QCOMPARE(errorSpy.count(), 0);
+    QCOMPARE(changedSpy.at(0).at(0).toInt(), 100);
+}
+```
+
+### Testing with Mock Objects
+```cpp
+class MockService : public IService {
+public:
+    void doSomething() override {
+        callCount++;
+    }
+
+    int callCount = 0;
+};
+
+void TestComponent::testWithMock() {
+    MockService mockService;
+    m_component->setService(&mockService);
+
+    m_component->execute();
+
+    QCOMPARE(mockService.callCount, 1);
+}
+```
+
+### Testing with ServiceLocator
+```cpp
+void TestComponent::testWithServices() {
+    // Register mock service
+    ServiceLocator::instance().registerService<MyService>(
+        []() { return new MockService(); }
+    );
+
+    // Get service
+    auto* service = ServiceLocator::instance().getService<MyService>();
+    QVERIFY(service != nullptr);
+
+    // Use service
+    m_component->useService();
+
+    // Verify behavior
+    QVERIFY(dynamic_cast<MockService*>(service)->wasUsed());
+}
+```
+
+### Testing with StateManager
+```cpp
+void TestComponent::testStateManagement() {
+    // Set state
+    StateManager::instance().set("test.value", 42);
+
+    // Verify state
+    QCOMPARE(StateManager::instance().get("test.value").toInt(), 42);
+
+    // Subscribe to changes
+    bool notified = false;
+    StateManager::instance().subscribe("test.value", this,
+        [&notified](const QVariant&) { notified = true; }
+    );
+
+    StateManager::instance().set("test.value", 100);
+    waitMs(10);
+
+    QVERIFY(notified);
+    QCOMPARE(StateManager::instance().get("test.value").toInt(), 100);
+}
+```
+
+### Testing with EventBus
+```cpp
+void TestComponent::testEventPublishing() {
+    bool received = false;
+    QVariant receivedData;
+
+    // Subscribe to event
+    EventBus::instance().subscribe("test.event", this,
+        [&](Event* event) {
+            received = true;
+            receivedData = event->data();
+        }
+    );
+
+    // Publish event
+    EventBus::instance().publish("test.event", 42);
+    waitMs(10);
+
+    // Verify
+    QVERIFY(received);
+    QCOMPARE(receivedData.toInt(), 42);
+}
+```
+
+## Performance Testing
+
+### Benchmarking
+```cpp
+void TestPerformance::benchmarkOperation() {
+    const int iterations = 1000;
+
+    QElapsedTimer timer;
+    timer.start();
+
+    for (int i = 0; i < iterations; ++i) {
+        performOperation();
+    }
+
+    qint64 totalTime = timer.elapsed();
+    double avgTime = static_cast<double>(totalTime) / iterations;
+
+    qDebug() << "Total:" << totalTime << "ms";
+    qDebug() << "Average:" << avgTime << "ms";
+    qDebug() << "Throughput:" << 1000.0 / avgTime << "ops/sec";
+
+    // Performance assertion
+    QVERIFY(avgTime < 10.0);  // Less than 10ms average
+}
+```
+
+### Memory Profiling
+```cpp
+void TestPerformance::testMemoryUsage() {
+    size_t baseline = getCurrentMemoryUsage();
+
+    performOperation();
+
+    size_t peak = getCurrentMemoryUsage();
+    size_t used = peak - baseline;
+
+    qDebug() << "Memory used:" << used / (1024 * 1024) << "MB";
+
+    QVERIFY(used < 100 * 1024 * 1024);  // Less than 100MB
+}
+```
+
+### Concurrency Testing
+```cpp
+void TestPerformance::testThreadSafety() {
+    const int numThreads = 10;
+    QList<QFuture<void>> futures;
+
+    for (int i = 0; i < numThreads; ++i) {
+        futures.append(QtConcurrent::run([this]() {
+            performThreadSafeOperation();
+        }));
+    }
+
+    for (auto& future : futures) {
+        future.waitForFinished();
+    }
+
+    QVERIFY(isConsistent());
+}
+```
+
+## Test Data
+
+### Data-Driven Tests
+```cpp
+void TestComponent::testWithData_data() {
+    QTest::addColumn<int>("input");
+    QTest::addColumn<int>("expected");
+
+    QTest::newRow("zero") << 0 << 0;
+    QTest::newRow("positive") << 5 << 25;
+    QTest::newRow("negative") << -3 << 9;
+}
+
+void TestComponent::testWithData() {
+    QFETCH(int, input);
+    QFETCH(int, expected);
+
+    int result = m_component->square(input);
+    QCOMPARE(result, expected);
+}
+```
+
+### Test Fixtures
+```cpp
+class TestFixture {
+public:
+    TestFixture() {
+        // Setup test data
+        testFile = createTempFile();
+    }
+
+    ~TestFixture() {
+        // Cleanup
+        QFile::remove(testFile);
+    }
+
+    QString testFile;
+};
+
+void TestComponent::testWithFixture() {
+    TestFixture fixture;
+    m_component->loadFile(fixture.testFile);
+    QVERIFY(m_component->isLoaded());
+}
+```
+
+## Best Practices
+
+### Test Naming
+- Test file: `test_component_name.cpp`
+- Test class: `TestComponentName`
+- Test method: `testFeatureBeingTested()`
+- Use descriptive names that explain what is being tested
+
+### Test Independence
+- Each test should be independent and not rely on other tests
+- Use `init()` and `cleanup()` for setup/teardown
+- Don't assume test execution order
+- Clean up all resources in `cleanup()` or destructors
+
+### Test Coverage
+- Test normal operation (happy path)
+- Test error conditions and edge cases
+- Test boundary values
+- Test invalid inputs
+- Test resource cleanup
+
+### Test Documentation
+```cpp
+/**
+ * @brief Tests that the component correctly handles invalid input
+ *
+ * This test verifies that when an invalid value is provided,
+ * the component emits an error signal and maintains its state.
+ */
+void TestComponent::testInvalidInput() {
+    // Test implementation
+}
+```
+
+### Asynchronous Testing
+- Use `QSignalSpy` to wait for signals
+- Set reasonable timeouts (not too short, not too long)
+- Process events when needed with `processEvents()`
+- Handle race conditions carefully
+
+### Mock Usage
+- Mock external dependencies (file system, network, databases)
+- Verify mock interactions (method calls, parameters)
+- Reset mocks between tests
+- Use dependency injection for mockability
+
+### Performance Testing
+- Run warm-up iterations to stabilize caches
+- Measure multiple runs and report statistics
+- Set reasonable performance targets
+- Test under different conditions (small/large data, etc.)
+
+## Running Tests
+
+### CMake/CTest
+```bash
+# Build tests
+cmake -B build -DBUILD_TESTING=ON
+cmake --build build
+
+# Run all tests
+ctest --test-dir build --output-on-failure
+
+# Run specific test
+ctest --test-dir build -R TestSearchEngine -V
+
+# Run in parallel
+ctest --test-dir build -j4
+```
+
+### PowerShell Script
+```powershell
+# Run all tests
+.\scripts\run_tests.ps1
+
+# Run specific category
+.\scripts\run_tests.ps1 -TestType Unit
+
+# Run with coverage
+.\scripts\run_tests.ps1 -Coverage
+
+# Run with report
+.\scripts\run_tests.ps1 -Report -Verbose
+```
+
+### Direct Execution
+```bash
+# Run test executable directly
+./build/test_search_engine --help
+./build/test_search_engine testBasicSearch
+```
+
+## Troubleshooting
+
+### Test Failures
+- Run with `-v` or `-verbose` for detailed output
+- Use `qDebug()` for diagnostic information
+- Check test logs in `build/Testing/Temporary/`
+- Verify test data files exist and are accessible
+
+### Flaky Tests
+- Increase timeouts for slow operations
+- Add retry logic for network/async operations
+- Process events more frequently
+- Check for race conditions
+
+### Memory Leaks
+- Use `QPointer` to track object lifetime
+- Verify objects are deleted in cleanup
+- Check for circular references with smart pointers
+- Use memory profiling tools (Valgrind, Dr. Memory)
+
+## Adding New Tests
+
+1. Create test file in appropriate directory: `tests/category/test_component.cpp`
+2. Include TestUtilities: `#include "../TestUtilities.h"`
+3. Inherit from TestBase: `class TestComponent : public TestBase`
+4. Add `Q_OBJECT` macro
+5. Implement test slots
+6. Add `QTEST_MAIN(TestComponent)` at end
+7. Include moc file: `#include "test_component.moc"`
+8. Add to `tests/CMakeLists.txt`:
+   ```cmake
+   add_qt_test(test_component category/test_component.cpp)
+   ```
+9. Build and run: `cmake --build build && ctest --test-dir build -R TestComponent`

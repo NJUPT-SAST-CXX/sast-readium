@@ -1,0 +1,106 @@
+---
+alwaysApply: true
+---
+
+# SAST Readium Project Architecture
+
+## Project Overview
+
+SAST Readium is a Qt6-based PDF reader application with comprehensive build support for multiple environments. The project follows modern C++20 standards with a modular architecture emphasizing separation of concerns, testability, and extensibility.
+
+## Core Architecture Patterns
+
+### MVC Pattern
+- **Models** ([app/model/](mdc:app/model/)): Data and business logic (DocumentModel, RenderModel, PageModel, ThumbnailModel, SearchModel, BookmarkModel, AnnotationModel)
+- **Views** ([app/ui/](mdc:app/ui/)): User interface components (ViewWidget, ThumbnailListView, SearchWidget, MenuBar, ToolBar, StatusBar)
+- **Controllers** ([app/controller/](mdc:app/controller/)): Application logic coordination (ApplicationController, DocumentController, PageController, ConfigurationManager)
+
+### Command Pattern
+All user actions MUST be implemented as commands for undo/redo support:
+- **CommandManager** ([app/command/CommandManager.h](mdc:app/command/CommandManager.h)): Command execution and history management
+- Command types are organized in [app/command/](mdc:app/command/): DocumentCommands, NavigationCommands, InitializationCommand
+- Commands enable undo/redo, macro recording, and testable user actions
+
+### Service Locator Pattern
+Use ServiceLocator for dependency injection and service management:
+- Register services with lazy initialization: `ServiceLocator::instance().registerService<Type>(factory)`
+- Retrieve services type-safely: `ServiceLocator::instance().getService<Type>()`
+- Provides loose coupling, easy testing with mocks, and centralized dependency management
+
+### Event Bus Pattern
+Use EventBus for decoupled event-driven communication:
+- Subscribe to events: `EventBus::instance().subscribe("event_name", this, callback)`
+- Publish events: `EventBus::instance().publish("event_name", data)`
+- Supports synchronous/asynchronous delivery, event filtering, and thread-safe processing
+
+### Factory Pattern
+Standardize object creation through factories:
+- **ModelFactory** ([app/factory/ModelFactory.h](mdc:app/factory/ModelFactory.h)): Creates and configures models with automatic dependency injection
+- **WidgetFactory** ([app/factory/WidgetFactory.h](mdc:app/factory/WidgetFactory.h)): Creates UI widgets with automatic signal/slot connections
+
+### Plugin System
+Extensibility through well-defined plugin interfaces:
+- **PluginInterface** ([app/plugin/PluginInterface.h](mdc:app/plugin/PluginInterface.h)): Base interface for all plugins
+- **PluginManager** ([app/plugin/PluginManager.h](mdc:app/plugin/PluginManager.h)): Dynamic plugin loading and lifecycle management
+
+## Key Subsystems
+
+### Search Engine ([app/search/](mdc:app/search/))
+High-performance PDF text search with multi-threaded operations, incremental search, memory-aware caching, and error recovery.
+
+### PDF Rendering
+Efficient PDF rendering pipeline with asynchronous rendering, multi-resolution caching, GPU fallback, and virtual scrolling for large documents.
+
+### Caching System ([app/cache/](mdc:app/cache/))
+Intelligent multi-level caching with multiple eviction strategies (LRU, LFU, size-based), memory pressure handling, and cache statistics monitoring.
+
+### Logging System ([app/logging/](mdc:app/logging/))
+High-performance logging based on spdlog with multiple sinks, runtime configuration, Qt message redirection, and thread-safe logging. See [app/logging/README.md](mdc:app/logging/README.md).
+
+## Directory Structure
+
+- **app/**: Main application code
+  - **cache/**: Caching system components
+  - **command/**: Command pattern implementation
+  - **controller/**: MVC controllers and service architecture
+  - **delegate/**: Specialized rendering and interaction delegates
+  - **factory/**: Factory pattern implementations
+  - **logging/**: Logging infrastructure
+  - **managers/**: Application-level services (I18n, Style, RecentFiles, SystemTray, etc.)
+  - **model/**: Business logic and data models
+  - **plugin/**: Plugin system
+  - **search/**: PDF text search engine
+  - **ui/**: User interface components
+  - **utils/**: Utility functions
+- **tests/**: Comprehensive test suite (100+ tests)
+  - **unit/**: Unit tests for individual components
+  - **integration/**: Integration tests for component interactions
+  - **performance/**: Performance benchmarks
+  - **real_world/**: Real-world scenario tests
+- **docs/**: Documentation (architecture, API reference, guides)
+- **cmake/**: CMake modules and toolchains
+- **config/**: Configuration files (logging, etc.)
+- **assets/**: Images, icons, and stylesheets
+
+## Build System
+
+- **CMake** 3.28+ with unified build system
+- Multiple build presets for different platforms (Unix, MSYS2, Windows, Linux-vcpkg, macOS-vcpkg)
+- Tiered dependency management: system packages (recommended) and vcpkg (alternative)
+- Cross-platform support: Windows, Linux, macOS with multiple toolchains
+- See [CMakeLists.txt](mdc:CMakeLists.txt) and [cmake/](mdc:cmake/)
+
+## Extension Points
+
+When extending the application:
+1. **New Commands**: Implement CommandInterface, register with CommandManager
+2. **New Services**: Register with ServiceLocator for dependency injection
+3. **New Events**: Define event types, use EventBus for publish/subscribe
+4. **New Plugins**: Implement PluginInterface, place in plugins directory
+
+## Communication Guidelines
+
+- Use **EventBus** for loose coupling between components
+- Use **Commands** for all user-initiated actions
+- Use **ServiceLocator** for dependencies, avoid direct instantiation
+- Use **Factories** for object creation to centralize configuration

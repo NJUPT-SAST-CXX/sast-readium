@@ -4,7 +4,9 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
+
 #include <memory>
+
 #include "../controller/tool.hpp"
 #include "../logging/SimpleLogging.h"
 
@@ -189,6 +191,8 @@ private:
                         int totalPages);
     bool exportToText(Poppler::Document* document, const QString& outputPath,
                       int totalPages);
+    bool exportToHTML(Poppler::Document* document, const QString& outputPath,
+                      int totalPages);
 
     ExportFormat m_format;
     QString m_outputPath;
@@ -265,8 +269,8 @@ class CompareDocumentsCommand : public DocumentCommand {
 
 public:
     explicit CompareDocumentsCommand(DocumentController* controller,
-                                     const QString& firstPath = QString(),
-                                     const QString& secondPath = QString(),
+                                     QString firstPath = QString(),
+                                     QString secondPath = QString(),
                                      QObject* parent = nullptr);
 
     void setFirstDocument(const QString& path) { m_firstPath = path; }

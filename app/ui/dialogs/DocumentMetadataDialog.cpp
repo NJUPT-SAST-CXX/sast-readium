@@ -6,12 +6,12 @@
 #include <QFileInfo>
 #include <QIcon>
 #include <QLocale>
-#include <QMessageBox>
 #include <QMimeData>
 #include <QStyle>
 #include <QTextStream>
 #include <stdexcept>
 #include "../../managers/StyleManager.h"
+#include "../widgets/ToastNotification.h"
 
 DocumentMetadataDialog::DocumentMetadataDialog(QWidget* parent)
     : QDialog(parent),
@@ -20,7 +20,13 @@ DocumentMetadataDialog::DocumentMetadataDialog(QWidget* parent)
       m_embeddedFontCount(0) {
     setWindowTitle(tr("📄 文档详细信息"));
     setModal(true);
+
+    // Set responsive size constraints
+    setMinimumSize(600, 500);  // Minimum size for readability
     resize(750, 600);
+
+    // Set size policy for proper resizing
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     setupUI();
     setupConnections();
@@ -28,24 +34,35 @@ DocumentMetadataDialog::DocumentMetadataDialog(QWidget* parent)
 }
 
 void DocumentMetadataDialog::setupUI() {
+    StyleManager* styleManager = &StyleManager::instance();
+
     m_mainLayout = new QVBoxLayout(this);
-    m_mainLayout->setContentsMargins(12, 12, 12, 12);
-    m_mainLayout->setSpacing(12);
+    m_mainLayout->setContentsMargins(styleManager->spacingLG(), styleManager->spacingLG(),
+                                    styleManager->spacingLG(), styleManager->spacingLG());
+    m_mainLayout->setSpacing(styleManager->spacingMD());
 
     // 创建滚动区域
     m_propertiesScrollArea = new QScrollArea(this);
     m_propertiesScrollArea->setWidgetResizable(true);
     m_propertiesScrollArea->setFrameShape(QFrame::NoFrame);
+    m_propertiesScrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     m_propertiesContentWidget = new QWidget();
+    m_propertiesContentWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
     m_propertiesContentLayout = new QVBoxLayout(m_propertiesContentWidget);
-    m_propertiesContentLayout->setContentsMargins(0, 0, 0, 0);
-    m_propertiesContentLayout->setSpacing(16);
+    m_propertiesContentLayout->setContentsMargins(styleManager->spacingSM(), styleManager->spacingSM(),
+                                                  styleManager->spacingSM(), styleManager->spacingSM());
+    m_propertiesContentLayout->setSpacing(styleManager->spacingLG());
 
     // 基本信息组
     m_basicInfoGroup = new QGroupBox(tr("基本信息"), m_propertiesContentWidget);
     m_basicInfoLayout = new QGridLayout(m_basicInfoGroup);
-    m_basicInfoLayout->setColumnStretch(1, 1);
+    m_basicInfoLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingLG(),
+                                         styleManager->spacingMD(), styleManager->spacingMD());
+    m_basicInfoLayout->setHorizontalSpacing(styleManager->spacingMD());
+    m_basicInfoLayout->setVerticalSpacing(styleManager->spacingSM());
+    m_basicInfoLayout->setColumnStretch(1, 1);  // Second column expands
 
     // 文件名
     m_basicInfoLayout->addWidget(new QLabel(tr("文件名:")), 0, 0);
@@ -77,7 +94,11 @@ void DocumentMetadataDialog::setupUI() {
     m_propertiesGroup =
         new QGroupBox(tr("文档属性"), m_propertiesContentWidget);
     m_propertiesLayout = new QGridLayout(m_propertiesGroup);
-    m_propertiesLayout->setColumnStretch(1, 1);
+    m_propertiesLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingLG(),
+                                          styleManager->spacingMD(), styleManager->spacingMD());
+    m_propertiesLayout->setHorizontalSpacing(styleManager->spacingMD());
+    m_propertiesLayout->setVerticalSpacing(styleManager->spacingSM());
+    m_propertiesLayout->setColumnStretch(1, 1);  // Second column expands
 
     // 标题
     m_propertiesLayout->addWidget(new QLabel(tr("标题:")), 0, 0);
@@ -132,6 +153,10 @@ void DocumentMetadataDialog::setupUI() {
     // 安全信息组
     m_securityGroup = new QGroupBox(tr("安全信息"), m_propertiesContentWidget);
     m_securityLayout = new QGridLayout(m_securityGroup);
+    m_securityLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingLG(),
+                                        styleManager->spacingMD(), styleManager->spacingMD());
+    m_securityLayout->setHorizontalSpacing(styleManager->spacingMD());
+    m_securityLayout->setVerticalSpacing(styleManager->spacingSM());
     m_securityLayout->setColumnStretch(1, 1);
 
     // 加密状态
@@ -207,8 +232,7 @@ void DocumentMetadataDialog::setDocument(Poppler::Document* document,
         populateDocumentProperties(document);
         populateSecurityInfo(document);
     } catch (const std::exception& e) {
-        QMessageBox::warning(this, tr("错误"),
-                             tr("获取文档元数据时发生错误: %1").arg(e.what()));
+        TOAST_ERROR(this, tr("获取文档元数据时发生错误: %1").arg(e.what()));
         clearMetadata();
     }
 }

@@ -1,13 +1,13 @@
 #include "SearchResultCache.h"
 #include <QCoreApplication>
 #include <QDebug>
-#include <memory>
+#include "../logging/LoggingMacros.h"
 
 // SearchResultCache Implementation class
 class SearchResultCache::Implementation {
 public:
-    explicit Implementation(SearchResultCache* q)
-        : q_ptr(q),
+    explicit Implementation(SearchResultCache* parent)
+        : q_ptr(parent),
           maxCacheSize(SearchResultCache::DEFAULT_MAX_CACHE_SIZE),
           maxMemoryUsage(SearchResultCache::DEFAULT_MAX_MEMORY_USAGE),
           currentMemoryUsage(0),
@@ -15,10 +15,10 @@ public:
           cacheHits(0),
           cacheMisses(0),
           enabled(true),
-          maintenanceTimer(new QTimer(q)) {
+          maintenanceTimer(new QTimer(parent)) {
         // Setup maintenance timer
         maintenanceTimer->setInterval(SearchResultCache::MAINTENANCE_INTERVAL);
-        QObject::connect(maintenanceTimer, &QTimer::timeout, q,
+        QObject::connect(maintenanceTimer, &QTimer::timeout, parent,
                          &SearchResultCache::performMaintenance);
         maintenanceTimer->start();
     }
@@ -49,7 +49,7 @@ public:
     void evictLeastRecentlyUsed();
     void evictExpiredEntries();
     qint64 calculateMemorySize(const QList<SearchResult>& results) const;
-    void updateAccessInfo(CacheEntry& entry);
+    static void updateAccessInfo(CacheEntry& entry);
     bool isExpired(const CacheEntry& entry) const;
 };
 
@@ -115,50 +115,52 @@ bool SearchResultCache::Implementation::isExpired(
 
 // SearchResultCache Implementation
 SearchResultCache::SearchResultCache(QObject* parent)
-    : QObject(parent), d(std::make_unique<Implementation>(this)) {}
+    : QObject(parent), m_pimpl(std::make_unique<Implementation>(this)) {}
 
 SearchResultCache::~SearchResultCache() = default;
 
 bool SearchResultCache::hasResults(const CacheKey& key) const {
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_pimpl->cacheMutex);
     QString hash = key.toHash();
-    return d->cache.contains(hash) && !d->isExpired(d->cache[hash]);
+    return m_pimpl->cache.contains(hash) &&
+           !m_pimpl->isExpired(m_pimpl->cache[hash]);
 }
 
 QList<SearchResult> SearchResultCache::getResults(const CacheKey& key) {
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_pimpl->cacheMutex);
     QString hash = key.toHash();
 
-    auto it = d->cache.find(hash);
-    if (it != d->cache.end() && !d->isExpired(it.value())) {
-        d->updateAccessInfo(it.value());
-        d->cacheHits++;
+    auto it = m_pimpl->cache.find(hash);
+    if (it != m_pimpl->cache.end() && !m_pimpl->isExpired(it.value())) {
+        SearchResultCache::Implementation::updateAccessInfo(it.value());
+        m_pimpl->cacheHits++;
         emit cacheHit(hash);
         return it.value().results;
     }
 
-    d->cacheMisses++;
+    m_pimpl->cacheMisses++;
     emit cacheMiss(hash);
     return QList<SearchResult>();
 }
 
 void SearchResultCache::storeResults(const CacheKey& key,
                                      const QList<SearchResult>& results) {
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_pimpl->cacheMutex);
 
     // Don't store if cache is disabled
-    if (!d->enabled) {
+    if (!m_pimpl->enabled) {
         return;
     }
 
     QString hash = key.toHash();
-    qint64 memorySize = d->calculateMemorySize(results);
+    qint64 memorySize = m_pimpl->calculateMemorySize(results);
 
     // Check if we need to evict entries to make room
-    while ((d->cache.size() >= d->maxCacheSize ||
-            d->currentMemoryUsage + memorySize > d->maxMemoryUsage) &&
-           !d->cache.isEmpty()) {
-        d->evictLeastRecentlyUsed();
+    while (
+        (m_pimpl->cache.size() >= m_pimpl->maxCacheSize ||
+         m_pimpl->currentMemoryUsage + memorySize > m_pimpl->maxMemoryUsage) &&
+        !m_pimpl->cache.isEmpty()) {
+        m_pimpl->evictLeastRecentlyUsed();
     }
 
     CacheEntry entry;
@@ -169,44 +171,44 @@ void SearchResultCache::storeResults(const CacheKey& key,
     entry.queryHash = hash;
     entry.documentId = key.documentId;
 
-    d->cache[hash] = entry;
-    d->currentMemoryUsage += memorySize;
+    m_pimpl->cache[hash] = entry;
+    m_pimpl->currentMemoryUsage += memorySize;
 
-    emit cacheUpdated(d->cache.size(), d->currentMemoryUsage);
+    emit cacheUpdated(m_pimpl->cache.size(), m_pimpl->currentMemoryUsage);
 }
 
 void SearchResultCache::invalidateDocument(const QString& documentId) {
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_pimpl->cacheMutex);
 
-    auto it = d->cache.begin();
-    while (it != d->cache.end()) {
+    auto it = m_pimpl->cache.begin();
+    while (it != m_pimpl->cache.end()) {
         // Check if this entry belongs to the document
         if (it.value().documentId == documentId) {
-            d->currentMemoryUsage -= it.value().memorySize;
-            it = d->cache.erase(it);
+            m_pimpl->currentMemoryUsage -= it.value().memorySize;
+            it = m_pimpl->cache.erase(it);
         } else {
             ++it;
         }
     }
 
-    emit cacheUpdated(d->cache.size(), d->currentMemoryUsage);
+    emit cacheUpdated(m_pimpl->cache.size(), m_pimpl->currentMemoryUsage);
 }
 
 void SearchResultCache::clear() {
-    QMutexLocker locker(&d->cacheMutex);
-    d->cache.clear();
-    d->currentMemoryUsage = 0;
+    QMutexLocker locker(&m_pimpl->cacheMutex);
+    m_pimpl->cache.clear();
+    m_pimpl->currentMemoryUsage = 0;
     emit cacheUpdated(0, 0);
 }
 
 double SearchResultCache::getHitRatio() const {
-    qint64 total = d->cacheHits + d->cacheMisses;
-    return total > 0 ? static_cast<double>(d->cacheHits) / total : 0.0;
+    qint64 total = m_pimpl->cacheHits + m_pimpl->cacheMisses;
+    return total > 0 ? static_cast<double>(m_pimpl->cacheHits) / total : 0.0;
 }
 
 void SearchResultCache::resetStatistics() {
-    d->cacheHits = 0;
-    d->cacheMisses = 0;
+    m_pimpl->cacheHits = 0;
+    m_pimpl->cacheMisses = 0;
 }
 
 bool SearchResultCache::canUseIncrementalSearch(
@@ -259,74 +261,74 @@ QList<SearchResult> SearchResultCache::getIncrementalResults(
 }
 
 void SearchResultCache::performMaintenance() {
-    QMutexLocker locker(&d->cacheMutex);
-    d->evictExpiredEntries();
+    QMutexLocker locker(&m_pimpl->cacheMutex);
+    m_pimpl->evictExpiredEntries();
 }
 
 // ICacheComponent interface implementation
 qint64 SearchResultCache::getMaxMemoryLimit() const {
-    return d->maxMemoryUsage;
+    return m_pimpl->maxMemoryUsage;
 }
 
 void SearchResultCache::setMaxMemoryLimit(qint64 limit) {
-    d->maxMemoryUsage = limit;
+    m_pimpl->maxMemoryUsage = limit;
 }
 
 int SearchResultCache::getEntryCount() const {
-    QMutexLocker locker(&d->cacheMutex);
-    return d->cache.size();
+    QMutexLocker locker(&m_pimpl->cacheMutex);
+    return m_pimpl->cache.size();
 }
 
 void SearchResultCache::evictLRU(qint64 bytesToFree) {
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_pimpl->cacheMutex);
 
-    qint64 initialMemory = d->currentMemoryUsage;
-    while (d->currentMemoryUsage > (initialMemory - bytesToFree) &&
-           !d->cache.isEmpty()) {
-        d->evictLeastRecentlyUsed();
+    qint64 initialMemory = m_pimpl->currentMemoryUsage;
+    while (m_pimpl->currentMemoryUsage > (initialMemory - bytesToFree) &&
+           !m_pimpl->cache.isEmpty()) {
+        m_pimpl->evictLeastRecentlyUsed();
     }
 }
 
-qint64 SearchResultCache::getHitCount() const { return d->cacheHits; }
+qint64 SearchResultCache::getHitCount() const { return m_pimpl->cacheHits; }
 
-qint64 SearchResultCache::getMissCount() const { return d->cacheMisses; }
+qint64 SearchResultCache::getMissCount() const { return m_pimpl->cacheMisses; }
 
 void SearchResultCache::setEnabled(bool enabled) {
-    d->enabled = enabled;
+    m_pimpl->enabled = enabled;
     if (!enabled) {
         clear();
     }
 }
 
-bool SearchResultCache::isEnabled() const { return d->enabled; }
+bool SearchResultCache::isEnabled() const { return m_pimpl->enabled; }
 
 // Getter methods that were converted from inline
 void SearchResultCache::setMaxCacheSize(int maxEntries) {
-    d->maxCacheSize = maxEntries;
+    m_pimpl->maxCacheSize = maxEntries;
 }
 
 void SearchResultCache::setMaxMemoryUsage(qint64 maxBytes) {
-    d->maxMemoryUsage = maxBytes;
+    m_pimpl->maxMemoryUsage = maxBytes;
 }
 
 void SearchResultCache::setExpirationTime(qint64 milliseconds) {
-    d->expirationTime = milliseconds;
+    m_pimpl->expirationTime = milliseconds;
 }
 
 int SearchResultCache::getCacheSize() const {
-    QMutexLocker locker(&d->cacheMutex);
-    return d->cache.size();
+    QMutexLocker locker(&m_pimpl->cacheMutex);
+    return m_pimpl->cache.size();
 }
 
 qint64 SearchResultCache::getMemoryUsage() const {
-    return d->currentMemoryUsage;
+    return m_pimpl->currentMemoryUsage;
 }
 
 // SearchHighlightCache Implementation class
 class SearchHighlightCache::Implementation {
 public:
-    explicit Implementation(SearchHighlightCache* q)
-        : q_ptr(q),
+    explicit Implementation(SearchHighlightCache* parent)
+        : q_ptr(parent),
           maxCacheSize(SearchHighlightCache::DEFAULT_MAX_CACHE_SIZE),
           cacheHits(0),
           cacheMisses(0) {}
@@ -348,7 +350,7 @@ public:
     QString getCacheKey(const QString& documentId, int pageNumber,
                         const QString& query) const;
     void evictLeastRecentlyUsed();
-    void updateAccessInfo(HighlightData& data);
+    static void updateAccessInfo(HighlightData& data);
 };
 
 // Implementation method definitions
@@ -384,31 +386,31 @@ void SearchHighlightCache::Implementation::evictLeastRecentlyUsed() {
 
 // SearchHighlightCache Implementation
 SearchHighlightCache::SearchHighlightCache(QObject* parent)
-    : QObject(parent), d(std::make_unique<Implementation>(this)) {}
+    : QObject(parent), m_pimpl(std::make_unique<Implementation>(this)) {}
 
 SearchHighlightCache::~SearchHighlightCache() = default;
 
 bool SearchHighlightCache::hasHighlightData(const QString& documentId,
                                             int pageNumber,
                                             const QString& query) const {
-    QMutexLocker locker(&d->cacheMutex);
-    QString key = d->getCacheKey(documentId, pageNumber, query);
-    return d->cache.contains(key);
+    QMutexLocker locker(&m_pimpl->cacheMutex);
+    QString key = m_pimpl->getCacheKey(documentId, pageNumber, query);
+    return m_pimpl->cache.contains(key);
 }
 
 SearchHighlightCache::HighlightData SearchHighlightCache::getHighlightData(
     const QString& documentId, int pageNumber, const QString& query) {
-    QMutexLocker locker(&d->cacheMutex);
-    QString key = d->getCacheKey(documentId, pageNumber, query);
+    QMutexLocker locker(&m_pimpl->cacheMutex);
+    QString key = m_pimpl->getCacheKey(documentId, pageNumber, query);
 
-    auto it = d->cache.find(key);
-    if (it != d->cache.end()) {
-        d->updateAccessInfo(it.value());
-        d->cacheHits++;
+    auto it = m_pimpl->cache.find(key);
+    if (it != m_pimpl->cache.end()) {
+        SearchHighlightCache::Implementation::updateAccessInfo(it.value());
+        m_pimpl->cacheHits++;
         return it.value();
     }
 
-    d->cacheMisses++;
+    m_pimpl->cacheMisses++;
     return HighlightData();
 }
 
@@ -416,50 +418,71 @@ void SearchHighlightCache::storeHighlightData(const QString& documentId,
                                               int pageNumber,
                                               const QString& query,
                                               const HighlightData& data) {
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_pimpl->cacheMutex);
 
-    QString key = d->getCacheKey(documentId, pageNumber, query);
+    QString key = m_pimpl->getCacheKey(documentId, pageNumber, query);
 
     // Check if we need to evict entries
-    while (d->cache.size() >= d->maxCacheSize && !d->cache.isEmpty()) {
-        d->evictLeastRecentlyUsed();
+    while (m_pimpl->cache.size() >= m_pimpl->maxCacheSize &&
+           !m_pimpl->cache.isEmpty()) {
+        m_pimpl->evictLeastRecentlyUsed();
     }
 
     HighlightData entry = data;
     entry.timestamp = QDateTime::currentMSecsSinceEpoch();
     entry.accessCount = 1;
 
-    d->cache[key] = entry;
-    emit cacheUpdated(d->cache.size());
+    m_pimpl->cache[key] = entry;
+    emit cacheUpdated(m_pimpl->cache.size());
 }
 
 void SearchHighlightCache::invalidateDocument(const QString& documentId) {
-    QMutexLocker locker(&d->cacheMutex);
+    QMutexLocker locker(&m_pimpl->cacheMutex);
 
-    auto it = d->cache.begin();
-    while (it != d->cache.end()) {
+    auto it = m_pimpl->cache.begin();
+    while (it != m_pimpl->cache.end()) {
         if (it.key().startsWith(documentId + "_")) {
-            it = d->cache.erase(it);
+            it = m_pimpl->cache.erase(it);
         } else {
             ++it;
         }
     }
 
-    emit cacheUpdated(d->cache.size());
+    emit cacheUpdated(m_pimpl->cache.size());
 }
 
 void SearchHighlightCache::clear() {
-    QMutexLocker locker(&d->cacheMutex);
-    d->cache.clear();
+    QMutexLocker locker(&m_pimpl->cacheMutex);
+    m_pimpl->cache.clear();
     emit cacheUpdated(0);
 }
 
 double SearchHighlightCache::getHitRatio() const {
-    qint64 total = d->cacheHits + d->cacheMisses;
-    return total > 0 ? static_cast<double>(d->cacheHits) / total : 0.0;
+    qint64 total = m_pimpl->cacheHits + m_pimpl->cacheMisses;
+    return total > 0 ? static_cast<double>(m_pimpl->cacheHits) / total : 0.0;
 }
 
 int SearchHighlightCache::getCacheSize() const {
-    QMutexLocker locker(&d->cacheMutex);
-    return d->cache.size();
+    QMutexLocker locker(&m_pimpl->cacheMutex);
+    return m_pimpl->cache.size();
+}
+
+void SearchHighlightCache::setMaxCacheSize(int maxEntries) {
+    QMutexLocker locker(&m_pimpl->cacheMutex);
+
+    if (maxEntries <= 0) {
+        LOG_WARNING(
+            "SearchHighlightCache: Invalid max cache size {}, using default",
+            maxEntries);
+        m_pimpl->maxCacheSize = DEFAULT_MAX_CACHE_SIZE;
+        return;
+    }
+
+    m_pimpl->maxCacheSize = maxEntries;
+    LOG_INFO("SearchHighlightCache: Max cache size set to {}", maxEntries);
+
+    // Evict items if current size exceeds new limit
+    while (m_pimpl->cache.size() > m_pimpl->maxCacheSize) {
+        m_pimpl->evictLeastRecentlyUsed();
+    }
 }

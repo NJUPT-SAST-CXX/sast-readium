@@ -15,7 +15,10 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QtMath>
+#include <algorithm>
+#include <cmath>
 #include <memory>
+#include <numeric>
 #include "../logging/Logger.h"
 #include "PDFUtilities.h"
 
@@ -765,4 +768,704 @@ void DocumentAnalyzer::onDocumentAnalysisFinished() {
     // It can be used to perform cleanup or trigger additional processing
     Logger::instance().debug(
         "[utils] Analysis processing completed successfully");
+}
+
+bool DocumentAnalyzer::exportResultsToCSV(const QString& filePath) const {
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        Logger::instance().warning("[utils] Failed to open CSV file: {}", filePath.toStdString());
+        return false;
+    }
+
+    QTextStream out(&file);
+    
+    // Write CSV header
+    out << "Document Path,Page Count,Total Words,Total Sentences,Total Paragraphs,"
+        << "Total Characters,Total Images,Total Annotations,Success,Error Message,"
+        << "Processing Time (ms),Timestamp\n";
+
+    // Write each result
+    for (const AnalysisResult& result : m_results) {
+        out << QString("\"%1\"").arg(result.documentPath) << ","
+            << result.analysis.value("basic").toObject().value("pageCount").toInt() << ","
+            << result.analysis.value("text").toObject().value("totalWords").toInt() << ","
+            << result.analysis.value("text").toObject().value("totalSentences").toInt() << ","
+            << result.analysis.value("text").toObject().value("totalParagraphs").toInt() << ","
+            << result.analysis.value("text").toObject().value("totalCharacters").toInt() << ","
+            << result.analysis.value("images").toObject().value("totalImages").toInt() << ","
+            << result.analysis.value("basic").toObject().value("annotationCount").toInt() << ","
+            << (result.success ? "Yes" : "No") << ","
+            << QString("\"%1\"").arg(result.errorMessage) << ","
+            << result.processingTime << ","
+            << result.timestamp.toString(Qt::ISODate) << "\n";
+    }
+
+    return true;
+}
+
+double DocumentAnalyzer::compareDocuments(const QString& filePath1,
+                                          const QString& filePath2) {
+    std::unique_ptr<Poppler::Document> doc1(Poppler::Document::load(filePath1));
+    std::unique_ptr<Poppler::Document> doc2(Poppler::Document::load(filePath2));
+
+    if (!doc1 || !doc2) {
+        Logger::instance().warning("[utils] Failed to load documents for comparison");
+        return 0.0;
+    }
+
+    return PDFUtilities::calculateDocumentSimilarity(doc1.get(), doc2.get());
+}
+
+QJsonObject DocumentAnalyzer::generateComparisonReport(const QString& filePath1,
+                                                       const QString& filePath2) {
+    QJsonObject report;
+
+    std::unique_ptr<Poppler::Document> doc1(Poppler::Document::load(filePath1));
+    std::unique_ptr<Poppler::Document> doc2(Poppler::Document::load(filePath2));
+
+    if (!doc1) {
+        report["error"] = QString("Failed to load document 1: %1").arg(filePath1);
+        return report;
+    }
+
+    if (!doc2) {
+        report["error"] = QString("Failed to load document 2: %1").arg(filePath2);
+        return report;
+    }
+
+    report["document1"] = filePath1;
+    report["document2"] = filePath2;
+    report["similarity"] = PDFUtilities::calculateDocumentSimilarity(doc1.get(), doc2.get());
+    report["metadataComparison"] = PDFUtilities::compareDocumentMetadata(doc1.get(), doc2.get());
+    report["timestamp"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+
+    return report;
+}
+
+QStringList DocumentAnalyzer::findSimilarDocuments(
+    const QString& referenceDocument, double threshold) {
+    QStringList similarDocs;
+
+    std::unique_ptr<Poppler::Document> refDoc(Poppler::Document::load(referenceDocument));
+    if (!refDoc) {
+        return similarDocs;
+    }
+
+    for (const AnalysisResult& result : m_results) {
+        if (result.documentPath == referenceDocument) {
+            continue;  // Skip the reference document itself
+        }
+
+        double similarity = compareDocuments(referenceDocument, result.documentPath);
+        if (similarity >= threshold) {
+            similarDocs.append(result.documentPath);
+        }
+    }
+
+    return similarDocs;
+}
+
+QJsonObject DocumentAnalyzer::generateDocumentStatistics(
+    const QList<AnalysisResult>& results) {
+    QJsonObject stats;
+
+    if (results.isEmpty()) {
+        stats["totalDocuments"] = 0;
+        return stats;
+    }
+
+    int totalPages = 0;
+    int totalWords = 0;
+    int totalImages = 0;
+    int totalAnnotations = 0;
+    qint64 totalProcessingTime = 0;
+    int successCount = 0;
+
+    for (const AnalysisResult& result : results) {
+        if (result.success) {
+            successCount++;
+            totalPages += result.analysis.value("basic").toObject().value("pageCount").toInt();
+            totalWords += result.analysis.value("text").toObject().value("totalWords").toInt();
+            totalImages += result.analysis.value("images").toObject().value("totalImages").toInt();
+            totalProcessingTime += result.processingTime;
+        }
+    }
+
+    stats["totalDocuments"] = results.size();
+    stats["successfulDocuments"] = successCount;
+    stats["failedDocuments"] = results.size() - successCount;
+    stats["successRate"] = results.size() > 0 ? (double)successCount / results.size() : 0.0;
+    stats["totalPages"] = totalPages;
+    stats["totalWords"] = totalWords;
+    stats["totalImages"] = totalImages;
+    stats["averagePages"] = results.size() > 0 ? (double)totalPages / results.size() : 0.0;
+    stats["averageWords"] = results.size() > 0 ? (double)totalWords / results.size() : 0.0;
+    stats["totalProcessingTime"] = totalProcessingTime;
+    stats["averageProcessingTime"] = results.size() > 0 ? (double)totalProcessingTime / results.size() : 0.0;
+
+    return stats;
+}
+
+QJsonObject DocumentAnalyzer::generateCorrelationAnalysis(
+    const QList<AnalysisResult>& results) {
+    QJsonObject correlations;
+
+    if (results.size() < 2) {
+        correlations["error"] = "Not enough data for correlation analysis";
+        return correlations;
+    }
+
+    // Calculate correlation between page count and word count
+    QList<double> pageCounts;
+    QList<double> wordCounts;
+
+    for (const AnalysisResult& result : results) {
+        if (result.success) {
+            pageCounts.append(result.analysis.value("basic").toObject().value("pageCount").toDouble());
+            wordCounts.append(result.analysis.value("text").toObject().value("totalWords").toDouble());
+        }
+    }
+
+    double correlation = 0.0;
+    if (pageCounts.size() > 1) {
+        // Simple Pearson correlation calculation
+        double meanPages = std::accumulate(pageCounts.begin(), pageCounts.end(), 0.0) / pageCounts.size();
+        double meanWords = std::accumulate(wordCounts.begin(), wordCounts.end(), 0.0) / wordCounts.size();
+
+        double numerator = 0.0;
+        double denomPages = 0.0;
+        double denomWords = 0.0;
+
+        for (int i = 0; i < pageCounts.size(); ++i) {
+            double diffPages = pageCounts[i] - meanPages;
+            double diffWords = wordCounts[i] - meanWords;
+            numerator += diffPages * diffWords;
+            denomPages += diffPages * diffPages;
+            denomWords += diffWords * diffWords;
+        }
+
+        if (denomPages > 0 && denomWords > 0) {
+            correlation = numerator / std::sqrt(denomPages * denomWords);
+        }
+    }
+
+    correlations["pagesWordCount"] = correlation;
+    correlations["sampleSize"] = pageCounts.size();
+
+    return correlations;
+}
+
+QStringList DocumentAnalyzer::identifyOutliers(
+    const QList<AnalysisResult>& results) {
+    QStringList outliers;
+
+    if (results.size() < 3) {
+        return outliers;  // Not enough data for outlier detection
+    }
+
+    QList<int> pageCounts;
+    QList<int> wordCounts;
+
+    for (const AnalysisResult& result : results) {
+        if (result.success) {
+            pageCounts.append(result.analysis.value("basic").toObject().value("pageCount").toInt());
+            wordCounts.append(result.analysis.value("text").toObject().value("totalWords").toInt());
+        }
+    }
+
+    if (pageCounts.isEmpty()) {
+        return outliers;
+    }
+
+    // Calculate mean and standard deviation for pages
+    double meanPages = std::accumulate(pageCounts.begin(), pageCounts.end(), 0.0) / pageCounts.size();
+    double variance = 0.0;
+    for (int count : pageCounts) {
+        variance += (count - meanPages) * (count - meanPages);
+    }
+    double stdDev = std::sqrt(variance / pageCounts.size());
+
+    // Identify outliers (values > 2 standard deviations from mean)
+    for (int i = 0; i < results.size() && i < pageCounts.size(); ++i) {
+        if (results[i].success) {
+            double zScore = std::abs(pageCounts[i] - meanPages) / (stdDev + 0.001);
+            if (zScore > 2.0) {
+                outliers.append(QString("%1 (page count: %2, z-score: %3)")
+                                    .arg(results[i].documentPath)
+                                    .arg(pageCounts[i])
+                                    .arg(zScore, 0, 'f', 2));
+            }
+        }
+    }
+
+    return outliers;
+}
+
+QJsonObject DocumentAnalyzer::generateTrendAnalysis(
+    const QList<AnalysisResult>& results) {
+    QJsonObject trends;
+
+    if (results.isEmpty()) {
+        trends["error"] = "No data for trend analysis";
+        return trends;
+    }
+
+    // Analyze trends over time
+    QList<QPair<QDateTime, int>> timeSeries;
+    for (const AnalysisResult& result : results) {
+        if (result.success && result.timestamp.isValid()) {
+            int pageCount = result.analysis.value("basic").toObject().value("pageCount").toInt();
+            timeSeries.append(qMakePair(result.timestamp, pageCount));
+        }
+    }
+
+    std::sort(timeSeries.begin(), timeSeries.end(),
+              [](const QPair<QDateTime, int>& a, const QPair<QDateTime, int>& b) {
+                  return a.first < b.first;
+              });
+
+    if (timeSeries.size() > 1) {
+        trends["dataPoints"] = timeSeries.size();
+        trends["firstTimestamp"] = timeSeries.first().first.toString(Qt::ISODate);
+        trends["lastTimestamp"] = timeSeries.last().first.toString(Qt::ISODate);
+        trends["earliestValue"] = timeSeries.first().second;
+        trends["latestValue"] = timeSeries.last().second;
+
+        // Simple trend indicator
+        double avgFirst = 0.0, avgLast = 0.0;
+        int halfPoint = timeSeries.size() / 2;
+
+        for (int i = 0; i < halfPoint; ++i) {
+            avgFirst += timeSeries[i].second;
+        }
+        for (int i = halfPoint; i < timeSeries.size(); ++i) {
+            avgLast += timeSeries[i].second;
+        }
+
+        avgFirst /= halfPoint;
+        avgLast /= (timeSeries.size() - halfPoint);
+
+        trends["trend"] = avgLast > avgFirst ? "increasing" : (avgLast < avgFirst ? "decreasing" : "stable");
+    }
+
+    return trends;
+}
+
+QJsonObject DocumentAnalyzer::trainDocumentClassifier(
+    const QList<AnalysisResult>& trainingData) {
+    QJsonObject classifier;
+
+    if (trainingData.isEmpty()) {
+        classifier["error"] = "No training data provided";
+        return classifier;
+    }
+
+    // Simple classifier based on document features
+    // In production, use proper ML library like TensorFlow or PyTorch
+    classifier["type"] = "simple_feature_based";
+    classifier["trainingSize"] = trainingData.size();
+    classifier["trainedAt"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+
+    // Calculate feature statistics for classification
+    QJsonArray features;
+    QJsonObject pageCountFeature;
+    pageCountFeature["name"] = "pageCount";
+    pageCountFeature["weight"] = 0.3;
+    features.append(pageCountFeature);
+
+    QJsonObject wordCountFeature;
+    wordCountFeature["name"] = "wordCount";
+    wordCountFeature["weight"] = 0.4;
+    features.append(wordCountFeature);
+
+    QJsonObject imageCountFeature;
+    imageCountFeature["name"] = "imageCount";
+    imageCountFeature["weight"] = 0.3;
+    features.append(imageCountFeature);
+
+    classifier["features"] = features;
+
+    return classifier;
+}
+
+QString DocumentAnalyzer::classifyDocument(const AnalysisResult& result,
+                                           const QJsonObject& classifier) {
+    if (!result.success || classifier.isEmpty()) {
+        return "unclassified";
+    }
+
+    // Simple classification based on document characteristics
+    int pageCount = result.analysis.value("basic").toObject().value("pageCount").toInt();
+    int wordCount = result.analysis.value("text").toObject().value("totalWords").toInt();
+    int imageCount = result.analysis.value("images").toObject().value("totalImages").toInt();
+
+    // Simple rule-based classification
+    if (pageCount < 5 && wordCount < 1000) {
+        return "short_document";
+    } else if (pageCount > 100) {
+        return "book";
+    } else if (imageCount > pageCount * 2) {
+        return "image_heavy";
+    } else if (wordCount > 10000) {
+        return "text_heavy";
+    } else {
+        return "standard_document";
+    }
+}
+
+QStringList DocumentAnalyzer::extractFeatures(const AnalysisResult& result) {
+    QStringList features;
+
+    if (!result.success) {
+        return features;
+    }
+
+    QJsonObject basic = result.analysis.value("basic").toObject();
+    QJsonObject text = result.analysis.value("text").toObject();
+    QJsonObject images = result.analysis.value("images").toObject();
+
+    features.append(QString("pages:%1").arg(basic.value("pageCount").toInt()));
+    features.append(QString("words:%1").arg(text.value("totalWords").toInt()));
+    features.append(QString("sentences:%1").arg(text.value("totalSentences").toInt()));
+    features.append(QString("paragraphs:%1").arg(text.value("totalParagraphs").toInt()));
+    features.append(QString("images:%1").arg(images.value("totalImages").toInt()));
+    features.append(QString("language:%1").arg(text.value("detectedLanguage").toString()));
+
+    return features;
+}
+
+double DocumentAnalyzer::calculateDocumentSimilarity(const AnalysisResult& result1,
+                                                     const AnalysisResult& result2) {
+    if (!result1.success || !result2.success) {
+        return 0.0;
+    }
+
+    QStringList features1 = extractFeatures(result1);
+    QStringList features2 = extractFeatures(result2);
+
+    // Calculate Jaccard similarity
+    int commonFeatures = 0;
+    for (const QString& feature : features1) {
+        if (features2.contains(feature)) {
+            commonFeatures++;
+        }
+    }
+
+    int totalFeatures = features1.size() + features2.size() - commonFeatures;
+    return totalFeatures > 0 ? (double)commonFeatures / totalFeatures : 0.0;
+}
+
+QJsonObject DocumentAnalyzer::generateOptimizationRecommendations(
+    const AnalysisResult& result) {
+    QJsonObject recommendations;
+    QJsonArray suggestions;
+
+    if (!result.success) {
+        recommendations["error"] = "Cannot generate recommendations for failed analysis";
+        return recommendations;
+    }
+
+    QJsonObject basic = result.analysis.value("basic").toObject();
+    QJsonObject images = result.analysis.value("images").toObject();
+    QJsonObject quality = result.analysis.value("quality").toObject();
+
+    int pageCount = basic.value("pageCount").toInt();
+    int imageCount = images.value("totalImages").toInt();
+    double qualityScore = quality.value("qualityScore").toDouble();
+
+    if (pageCount > 100) {
+        QJsonObject suggestion;
+        suggestion["type"] = "compression";
+        suggestion["description"] = "Consider compressing the document to reduce file size";
+        suggestion["priority"] = "medium";
+        suggestions.append(suggestion);
+    }
+
+    if (imageCount > pageCount * 3) {
+        QJsonObject suggestion;
+        suggestion["type"] = "image_optimization";
+        suggestion["description"] = "Optimize images to reduce file size";
+        suggestion["priority"] = "high";
+        suggestions.append(suggestion);
+    }
+
+    if (qualityScore < 0.7) {
+        QJsonObject suggestion;
+        suggestion["type"] = "quality_improvement";
+        suggestion["description"] = "Improve document quality by addressing identified issues";
+        suggestion["priority"] = "high";
+        suggestions.append(suggestion);
+    }
+
+    recommendations["suggestions"] = suggestions;
+    recommendations["count"] = suggestions.size();
+
+    return recommendations;
+}
+
+QStringList DocumentAnalyzer::identifyDuplicateDocuments(
+    const QList<AnalysisResult>& results, double threshold) {
+    QStringList duplicates;
+
+    for (int i = 0; i < results.size(); ++i) {
+        for (int j = i + 1; j < results.size(); ++j) {
+            double similarity = calculateDocumentSimilarity(results[i], results[j]);
+            if (similarity >= threshold) {
+                duplicates.append(
+                    QString("Duplicate: %1 <-> %2 (similarity: %3)")
+                        .arg(results[i].documentPath)
+                        .arg(results[j].documentPath)
+                        .arg(similarity, 0, 'f', 3));
+            }
+        }
+    }
+
+    return duplicates;
+}
+
+QJsonObject DocumentAnalyzer::suggestDocumentImprovements(
+    const AnalysisResult& result) {
+    QJsonObject improvements;
+    QJsonArray suggestions;
+
+    if (!result.success) {
+        improvements["error"] = "Cannot suggest improvements for failed analysis";
+        return improvements;
+    }
+
+    QJsonObject quality = result.analysis.value("quality").toObject();
+    QJsonObject accessibility = result.analysis.value("accessibility").toObject();
+    QJsonObject security = result.analysis.value("security").toObject();
+
+    // Quality improvements
+    QJsonArray qualityIssues = quality.value("issues").toArray();
+    for (const QJsonValue& issue : qualityIssues) {
+        QJsonObject suggestion;
+        suggestion["category"] = "quality";
+        suggestion["issue"] = issue.toString();
+        suggestion["improvement"] = "Address quality issue: " + issue.toString();
+        suggestions.append(suggestion);
+    }
+
+    // Accessibility improvements
+    QJsonArray accessibilityIssues = accessibility.value("issues").toArray();
+    for (const QJsonValue& issue : accessibilityIssues) {
+        QJsonObject suggestion;
+        suggestion["category"] = "accessibility";
+        suggestion["issue"] = issue.toString();
+        suggestion["improvement"] = "Improve accessibility: " + issue.toString();
+        suggestions.append(suggestion);
+    }
+
+    improvements["suggestions"] = suggestions;
+    improvements["count"] = suggestions.size();
+
+    return improvements;
+}
+
+QStringList DocumentAnalyzer::recommendCompressionStrategies(
+    const AnalysisResult& result) {
+    QStringList strategies;
+
+    if (!result.success) {
+        return strategies;
+    }
+
+    QJsonObject basic = result.analysis.value("basic").toObject();
+    QJsonObject images = result.analysis.value("images").toObject();
+    QJsonObject text = result.analysis.value("text").toObject();
+
+    int pageCount = basic.value("pageCount").toInt();
+    int imageCount = images.value("totalImages").toInt();
+    qint64 estimatedSize = static_cast<qint64>(images.value("estimatedTotalSize").toDouble());
+
+    if (imageCount > 0 && estimatedSize > 10 * 1024 * 1024) {
+        strategies.append("Reduce image quality to 72-150 DPI");
+        strategies.append("Convert images to JPEG with 85% quality");
+    }
+
+    if (pageCount > 50) {
+        strategies.append("Use PDF/A format for better compression");
+        strategies.append("Remove embedded fonts if not needed");
+    }
+
+    if (text.value("totalWords").toInt() > 50000) {
+        strategies.append("Enable text compression");
+    }
+
+    if (strategies.isEmpty()) {
+        strategies.append("Document is already well-optimized");
+    }
+
+    return strategies;
+}
+
+bool DocumentAnalyzer::validateAnalysisResult(const AnalysisResult& result) {
+    if (!result.success) {
+        return false;
+    }
+
+    if (result.analysis.isEmpty()) {
+        return false;
+    }
+
+    if (result.documentPath.isEmpty()) {
+        return false;
+    }
+
+    if (!result.timestamp.isValid()) {
+        return false;
+    }
+
+    return true;
+}
+
+QStringList DocumentAnalyzer::identifyAnalysisIssues(
+    const AnalysisResult& result) {
+    QStringList issues;
+
+    if (!validateAnalysisResult(result)) {
+        issues.append("Analysis result validation failed");
+    }
+
+    if (!result.success) {
+        issues.append("Analysis was not successful: " + result.errorMessage);
+    }
+
+    if (result.analysis.isEmpty()) {
+        issues.append("Analysis data is empty");
+    }
+
+    if (result.processingTime > 60000) {  // More than 1 minute
+        issues.append(QString("Very long processing time: %1 ms").arg(result.processingTime));
+    }
+
+    return issues;
+}
+
+double DocumentAnalyzer::calculateAnalysisConfidence(const AnalysisResult& result) {
+    if (!result.success) {
+        return 0.0;
+    }
+
+    double confidence = 1.0;
+
+    // Reduce confidence based on various factors
+    if (result.analysis.isEmpty()) {
+        confidence -= 0.5;
+    }
+
+    if (result.processingTime < 100) {
+        // Too fast might indicate incomplete analysis
+        confidence -= 0.1;
+    } else if (result.processingTime > 60000) {
+        // Very slow might indicate issues
+        confidence -= 0.2;
+    }
+
+    QJsonObject quality = result.analysis.value("quality").toObject();
+    double qualityScore = quality.value("qualityScore").toDouble();
+    if (qualityScore < 0.5) {
+        confidence -= 0.2;
+    }
+
+    return qMax(0.0, qMin(1.0, confidence));
+}
+
+bool DocumentAnalyzer::isAnalysisReliable(const AnalysisResult& result,
+                                          double confidenceThreshold) {
+    return calculateAnalysisConfidence(result) >= confidenceThreshold;
+}
+
+void DocumentAnalyzer::setAnalysisSettings(const BatchAnalysisSettings& settings) {
+    m_settings = settings;
+}
+
+DocumentAnalyzer::BatchAnalysisSettings DocumentAnalyzer::getAnalysisSettings() const {
+    return m_settings;
+}
+
+void DocumentAnalyzer::setMaxConcurrentJobs(int maxJobs) {
+    m_settings.maxConcurrentJobs = qMax(1, maxJobs);
+}
+
+int DocumentAnalyzer::getMaxConcurrentJobs() const {
+    return m_settings.maxConcurrentJobs;
+}
+
+void DocumentAnalyzer::registerAnalysisPlugin(const QString& pluginName,
+                                               QObject* plugin) {
+    if (pluginName.isEmpty() || !plugin) {
+        Logger::instance().warning("[utils] Invalid plugin registration attempted");
+        return;
+    }
+
+    m_analysisPlugins[pluginName] = plugin;
+    Logger::instance().info("[utils] Registered analysis plugin: {}", pluginName.toStdString());
+}
+
+void DocumentAnalyzer::unregisterAnalysisPlugin(const QString& pluginName) {
+    if (m_analysisPlugins.remove(pluginName)) {
+        Logger::instance().info("[utils] Unregistered analysis plugin: {}", pluginName.toStdString());
+    }
+}
+
+QStringList DocumentAnalyzer::getRegisteredPlugins() const {
+    return m_analysisPlugins.keys();
+}
+
+bool DocumentAnalyzer::isPluginRegistered(const QString& pluginName) const {
+    return m_analysisPlugins.contains(pluginName);
+}
+
+QJsonObject DocumentAnalyzer::combineAnalysisResults(const QList<QJsonObject>& results) {
+    QJsonObject combined;
+
+    if (results.isEmpty()) {
+        return combined;
+    }
+
+    // Merge all results into a single object
+    for (const QJsonObject& result : results) {
+        for (const QString& key : result.keys()) {
+            if (!combined.contains(key)) {
+                combined[key] = result[key];
+            }
+        }
+    }
+
+    return combined;
+}
+
+QString DocumentAnalyzer::generateAnalysisId() const {
+    QString timestamp = QDateTime::currentDateTime().toString(Qt::ISODate);
+    QString random = QString::number(QRandomGenerator::global()->generate());
+    QString id = timestamp + "_" + random;
+
+    QByteArray hash = QCryptographicHash::hash(id.toUtf8(), QCryptographicHash::Md5);
+    return QString(hash.toHex());
+}
+
+QJsonObject DocumentAnalyzer::createErrorResult(const QString& error) const {
+    QJsonObject errorResult;
+    errorResult["error"] = error;
+    errorResult["success"] = false;
+    errorResult["timestamp"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    return errorResult;
+}
+
+bool DocumentAnalyzer::isValidDocument(Poppler::Document* document) const {
+    if (!document) {
+        return false;
+    }
+
+    if (document->isLocked()) {
+        return false;
+    }
+
+    if (document->numPages() <= 0) {
+        return false;
+    }
+
+    return true;
 }

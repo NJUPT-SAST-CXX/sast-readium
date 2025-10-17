@@ -11,7 +11,7 @@ class I18nManager : public QObject {
     Q_OBJECT
 
 public:
-    enum Language {
+    enum class Language : std::uint8_t {
         English,
         Chinese,
         System  // Use system locale
@@ -27,12 +27,12 @@ public:
     bool loadLanguage(const QString& languageCode);
 
     // Get available languages
-    QStringList availableLanguages() const;
+    [[nodiscard]] QStringList availableLanguages() const;
 
     // Get current language
-    Language currentLanguage() const;
-    QString currentLanguageCode() const;
-    QString currentLanguageName() const;
+    [[nodiscard]] Language currentLanguage() const;
+    [[nodiscard]] QString currentLanguageCode() const;
+    [[nodiscard]] QString currentLanguageName() const;
 
     // Language utilities
     static QString languageToCode(Language lang);
@@ -43,11 +43,16 @@ signals:
     void languageChanged(Language newLanguage);
     void languageChanged(const QString& languageCode);
 
-private:
-    I18nManager(QObject* parent = nullptr);
-    ~I18nManager();
+public:
+    // Deleted copy/move operations (public for better error messages)
     I18nManager(const I18nManager&) = delete;
     I18nManager& operator=(const I18nManager&) = delete;
+    I18nManager(I18nManager&&) = delete;
+    I18nManager& operator=(I18nManager&&) = delete;
+
+private:
+    explicit I18nManager(QObject* parent = nullptr);
+    ~I18nManager() override;
 
     std::unique_ptr<I18nManagerImpl> pImpl;
 };

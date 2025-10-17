@@ -2,9 +2,9 @@
 
 #include <QList>
 #include <QObject>
-#include <functional>
 #include <memory>
 #include <vector>
+
 #include "../logging/SimpleLogging.h"
 
 // Forward declarations
@@ -20,20 +20,25 @@ class InitializationCommand : public QObject {
     Q_OBJECT
 
 public:
-    explicit InitializationCommand(const QString& name,
-                                   QObject* parent = nullptr);
-    virtual ~InitializationCommand() = default;
+    explicit InitializationCommand(QString name, QObject* parent = nullptr);
+    ~InitializationCommand() override = default;
+
+    // Delete copy operations (QObject and command pattern are not copyable)
+    InitializationCommand(const InitializationCommand&) = delete;
+    InitializationCommand& operator=(const InitializationCommand&) = delete;
+    InitializationCommand(InitializationCommand&&) = delete;
+    InitializationCommand& operator=(InitializationCommand&&) = delete;
 
     // Command pattern interface
     virtual bool execute() = 0;
     virtual bool undo() { return true; }  // Optional undo for rollback
-    virtual bool canExecute() const { return !m_executed; }
+    [[nodiscard]] virtual bool canExecute() const { return !m_executed; }
 
     // Command metadata
-    QString name() const { return m_name; }
-    bool isExecuted() const { return m_executed; }
-    bool isSuccessful() const { return m_successful; }
-    QString errorMessage() const { return m_errorMessage; }
+    [[nodiscard]] QString name() const { return m_name; }
+    [[nodiscard]] bool isExecuted() const { return m_executed; }
+    [[nodiscard]] bool isSuccessful() const { return m_successful; }
+    [[nodiscard]] QString errorMessage() const { return m_errorMessage; }
 
 signals:
     void executionStarted(const QString& name);
@@ -128,8 +133,8 @@ class ApplyThemeCommand : public InitializationCommand {
     Q_OBJECT
 
 public:
-    explicit ApplyThemeCommand(ApplicationController* controller,
-                               const QString& theme, QObject* parent = nullptr);
+    explicit ApplyThemeCommand(ApplicationController* controller, QString theme,
+                               QObject* parent = nullptr);
 
     bool execute() override;
     bool undo() override;
@@ -152,7 +157,16 @@ class CompositeInitializationCommand : public InitializationCommand {
 public:
     explicit CompositeInitializationCommand(const QString& name,
                                             QObject* parent = nullptr);
-    ~CompositeInitializationCommand();
+    ~CompositeInitializationCommand() override;
+
+    // Delete copy operations
+    CompositeInitializationCommand(const CompositeInitializationCommand&) =
+        delete;
+    CompositeInitializationCommand& operator=(
+        const CompositeInitializationCommand&) = delete;
+    CompositeInitializationCommand(CompositeInitializationCommand&&) = delete;
+    CompositeInitializationCommand& operator=(
+        CompositeInitializationCommand&&) = delete;
 
     // Add commands to the composite
     void addCommand(std::unique_ptr<InitializationCommand> command);
@@ -165,7 +179,9 @@ public:
     bool undo() override;
 
     // Get command count
-    int commandCount() const { return m_commands.size(); }
+    [[nodiscard]] qsizetype commandCount() const {
+        return static_cast<qsizetype>(m_commands.size());
+    }
 
 private:
     std::vector<std::unique_ptr<InitializationCommand>> m_commands;
