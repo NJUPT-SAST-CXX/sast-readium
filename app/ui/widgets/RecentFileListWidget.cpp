@@ -12,9 +12,9 @@
 #include <QScrollArea>
 #include <QTimer>
 #include <QVBoxLayout>
-#include "../../managers/FileTypeIconManager.h"
-#include "../../managers/RecentFilesManager.h"
-#include "../../managers/StyleManager.h"
+#include "managers/FileTypeIconManager.h"
+#include "managers/RecentFilesManager.h"
+#include "managers/StyleManager.h"
 
 // Static const member definitions
 const int RecentFileItemWidget::ITEM_HEIGHT;
@@ -63,7 +63,7 @@ void RecentFileItemWidget::updateFileInfo(const RecentFileInfo& fileInfo) {
 void RecentFileItemWidget::applyTheme() {
     StyleManager& styleManager = StyleManager::instance();
 
-    // VSCode-style base styling with subtle hover effect
+    // VSCode-style base styling with more visible hover effect
     QString baseStyle = QString(
                             "RecentFileItemWidget {"
                             "    background-color: transparent;"
@@ -73,8 +73,10 @@ void RecentFileItemWidget::applyTheme() {
                             "}"
                             "RecentFileItemWidget:hover {"
                             "    background-color: %1;"
+                            "    border: 1px solid %2;"
                             "}")
-                            .arg(styleManager.hoverColor().name());
+                            .arg(styleManager.hoverColor().name())
+                            .arg(styleManager.borderColor().name());
 
     setStyleSheet(baseStyle);
 
@@ -192,7 +194,7 @@ void RecentFileItemWidget::onRemoveClicked() {
 
 void RecentFileItemWidget::setupUI() {
     m_mainLayout = new QHBoxLayout(this);
-    m_mainLayout->setContentsMargins(16, 12, 16, 12);
+    m_mainLayout->setContentsMargins(8, 6, 8, 6);
     m_mainLayout->setSpacing(12);
 
     // 文件类型图标
@@ -237,17 +239,15 @@ void RecentFileItemWidget::setupUI() {
 }
 
 void RecentFileItemWidget::setupAnimations() {
-    // Setup opacity effect for smooth animations
-    m_opacityEffect = new QGraphicsOpacityEffect(this);
-    m_opacityEffect->setOpacity(1.0);
-    setGraphicsEffect(m_opacityEffect);
+    // 注释掉透明度效果，避免内容不可见的问题
+    // m_opacityEffect = new QGraphicsOpacityEffect(this);
+    // m_opacityEffect->setOpacity(1.0);
+    // setGraphicsEffect(m_opacityEffect);
 
-    // Hover animation
-    m_hoverAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
-    m_hoverAnimation->setDuration(200);
-    m_hoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
+    // 保持悬停动画为空，使用CSS样式处理悬停效果
+    m_hoverAnimation = nullptr;
 
-    // Press animation
+    // Press animation - 保持几何动画用于点击反馈
     m_pressAnimation = new QPropertyAnimation(this, "geometry", this);
     m_pressAnimation->setDuration(100);
     m_pressAnimation->setEasingCurve(QEasingCurve::OutQuad);
@@ -345,27 +345,17 @@ void RecentFileItemWidget::setHovered(bool hovered) {
         m_removeButton->setVisible(hovered);
     }
 
-    // Start hover animation
-    startHoverAnimation(hovered);
+    // 移除动画调用，悬停效果由CSS处理
+    // startHoverAnimation(hovered);
 
     update();
 }
 
 void RecentFileItemWidget::startHoverAnimation(bool hovered) {
-    if (!m_hoverAnimation || !m_opacityEffect)
-        return;
-
-    m_hoverAnimation->stop();
-
-    if (hovered) {
-        m_hoverAnimation->setStartValue(m_opacityEffect->opacity());
-        m_hoverAnimation->setEndValue(0.9);
-    } else {
-        m_hoverAnimation->setStartValue(m_opacityEffect->opacity());
-        m_hoverAnimation->setEndValue(1.0);
-    }
-
-    m_hoverAnimation->start();
+    // 移除透明度动画，悬停效果完全由CSS样式处理
+    // 这样可以确保内容始终可见
+    Q_UNUSED(hovered);
+    // 悬停效果现在由CSS的:hover伪选择器处理，在applyTheme()中定义
 }
 
 void RecentFileItemWidget::startPressAnimation() {
@@ -551,6 +541,14 @@ void RecentFileListWidget::resizeEvent(QResizeEvent* event) {
     // 确保内容宽度适应
     if (m_contentWidget) {
         m_contentWidget->setFixedWidth(event->size().width());
+        
+        // 同时更新所有文件条目的宽度
+        int availableWidth = event->size().width() - 8; // 减去边距
+        for (RecentFileItemWidget* item : m_fileItems) {
+            if (item) {
+                item->setFixedWidth(availableWidth);
+            }
+        }
     }
 }
 
@@ -629,6 +627,14 @@ void RecentFileListWidget::addFileItem(const RecentFileInfo& fileInfo) {
 
     m_contentLayout->insertWidget(insertIndex, item);
     m_fileItems.append(item);
+
+    // 设置条目宽度以充分利用可用空间
+    if (m_contentWidget) {
+        int availableWidth = m_contentWidget->width() - 8; // 减去边距
+        if (availableWidth > 400) { // 确保至少有最小宽度
+            item->setFixedWidth(availableWidth);
+        }
+    }
 
     // 应用主题
     item->applyTheme();

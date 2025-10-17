@@ -38,8 +38,8 @@ void StyleManager::updateColors() {
         m_textColor = QColor(32, 31, 30);           // 深灰
         m_textSecondaryColor = QColor(96, 94, 92);  // 中灰
         m_borderColor = QColor(225, 223, 221);      // 边框灰
-        m_hoverColor = QColor(243, 242, 241);       // 悬停灰
-        m_pressedColor = QColor(237, 235, 233);     // 按下灰
+        m_hoverColor = QColor(230, 230, 230);       // 悬停灰 - 更明显的颜色
+        m_pressedColor = QColor(210, 210, 210);     // 按下灰 - 更明显的颜色
         m_accentColor = QColor(16, 110, 190);       // 强调蓝
     } else {
         // 暗色主题
@@ -50,8 +50,8 @@ void StyleManager::updateColors() {
         m_textColor = QColor(255, 255, 255);           // 白色
         m_textSecondaryColor = QColor(200, 198, 196);  // 浅灰
         m_borderColor = QColor(72, 70, 68);            // 边框深灰
-        m_hoverColor = QColor(50, 49, 48);             // 悬停深灰
-        m_pressedColor = QColor(60, 58, 56);           // 按下深灰
+        m_hoverColor = QColor(70, 70, 70);             // 悬停深灰 - 更明显的颜色
+        m_pressedColor = QColor(85, 85, 85);           // 按下深灰 - 更明显的颜色
         m_accentColor = QColor(118, 185, 237);         // 强调亮蓝
     }
 }

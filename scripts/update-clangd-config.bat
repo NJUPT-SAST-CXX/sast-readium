@@ -6,6 +6,13 @@ setlocal enabledelayedexpansion
 
 set PROJECT_ROOT=%~dp0..
 set CLANGD_FILE=%PROJECT_ROOT%\.clangd
+
+REM Check if .clangd file exists and delete it
+if exist "%CLANGD_FILE%" (
+    echo Deleting existing .clangd file...
+    del "%CLANGD_FILE%"
+)
+
 set BUILD_DIR=%~1
 set PARAM2=%~2
 set FORCE_MODE=false
@@ -125,7 +132,7 @@ if not exist "%CLANGD_FILE%" (
         echo.
         echo Diagnostics:
         echo   UnusedIncludes: Strict
-        echo   MissingIncludes: Strict
+        echo   MissingIncludes: None
         echo.
         echo InlayHints:
         echo   Enabled: true
@@ -158,7 +165,7 @@ REM For simplicity, recreate the entire .clangd file with updated content
     echo.
     echo Diagnostics:
     echo   UnusedIncludes: Strict
-    echo   MissingIncludes: Strict
+    echo   MissingIncludes: None
     echo.
     echo InlayHints:
     echo   Enabled: true

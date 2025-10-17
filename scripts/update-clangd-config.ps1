@@ -13,6 +13,12 @@ param(
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $ClangdFile = Join-Path $ProjectRoot ".clangd"
 
+# Check if .clangd file exists and delete it
+if (Test-Path $ClangdFile) {
+    Write-Host "Deleting existing .clangd file..."
+    Remove-Item $ClangdFile -Force
+}
+
 # List of possible build directories from CMakePresets.json
 $PossibleBuildDirs = @(
     "build/Debug-MSYS2",
@@ -70,10 +76,8 @@ function Update-ClangdConfig {
     Write-Log "Updating .clangd configuration..." "INFO"
     Write-Log "Target build directory: $TargetBuildDir" "INFO"
 
-    # Check if .clangd file exists
-    if (-not (Test-Path $ClangdFile)) {
-        Write-Log ".clangd file not found, creating new one..." "INFO"
-        $defaultContent = @"
+    # Create new .clangd file with the specified build directory
+    $defaultContent = @"
 CompileFlags:
   CompilationDatabase: $TargetBuildDir
   Remove:
@@ -91,7 +95,7 @@ Index:
 
 Diagnostics:
   UnusedIncludes: Strict
-  MissingIncludes: Strict
+  MissingIncludes: None
 
 InlayHints:
   Enabled: true
@@ -101,35 +105,8 @@ InlayHints:
 Hover:
   ShowAKA: true
 "@
-        Set-Content $ClangdFile $defaultContent -Encoding UTF8
-        Write-Log "Created new .clangd file with build directory: $TargetBuildDir" "INFO"
-        return
-    }
-
-    # Read existing .clangd file
-    $content = Get-Content $ClangdFile -Raw -Encoding UTF8
-
-    # Update CompilationDatabase line
-    $updatedContent = $content -replace "CompilationDatabase:.*", "CompilationDatabase: $TargetBuildDir"
-
-    # Ensure Remove section exists after CompilationDatabase
-    if ($updatedContent -notmatch "Remove:") {
-        $removeSection = @"
-  Remove:
-    # Remove C++20 modules flags that clangd doesn't support yet
-    - "-fmodules-ts"
-    - "-fmodule-mapper=*"
-    - "-fdeps-format=*"
-    # Remove other potentially problematic flags
-    - "-MD"
-    - "-x"
-"@
-        $updatedContent = $updatedContent -replace "(CompilationDatabase: $TargetBuildDir)", "`$1`n$removeSection"
-    }
-
-    # Write back to file
-    Set-Content $ClangdFile $updatedContent -Encoding UTF8
-    Write-Log "Successfully updated .clangd configuration" "INFO"
+    Set-Content $ClangdFile $defaultContent -Encoding UTF8
+    Write-Log "Successfully created new .clangd configuration with build directory: $TargetBuildDir" "INFO"
 }
 
 # Handle -List parameter

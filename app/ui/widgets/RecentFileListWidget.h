@@ -15,7 +15,7 @@
 #include <QWidget>
 
 class RecentFilesManager;
-#include "../../managers/RecentFilesManager.h"
+#include "managers/RecentFilesManager.h"
 
 /**
  * 最近文件条目组件

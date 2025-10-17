@@ -17,6 +17,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 CLANGD_FILE="$PROJECT_ROOT/.clangd"
 
+# Check if .clangd file exists and delete it
+if [[ -f "$CLANGD_FILE" ]]; then
+    echo "Deleting existing .clangd file..."
+    rm "$CLANGD_FILE"
+fi
+
 # List of possible build directories from CMakePresets.json
 POSSIBLE_BUILD_DIRS=(
     "build/Debug-MSYS2"
@@ -73,10 +79,8 @@ update_clangd_config() {
     log_message "INFO" "Updating .clangd configuration..."
     log_message "INFO" "Target build directory: $target_build_dir"
 
-    # Check if .clangd file exists
-    if [[ ! -f "$CLANGD_FILE" ]]; then
-        log_message "INFO" ".clangd file not found, creating new one..."
-        cat > "$CLANGD_FILE" << EOF
+    # Create new .clangd file with the specified build directory
+    cat > "$CLANGD_FILE" << EOF
 CompileFlags:
   CompilationDatabase: $target_build_dir
   Remove:
@@ -94,7 +98,7 @@ Index:
 
 Diagnostics:
   UnusedIncludes: Strict
-  MissingIncludes: Strict
+  MissingIncludes: None
 
 InlayHints:
   Enabled: true
@@ -104,46 +108,7 @@ InlayHints:
 Hover:
   ShowAKA: true
 EOF
-        log_message "INFO" "Created new .clangd file with build directory: $target_build_dir"
-        return
-    fi
-
-    # Update existing .clangd file
-    # Use sed to replace the CompilationDatabase line
-    if command -v sed >/dev/null 2>&1; then
-        # Create a backup
-        cp "$CLANGD_FILE" "$CLANGD_FILE.bak"
-
-        # Replace the CompilationDatabase line
-        sed -i.tmp "s|^  CompilationDatabase:.*|  CompilationDatabase: $target_build_dir|" "$CLANGD_FILE"
-        rm -f "$CLANGD_FILE.tmp"
-
-        # Check if Remove section exists, if not add it
-        if ! grep -q "Remove:" "$CLANGD_FILE"; then
-            # Create a temporary file with the Remove section added
-            awk '
-            /^  CompilationDatabase:/ {
-                print $0
-                print "  Remove:"
-                print "    # Remove C++20 modules flags that clangd doesn'\''t support yet"
-                print "    - \"-fmodules-ts\""
-                print "    - \"-fmodule-mapper=*\""
-                print "    - \"-fdeps-format=*\""
-                print "    # Remove other potentially problematic flags"
-                print "    - \"-MD\""
-                print "    - \"-x\""
-                next
-            }
-            { print }
-            ' "$CLANGD_FILE" > "$CLANGD_FILE.tmp"
-            mv "$CLANGD_FILE.tmp" "$CLANGD_FILE"
-        fi
-
-        log_message "INFO" "Successfully updated .clangd configuration"
-    else
-        log_message "ERROR" "sed command not found. Cannot update .clangd file."
-        exit 1
-    fi
+    log_message "INFO" "Successfully created new .clangd configuration with build directory: $target_build_dir"
 }
 
 # Function to show usage
