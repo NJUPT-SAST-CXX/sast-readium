@@ -1,9 +1,11 @@
 #include "DocumentComparison.h"
 #include <QApplication>
+#include <QElapsedTimer>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QGuiApplication>
 #include <QHeaderView>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -15,6 +17,9 @@
 // // #include <QtConcurrent> // Not available in this MSYS2 setup // Not
 // available in this MSYS2 setup
 #include <QDebug>
+#include <algorithm>
+#include <cstdlib>
+#include <memory>
 #include "../../managers/StyleManager.h"
 
 DocumentComparison::DocumentComparison(QWidget* parent)
@@ -22,24 +27,31 @@ DocumentComparison::DocumentComparison(QWidget* parent)
       m_document1(nullptr),
       m_document2(nullptr),
       m_currentDifferenceIndex(-1),
-      m_isComparing(false),
-      m_comparisonWatcher(nullptr),
-      m_progressTimer(nullptr) {
+      m_isComparing(false) {
     setupUI();
     setupConnections();
 }
 
 void DocumentComparison::setupUI() {
-    StyleManager* styleManager = &StyleManager::instance();
+    StyleManager& styleManager = StyleManager::instance();
+    initializeMainLayout(styleManager);
+    initializeToolbar(styleManager);
+    initializeOptionsPanel(styleManager);
+    initializeContentArea(styleManager);
+    initializeProgressComponents();
+}
 
+void DocumentComparison::initializeMainLayout(StyleManager& styleManager) {
     m_mainLayout = new QVBoxLayout(this);
-    m_mainLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingMD(),
-                                    styleManager->spacingMD(), styleManager->spacingMD());
-    m_mainLayout->setSpacing(styleManager->spacingMD());
+    m_mainLayout->setContentsMargins(
+        styleManager.spacingMD(), styleManager.spacingMD(),
+        styleManager.spacingMD(), styleManager.spacingMD());
+    m_mainLayout->setSpacing(styleManager.spacingMD());
+}
 
-    // Toolbar with optimized layout
+void DocumentComparison::initializeToolbar(StyleManager& styleManager) {
     m_toolbarLayout = new QHBoxLayout();
-    m_toolbarLayout->setSpacing(styleManager->spacingSM());
+    m_toolbarLayout->setSpacing(styleManager.spacingSM());
 
     m_compareButton = new QPushButton("Compare Documents", this);
     m_stopButton = new QPushButton("Stop", this);
@@ -59,28 +71,33 @@ void DocumentComparison::setupUI() {
     m_progressBar->setVisible(false);
     m_progressBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
+    auto* viewModeLabel = new QLabel("View Mode:", this);
+
     m_toolbarLayout->addWidget(m_compareButton);
     m_toolbarLayout->addWidget(m_stopButton);
     m_toolbarLayout->addWidget(m_optionsButton);
     m_toolbarLayout->addWidget(m_exportButton);
-    m_toolbarLayout->addWidget(new QLabel("View Mode:"));
+    m_toolbarLayout->addWidget(viewModeLabel);
     m_toolbarLayout->addWidget(m_viewModeCombo);
     m_toolbarLayout->addStretch();
     m_toolbarLayout->addWidget(m_statusLabel);
     m_toolbarLayout->addWidget(m_progressBar);
 
     m_mainLayout->addLayout(m_toolbarLayout);
+}
 
-    // Options panel (initially hidden) with optimized layout
+void DocumentComparison::initializeOptionsPanel(StyleManager& styleManager) {
     m_optionsGroup = new QGroupBox("Comparison Options", this);
     m_optionsGroup->setVisible(false);
-    m_optionsGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_optionsGroup->setSizePolicy(QSizePolicy::Expanding,
+                                  QSizePolicy::Preferred);
 
-    QGridLayout* optionsLayout = new QGridLayout(m_optionsGroup);
-    optionsLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingMD(),
-                                     styleManager->spacingMD(), styleManager->spacingMD());
-    optionsLayout->setHorizontalSpacing(styleManager->spacingMD());
-    optionsLayout->setVerticalSpacing(styleManager->spacingSM());
+    auto* optionsLayout = new QGridLayout(m_optionsGroup);
+    optionsLayout->setContentsMargins(
+        styleManager.spacingMD(), styleManager.spacingMD(),
+        styleManager.spacingMD(), styleManager.spacingMD());
+    optionsLayout->setHorizontalSpacing(styleManager.spacingMD());
+    optionsLayout->setVerticalSpacing(styleManager.spacingSM());
 
     m_compareTextCheck = new QCheckBox("Compare Text", this);
     m_compareTextCheck->setChecked(true);
@@ -102,23 +119,28 @@ void DocumentComparison::setupUI() {
     m_maxDifferencesSpinBox->setRange(1, 1000);
     m_maxDifferencesSpinBox->setValue(50);
 
+    auto* similarityLabel = new QLabel("Similarity Threshold:", m_optionsGroup);
+    auto* maxDifferencesLabel = new QLabel("Max Differences:", m_optionsGroup);
+
     optionsLayout->addWidget(m_compareTextCheck, 0, 0);
     optionsLayout->addWidget(m_compareImagesCheck, 0, 1);
     optionsLayout->addWidget(m_compareLayoutCheck, 1, 0);
     optionsLayout->addWidget(m_compareAnnotationsCheck, 1, 1);
     optionsLayout->addWidget(m_ignoreWhitespaceCheck, 2, 0);
     optionsLayout->addWidget(m_ignoreCaseCheck, 2, 1);
-    optionsLayout->addWidget(new QLabel("Similarity Threshold:"), 3, 0);
+    optionsLayout->addWidget(similarityLabel, 3, 0);
     optionsLayout->addWidget(m_similaritySlider, 3, 1);
-    optionsLayout->addWidget(new QLabel("Max Differences:"), 4, 0);
+    optionsLayout->addWidget(maxDifferencesLabel, 4, 0);
     optionsLayout->addWidget(m_maxDifferencesSpinBox, 4, 1);
 
     m_mainLayout->addWidget(m_optionsGroup);
+}
 
-    // Content area
+void DocumentComparison::initializeContentArea(StyleManager& styleManager) {
+    Q_UNUSED(styleManager);
+
     m_contentLayout = new QHBoxLayout();
 
-    // Results panel
     m_resultsSplitter = new QSplitter(Qt::Vertical, this);
 
     m_differencesTree = new QTreeWidget(this);
@@ -134,7 +156,6 @@ void DocumentComparison::setupUI() {
     m_resultsSplitter->addWidget(m_differenceDetails);
     m_resultsSplitter->setSizes({300, 150});
 
-    // Comparison view
     m_viewSplitter = new QSplitter(Qt::Horizontal, this);
 
     m_leftView = new QScrollArea(this);
@@ -156,17 +177,16 @@ void DocumentComparison::setupUI() {
     m_viewSplitter->addWidget(m_rightView);
     m_viewSplitter->setSizes({400, 400});
 
-    // Add to content layout
     m_contentLayout->addWidget(m_resultsSplitter, 1);
     m_contentLayout->addWidget(m_viewSplitter, 2);
 
     m_mainLayout->addLayout(m_contentLayout);
+}
 
-    // Initialize progress timer
+void DocumentComparison::initializeProgressComponents() {
     m_progressTimer = new QTimer(this);
     m_progressTimer->setInterval(100);
 
-    // Initialize comparison watcher
     m_comparisonWatcher = new QFutureWatcher<ComparisonResults>(this);
 }
 
@@ -224,7 +244,7 @@ void DocumentComparison::setDocuments(Poppler::Document* doc1,
     m_document1 = doc1;
     m_document2 = doc2;
 
-    if (doc1 && doc2) {
+    if (doc1 != nullptr && doc2 != nullptr) {
         m_compareButton->setEnabled(true);
         m_statusLabel->setText(QString("Ready to compare %1 vs %2 pages")
                                    .arg(doc1->numPages())
@@ -242,9 +262,17 @@ void DocumentComparison::setDocumentPaths(const QString& path1,
 }
 
 void DocumentComparison::startComparison() {
-    if (!m_document1 || !m_document2) {
-        QMessageBox::warning(this, "Warning",
-                             "Please load both documents first.");
+    if (m_document1 == nullptr || m_document2 == nullptr) {
+        // Emit error signal instead of showing blocking message box
+        // This allows tests to run in offscreen mode without hanging
+        emit comparisonError("Please load both documents first.");
+
+        // Only show message box in non-offscreen mode to avoid blocking in
+        // tests
+        if (QGuiApplication::platformName() != "offscreen") {
+            QMessageBox::warning(this, "Warning",
+                                 "Please load both documents first.");
+        }
         return;
     }
 
@@ -273,7 +301,7 @@ void DocumentComparison::startComparison() {
 }
 
 void DocumentComparison::stopComparison() {
-    if (m_comparisonWatcher && m_comparisonWatcher->isRunning()) {
+    if (m_comparisonWatcher != nullptr && m_comparisonWatcher->isRunning()) {
         m_comparisonWatcher->cancel();
     }
 
@@ -307,8 +335,9 @@ void DocumentComparison::setComparisonOptions(
     m_compareAnnotationsCheck->setChecked(options.compareAnnotations);
     m_ignoreWhitespaceCheck->setChecked(options.ignoreWhitespace);
     m_ignoreCaseCheck->setChecked(options.ignoreCaseChanges);
+    // Use imageSimilarityThreshold since both thresholds share the same slider
     m_similaritySlider->setValue(
-        static_cast<int>(options.textSimilarityThreshold * 100));
+        static_cast<int>(options.imageSimilarityThreshold * 100));
     m_maxDifferencesSpinBox->setValue(options.maxDifferencesPerPage);
     m_options = options;
 }
@@ -316,7 +345,7 @@ void DocumentComparison::setComparisonOptions(
 ComparisonResults DocumentComparison::compareDocuments() {
     ComparisonResults results;
 
-    if (!m_document1 || !m_document2) {
+    if (m_document1 == nullptr || m_document2 == nullptr) {
         return results;
     }
 
@@ -331,7 +360,8 @@ ComparisonResults DocumentComparison::compareDocuments() {
 
     // Compare pages
     for (int i = 0; i < results.pagesCompared; ++i) {
-        if (m_comparisonWatcher && m_comparisonWatcher->isCanceled()) {
+        if (m_comparisonWatcher != nullptr &&
+            m_comparisonWatcher->isCanceled()) {
             break;
         }
 
@@ -353,11 +383,11 @@ ComparisonResults DocumentComparison::compareDocuments() {
     }
 
     // Calculate overall similarity (simplified)
-    int totalDifferences = results.differences.size();
+    qsizetype totalDifferences = results.differences.size();
     results.overallSimilarity =
         totalDifferences > 0
-            ? qMax(0.0,
-                   1.0 - (totalDifferences / (results.pagesCompared * 10.0)))
+            ? qMax(0.0, 1.0 - (static_cast<double>(totalDifferences) /
+                               (results.pagesCompared * 10.0)))
             : 1.0;
 
     results.summary = QString("Found %1 differences across %2 pages in %3ms")
@@ -372,8 +402,8 @@ QList<DocumentDifference> DocumentComparison::comparePages(int page1,
                                                            int page2) {
     QList<DocumentDifference> differences;
 
-    if (!m_document1 || !m_document2 || page1 >= m_document1->numPages() ||
-        page2 >= m_document2->numPages()) {
+    if (m_document1 == nullptr || m_document2 == nullptr ||
+        page1 >= m_document1->numPages() || page2 >= m_document2->numPages()) {
         return differences;
     }
 
@@ -414,7 +444,7 @@ QList<DocumentDifference> DocumentComparison::comparePages(int page1,
 QList<DocumentDifference> DocumentComparison::compareText(const QString& text1,
                                                           const QString& text2,
                                                           int page1,
-                                                          int page2) {
+                                                          int page2) const {
     QList<DocumentDifference> differences;
 
     QString processedText1 = text1;
@@ -449,7 +479,7 @@ QList<DocumentDifference> DocumentComparison::compareText(const QString& text1,
 }
 
 QList<DocumentDifference> DocumentComparison::compareImages(
-    const QPixmap& image1, const QPixmap& image2, int page1, int page2) {
+    const QPixmap& image1, const QPixmap& image2, int page1, int page2) const {
     QList<DocumentDifference> differences;
 
     if (image1.isNull() || image2.isNull()) {
@@ -474,27 +504,30 @@ QList<DocumentDifference> DocumentComparison::compareImages(
 
 double DocumentComparison::calculateTextSimilarity(const QString& text1,
                                                    const QString& text2) {
-    if (text1 == text2)
+    if (text1 == text2) {
         return 1.0;
-    if (text1.isEmpty() && text2.isEmpty())
+    }
+    if (text1.isEmpty() && text2.isEmpty()) {
         return 1.0;
-    if (text1.isEmpty() || text2.isEmpty())
+    }
+    if (text1.isEmpty() || text2.isEmpty()) {
         return 0.0;
+    }
 
-    // Simple Levenshtein distance-based similarity
-    int maxLen = qMax(text1.length(), text2.length());
-    int distance = 0;
+    qsizetype maxLength = std::max(text1.length(), text2.length());
+    qsizetype distance = 0;
 
-    // Simplified calculation for performance
-    int minLen = qMin(text1.length(), text2.length());
-    for (int i = 0; i < minLen; ++i) {
-        if (text1[i] != text2[i]) {
-            distance++;
+    qsizetype minLength = std::min(text1.length(), text2.length());
+    for (qsizetype index = 0; index < minLength; ++index) {
+        if (text1[index] != text2[index]) {
+            ++distance;
         }
     }
-    distance += qAbs(text1.length() - text2.length());
+    distance += std::abs(text1.length() - text2.length());
 
-    return qMax(0.0, 1.0 - (static_cast<double>(distance) / maxLen));
+    double normalizedDistance =
+        static_cast<double>(distance) / static_cast<double>(maxLength);
+    return qMax(0.0, 1.0 - normalizedDistance);
 }
 
 double DocumentComparison::calculateImageSimilarity(const QPixmap& image1,
@@ -512,24 +545,27 @@ double DocumentComparison::calculateImageSimilarity(const QPixmap& image1,
         img2 = img2.convertToFormat(QImage::Format_RGB32);
     }
 
-    int width = img1.width();
-    int height = img1.height();
-    int totalPixels = width * height;
+    int imageWidth = img1.width();
+    int imageHeight = img1.height();
+    int sampleStep = 4;
     int differentPixels = 0;
 
-    // Sample pixels for performance (every 4th pixel)
-    for (int y = 0; y < height; y += 4) {
-        for (int x = 0; x < width; x += 4) {
-            if (img1.pixel(x, y) != img2.pixel(x, y)) {
-                differentPixels++;
+    for (int pixelRow = 0; pixelRow < imageHeight; pixelRow += sampleStep) {
+        for (int pixelColumn = 0; pixelColumn < imageWidth;
+             pixelColumn += sampleStep) {
+            if (img1.pixel(pixelColumn, pixelRow) !=
+                img2.pixel(pixelColumn, pixelRow)) {
+                ++differentPixels;
             }
         }
     }
 
-    int sampledPixels = (width / 4) * (height / 4);
-    return sampledPixels > 0
-               ? 1.0 - (static_cast<double>(differentPixels) / sampledPixels)
-               : 1.0;
+    int sampledColumns =
+        std::max(1, (imageWidth + sampleStep - 1) / sampleStep);
+    int sampledRows = std::max(1, (imageHeight + sampleStep - 1) / sampleStep);
+    int sampledPixels = sampledColumns * sampledRows;
+    return 1.0 - (static_cast<double>(differentPixels) /
+                  static_cast<double>(sampledPixels));
 }
 
 void DocumentComparison::onComparisonFinished() {
@@ -540,12 +576,14 @@ void DocumentComparison::onComparisonFinished() {
     m_progressBar->setVisible(false);
     m_progressTimer->stop();
 
-    if (m_comparisonWatcher->isCanceled()) {
+    if (m_comparisonWatcher != nullptr && m_comparisonWatcher->isCanceled()) {
         m_statusLabel->setText("Comparison cancelled");
         return;
     }
 
-    m_results = m_comparisonWatcher->result();
+    if (m_comparisonWatcher != nullptr) {
+        m_results = m_comparisonWatcher->result();
+    }
     updateDifferencesList();
 
     m_statusLabel->setText(
@@ -564,10 +602,10 @@ void DocumentComparison::updateProgress() {
 void DocumentComparison::updateDifferencesList() {
     m_differencesTree->clear();
 
-    for (int i = 0; i < m_results.differences.size(); ++i) {
-        const DocumentDifference& diff = m_results.differences[i];
+    for (qsizetype index = 0; index < m_results.differences.size(); ++index) {
+        const DocumentDifference& diff = m_results.differences[index];
 
-        QTreeWidgetItem* item = new QTreeWidgetItem(m_differencesTree);
+        auto* item = new QTreeWidgetItem(m_differencesTree);
 
         QString typeStr;
         switch (diff.type) {
@@ -609,7 +647,7 @@ void DocumentComparison::updateDifferencesList() {
                              .arg(diff.pageNumber2 + 1));
         item->setText(2, diff.description);
         item->setText(3, QString("%1%").arg(diff.confidence * 100, 0, 'f', 1));
-        item->setData(0, Qt::UserRole, i);  // Store difference index
+        item->setData(0, Qt::UserRole, static_cast<int>(index));
     }
 
     m_differencesTree->resizeColumnToContents(0);
@@ -621,8 +659,9 @@ void DocumentComparison::onDifferenceClicked(QTreeWidgetItem* item,
                                              int column) {
     Q_UNUSED(column)
 
-    if (!item)
+    if (item == nullptr) {
         return;
+    }
 
     int index = item->data(0, Qt::UserRole).toInt();
     if (index >= 0 && index < m_results.differences.size()) {
@@ -662,8 +701,9 @@ void DocumentComparison::goToDifference(int index) {
 
 void DocumentComparison::highlightDifference(const DocumentDifference& diff) {
     // Update the comparison view to show the pages with the difference
-    if (!m_document1 || !m_document2)
+    if (m_document1 == nullptr || m_document2 == nullptr) {
         return;
+    }
 
     try {
         if (diff.pageNumber1 >= 0 &&
@@ -714,23 +754,15 @@ void DocumentComparison::previousDifference() {
 void DocumentComparison::onViewModeChanged() { updateComparisonView(); }
 
 void DocumentComparison::updateComparisonView() {
-    QString mode = m_viewModeCombo->currentText();
+    QString selectedMode = m_viewModeCombo->currentText();
+    Q_UNUSED(selectedMode);
 
-    if (mode == "Side by Side") {
-        m_viewSplitter->setOrientation(Qt::Horizontal);
-        m_leftView->setVisible(true);
-        m_rightView->setVisible(true);
-    } else if (mode == "Overlay") {
-        // For overlay mode, we could implement image blending
-        m_viewSplitter->setOrientation(Qt::Horizontal);
-        m_leftView->setVisible(true);
-        m_rightView->setVisible(true);
-    } else if (mode == "Differences Only") {
-        // Show only the differences
-        m_viewSplitter->setOrientation(Qt::Horizontal);
-        m_leftView->setVisible(true);
-        m_rightView->setVisible(true);
-    }
+    // Currently every mode shares the same layout configuration. This hook
+    // keeps the branching point for future customization without duplicating
+    // identical blocks.
+    m_viewSplitter->setOrientation(Qt::Horizontal);
+    m_leftView->setVisible(true);
+    m_rightView->setVisible(true);
 }
 
 void DocumentComparison::onOptionsChanged() {
@@ -829,8 +861,9 @@ bool DocumentComparison::exportResultsToFile(const QString& filePath) const {
 // Additional comparison functions
 bool DocumentComparison::compareDocumentMetadata(Poppler::Document* doc1,
                                                  Poppler::Document* doc2) {
-    if (!doc1 || !doc2)
+    if (doc1 == nullptr || doc2 == nullptr) {
         return false;
+    }
 
     DocumentDifference diff;
     diff.type = DifferenceType::LayoutChanged;
@@ -875,8 +908,8 @@ QList<DocumentDifference> DocumentComparison::comparePageLayouts(int page1,
                                                                  int page2) {
     QList<DocumentDifference> differences;
 
-    if (!m_document1 || !m_document2 || page1 >= m_document1->numPages() ||
-        page2 >= m_document2->numPages()) {
+    if (m_document1 == nullptr || m_document2 == nullptr ||
+        page1 >= m_document1->numPages() || page2 >= m_document2->numPages()) {
         return differences;
     }
 
@@ -943,13 +976,13 @@ void DocumentComparison::generateDetailedReport() {
     for (auto it = pageCount.begin(); it != pageCount.end(); ++it) {
         sortedPages.append(qMakePair(it.value(), it.key()));
     }
-    std::sort(sortedPages.begin(), sortedPages.end(),
-              std::greater<QPair<int, int>>());
+    std::ranges::sort(sortedPages, std::greater<>());
 
-    for (int i = 0; i < qMin(5, sortedPages.size()); ++i) {
+    qsizetype entriesToShow = std::min<qsizetype>(5, sortedPages.size());
+    for (qsizetype index = 0; index < entriesToShow; ++index) {
         report += QString("  Page %1: %2 differences\n")
-                      .arg(sortedPages[i].second + 1)
-                      .arg(sortedPages[i].first);
+                      .arg(sortedPages[index].second + 1)
+                      .arg(sortedPages[index].first);
     }
 
     // Save detailed report
@@ -965,7 +998,7 @@ void DocumentComparison::generateDetailedReport() {
     }
 }
 
-QString DocumentComparison::getDifferenceTypeName(DifferenceType type) const {
+QString DocumentComparison::getDifferenceTypeName(DifferenceType type) {
     switch (type) {
         case DifferenceType::TextAdded:
             return "Text Added";
@@ -1017,8 +1050,9 @@ void DocumentComparison::exportDifferencesToCSV(const QString& filePath) {
 }
 
 void DocumentComparison::createVisualDifferenceMap() {
-    if (!m_document1 || !m_document2)
+    if (m_document1 == nullptr || m_document2 == nullptr) {
         return;
+    }
 
     int maxPages = qMax(m_document1->numPages(), m_document2->numPages());
 

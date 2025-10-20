@@ -65,7 +65,14 @@ void MenuBarIntegrationTest::init() {
     m_menuBar = new MenuBar(m_parentWidget);
     m_menuBar->setRecentFilesManager(m_recentFilesManager);
     m_parentWidget->setMenuBar(m_menuBar);
-    QTest::qWaitForWindowExposed(m_parentWidget);
+
+    // In offscreen mode, qWaitForWindowExposed() will timeout
+    // Use a simple wait instead to allow widget initialization
+    if (QGuiApplication::platformName() == "offscreen") {
+        QTest::qWait(100);  // Give widgets time to initialize
+    } else {
+        QVERIFY(QTest::qWaitForWindowExposed(m_parentWidget));
+    }
 }
 
 void MenuBarIntegrationTest::cleanup() {

@@ -81,7 +81,10 @@ void TestStateManager::init() {
     m_stateManager->reset();
 }
 
-void TestStateManager::cleanup() { m_stateManager->reset(); }
+void TestStateManager::cleanup() {
+    m_stateManager->unsubscribeAll(this);
+    m_stateManager->reset();
+}
 
 void TestStateManager::testSetAndGet() {
     // Test basic set and get
@@ -591,5 +594,5 @@ void TestStateManager::testMemoryManagement() {
     QVERIFY(true);
 }
 
-QTEST_MAIN(TestStateManager)
 #include "test_state_manager.moc"
+QTEST_MAIN(TestStateManager)

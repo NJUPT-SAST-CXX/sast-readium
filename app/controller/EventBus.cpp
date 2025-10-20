@@ -5,9 +5,9 @@
 #include <QMetaObject>
 
 // Event implementation
-Event::Event(const QString& type, QObject* parent)
+Event::Event(QString type, QObject* parent)
     : QObject(parent),
-      m_type(type),
+      m_type(std::move(type)),
       m_timestamp(QDateTime::currentMSecsSinceEpoch()) {}
 
 Event* Event::clone() const {

@@ -4,6 +4,7 @@
 #include <QMessageBox>
 #include <QObject>
 #include <QStack>
+#include <cstdint>
 #include "../model/PageModel.h"
 
 // Forward declarations
@@ -23,18 +24,18 @@ struct PageBookmark {
           createdAt(QDateTime::currentDateTime()),
           zoomLevel(1.0),
           rotation(0) {}
-    PageBookmark(int page, const QString& t = "", const QString& desc = "",
-                 double zoom = 1.0, int rot = 0)
+    explicit PageBookmark(int page, QString t = "", QString desc = "",
+                          double zoom = 1.0, int rot = 0)
         : pageNumber(page),
-          title(t),
-          description(desc),
+          title(std::move(t)),
+          description(std::move(desc)),
           createdAt(QDateTime::currentDateTime()),
           zoomLevel(zoom),
           rotation(rot) {}
 };
 
 // Error codes for page operations
-enum class PageError {
+enum class PageError : std::uint8_t {
     None = 0,
     InvalidPageNumber,
     DocumentNotLoaded,
@@ -48,8 +49,14 @@ class PageController : public QObject {
     Q_OBJECT
 
 public:
-    PageController(PageModel* model, QObject* parent = nullptr);
-    ~PageController(){};
+    explicit PageController(PageModel* model, QObject* parent = nullptr);
+
+    // Special member functions
+    PageController(const PageController&) = delete;
+    PageController& operator=(const PageController&) = delete;
+    PageController(PageController&&) = delete;
+    PageController& operator=(PageController&&) = delete;
+    ~PageController() override = default;
 
     // Basic navigation (existing methods - maintained for compatibility)
 public slots:

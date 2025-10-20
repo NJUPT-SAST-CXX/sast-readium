@@ -408,9 +408,8 @@ void SearchExecutorTest::testSpecialCharacters() {
 }
 
 void SearchExecutorTest::testUnicodeText() {
-    QString unicodeText = "测试 test тест テス�?;
-        QList<SearchResult>
-            results = m_executor->searchInText(unicodeText, "test");
+    QString unicodeText = "测试 test тест テスト";
+    QList<SearchResult> results = m_executor->searchInText(unicodeText, "test");
     QCOMPARE(results.size(), 1);
 
     // Test searching for unicode characters

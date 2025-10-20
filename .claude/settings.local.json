@@ -65,7 +65,18 @@
       "Bash(mingw64/pkg-config:*)",
       "Bash(pacman:*)",
       "Bash(build/tests/test_search_integration.exe)",
-      "Bash(build:*)"
+      "Bash(build:*)",
+      "Bash(build/Debug-MSYS2/test_search_executor.exe)",
+      "Bash(build/Debug-MSYS2/test_multi_search_engine.exe:*)",
+      "Bash(./test_multi_search_engine.exe:*)",
+      "Bash(g++:*)",
+      "Bash(./test_search_engine.exe:*)",
+      "Bash(./test_search_executor.exe)",
+      "Bash(./test_state_manager_comprehensive:*)",
+      "Bash(./test_search_configuration.exe:*)",
+      "Bash(./test_qgraphics_components.exe:*)",
+      "Bash(for:*)",
+      "Bash(touch:*)"
     ],
     "deny": [],
     "ask": []

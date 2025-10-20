@@ -93,7 +93,14 @@ void ViewWidgetIntegrationTest::init() {
     m_viewWidget->setDocumentModel(m_documentModel);
     m_viewWidget->setOutlineModel(m_outlineModel);
     m_viewWidget->show();
-    QTest::qWaitForWindowExposed(m_viewWidget);
+
+    // In offscreen mode, qWaitForWindowExposed() will timeout
+    // Use a simple wait instead to allow widget initialization
+    if (QGuiApplication::platformName() == "offscreen") {
+        QTest::qWait(100);  // Give widgets time to initialize
+    } else {
+        QVERIFY(QTest::qWaitForWindowExposed(m_viewWidget));
+    }
 }
 
 void ViewWidgetIntegrationTest::cleanup() {

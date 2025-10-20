@@ -1,20 +1,68 @@
 #include "SearchWidget.h"
 #include <QApplication>
+#include <QCheckBox>
+#include <QColorDialog>
+#include <QComboBox>
 #include <QDebug>
 #include <QEvent>
+#include <QGroupBox>
 #include <QKeySequence>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListView>
 #include <QMessageBox>
+#include <QProgressBar>
+#include <QPushButton>
 #include <QShortcut>
+#include <QSpinBox>
 #include <QStyle>
 #include "../../managers/StyleManager.h"
 #include "ToastNotification.h"
 
 SearchWidget::SearchWidget(QWidget* parent)
     : QWidget(parent),
+      m_mainLayout(nullptr),
+      m_searchLayout(nullptr),
+      m_navigationLayout(nullptr),
+      m_infoLayout(nullptr),
+      m_searchInput(nullptr),
+      m_searchButton(nullptr),
+      m_clearButton(nullptr),
+      m_optionsButton(nullptr),
+      m_closeButton(nullptr),
+      m_previousButton(nullptr),
+      m_nextButton(nullptr),
+      m_resultInfoLabel(nullptr),
+      m_optionsGroup(nullptr),
+      m_caseSensitiveCheck(nullptr),
+      m_wholeWordsCheck(nullptr),
+      m_regexCheck(nullptr),
+      m_searchBackwardCheck(nullptr),
+      m_fuzzySearchCheck(nullptr),
+      m_fuzzyThresholdSpin(nullptr),
+      m_fuzzyThresholdLabel(nullptr),
+      m_pageRangeGroup(nullptr),
+      m_pageRangeCheck(nullptr),
+      m_startPageSpin(nullptr),
+      m_endPageSpin(nullptr),
+      m_pageRangeLabel(nullptr),
+      m_searchHistoryCombo(nullptr),
+      m_clearHistoryButton(nullptr),
+      m_resultsView(nullptr),
+      m_statusLabel(nullptr),
+      m_progressBar(nullptr),
+      m_searchProgressLabel(nullptr),
+      m_searchProgressBar(nullptr),
+      m_highlightColorButton(nullptr),
+      m_currentHighlightColorButton(nullptr),
       m_searchModel(new SearchModel(this)),
       m_document(nullptr),
       m_searchTimer(new QTimer(this)),
-      m_optionsVisible(false) {
+      m_optionsVisible(false),
+      m_findShortcut(nullptr),
+      m_findNextShortcut(nullptr),
+      m_findPreviousShortcut(nullptr),
+      m_escapeShortcut(nullptr) {
     setupUI();
     setupConnections();
     setupShortcuts();
@@ -31,8 +79,9 @@ void SearchWidget::setupUI() {
     StyleManager* styleManager = &StyleManager::instance();
 
     m_mainLayout = new QVBoxLayout(this);
-    m_mainLayout->setContentsMargins(styleManager->spacingSM(), styleManager->spacingSM(),
-                                    styleManager->spacingSM(), styleManager->spacingSM());
+    m_mainLayout->setContentsMargins(
+        styleManager->spacingSM(), styleManager->spacingSM(),
+        styleManager->spacingSM(), styleManager->spacingSM());
     m_mainLayout->setSpacing(styleManager->spacingXS());
 
     // Search input layout with history
@@ -82,7 +131,7 @@ void SearchWidget::setupUI() {
 
     // Search options group
     m_optionsGroup = new QGroupBox(tr("Search Options"));
-    QVBoxLayout* optionsLayout = new QVBoxLayout(m_optionsGroup);
+    auto* optionsLayout = new QVBoxLayout(m_optionsGroup);
 
     // Basic options
     m_caseSensitiveCheck = new QCheckBox(tr("Case Sensitive"));
@@ -103,7 +152,7 @@ void SearchWidget::setupUI() {
     m_fuzzyThresholdSpin->setValue(2);
     m_fuzzyThresholdSpin->setEnabled(false);
 
-    QHBoxLayout* fuzzyLayout = new QHBoxLayout();
+    auto* fuzzyLayout = new QHBoxLayout();
     fuzzyLayout->addWidget(m_fuzzySearchCheck);
     fuzzyLayout->addWidget(m_fuzzyThresholdLabel);
     fuzzyLayout->addWidget(m_fuzzyThresholdSpin);
@@ -113,7 +162,7 @@ void SearchWidget::setupUI() {
 
     // Page range options
     m_pageRangeGroup = new QGroupBox(tr("Page Range"));
-    QVBoxLayout* pageRangeLayout = new QVBoxLayout(m_pageRangeGroup);
+    auto* pageRangeLayout = new QVBoxLayout(m_pageRangeGroup);
 
     m_pageRangeCheck = new QCheckBox(tr("Limit Search Range"));
     m_pageRangeLabel = new QLabel(tr("From Page:"));
@@ -121,12 +170,12 @@ void SearchWidget::setupUI() {
     m_startPageSpin->setMinimum(1);
     m_startPageSpin->setEnabled(false);
 
-    QLabel* toLabel = new QLabel(tr("To Page:"));
+    auto* toLabel = new QLabel(tr("To Page:"));
     m_endPageSpin = new QSpinBox();
     m_endPageSpin->setMinimum(1);
     m_endPageSpin->setEnabled(false);
 
-    QHBoxLayout* rangeLayout = new QHBoxLayout();
+    auto* rangeLayout = new QHBoxLayout();
     rangeLayout->addWidget(m_pageRangeLabel);
     rangeLayout->addWidget(m_startPageSpin);
     rangeLayout->addWidget(toLabel);
@@ -155,7 +204,7 @@ void SearchWidget::setupUI() {
     m_searchProgressBar->setVisible(false);
 
     // Highlight color controls
-    QHBoxLayout* colorLayout = new QHBoxLayout();
+    auto* colorLayout = new QHBoxLayout();
     m_highlightColorButton = new QPushButton(tr("Highlight Color"));
     m_highlightColorButton->setStyleSheet(
         "background-color: #FFFF00; color: black;");
@@ -308,9 +357,13 @@ void SearchWidget::showSearchOptions(bool show) {
     m_optionsButton->setChecked(show);
 }
 
-bool SearchWidget::hasResults() const { return m_searchModel->rowCount() > 0; }
+bool SearchWidget::hasResults() const {
+    return m_searchModel->rowCount(QModelIndex()) > 0;
+}
 
-int SearchWidget::getResultCount() const { return m_searchModel->rowCount(); }
+int SearchWidget::getResultCount() const {
+    return m_searchModel->rowCount(QModelIndex());
+}
 
 SearchResult SearchWidget::getCurrentResult() const {
     int currentIndex = m_searchModel->getCurrentResultIndex();
@@ -369,7 +422,7 @@ void SearchWidget::nextResult() {
 
         // Update status with current position
         int currentIndex = m_searchModel->getCurrentResultIndex();
-        int totalResults = m_searchModel->getResults().size();
+        int totalResults = static_cast<int>(m_searchModel->getResults().size());
         m_statusLabel->setText(
             tr("Result %1 / %2").arg(currentIndex + 1).arg(totalResults));
     }
@@ -389,7 +442,7 @@ void SearchWidget::previousResult() {
 
         // Update status with current position
         int currentIndex = m_searchModel->getCurrentResultIndex();
-        int totalResults = m_searchModel->getResults().size();
+        int totalResults = static_cast<int>(m_searchModel->getResults().size());
         m_statusLabel->setText(
             tr("Result %1 / %2").arg(currentIndex + 1).arg(totalResults));
     }
@@ -454,7 +507,7 @@ void SearchWidget::onCurrentResultChanged(int index) {
     updateResultsInfo();
 
     // Update selection in results view
-    if (index >= 0 && index < m_searchModel->rowCount()) {
+    if (index >= 0 && index < m_searchModel->rowCount(QModelIndex())) {
         QModelIndex modelIndex = m_searchModel->index(index);
         m_resultsView->setCurrentIndex(modelIndex);
     }
@@ -471,7 +524,7 @@ void SearchWidget::updateNavigationButtons() {
 
 void SearchWidget::updateResultsInfo() {
     int current = m_searchModel->getCurrentResultIndex() + 1;
-    int total = m_searchModel->rowCount();
+    int total = m_searchModel->rowCount(QModelIndex());
 
     if (total > 0) {
         m_resultInfoLabel->setText(QString("%1 / %2").arg(current).arg(total));
@@ -576,7 +629,7 @@ void SearchWidget::retranslateUi() {
     m_pageRangeCheck->setText(tr("Limit Search Range"));
     m_pageRangeLabel->setText(tr("From Page:"));
     // Find "To Page:" label and update it
-    QLabel* toLabel = m_pageRangeGroup->findChild<QLabel*>("toPageLabel");
+    auto* toLabel = m_pageRangeGroup->findChild<QLabel*>("toPageLabel");
     if (toLabel) {
         toLabel->setText(tr("To Page:"));
     }
@@ -588,7 +641,7 @@ void SearchWidget::retranslateUi() {
     m_currentHighlightColorButton->setText(tr("Current Result Color"));
 
     // Update highlight color label if it exists
-    QLabel* colorLabel = findChild<QLabel*>("highlightColorsLabel");
+    auto* colorLabel = findChild<QLabel*>("highlightColorsLabel");
     if (colorLabel) {
         colorLabel->setText(tr("Highlight Colors:"));
     }
@@ -709,7 +762,7 @@ void SearchWidget::setSearchResultInfo(int currentResult, int totalResults) {
 }
 
 void SearchWidget::onHighlightColorClicked() {
-    QColor currentColor = QColor("#FFFF00");  // Default yellow
+    auto currentColor = QColor("#FFFF00");  // Default yellow
 
     // Parse current color from button style
     QString style = m_highlightColorButton->styleSheet();
@@ -733,7 +786,7 @@ void SearchWidget::onHighlightColorClicked() {
 }
 
 void SearchWidget::onCurrentHighlightColorClicked() {
-    QColor currentColor = QColor("#FF6600");  // Default orange
+    auto currentColor = QColor("#FF6600");  // Default orange
 
     // Parse current color from button style
     QString style = m_currentHighlightColorButton->styleSheet();

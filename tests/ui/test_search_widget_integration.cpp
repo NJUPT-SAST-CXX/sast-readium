@@ -94,7 +94,14 @@ void SearchWidgetIntegrationTest::cleanupTestCase() { delete m_parentWidget; }
 void SearchWidgetIntegrationTest::init() {
     m_searchWidget = new SearchWidget(m_parentWidget);
     m_searchWidget->show();
-    QTest::qWaitForWindowExposed(m_searchWidget);
+
+    // In offscreen mode, qWaitForWindowExposed() will timeout
+    // Use a simple wait instead to allow widget initialization
+    if (QGuiApplication::platformName() == "offscreen") {
+        QTest::qWait(100);  // Give widgets time to initialize
+    } else {
+        QVERIFY(QTest::qWaitForWindowExposed(m_searchWidget));
+    }
 }
 
 void SearchWidgetIntegrationTest::cleanup() {

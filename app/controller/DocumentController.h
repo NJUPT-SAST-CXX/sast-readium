@@ -23,8 +23,14 @@ private:
     void initializeCommandMap();
 
 public:
-    DocumentController(DocumentModel* model);
+    explicit DocumentController(DocumentModel* model);
     ~DocumentController() = default;
+
+    // Special member functions
+    DocumentController(const DocumentController&) = delete;
+    DocumentController& operator=(const DocumentController&) = delete;
+    DocumentController(DocumentController&&) = delete;
+    DocumentController& operator=(DocumentController&&) = delete;
     void execute(ActionMap actionID, QWidget* context);
 
     // 多文档操作方法
@@ -41,12 +47,14 @@ public:
 
     // 最近文件管理
     void setRecentFilesManager(RecentFilesManager* manager);
-    RecentFilesManager* getRecentFilesManager() const {
+    [[nodiscard]] RecentFilesManager* getRecentFilesManager() const {
         return recentFilesManager;
     }
 
     // 获取文档模型
-    DocumentModel* getDocumentModel() const { return documentModel; }
+    [[nodiscard]] DocumentModel* getDocumentModel() const {
+        return documentModel;
+    }
 
 signals:
     void documentOperationCompleted(ActionMap action, bool success);

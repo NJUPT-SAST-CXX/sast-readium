@@ -93,7 +93,9 @@ void BackgroundProcessorTest::init() {
 void BackgroundProcessorTest::cleanup() {
     if (m_processor) {
         m_processor->cancelAll();
-        m_processor->waitForDone(1000);
+        m_processor->waitForDone(5000);  // Increased timeout
+        // Also wait for global thread pool to ensure all tasks complete
+        QThreadPool::globalInstance()->waitForDone();
         delete m_processor;
         m_processor = nullptr;
     }

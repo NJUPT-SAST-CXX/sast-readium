@@ -321,5 +321,3 @@ void ControllerTestBase::cleanupMockObjects() {
     m_mockStyleManager = nullptr;
     m_mockWelcomeScreenManager = nullptr;
 }
-
-#include "ControllerTestMocks.moc"

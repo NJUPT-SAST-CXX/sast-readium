@@ -20,7 +20,7 @@ class ServiceLocator : public QObject {
     Q_OBJECT
 
 public:
-    ~ServiceLocator();
+    ~ServiceLocator() override;
 
     // Singleton access
     static ServiceLocator& instance();
@@ -65,18 +65,18 @@ public:
     }
 
     // Service management
-    bool hasService(const QString& typeName) const;
+    [[nodiscard]] bool hasService(const QString& typeName) const;
     void removeService(const QString& typeName);
     void clearServices();
     void clearServicesUnsafe();  // Safe shutdown without logging
-    QStringList registeredServices() const;
+    [[nodiscard]] QStringList registeredServices() const;
 
     // Direct access for special cases (use with caution)
     QObject* getServiceInstance(const QString& typeName);
 
     // Lazy initialization
     void setLazyLoading(bool lazy) { m_lazyLoading = lazy; }
-    bool isLazyLoading() const { return m_lazyLoading; }
+    [[nodiscard]] bool isLazyLoading() const { return m_lazyLoading; }
 
 signals:
     void serviceRegistered(const QString& typeName);
@@ -85,10 +85,15 @@ signals:
     void serviceCreated(const QString& typeName);
 
 private:
-    ServiceLocator(QObject* parent = nullptr);
+    explicit ServiceLocator(QObject* parent = nullptr);
+
+public:
     ServiceLocator(const ServiceLocator&) = delete;
     ServiceLocator& operator=(const ServiceLocator&) = delete;
+    ServiceLocator(ServiceLocator&&) = delete;
+    ServiceLocator& operator=(ServiceLocator&&) = delete;
 
+private:
     using ServiceFactory = std::function<QObject*()>;
 
     void registerServiceFactory(const QString& typeName,
@@ -146,7 +151,13 @@ class ServiceProvider : public QObject {
 
 public:
     explicit ServiceProvider(QObject* parent = nullptr);
-    virtual ~ServiceProvider();
+    ~ServiceProvider() override;
+
+    // Special member functions
+    ServiceProvider(const ServiceProvider&) = delete;
+    ServiceProvider& operator=(const ServiceProvider&) = delete;
+    ServiceProvider(ServiceProvider&&) = delete;
+    ServiceProvider& operator=(ServiceProvider&&) = delete;
 
     // Service lifecycle
     virtual void initializeServices() = 0;
@@ -165,7 +176,9 @@ signals:
     void servicesShutdown();
 
 protected:
-    QStringList providedServices() const { return m_providedServices; }
+    [[nodiscard]] QStringList providedServices() const {
+        return m_providedServices;
+    }
 
 private:
     QStringList m_providedServices;
@@ -205,6 +218,12 @@ class ServiceScope {
 public:
     explicit ServiceScope(ServiceLocator* locator = nullptr);
     ~ServiceScope();
+
+    // Special member functions
+    ServiceScope(const ServiceScope&) = delete;
+    ServiceScope& operator=(const ServiceScope&) = delete;
+    ServiceScope(ServiceScope&&) = delete;
+    ServiceScope& operator=(ServiceScope&&) = delete;
 
     template <typename Interface, typename Implementation>
     void registerScoped() {

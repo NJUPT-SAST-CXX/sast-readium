@@ -142,13 +142,14 @@ private:
     // Singleton instance
     static OnboardingManager* s_instance;
 
-    std::unique_ptr<OnboardingManagerImpl> pImpl;
+    std::unique_ptr<OnboardingManagerImpl> m_pImpl;
 
     // Constants (using constexpr to avoid static initialization exceptions)
     static constexpr const char* SETTINGS_GROUP = "Onboarding";
     static constexpr const char* SETTINGS_FIRST_TIME_KEY = "FirstTimeUser";
     static constexpr const char* SETTINGS_COMPLETED_KEY = "Completed";
-    static constexpr const char* SETTINGS_COMPLETED_STEPS_KEY = "CompletedSteps";
+    static constexpr const char* SETTINGS_COMPLETED_STEPS_KEY =
+        "CompletedSteps";
     static constexpr const char* SETTINGS_SHOW_TIPS_KEY = "ShowTips";
     static constexpr const char* SETTINGS_SHOW_ON_STARTUP_KEY = "ShowOnStartup";
     static constexpr const char* SETTINGS_ANALYTICS_KEY = "Analytics";

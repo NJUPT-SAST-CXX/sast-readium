@@ -60,7 +60,14 @@ void RightSideBarIntegrationTest::cleanupTestCase() { delete m_parentWidget; }
 void RightSideBarIntegrationTest::init() {
     m_rightSideBar = new RightSideBar(m_parentWidget);
     m_rightSideBar->show();
-    QTest::qWaitForWindowExposed(m_rightSideBar);
+
+    // In offscreen mode, qWaitForWindowExposed() will timeout
+    // Use a simple wait instead to allow widget initialization
+    if (QGuiApplication::platformName() == "offscreen") {
+        QTest::qWait(100);  // Give widgets time to initialize
+    } else {
+        QVERIFY(QTest::qWaitForWindowExposed(m_rightSideBar));
+    }
 }
 
 void RightSideBarIntegrationTest::cleanup() {

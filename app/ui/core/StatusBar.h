@@ -21,6 +21,7 @@ class ExpandableInfoPanel : public QWidget {
 
 public:
     ExpandableInfoPanel(const QString& title, QWidget* parent = nullptr);
+    ~ExpandableInfoPanel() override;
     void setContentWidget(QWidget* widget);
     void setExpanded(bool expanded, bool animated = true);
     bool isExpanded() const { return m_expanded; }
@@ -40,9 +41,11 @@ private:
 };
 
 /**
- * @brief Enhanced status bar with document information, progress tracking, and expandable panels
+ * @brief Enhanced status bar with document information, progress tracking, and
+ * expandable panels
  *
- * @details This status bar provides comprehensive document status information including:
+ * @details This status bar provides comprehensive document status information
+ * including:
  * - File name, page info, and zoom level
  * - Document metadata (title, author, subject, keywords, dates)
  * - Document statistics (word count, character count, reading time)
@@ -52,19 +55,21 @@ private:
  * - Quick action buttons
  *
  * **Minimal Mode:**
- * The status bar supports a minimal mode (enabled via constructor parameter) designed for:
+ * The status bar supports a minimal mode (enabled via constructor parameter)
+ * designed for:
  * - Headless testing environments without Qt platform plugins
  * - Unit testing where UI widgets are not needed
  * - Reduced memory footprint scenarios
  *
  * When minimal mode is enabled:
  * - All widget pointers are initialized to nullptr
- * - All public methods perform null checks and return early if widgets don't exist
+ * - All public methods perform null checks and return early if widgets don't
+ * exist
  * - No UI elements are created or displayed
  * - The status bar acts as a no-op interface for testing purposes
  *
- * @note All public methods are safe to call in minimal mode - they will gracefully handle
- *       nullptr widgets and return without error.
+ * @note All public methods are safe to call in minimal mode - they will
+ * gracefully handle nullptr widgets and return without error.
  *
  * @see ExpandableInfoPanel for the collapsible panel implementation
  */
@@ -74,7 +79,8 @@ public:
     /**
      * @brief Construct a new Status Bar object
      * @param parent Parent widget (optional)
-     * @param minimalMode If true, creates a minimal status bar without UI widgets for testing (default: false)
+     * @param minimalMode If true, creates a minimal status bar without UI
+     * widgets for testing (default: false)
      */
     explicit StatusBar(QWidget* parent = nullptr, bool minimalMode = false);
 
@@ -171,8 +177,7 @@ private:
     void applyFieldStyles();
     void applyPanelTypography();
     void applyQuickActionStyles();
-    void updateMessageAppearance(const QColor& background,
-                                 const QColor& text);
+    void updateMessageAppearance(const QColor& background, const QColor& text);
     void setLineEditInvalid(QLineEdit* edit, bool invalid);
     void displayTransientMessage(const QString& text, int timeout,
                                  const QColor& background,

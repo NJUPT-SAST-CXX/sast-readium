@@ -9,6 +9,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVariant>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include "../logging/SimpleLogging.h"
@@ -24,13 +25,13 @@ class ConfigurationManager : public QObject {
     Q_OBJECT
 
 public:
-    ~ConfigurationManager();
+    ~ConfigurationManager() override;
 
     // Singleton access
     static ConfigurationManager& instance();
 
     // Configuration groups
-    enum ConfigGroup {
+    enum class ConfigGroup : std::uint8_t {
         General,
         UI,
         Document,
@@ -42,22 +43,25 @@ public:
     };
 
     // General configuration access
-    QVariant getValue(const QString& key,
-                      const QVariant& defaultValue = QVariant()) const;
+    [[nodiscard]] QVariant getValue(
+        const QString& key, const QVariant& defaultValue = QVariant()) const;
     void setValue(const QString& key, const QVariant& value);
 
     // Group-based configuration access
-    QVariant getValue(ConfigGroup group, const QString& key,
-                      const QVariant& defaultValue = QVariant()) const;
+    [[nodiscard]] QVariant getValue(
+        ConfigGroup group, const QString& key,
+        const QVariant& defaultValue = QVariant()) const;
     void setValue(ConfigGroup group, const QString& key, const QVariant& value);
 
     // Type-safe accessors
-    bool getBool(const QString& key, bool defaultValue = false) const;
-    int getInt(const QString& key, int defaultValue = 0) const;
-    double getDouble(const QString& key, double defaultValue = 0.0) const;
-    QString getString(const QString& key,
-                      const QString& defaultValue = QString()) const;
-    QStringList getStringList(
+    [[nodiscard]] bool getBool(const QString& key,
+                               bool defaultValue = false) const;
+    [[nodiscard]] int getInt(const QString& key, int defaultValue = 0) const;
+    [[nodiscard]] double getDouble(const QString& key,
+                                   double defaultValue = 0.0) const;
+    [[nodiscard]] QString getString(
+        const QString& key, const QString& defaultValue = QString()) const;
+    [[nodiscard]] QStringList getStringList(
         const QString& key,
         const QStringList& defaultValue = QStringList()) const;
 
@@ -73,21 +77,23 @@ public:
 
     // Configuration validation
     bool validateConfiguration();
-    QStringList validationErrors() const { return m_validationErrors; }
+    [[nodiscard]] QStringList validationErrors() const {
+        return m_validationErrors;
+    }
 
     // Runtime configuration (not persisted)
     void setRuntimeValue(const QString& key, const QVariant& value);
-    QVariant getRuntimeValue(const QString& key,
-                             const QVariant& defaultValue = QVariant()) const;
+    [[nodiscard]] QVariant getRuntimeValue(
+        const QString& key, const QVariant& defaultValue = QVariant()) const;
     void clearRuntimeValues();
 
     // Configuration monitoring
     void watchKey(const QString& key);
     void unwatchKey(const QString& key);
-    bool isWatching(const QString& key) const;
+    [[nodiscard]] bool isWatching(const QString& key) const;
 
     // Configuration introspection
-    QStringList allKeys() const;
+    [[nodiscard]] QStringList allKeys() const;
 
 signals:
     void configurationChanged(const QString& key, const QVariant& value);
@@ -99,12 +105,17 @@ signals:
     void validationFailed(const QStringList& errors);
 
 private:
-    ConfigurationManager(QObject* parent = nullptr);
+    explicit ConfigurationManager(QObject* parent = nullptr);
+
+public:
     ConfigurationManager(const ConfigurationManager&) = delete;
     ConfigurationManager& operator=(const ConfigurationManager&) = delete;
+    ConfigurationManager(ConfigurationManager&&) = delete;
+    ConfigurationManager& operator=(ConfigurationManager&&) = delete;
 
+private:
     // Helper methods
-    QString groupToString(ConfigGroup group) const;
+    [[nodiscard]] QString groupToString(ConfigGroup group) const;
     void initializeDefaults();
     void notifyChange(const QString& key, const QVariant& value);
     void notifyChange(ConfigGroup group, const QString& key,
@@ -146,7 +157,7 @@ public:
 
     // Validate configuration
     bool validate();
-    QStringList errors() const { return m_errors; }
+    [[nodiscard]] QStringList errors() const { return m_errors; }
 
 private:
     ConfigurationManager* m_manager;
@@ -162,21 +173,21 @@ public:
     explicit ConfigurationProfile(const QString& name);
 
     // Profile management
-    QString name() const { return m_name; }
+    [[nodiscard]] QString name() const { return m_name; }
     void setName(const QString& name) { m_name = name; }
 
     // Configuration storage
     void setValue(const QString& key, const QVariant& value);
-    QVariant getValue(const QString& key,
-                      const QVariant& defaultValue = QVariant()) const;
-    QHash<QString, QVariant> values() const { return m_values; }
+    [[nodiscard]] QVariant getValue(
+        const QString& key, const QVariant& defaultValue = QVariant()) const;
+    [[nodiscard]] QHash<QString, QVariant> values() const { return m_values; }
 
     // Profile operations
     void applyTo(ConfigurationManager* manager);
     void loadFrom(ConfigurationManager* manager);
 
     // Serialization
-    QByteArray serialize() const;
+    [[nodiscard]] QByteArray serialize() const;
     bool deserialize(const QByteArray& data);
 
 private:
@@ -193,17 +204,25 @@ class ConfigurationProfileManager : public QObject {
 public:
     explicit ConfigurationProfileManager(ConfigurationManager* manager,
                                          QObject* parent = nullptr);
-    ~ConfigurationProfileManager();
+    ~ConfigurationProfileManager() override;
+
+    // Special member functions
+    ConfigurationProfileManager(const ConfigurationProfileManager&) = delete;
+    ConfigurationProfileManager& operator=(const ConfigurationProfileManager&) =
+        delete;
+    ConfigurationProfileManager(ConfigurationProfileManager&&) = delete;
+    ConfigurationProfileManager& operator=(ConfigurationProfileManager&&) =
+        delete;
 
     // Profile management
     void addProfile(std::unique_ptr<ConfigurationProfile> profile);
     void removeProfile(const QString& name);
     ConfigurationProfile* getProfile(const QString& name);
-    QStringList profileNames() const;
+    [[nodiscard]] QStringList profileNames() const;
 
     // Active profile
     void setActiveProfile(const QString& name);
-    QString activeProfile() const { return m_activeProfileName; }
+    [[nodiscard]] QString activeProfile() const { return m_activeProfileName; }
     void applyActiveProfile();
 
     // Profile operations

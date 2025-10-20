@@ -6,20 +6,49 @@
 
 AnnotationToolbar::AnnotationToolbar(QWidget* parent)
     : QWidget(parent),
+      m_toolGroup(nullptr),
+      m_toolLayout(nullptr),
+      m_toolButtonGroup(nullptr),
+      m_highlightBtn(nullptr),
+      m_noteBtn(nullptr),
+      m_freeTextBtn(nullptr),
+      m_underlineBtn(nullptr),
+      m_strikeOutBtn(nullptr),
+      m_rectangleBtn(nullptr),
+      m_circleBtn(nullptr),
+      m_lineBtn(nullptr),
+      m_arrowBtn(nullptr),
+      m_inkBtn(nullptr),
+      m_propertiesGroup(nullptr),
+      m_propertiesLayout(nullptr),
+      m_colorButton(nullptr),
+      m_colorDialog(nullptr),
+      m_opacityLabel(nullptr),
+      m_opacitySlider(nullptr),
+      m_lineWidthLabel(nullptr),
+      m_lineWidthSpinBox(nullptr),
+      m_fontSizeLabel(nullptr),
+      m_fontSizeSpinBox(nullptr),
+      m_fontFamilyLabel(nullptr),
+      m_fontFamilyCombo(nullptr),
+      m_actionsGroup(nullptr),
+      m_actionsLayout(nullptr),
+      m_clearAllBtn(nullptr),
+      m_saveBtn(nullptr),
+      m_loadBtn(nullptr),
       m_currentTool(AnnotationType::Highlight),
       m_currentColor(Qt::yellow),
       m_currentOpacity(0.7),
       m_currentLineWidth(2.0),
       m_currentFontSize(12),
-      m_currentFontFamily("Arial"),
-      m_colorDialog(nullptr) {
+      m_currentFontFamily("Arial") {
     setupUI();
     setupConnections();
     resetToDefaults();
 }
 
 void AnnotationToolbar::setupUI() {
-    QHBoxLayout* mainLayout = new QHBoxLayout(this);
+    auto* mainLayout = new QHBoxLayout(this);
     mainLayout->setContentsMargins(6, 6, 6, 6);
     mainLayout->setSpacing(8);
 
@@ -103,7 +132,7 @@ void AnnotationToolbar::setupUI() {
     m_propertiesLayout = new QVBoxLayout(m_propertiesGroup);
 
     // Color selection
-    QHBoxLayout* colorLayout = new QHBoxLayout();
+    auto* colorLayout = new QHBoxLayout();
     colorLayout->addWidget(new QLabel("颜色:"));
     m_colorButton = new QPushButton();
     m_colorButton->setMinimumSize(40, 25);
@@ -114,7 +143,7 @@ void AnnotationToolbar::setupUI() {
     m_propertiesLayout->addLayout(colorLayout);
 
     // Opacity control
-    QHBoxLayout* opacityLayout = new QHBoxLayout();
+    auto* opacityLayout = new QHBoxLayout();
     m_opacityLabel = new QLabel("透明度: 70%");
     opacityLayout->addWidget(m_opacityLabel);
     m_opacitySlider = new QSlider(Qt::Horizontal);
@@ -124,7 +153,7 @@ void AnnotationToolbar::setupUI() {
     m_propertiesLayout->addLayout(opacityLayout);
 
     // Line width control
-    QHBoxLayout* lineWidthLayout = new QHBoxLayout();
+    auto* lineWidthLayout = new QHBoxLayout();
     m_lineWidthLabel = new QLabel("线宽:");
     lineWidthLayout->addWidget(m_lineWidthLabel);
     m_lineWidthSpinBox = new QSpinBox();
@@ -136,7 +165,7 @@ void AnnotationToolbar::setupUI() {
     m_propertiesLayout->addLayout(lineWidthLayout);
 
     // Font size control
-    QHBoxLayout* fontSizeLayout = new QHBoxLayout();
+    auto* fontSizeLayout = new QHBoxLayout();
     m_fontSizeLabel = new QLabel("字号:");
     fontSizeLayout->addWidget(m_fontSizeLabel);
     m_fontSizeSpinBox = new QSpinBox();
@@ -148,7 +177,7 @@ void AnnotationToolbar::setupUI() {
     m_propertiesLayout->addLayout(fontSizeLayout);
 
     // Font family control
-    QHBoxLayout* fontFamilyLayout = new QHBoxLayout();
+    auto* fontFamilyLayout = new QHBoxLayout();
     m_fontFamilyLabel = new QLabel("字体:");
     fontFamilyLayout->addWidget(m_fontFamilyLabel);
     m_fontFamilyCombo = new QComboBox();
@@ -284,7 +313,7 @@ void AnnotationToolbar::resetToDefaults() {
 }
 
 void AnnotationToolbar::onToolButtonClicked() {
-    QPushButton* button = qobject_cast<QPushButton*>(sender());
+    auto* button = qobject_cast<QPushButton*>(sender());
     if (button) {
         int toolValue = button->property("tool").toInt();
         setCurrentTool(static_cast<AnnotationType>(toolValue));
@@ -323,7 +352,7 @@ void AnnotationToolbar::onFontFamilyChanged(const QString& family) {
 void AnnotationToolbar::updateToolButtons() {
     // Find and check the button corresponding to current tool
     for (QAbstractButton* button : m_toolButtonGroup->buttons()) {
-        QPushButton* pushButton = qobject_cast<QPushButton*>(button);
+        auto* pushButton = qobject_cast<QPushButton*>(button);
         if (pushButton) {
             int toolValue = pushButton->property("tool").toInt();
             pushButton->setChecked(static_cast<AnnotationType>(toolValue) ==

@@ -16,13 +16,11 @@
 class SearchPerformanceTest : public TestBase {
     Q_OBJECT
 
-protected:
+private slots:
     void initTestCase() override;
     void cleanupTestCase() override;
     void init() override;
     void cleanup() override;
-
-private slots:
     // Constructor and basic tests
     void testConstructor();
     void testDestructor();
@@ -104,14 +102,9 @@ private:
                             std::function<void()> searchFunction);
 };
 
-void SearchPerformanceTest::initTestCase() {
-    qDebug() << "Starting SearchPerformance tests";
-    setupTestData();
-}
+void SearchPerformanceTest::initTestCase() { setupTestData(); }
 
-void SearchPerformanceTest::cleanupTestCase() {
-    qDebug() << "SearchPerformance tests completed";
-}
+void SearchPerformanceTest::cleanupTestCase() {}
 
 void SearchPerformanceTest::init() {
     m_performance = new SearchPerformance(this);
@@ -120,6 +113,10 @@ void SearchPerformanceTest::init() {
 
 void SearchPerformanceTest::cleanup() {
     if (m_performance) {
+        // Wait for any concurrent operations to complete
+        // This prevents crashes when QtConcurrent tasks try to access
+        // the deleted object
+        QThreadPool::globalInstance()->waitForDone();
         delete m_performance;
         m_performance = nullptr;
     }
@@ -151,9 +148,11 @@ void SearchPerformanceTest::testDestructor() {
 
 void SearchPerformanceTest::testBoyerMooreSearch() {
     QString pattern = "quick";
+
     auto results =
         m_performance->boyerMooreSearch(m_testText, pattern, false, -1);
 
+    qDebug() << "Results count:" << results.size();
     QVERIFY(!results.isEmpty());
     verifySearchResults(results, pattern);
 
@@ -275,7 +274,8 @@ void SearchPerformanceTest::testGetLastSearchMetrics() {
     // Perform a search to generate metrics
     m_performance->boyerMooreSearch(m_testText, "test", false, -1);
 
-    // Retrieve metrics (mutex issue was a test design problem, not an actual deadlock)
+    // Retrieve metrics (mutex issue was a test design problem, not an actual
+    // deadlock)
     SearchPerformance::PerformanceMetrics metrics =
         m_performance->getLastSearchMetrics();
 

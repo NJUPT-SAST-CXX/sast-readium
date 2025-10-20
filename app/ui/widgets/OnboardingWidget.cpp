@@ -69,7 +69,7 @@ void OnboardingWidget::setOnboardingManager(OnboardingManager* manager) {
     m_manager = manager;
 }
 
-void OnboardingWidget::showStep(OnboardingStep step) {
+void OnboardingWidget::showStep(OnboardingStep /*step*/) {
     // Update step content based on the step
     updateStepContent();
 
@@ -327,8 +327,9 @@ bool OnboardingWidget::eventFilter(QObject* watched, QEvent* event) {
                 if (m_highlightedWidget) {
                     m_highlightArea = m_highlightedWidget->geometry();
                     if (m_highlightedWidget->parentWidget()) {
-                        QPoint globalTopLeft = m_highlightedWidget->parentWidget()
-                                                   ->mapToGlobal(m_highlightArea.topLeft());
+                        QPoint globalTopLeft =
+                            m_highlightedWidget->parentWidget()->mapToGlobal(
+                                m_highlightArea.topLeft());
                         QPoint localTopLeft = mapFromGlobal(globalTopLeft);
                         m_highlightArea.moveTopLeft(localTopLeft);
                     }
@@ -363,9 +364,7 @@ void OnboardingWidget::stopAnimation() {
     }
 }
 
-bool OnboardingWidget::isAnimating() const {
-    return m_isAnimating;
-}
+bool OnboardingWidget::isAnimating() const { return m_isAnimating; }
 
 // Private slots
 void OnboardingWidget::onNextClicked() { emit nextClicked(); }
@@ -546,7 +545,8 @@ void OnboardingWidget::updateNavigationButtons() {
 
     // Update next button text based on whether this is the last step
     OnboardingStep currentStep = m_manager->currentStep();
-    m_nextButton->setText(currentStep == OnboardingStep::Complete ? "Finish" : "Next");
+    m_nextButton->setText(currentStep == OnboardingStep::Complete ? "Finish"
+                                                                  : "Next");
 }
 
 QRect OnboardingWidget::calculateHighlightRect(QWidget* widget) const {
@@ -558,7 +558,8 @@ QRect OnboardingWidget::calculateHighlightRect(QWidget* widget) const {
 
     // Convert to global coordinates if widget has a parent
     if (widget->parentWidget()) {
-        QPoint globalTopLeft = widget->parentWidget()->mapToGlobal(rect.topLeft());
+        QPoint globalTopLeft =
+            widget->parentWidget()->mapToGlobal(rect.topLeft());
         QPoint localTopLeft = mapFromGlobal(globalTopLeft);
         rect.moveTopLeft(localTopLeft);
     }
@@ -568,7 +569,8 @@ QRect OnboardingWidget::calculateHighlightRect(QWidget* widget) const {
 
 void OnboardingWidget::drawOverlay(QPainter& painter) {
     // Draw semi-transparent overlay over entire widget
-    painter.fillRect(rect(), QColor(0, 0, 0, int(255 * m_overlayOpacity * 0.6)));
+    painter.fillRect(rect(),
+                     QColor(0, 0, 0, int(255 * m_overlayOpacity * 0.6)));
 }
 
 void OnboardingWidget::drawHighlight(QPainter& painter) {

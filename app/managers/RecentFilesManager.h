@@ -85,11 +85,13 @@ private slots:
 
 private:
     void loadSettings();
-    std::unique_ptr<RecentFilesManagerImpl> pImpl;
+    std::unique_ptr<RecentFilesManagerImpl> m_pImpl;
 
 public:
     // Static constants - made public for implementation class access
-    static const QString SETTINGS_GROUP;
-    static const QString SETTINGS_MAX_FILES_KEY;
-    static const QString SETTINGS_FILES_KEY;
+    // Using constexpr to avoid cert-err58-cpp (static storage duration
+    // exceptions)
+    static constexpr QLatin1StringView SETTINGS_GROUP{"recentFiles"};
+    static constexpr QLatin1StringView SETTINGS_MAX_FILES_KEY{"maxFiles"};
+    static constexpr QLatin1StringView SETTINGS_FILES_KEY{"files"};
 };

@@ -25,6 +25,7 @@
 #include <QThreadPool>
 #include <QTimer>
 #include <QWaitCondition>
+#include <cstdint>
 #include <memory>
 
 /**
@@ -42,17 +43,17 @@ class ThumbnailGenerator : public QObject {
     Q_OBJECT
 
 public:
-    enum class RenderMode {
-        CPU_ONLY,         // 仅使用CPU渲染
-        GPU_ACCELERATED,  // GPU加速渲染
-        HYBRID            // 混合模式：根据任务选择
+    enum class RenderMode : std::uint8_t {
+        CpuOnly,         // 仅使用CPU渲染
+        GpuAccelerated,  // GPU加速渲染
+        Hybrid           // 混合模式：根据任务选择
     };
 
-    enum class CacheStrategy {
-        LRU,          // 最近最少使用
-        LFU,          // 最少使用频率
-        ADAPTIVE,     // 自适应策略
-        MEMORY_AWARE  // 内存感知策略
+    enum class CacheStrategy : std::uint8_t {
+        Lru,         // 最近最少使用
+        Lfu,         // 最少使用频率
+        Adaptive,    // 自适应策略
+        MemoryAware  // 内存感知策略
     };
 
     struct GenerationRequest {
@@ -72,17 +73,17 @@ public:
               priority(0),
               timestamp(0),
               retryCount(0),
-              preferredMode(RenderMode::HYBRID),
+              preferredMode(RenderMode::Hybrid),
               useCompression(true) {}
 
-        GenerationRequest(int page, const QSize& sz, double qual, int prio = 0)
+        GenerationRequest(int page, const QSize& sz, int prio, double qual)
             : pageNumber(page),
               size(sz),
               quality(qual),
               priority(prio),
               timestamp(QDateTime::currentMSecsSinceEpoch()),
               retryCount(0),
-              preferredMode(RenderMode::HYBRID),
+              preferredMode(RenderMode::Hybrid),
               useCompression(true) {
             cacheKey = QString("%1_%2x%3_q%4")
                            .arg(page)
@@ -90,6 +91,10 @@ public:
                            .arg(sz.height())
                            .arg(qual);
         }
+
+        // Backward compatibility constructor
+        GenerationRequest(int page, const QSize& sz, double qual, int prio = 0)
+            : GenerationRequest(page, sz, prio, qual) {}
 
         bool operator<(const GenerationRequest& other) const {
             // 优先级队列：优先级数值小的优先，时间戳早的优先
@@ -147,7 +152,7 @@ public:
     // 生成请求
     void generateThumbnail(int pageNumber, const QSize& size = QSize(),
                            double quality = -1.0, int priority = 0,
-                           RenderMode mode = RenderMode::HYBRID);
+                           RenderMode mode = RenderMode::Hybrid);
     void generateThumbnailRange(int startPage, int endPage,
                                 const QSize& size = QSize(),
                                 double quality = -1.0);
@@ -336,7 +341,7 @@ private:
     // 常量 - 优化后的默认值
     static constexpr int DEFAULT_THUMBNAIL_WIDTH = 120;
     static constexpr int DEFAULT_THUMBNAIL_HEIGHT = 160;
-    static constexpr double DEFAULT_QUALITY = 1.0;
+    static constexpr double THUMBNAIL_DEFAULT_QUALITY = 1.0;
     static constexpr int DEFAULT_MAX_CONCURRENT_JOBS = 6;  // 增加并发数
     static constexpr int DEFAULT_MAX_RETRIES = 2;
     static constexpr int DEFAULT_BATCH_SIZE = 8;       // 增加批处理大小
@@ -347,11 +352,11 @@ private:
 
     // GPU和内存池常量
     static constexpr qint64 DEFAULT_MEMORY_POOL_SIZE =
-        64 * 1024 * 1024;  // 64MB
+        static_cast<qint64>(64) * 1024 * 1024;  // 64MB
     static constexpr int DEFAULT_COMPRESSION_QUALITY = 85;
     static constexpr int MAX_MEMORY_POOL_ENTRIES = 100;
     static constexpr qint64 MEMORY_POOL_CLEANUP_THRESHOLD =
-        80 * 1024 * 1024;                              // 80MB
+        static_cast<qint64>(80) * 1024 * 1024;         // 80MB
     static constexpr int GPU_CONTEXT_TIMEOUT = 5000;   // 5秒
     static constexpr int COMPRESSED_CACHE_SIZE = 200;  // 缓存条目数
 };

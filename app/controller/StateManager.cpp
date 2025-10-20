@@ -10,7 +10,7 @@
 // State Implementation
 // ============================================================================
 
-State::State(const QJsonObject& data) : m_data(data) {}
+State::State(QJsonObject data) : m_data(std::move(data)) {}
 
 QVariant State::get(const QString& path) const {
     QJsonValue value = getValue(path);
@@ -29,53 +29,35 @@ QJsonValue State::getValue(const QString& path) const {
 
 bool State::has(const QString& path) const {
     QStringList parts = path.split('.', Qt::SkipEmptyParts);
+    if (parts.isEmpty()) {
+        return false;
+    }
     QJsonValue value = getValueByPath(m_data, parts);
     return !value.isUndefined() && !value.isNull();
 }
 
-State State::set(const QString& path, const QVariant& value) const {
+State State::set(const QString& path, const QVariant& value) {
     QStringList parts = path.split('.', Qt::SkipEmptyParts);
     QJsonValue jsonValue = QJsonValue::fromVariant(value);
-    QJsonObject newData = setValueByPath(m_data, parts, jsonValue);
-    return State(newData);
+    m_data = setValueByPath(m_data, parts, jsonValue);
+    return *this;
 }
 
-State State::merge(const QJsonObject& data) const {
-    QJsonObject newData = m_data;
+State State::merge(const QJsonObject& data) {
     for (auto it = data.begin(); it != data.end(); ++it) {
-        newData[it.key()] = it.value();
+        m_data[it.key()] = it.value();
     }
-    return State(newData);
+    return *this;
 }
 
-State State::remove(const QString& path) const {
+State State::remove(const QString& path) {
     QStringList parts = path.split('.', Qt::SkipEmptyParts);
     if (parts.isEmpty()) {
         return *this;
     }
 
-    QJsonObject newData = m_data;
-    if (parts.size() == 1) {
-        newData.remove(parts[0]);
-    } else {
-        // Navigate to parent and remove the key
-        QJsonObject* current = &newData;
-        for (int i = 0; i < parts.size() - 1; ++i) {
-            if (!current->contains(parts[i])) {
-                return *this;
-            }
-            QJsonValue val = (*current)[parts[i]];
-            if (!val.isObject()) {
-                return *this;
-            }
-            QJsonObject obj = val.toObject();
-            (*current)[parts[i]] = obj;
-            current = &obj;
-        }
-        current->remove(parts.last());
-    }
-
-    return State(newData);
+    m_data = removeValueByPath(m_data, parts);
+    return *this;
 }
 
 QString State::toString() const {
@@ -137,6 +119,36 @@ QJsonObject State::setValueByPath(const QJsonObject& obj,
     return result;
 }
 
+QJsonObject State::removeValueByPath(const QJsonObject& obj,
+                                     const QStringList& path) const {
+    if (path.isEmpty()) {
+        return obj;
+    }
+
+    QJsonObject result = obj;
+    const QString& key = path.first();
+
+    if (path.size() == 1) {
+        result.remove(key);
+        return result;
+    }
+
+    if (!result.contains(key) || !result.value(key).isObject()) {
+        return result;
+    }
+
+    QJsonObject child = result.value(key).toObject();
+    child = removeValueByPath(child, path.mid(1));
+
+    if (child.isEmpty()) {
+        result.remove(key);
+    } else {
+        result.insert(key, child);
+    }
+
+    return result;
+}
+
 // ============================================================================
 // StateChange Implementation
 // ============================================================================
@@ -157,53 +169,69 @@ QStringList StateChange::changedPaths() const {
 
     compareValues = [&](const QJsonValue& value1, const QJsonValue& value2,
                         const QString& currentPath) {
-        if (value1.type() != value2.type()) {
-            paths.append(currentPath);
+        const auto type1 = value1.type();
+        const auto type2 = value2.type();
+
+        const bool isObject1 = type1 == QJsonValue::Object;
+        const bool isObject2 = type2 == QJsonValue::Object;
+        if (isObject1 || isObject2) {
+            QJsonObject obj1 = value1.toObject();
+            QJsonObject obj2 = value2.toObject();
+
+            QSet<QString> allKeys;
+            for (const QString& key : obj1.keys()) {
+                allKeys.insert(key);
+            }
+            for (const QString& key : obj2.keys()) {
+                allKeys.insert(key);
+            }
+
+            for (const QString& key : allKeys) {
+                const QString newPath =
+                    currentPath.isEmpty() ? key : currentPath + "." + key;
+                compareValues(obj1.value(key), obj2.value(key), newPath);
+            }
+
+            if (type1 != type2 && !currentPath.isEmpty() && allKeys.isEmpty()) {
+                paths.append(currentPath);
+            }
             return;
         }
 
-        switch (value1.type()) {
-            case QJsonValue::Object: {
-                QJsonObject obj1 = value1.toObject();
-                QJsonObject obj2 = value2.toObject();
+        const bool isArray1 = type1 == QJsonValue::Array;
+        const bool isArray2 = type2 == QJsonValue::Array;
+        if (isArray1 || isArray2) {
+            QJsonArray arr1 = value1.toArray();
+            QJsonArray arr2 = value2.toArray();
 
-                // Find all keys from both objects
-                QSet<QString> allKeys;
-                for (const QString& key : obj1.keys()) {
-                    allKeys.insert(key);
-                }
-                for (const QString& key : obj2.keys()) {
-                    allKeys.insert(key);
-                }
-
-                for (const QString& key : allKeys) {
-                    QString newPath =
-                        currentPath.isEmpty() ? key : currentPath + "." + key;
-                    compareValues(obj1.value(key), obj2.value(key), newPath);
-                }
-                break;
+            if (arr1.size() != arr2.size() && !currentPath.isEmpty()) {
+                paths.append(currentPath);
             }
-            case QJsonValue::Array: {
-                QJsonArray arr1 = value1.toArray();
-                QJsonArray arr2 = value2.toArray();
 
-                if (arr1.size() != arr2.size()) {
-                    paths.append(currentPath);
-                } else {
-                    for (int i = 0; i < arr1.size(); ++i) {
-                        QString newPath =
-                            currentPath + "[" + QString::number(i) + "]";
-                        compareValues(arr1[i], arr2[i], newPath);
-                    }
-                }
-                break;
+            int maxSize = arr1.size();
+            if (arr2.size() > maxSize) {
+                maxSize = arr2.size();
             }
-            default:
-                // For simple types, direct comparison
-                if (value1 != value2) {
-                    paths.append(currentPath);
+
+            auto jsonAt = [](const QJsonArray& array, int index) -> QJsonValue {
+                if (index >= 0 && index < array.size()) {
+                    return array.at(index);
                 }
-                break;
+                return QJsonValue();
+            };
+
+            for (int i = 0; i < maxSize; ++i) {
+                QString indexPath =
+                    currentPath.isEmpty()
+                        ? QStringLiteral("[%1]").arg(i)
+                        : QStringLiteral("%1[%2]").arg(currentPath).arg(i);
+                compareValues(jsonAt(arr1, i), jsonAt(arr2, i), indexPath);
+            }
+            return;
+        }
+
+        if ((type1 != type2 || value1 != value2) && !currentPath.isEmpty()) {
+            paths.append(currentPath);
         }
     };
 
@@ -269,26 +297,35 @@ bool StateManager::has(const QString& path) const {
 
 void StateManager::set(const QString& path, const QVariant& value,
                        const QString& reason) {
-    QMutexLocker locker(&m_mutex);
-    State newState = m_currentState.set(path, value);
-    locker.unlock();
+    State newState;
+    {
+        QMutexLocker locker(&m_mutex);
+        newState = m_currentState;
+    }
 
+    newState.set(path, value);
     setState(newState, reason.isEmpty() ? QString("Set %1").arg(path) : reason);
 }
 
 void StateManager::merge(const QJsonObject& data, const QString& reason) {
-    QMutexLocker locker(&m_mutex);
-    State newState = m_currentState.merge(data);
-    locker.unlock();
+    State newState;
+    {
+        QMutexLocker locker(&m_mutex);
+        newState = m_currentState;
+    }
 
+    newState.merge(data);
     setState(newState, reason.isEmpty() ? "Merge" : reason);
 }
 
 void StateManager::remove(const QString& path, const QString& reason) {
-    QMutexLocker locker(&m_mutex);
-    State newState = m_currentState.remove(path);
-    locker.unlock();
+    State newState;
+    {
+        QMutexLocker locker(&m_mutex);
+        newState = m_currentState;
+    }
 
+    newState.remove(path);
     setState(newState,
              reason.isEmpty() ? QString("Remove %1").arg(path) : reason);
 }
@@ -371,7 +408,7 @@ void StateManager::disableHistory() {
 
 bool StateManager::canUndo() const {
     QMutexLocker locker(&m_mutex);
-    return m_historyEnabled && m_historyIndex > 0;
+    return m_historyEnabled && m_historyIndex >= 0;
 }
 
 bool StateManager::canRedo() const {
@@ -382,13 +419,13 @@ bool StateManager::canRedo() const {
 void StateManager::undo() {
     QMutexLocker locker(&m_mutex);
 
-    if (!canUndo()) {
+    if (!m_historyEnabled || m_historyIndex < 0) {
         m_logger.warning("Cannot undo - no history available");
         return;
     }
 
-    m_historyIndex--;
     const StateChange& change = m_history[m_historyIndex];
+    m_historyIndex--;
     m_currentState = change.oldState();
 
     locker.unlock();
@@ -402,13 +439,13 @@ void StateManager::undo() {
 void StateManager::redo() {
     QMutexLocker locker(&m_mutex);
 
-    if (!canRedo()) {
+    if (!m_historyEnabled || m_historyIndex >= m_history.size() - 1) {
         m_logger.warning("Cannot redo - no future history available");
         return;
     }
 
+    const StateChange& change = m_history[m_historyIndex + 1];
     m_historyIndex++;
-    const StateChange& change = m_history[m_historyIndex];
     m_currentState = change.newState();
 
     locker.unlock();
@@ -577,32 +614,38 @@ void StateManager::setState(const State& newState, const QString& reason) {
 
     m_currentState = processedState;
 
-    // Add to history if enabled
-    if (m_historyEnabled) {
-        // Truncate future history if we're not at the end
-        if (m_historyIndex < m_history.size() - 1) {
-            m_history = m_history.mid(0, m_historyIndex + 1);
-        }
-
-        StateChange change(oldState, processedState, reason);
-        m_history.append(change);
-        m_historyIndex = m_history.size() - 1;
-
-        // Limit history size
-        if (m_history.size() > m_maxHistorySize) {
-            m_history.removeFirst();
-            m_historyIndex--;
-        }
-
-        emit historyChanged();
+    // Maintain history even when disabled so it can be activated later
+    if (m_historyIndex < m_history.size() - 1) {
+        m_history = m_history.mid(0, m_historyIndex + 1);
     }
 
     StateChange change(oldState, processedState, reason);
+    m_history.append(change);
+    m_historyIndex = static_cast<int>(m_history.size()) - 1;
+
+    if (m_history.size() > m_maxHistorySize) {
+        m_history.removeFirst();
+        m_historyIndex = static_cast<int>(m_history.size()) - 1;
+    }
+
+    bool shouldEmitHistoryChanged = m_historyEnabled;
 
     locker.unlock();
 
+    if (shouldEmitHistoryChanged) {
+        emit historyChanged();
+    }
+
     // Notify observers
     notifyObservers(change);
+
+    for (const QString& changedPath : change.changedPaths()) {
+        if (changedPath.isEmpty()) {
+            continue;
+        }
+        emit stateChanged(changedPath, change.oldValue(changedPath),
+                          change.newValue(changedPath));
+    }
 
     // Emit signals
     emit stateChanged(change);
@@ -617,21 +660,62 @@ void StateManager::notifyObservers(const StateChange& change) {
     QList<Subscription> subs = m_subscriptions;  // Copy to avoid issues
     locker.unlock();
 
+    QStringList changedPaths = change.changedPaths();
+
+    auto patternMatches = [](const QString& pattern,
+                             const QString& candidate) -> bool {
+        if (pattern.isEmpty() || pattern == "*") {
+            return true;
+        }
+
+        if (!pattern.contains('*')) {
+            return candidate == pattern;
+        }
+
+        if (pattern.endsWith(".*")) {
+            QString prefix = pattern.left(pattern.length() - 2);
+            return candidate.startsWith(prefix);
+        }
+
+        qsizetype starIndex = pattern.indexOf('*');
+        QString prefix = pattern.left(starIndex);
+        QString suffix = pattern.mid(starIndex + 1);
+        bool prefixMatches = candidate.startsWith(prefix);
+        bool suffixMatches = suffix.isEmpty() || candidate.endsWith(suffix);
+        return prefixMatches && suffixMatches;
+    };
+
     for (const Subscription& sub : subs) {
-        if (!sub.subscriber || !sub.observer) {
+        if (sub.subscriber == nullptr || sub.observer == nullptr) {
             continue;
         }
 
-        // Check if this subscription should be notified
-        if (sub.path == "*" || change.hasChanged(sub.path)) {
-            try {
-                sub.observer(change);
-            } catch (const std::exception& e) {
-                m_logger.error(
-                    QString("Exception in state observer: %1").arg(e.what()));
-            } catch (...) {
-                m_logger.error("Unknown exception in state observer");
+        bool shouldNotify = false;
+
+        if (sub.path.isEmpty() || sub.path == "*") {
+            shouldNotify = true;
+        } else if (sub.path.contains('*')) {
+            for (const QString& path : changedPaths) {
+                if (patternMatches(sub.path, path)) {
+                    shouldNotify = true;
+                    break;
+                }
             }
+        } else if (change.hasChanged(sub.path)) {
+            shouldNotify = true;
+        }
+
+        if (!shouldNotify) {
+            continue;
+        }
+
+        try {
+            sub.observer(change);
+        } catch (const std::exception& e) {
+            m_logger.error(
+                QString("Exception in state observer: %1").arg(e.what()));
+        } catch (...) {
+            m_logger.error("Unknown exception in state observer");
         }
     }
 }

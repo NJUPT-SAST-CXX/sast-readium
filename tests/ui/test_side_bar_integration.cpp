@@ -70,7 +70,14 @@ void SideBarIntegrationTest::cleanupTestCase() { delete m_parentWidget; }
 void SideBarIntegrationTest::init() {
     m_sideBar = new SideBar(m_parentWidget);
     m_sideBar->show();
-    QTest::qWaitForWindowExposed(m_sideBar);
+
+    // In offscreen mode, qWaitForWindowExposed() will timeout
+    // Use a simple wait instead to allow widget initialization
+    if (QGuiApplication::platformName() == "offscreen") {
+        QTest::qWait(100);  // Give widgets time to initialize
+    } else {
+        QVERIFY(QTest::qWaitForWindowExposed(m_sideBar));
+    }
 }
 
 void SideBarIntegrationTest::cleanup() {

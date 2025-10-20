@@ -110,7 +110,14 @@ void PDFViewerIntegrationTest::init() {
         m_viewer->setDocument(testDoc.get());
     }
     m_viewer->show();
-    QTest::qWaitForWindowExposed(m_viewer);
+
+    // In offscreen mode, qWaitForWindowExposed() will timeout
+    // Use a simple wait instead to allow widget initialization
+    if (QGuiApplication::platformName() == "offscreen") {
+        QTest::qWait(100);  // Give widgets time to initialize
+    } else {
+        QVERIFY(QTest::qWaitForWindowExposed(m_viewer));
+    }
 }
 
 void PDFViewerIntegrationTest::cleanup() {

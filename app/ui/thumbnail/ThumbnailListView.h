@@ -36,31 +36,31 @@ public:
 
     // 模型和委托
     void setThumbnailModel(ThumbnailModel* model);
-    ThumbnailModel* thumbnailModel() const;
+    [[nodiscard]] auto thumbnailModel() const -> ThumbnailModel*;
 
     void setThumbnailDelegate(ThumbnailDelegate* delegate);
-    ThumbnailDelegate* thumbnailDelegate() const;
+    [[nodiscard]] auto thumbnailDelegate() const -> ThumbnailDelegate*;
 
     // 缩略图设置
     void setThumbnailSize(const QSize& size);
-    QSize thumbnailSize() const;
+    [[nodiscard]] auto thumbnailSize() const -> QSize;
 
     void setThumbnailSpacing(int spacing);
-    int thumbnailSpacing() const;
+    [[nodiscard]] auto thumbnailSpacing() const -> int;
 
     // 滚动和导航
     void scrollToPage(int pageNumber, bool animated = true);
     void scrollToTop(bool animated = true);
     void scrollToBottom(bool animated = true);
 
-    int currentPage() const;
+    [[nodiscard]] auto currentPage() const -> int;
     void setCurrentPage(int pageNumber, bool animated = true);
 
     // 选择管理
     void selectPage(int pageNumber);
     void selectPages(const QList<int>& pageNumbers);
     void clearSelection();
-    QList<int> selectedPages() const;
+    [[nodiscard]] auto selectedPages() const -> QList<int>;
 
     // 视觉效果
     void setAnimationEnabled(bool enabled);
@@ -74,14 +74,16 @@ public:
 
     // 预加载控制
     void setPreloadMargin(int margin);
-    int preloadMargin() const { return m_preloadMargin; }
+    [[nodiscard]] auto preloadMargin() const -> int { return m_preloadMargin; }
 
     void setAutoPreload(bool enabled);
-    bool autoPreload() const { return m_autoPreload; }
+    [[nodiscard]] auto autoPreload() const -> bool { return m_autoPreload; }
 
     // 右键菜单
     void setContextMenuEnabled(bool enabled);
-    bool contextMenuEnabled() const { return m_contextMenuEnabled; }
+    [[nodiscard]] auto contextMenuEnabled() const -> bool {
+        return m_contextMenuEnabled;
+    }
 
     void addContextMenuAction(QAction* action);
     void removeContextMenuAction(QAction* action);

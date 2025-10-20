@@ -86,8 +86,12 @@ void MemoryAwareSearchResultsTest::init() {
 }
 
 void MemoryAwareSearchResultsTest::cleanup() {
-    delete m_memoryResults;
-    m_memoryResults = nullptr;
+    if (m_memoryResults) {
+        // Wait for any pending operations to complete
+        QTest::qWait(100);
+        delete m_memoryResults;
+        m_memoryResults = nullptr;
+    }
     m_testResults.clear();
 }
 

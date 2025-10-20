@@ -245,21 +245,21 @@ bool ConfigurationManager::isWatching(const QString& key) const {
 
 QString ConfigurationManager::groupToString(ConfigGroup group) const {
     switch (group) {
-        case General:
+        case ConfigGroup::General:
             return "General";
-        case UI:
+        case ConfigGroup::UI:
             return "UI";
-        case Document:
+        case ConfigGroup::Document:
             return "Document";
-        case View:
+        case ConfigGroup::View:
             return "View";
-        case Navigation:
+        case ConfigGroup::Navigation:
             return "Navigation";
-        case Performance:
+        case ConfigGroup::Performance:
             return "Performance";
-        case Network:
+        case ConfigGroup::Network:
             return "Network";
-        case Advanced:
+        case ConfigGroup::Advanced:
             return "Advanced";
         default:
             return "General";
@@ -509,8 +509,8 @@ void ConfigurationProfileManager::applyActiveProfile() {
 void ConfigurationProfileManager::saveProfiles() {
     try {
         // Get profiles directory path
-        QString appDataPath = QStandardPaths::writableLocation(
-            QStandardPaths::AppDataLocation);
+        QString appDataPath =
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
         QString profilesDir = appDataPath + "/profiles";
 
         // Create profiles directory if it doesn't exist
@@ -574,8 +574,8 @@ void ConfigurationProfileManager::saveProfiles() {
 void ConfigurationProfileManager::loadProfiles() {
     try {
         // Get profiles directory path
-        QString appDataPath = QStandardPaths::writableLocation(
-            QStandardPaths::AppDataLocation);
+        QString appDataPath =
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
         QString profilesDir = appDataPath + "/profiles";
 
         // Check if profiles directory exists

@@ -85,11 +85,61 @@ SearchSuggestionEngine::SearchSuggestionEngine()
 
 SearchSuggestionEngine::~SearchSuggestionEngine() = default;
 
+SearchSuggestionEngine::SearchSuggestionEngine(
+    const SearchSuggestionEngine& other)
+    : d(std::make_unique<Implementation>()) {
+    if (other.d) {
+        // Copy the query frequency map
+        d->queryFrequency = other.d->queryFrequency;
+
+        // Rebuild the trie from the query frequency map
+        for (auto it = d->queryFrequency.begin(); it != d->queryFrequency.end();
+             ++it) {
+            d->insertWord(it.key(), it.value());
+        }
+    }
+}
+
+SearchSuggestionEngine& SearchSuggestionEngine::operator=(
+    const SearchSuggestionEngine& other) {
+    if (this != &other) {
+        d = std::make_unique<Implementation>();
+        if (other.d) {
+            // Copy the query frequency map
+            d->queryFrequency = other.d->queryFrequency;
+
+            // Rebuild the trie from the query frequency map
+            for (auto it = d->queryFrequency.begin();
+                 it != d->queryFrequency.end(); ++it) {
+                d->insertWord(it.key(), it.value());
+            }
+        }
+    }
+    return *this;
+}
+
+SearchSuggestionEngine::SearchSuggestionEngine(
+    SearchSuggestionEngine&& other) noexcept
+    : d(std::move(other.d)) {}
+
+SearchSuggestionEngine& SearchSuggestionEngine::operator=(
+    SearchSuggestionEngine&& other) noexcept {
+    if (this != &other) {
+        d = std::move(other.d);
+    }
+    return *this;
+}
+
 void SearchSuggestionEngine::trainModel(const QStringList& queries,
                                         const QList<int>& frequencies) {
     if (queries.size() != frequencies.size()) {
         qWarning()
             << "SearchSuggestionEngine: queries and frequencies size mismatch";
+        return;
+    }
+
+    if (!d) {
+        qWarning() << "SearchSuggestionEngine: implementation not initialized";
         return;
     }
 
@@ -102,6 +152,10 @@ void SearchSuggestionEngine::trainModel(const QStringList& queries,
 QStringList SearchSuggestionEngine::generateSuggestions(
     const QString& partialQuery, int maxSuggestions) {
     QStringList suggestions;
+
+    if (!d) {
+        return suggestions;
+    }
 
     // Combine different suggestion methods
     QStringList ngramSugs =
@@ -150,6 +204,9 @@ void SearchSuggestionEngine::updateQueryFrequency(const QString& query,
 }
 
 int SearchSuggestionEngine::getQueryFrequency(const QString& query) const {
+    if (!d) {
+        return 0;
+    }
     return d->queryFrequency.value(query, 0);
 }
 
@@ -180,7 +237,12 @@ QStringList SearchSuggestionEngine::ngramSuggestions(
     const QString& partialQuery, int n, int maxSuggestions) {
     QStringList suggestions;
 
-    if (partialQuery.length() < n) {
+    if (!d || partialQuery.length() < n) {
+        return suggestions;
+    }
+
+    // Check if root is valid and has children
+    if (!d->root || d->root->children.isEmpty()) {
         return suggestions;
     }
 
@@ -188,14 +250,17 @@ QStringList SearchSuggestionEngine::ngramSuggestions(
     std::shared_ptr<Implementation::TrieNode> current = d->root;
 
     for (const QChar& ch : partialQuery) {
-        if (!current->children.contains(ch)) {
+        if (!current || !current->children.contains(ch)) {
             return suggestions;  // No suggestions found
         }
         current = current->children[ch];
     }
 
     // Collect suggestions from this node
-    d->collectSuggestions(current, partialQuery, suggestions, maxSuggestions);
+    if (current) {
+        d->collectSuggestions(current, partialQuery, suggestions,
+                              maxSuggestions);
+    }
 
     return suggestions;
 }
@@ -203,6 +268,10 @@ QStringList SearchSuggestionEngine::ngramSuggestions(
 QStringList SearchSuggestionEngine::fuzzySuggestions(
     const QString& partialQuery, int maxDistance, int maxSuggestions) {
     QStringList suggestions;
+
+    if (!d) {
+        return suggestions;
+    }
 
     for (auto it = d->queryFrequency.begin(); it != d->queryFrequency.end();
          ++it) {
@@ -231,6 +300,10 @@ QStringList SearchSuggestionEngine::contextualSuggestions(
     int maxSuggestions) {
     QStringList suggestions =
         generateSuggestions(partialQuery, maxSuggestions * 2);
+
+    if (!d) {
+        return suggestions;  // Return empty list if not initialized
+    }
     QStringList contextualSugs;
 
     // Score suggestions based on context

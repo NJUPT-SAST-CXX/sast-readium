@@ -239,6 +239,32 @@ function(validate_build_environment)
         message(FATAL_ERROR "MSVC 19.29 (Visual Studio 2019 16.10) or later is required")
     endif()
 
+    # Guard against mixing MSVC with MSYS2/MinGW Qt builds, which produces
+    # incompatible headers such as D:/msys64/mingw64/include and leads to
+    # compile-time conflicts (e.g., duplicate uintptr_t definitions).
+    if(COMPILER_MSVC)
+        set(_qt_sources_to_check)
+        if(DEFINED Qt6_DIR)
+            list(APPEND _qt_sources_to_check "${Qt6_DIR}")
+        endif()
+        if(TARGET Qt6::Core)
+            get_target_property(_qt_core_includes Qt6::Core INTERFACE_INCLUDE_DIRECTORIES)
+            if(_qt_core_includes)
+                list(APPEND _qt_sources_to_check ${_qt_core_includes})
+            endif()
+        endif()
+
+        foreach(_qt_location IN LISTS _qt_sources_to_check)
+            string(TOLOWER "${_qt_location}" _qt_location_normalized)
+            if(_qt_location_normalized MATCHES ".*msys.*" OR _qt_location_normalized MATCHES ".*mingw.*")
+                message(FATAL_ERROR
+                    "MSVC build configured with Qt from MSYS2/MinGW: ${_qt_location}\n"
+                    "Use the MinGW CMake preset or provide an MSVC-compatible Qt toolchain (e.g., via vcpkg)."
+                )
+            endif()
+        endforeach()
+    endif()
+
     message(STATUS "Build environment validation passed")
 endfunction()
 

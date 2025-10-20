@@ -9,6 +9,8 @@
 #include <QtTest/QtTest>
 #include "../../app/ui/thumbnail/ThumbnailWidget.h"
 
+using ThumbnailState = ThumbnailWidget::State;
+
 class ThumbnailWidgetIntegrationTest : public QObject {
     Q_OBJECT
 
@@ -75,14 +77,14 @@ private slots:
     void testInvalidPageNumber();
     void testInvalidSize();
 
-private:
-    ThumbnailWidget* m_widget;
-    QWidget* m_parentWidget;
+private:  // NOLINT(modernize-redundant-access-specifiers)
+    ThumbnailWidget* m_widget = nullptr;
+    QWidget* m_parentWidget = nullptr;
 
-    void waitForAnimation();
+    static void waitForAnimation();
     void simulateMouseEvent(QEvent::Type type, Qt::MouseButton button,
                             const QPoint& pos);
-    QPixmap createTestPixmap(const QSize& size);
+    static QPixmap createTestPixmap(const QSize& size);
 };
 
 void ThumbnailWidgetIntegrationTest::initTestCase() {
@@ -98,7 +100,14 @@ void ThumbnailWidgetIntegrationTest::cleanupTestCase() {
 void ThumbnailWidgetIntegrationTest::init() {
     m_widget = new ThumbnailWidget(0, m_parentWidget);
     m_widget->show();
-    QTest::qWaitForWindowExposed(m_widget);
+
+    // In offscreen mode, qWaitForWindowExposed() will timeout
+    // Use a simple wait instead to allow widget initialization
+    if (QGuiApplication::platformName() == "offscreen") {
+        QTest::qWait(100);  // Give widgets time to initialize
+    } else {
+        QVERIFY(QTest::qWaitForWindowExposed(m_widget));
+    }
 }
 
 void ThumbnailWidgetIntegrationTest::cleanup() {
@@ -113,8 +122,8 @@ void ThumbnailWidgetIntegrationTest::testInitialization() {
     QCOMPARE(m_widget->pageNumber(), 0);
     // Note: State may be Hovered if mouse is over widget or window events
     // triggered hover
-    QVERIFY(m_widget->state() >= ThumbnailWidget::Normal &&
-            m_widget->state() <= ThumbnailWidget::Error);
+    QVERIFY(m_widget->state() >= ThumbnailState::Normal &&
+            m_widget->state() <= ThumbnailState::Error);
 }
 
 void ThumbnailWidgetIntegrationTest::testPageNumber() {
@@ -149,20 +158,20 @@ void ThumbnailWidgetIntegrationTest::testPixmapSetting() {
 
 void ThumbnailWidgetIntegrationTest::testState() {
     // Test setting different states
-    m_widget->setState(ThumbnailWidget::Normal);
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Normal);
+    m_widget->setState(ThumbnailState::Normal);
+    QCOMPARE(m_widget->state(), ThumbnailState::Normal);
 
-    m_widget->setState(ThumbnailWidget::Hovered);
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Hovered);
+    m_widget->setState(ThumbnailState::Hovered);
+    QCOMPARE(m_widget->state(), ThumbnailState::Hovered);
 
-    m_widget->setState(ThumbnailWidget::Selected);
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Selected);
+    m_widget->setState(ThumbnailState::Selected);
+    QCOMPARE(m_widget->state(), ThumbnailState::Selected);
 
-    m_widget->setState(ThumbnailWidget::Loading);
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Loading);
+    m_widget->setState(ThumbnailState::Loading);
+    QCOMPARE(m_widget->state(), ThumbnailState::Loading);
 
-    m_widget->setState(ThumbnailWidget::Error);
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Error);
+    m_widget->setState(ThumbnailState::Error);
+    QCOMPARE(m_widget->state(), ThumbnailState::Error);
 }
 
 void ThumbnailWidgetIntegrationTest::testThumbnailSize() {
@@ -261,11 +270,11 @@ void ThumbnailWidgetIntegrationTest::testLoadingState() {
     // Test loading state
     m_widget->setLoading(true);
     QVERIFY(m_widget->isLoading());
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Loading);
+    QCOMPARE(m_widget->state(), ThumbnailState::Loading);
 
     m_widget->setLoading(false);
     QVERIFY(!m_widget->isLoading());
-    QVERIFY(m_widget->state() != ThumbnailWidget::Loading);
+    QVERIFY(m_widget->state() != ThumbnailState::Loading);
 }
 
 void ThumbnailWidgetIntegrationTest::testLoadingAnimation() {
@@ -287,10 +296,10 @@ void ThumbnailWidgetIntegrationTest::testErrorState() {
     m_widget->setError(errorMessage);
 
     QVERIFY(m_widget->hasError());
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Error);
+    QCOMPARE(m_widget->state(), ThumbnailState::Error);
 
     // Test clearing error
-    m_widget->setState(ThumbnailWidget::Normal);
+    m_widget->setState(ThumbnailState::Normal);
     QVERIFY(!m_widget->hasError());
 }
 
@@ -316,7 +325,8 @@ void ThumbnailWidgetIntegrationTest::testMouseDoubleClick() {
 
     // Simulate double click
     QPoint center = m_widget->rect().center();
-    QMouseEvent doubleClickEvent(QEvent::MouseButtonDblClick, center,
+    QPoint globalPos = m_widget->mapToGlobal(center);
+    QMouseEvent doubleClickEvent(QEvent::MouseButtonDblClick, center, globalPos,
                                  Qt::LeftButton, Qt::LeftButton,
                                  Qt::NoModifier);
     QApplication::sendEvent(m_widget, &doubleClickEvent);
@@ -391,7 +401,8 @@ void ThumbnailWidgetIntegrationTest::testDoubleClickedSignal() {
 
     // Simulate double click
     QPoint center = m_widget->rect().center();
-    QMouseEvent doubleClickEvent(QEvent::MouseButtonDblClick, center,
+    QPoint globalPos = m_widget->mapToGlobal(center);
+    QMouseEvent doubleClickEvent(QEvent::MouseButtonDblClick, center, globalPos,
                                  Qt::LeftButton, Qt::LeftButton,
                                  Qt::NoModifier);
     QApplication::sendEvent(m_widget, &doubleClickEvent);
@@ -448,8 +459,8 @@ void ThumbnailWidgetIntegrationTest::testHoverSignals() {
 
 void ThumbnailWidgetIntegrationTest::testNormalState() {
     // Test normal state
-    m_widget->setState(ThumbnailWidget::Normal);
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Normal);
+    m_widget->setState(ThumbnailState::Normal);
+    QCOMPARE(m_widget->state(), ThumbnailState::Normal);
 
     // Widget should be in normal visual state
     QVERIFY(true);
@@ -457,8 +468,8 @@ void ThumbnailWidgetIntegrationTest::testNormalState() {
 
 void ThumbnailWidgetIntegrationTest::testHoveredState() {
     // Test hovered state
-    m_widget->setState(ThumbnailWidget::Hovered);
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Hovered);
+    m_widget->setState(ThumbnailState::Hovered);
+    QCOMPARE(m_widget->state(), ThumbnailState::Hovered);
 
     // Widget should be in hovered visual state
     QVERIFY(true);
@@ -466,8 +477,8 @@ void ThumbnailWidgetIntegrationTest::testHoveredState() {
 
 void ThumbnailWidgetIntegrationTest::testSelectedState() {
     // Test selected state
-    m_widget->setState(ThumbnailWidget::Selected);
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Selected);
+    m_widget->setState(ThumbnailState::Selected);
+    QCOMPARE(m_widget->state(), ThumbnailState::Selected);
 
     // Widget should be in selected visual state
     QVERIFY(true);
@@ -475,15 +486,15 @@ void ThumbnailWidgetIntegrationTest::testSelectedState() {
 
 void ThumbnailWidgetIntegrationTest::testStateTransitions() {
     // Test state transitions
-    m_widget->setState(ThumbnailWidget::Normal);
-    m_widget->setState(ThumbnailWidget::Hovered);
-    m_widget->setState(ThumbnailWidget::Selected);
-    m_widget->setState(ThumbnailWidget::Loading);
-    m_widget->setState(ThumbnailWidget::Error);
-    m_widget->setState(ThumbnailWidget::Normal);
+    m_widget->setState(ThumbnailState::Normal);
+    m_widget->setState(ThumbnailState::Hovered);
+    m_widget->setState(ThumbnailState::Selected);
+    m_widget->setState(ThumbnailState::Loading);
+    m_widget->setState(ThumbnailState::Error);
+    m_widget->setState(ThumbnailState::Normal);
 
     // Should handle state transitions without issues
-    QCOMPARE(m_widget->state(), ThumbnailWidget::Normal);
+    QCOMPARE(m_widget->state(), ThumbnailState::Normal);
 }
 
 void ThumbnailWidgetIntegrationTest::testPaintEvent() {
@@ -545,13 +556,13 @@ void ThumbnailWidgetIntegrationTest::testErrorIndicator() {
     // Should draw error indicator
     QVERIFY(true);
 
-    m_widget->setState(ThumbnailWidget::Normal);
+    m_widget->setState(ThumbnailState::Normal);
 }
 
 void ThumbnailWidgetIntegrationTest::testHoverAnimation() {
     // Test hover animation
-    m_widget->setState(ThumbnailWidget::Normal);
-    m_widget->setState(ThumbnailWidget::Hovered);
+    m_widget->setState(ThumbnailState::Normal);
+    m_widget->setState(ThumbnailState::Hovered);
 
     // Wait for animation
     waitForAnimation();
@@ -562,8 +573,8 @@ void ThumbnailWidgetIntegrationTest::testHoverAnimation() {
 
 void ThumbnailWidgetIntegrationTest::testSelectionAnimation() {
     // Test selection animation
-    m_widget->setState(ThumbnailWidget::Normal);
-    m_widget->setState(ThumbnailWidget::Selected);
+    m_widget->setState(ThumbnailState::Normal);
+    m_widget->setState(ThumbnailState::Selected);
 
     // Wait for animation
     waitForAnimation();
@@ -633,7 +644,8 @@ void ThumbnailWidgetIntegrationTest::testInvalidSize() {
 
     // Note: ThumbnailWidget may accept negative sizes (QSize allows it)
     // Just verify the call doesn't crash
-    m_widget->thumbnailSize();
+    auto thumbnailSizeValue = m_widget->thumbnailSize();
+    Q_UNUSED(thumbnailSizeValue);
     QVERIFY(true);  // Just verify operation doesn't crash
 }
 
@@ -645,7 +657,9 @@ void ThumbnailWidgetIntegrationTest::waitForAnimation() {
 void ThumbnailWidgetIntegrationTest::simulateMouseEvent(QEvent::Type type,
                                                         Qt::MouseButton button,
                                                         const QPoint& pos) {
-    QMouseEvent mouseEvent(type, pos, button, button, Qt::NoModifier);
+    QPoint globalPos = m_widget->mapToGlobal(pos);
+    QMouseEvent mouseEvent(type, pos, globalPos, button, button,
+                           Qt::NoModifier);
     QApplication::sendEvent(m_widget, &mouseEvent);
     QTest::qWait(10);
 }

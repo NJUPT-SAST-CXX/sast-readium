@@ -11,6 +11,13 @@ enum class Theme : std::uint8_t { Light, Dark };
 // Forward declaration
 class StyleManagerImpl;
 
+/**
+ * Style Manager
+ * Manages application themes and styling
+ * Note: Protected destructor is intentional for singleton pattern with QObject
+ * base
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-virtual-class-destructor)
 class StyleManager : public QObject {
     Q_OBJECT
 
@@ -28,7 +35,8 @@ public:
     [[nodiscard]] QString getPDFViewerStyleSheet() const;
     [[nodiscard]] QString getButtonStyleSheet() const;
     [[nodiscard]] QString getScrollBarStyleSheet() const;
-    [[nodiscard]] QString getQssStyleSheet() const;  // Get QSS file content for current theme
+    [[nodiscard]] QString getQssStyleSheet()
+        const;  // Get QSS file content for current theme
 
     // 颜色获取
     [[nodiscard]] QColor primaryColor() const;
@@ -63,7 +71,7 @@ public:
     [[nodiscard]] QString createBadgeStyle() const;
     [[nodiscard]] QString createToggleButtonStyle() const;
     [[nodiscard]] QString createMessageLabelStyle(const QColor& background,
-                                    const QColor& text) const;
+                                                  const QColor& text) const;
 
     // 尺寸常量 (Legacy - use spacing scale below for new code)
     [[nodiscard]] int buttonHeight() const { return 32; }
@@ -74,30 +82,64 @@ public:
     [[nodiscard]] int borderRadius() const { return 6; }
 
     // Modern Spacing Scale (8pt grid system)
-    [[nodiscard]] int spacingXS() const { return 4; }   // Extra small - tight spacing
-    [[nodiscard]] int spacingSM() const { return 8; }   // Small - standard spacing
-    [[nodiscard]] int spacingMD() const { return 16; }  // Medium - section spacing
+    [[nodiscard]] int spacingXS() const {
+        return 4;
+    }  // Extra small - tight spacing
+    [[nodiscard]] int spacingSM() const {
+        return 8;
+    }  // Small - standard spacing
+    [[nodiscard]] int spacingMD() const {
+        return 16;
+    }  // Medium - section spacing
     [[nodiscard]] int spacingLG() const { return 24; }  // Large - group spacing
-    [[nodiscard]] int spacingXL() const { return 32; }  // Extra large - major sections
-    [[nodiscard]] int spacingXXL() const { return 48; } // Extra extra large - page sections
+    [[nodiscard]] int spacingXL() const {
+        return 32;
+    }  // Extra large - major sections
+    [[nodiscard]] int spacingXXL() const {
+        return 48;
+    }  // Extra extra large - page sections
 
     // Border Radius Scale
-    [[nodiscard]] int radiusSM() const { return 4; }   // Small radius - subtle rounding
-    [[nodiscard]] int radiusMD() const { return 6; }   // Medium radius - standard
-    [[nodiscard]] int radiusLG() const { return 8; }   // Large radius - prominent
-    [[nodiscard]] int radiusXL() const { return 12; }  // Extra large - cards/dialogs
-    [[nodiscard]] int radiusFull() const { return 9999; } // Full radius - circular
+    [[nodiscard]] int radiusSM() const {
+        return 4;
+    }  // Small radius - subtle rounding
+    [[nodiscard]] int radiusMD() const {
+        return 6;
+    }  // Medium radius - standard
+    [[nodiscard]] int radiusLG() const {
+        return 8;
+    }  // Large radius - prominent
+    [[nodiscard]] int radiusXL() const {
+        return 12;
+    }  // Extra large - cards/dialogs
+    [[nodiscard]] int radiusFull() const {
+        return 9999;
+    }  // Full radius - circular
 
     // Animation Duration Constants (milliseconds)
-    [[nodiscard]] int animationFast() const { return 150; }    // Fast - micro-interactions
-    [[nodiscard]] int animationNormal() const { return 250; }  // Normal - standard transitions
-    [[nodiscard]] int animationSlow() const { return 400; }    // Slow - page transitions
+    [[nodiscard]] int animationFast() const {
+        return 150;
+    }  // Fast - micro-interactions
+    [[nodiscard]] int animationNormal() const {
+        return 250;
+    }  // Normal - standard transitions
+    [[nodiscard]] int animationSlow() const {
+        return 400;
+    }  // Slow - page transitions
 
     // Elevation/Shadow Levels
-    [[nodiscard]] QString shadowSM() const { return "0 1px 3px rgba(0, 0, 0, 0.12)"; }
-    [[nodiscard]] QString shadowMD() const { return "0 2px 6px rgba(0, 0, 0, 0.15)"; }
-    [[nodiscard]] QString shadowLG() const { return "0 4px 12px rgba(0, 0, 0, 0.18)"; }
-    [[nodiscard]] QString shadowXL() const { return "0 8px 24px rgba(0, 0, 0, 0.20)"; }
+    [[nodiscard]] QString shadowSM() const {
+        return "0 1px 3px rgba(0, 0, 0, 0.12)";
+    }
+    [[nodiscard]] QString shadowMD() const {
+        return "0 2px 6px rgba(0, 0, 0, 0.15)";
+    }
+    [[nodiscard]] QString shadowLG() const {
+        return "0 4px 12px rgba(0, 0, 0, 0.18)";
+    }
+    [[nodiscard]] QString shadowXL() const {
+        return "0 8px 24px rgba(0, 0, 0, 0.20)";
+    }
 
     // Semantic Colors
     [[nodiscard]] QColor successColor() const;
@@ -106,11 +148,15 @@ public:
     [[nodiscard]] QColor infoColor() const;
 
     // Animation Helpers
-    [[nodiscard]] QString getTransitionStyle(const QString& property = "all",
-                               int duration = 250,
-                               const QString& easing = "ease-in-out") const;
-    [[nodiscard]] QString getHoverTransform() const { return "translateY(-1px)"; }
-    [[nodiscard]] QString getPressedTransform() const { return "translateY(1px)"; }
+    [[nodiscard]] QString getTransitionStyle(
+        const QString& property = "all", int duration = 250,
+        const QString& easing = "ease-in-out") const;
+    [[nodiscard]] QString getHoverTransform() const {
+        return "translateY(-1px)";
+    }
+    [[nodiscard]] QString getPressedTransform() const {
+        return "translateY(1px)";
+    }
 
     // Deleted copy/move operations (public for better error messages)
     StyleManager(const StyleManager&) = delete;
@@ -121,11 +167,16 @@ public:
 signals:
     void themeChanged(Theme theme);
 
-private:
-    StyleManager();
+protected:
+    // Protected destructor for singleton pattern - prevents deletion through
+    // base class pointer while allowing the static instance to be destroyed.
+    // Must override QObject's virtual destructor.
     ~StyleManager() override;
 
-    std::unique_ptr<StyleManagerImpl> pImpl;
+private:
+    StyleManager();
+
+    std::unique_ptr<StyleManagerImpl> m_pImpl;
 };
 
 // 便捷宏

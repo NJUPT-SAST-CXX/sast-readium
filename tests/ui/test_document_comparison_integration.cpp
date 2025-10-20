@@ -94,7 +94,14 @@ void DocumentComparisonIntegrationTest::cleanupTestCase() {
 void DocumentComparisonIntegrationTest::init() {
     m_comparison = new DocumentComparison(m_parentWidget);
     m_comparison->show();
-    QTest::qWaitForWindowExposed(m_comparison);
+
+    // In offscreen mode, qWaitForWindowExposed() will timeout
+    // Use a simple wait instead to allow widget initialization
+    if (QGuiApplication::platformName() == "offscreen") {
+        QTest::qWait(100);  // Give widgets time to initialize
+    } else {
+        QVERIFY(QTest::qWaitForWindowExposed(m_comparison));
+    }
 }
 
 void DocumentComparisonIntegrationTest::cleanup() {

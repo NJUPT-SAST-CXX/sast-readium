@@ -18,10 +18,10 @@ public:
                 "javascript:",    "vbscript:",   "data:",   "file:",
                 "<script",        "</script>",   "eval\\(", "setTimeout\\(",
                 "setInterval\\(", "Function\\(",
-                "\\x00",           // Null bytes
-                "\\x1f",           // Control characters
-                "\\.\\./",         // Path traversal
-                R"(\\\.\.\\)",     // Windows path traversal
+                "\\x00",        // Null bytes
+                "\\x1f",        // Control characters
+                "\\.\\./",      // Path traversal
+                R"(\\\.\.\\)",  // Windows path traversal
             };
         }
     }
@@ -385,11 +385,29 @@ SearchValidator::ValidationResult SearchValidator::validateDocument(
         return result;
     }
 
-    if (document->isLocked()) {
-        result.addError(SecurityViolation, "Document is password protected");
+    // Add try-catch around Poppler calls to handle corrupted documents
+    try {
+        if (document->isLocked()) {
+            result.addError(SecurityViolation,
+                            "Document is password protected");
+        }
+    } catch (...) {
+        result.addError(InvalidFormat,
+                        "Document appears to be corrupted or invalid");
+        d->recordValidation(result);
+        return result;
     }
 
-    int pageCount = document->numPages();
+    int pageCount = 0;
+    try {
+        pageCount = document->numPages();
+    } catch (...) {
+        result.addError(InvalidFormat,
+                        "Document appears to be corrupted or invalid");
+        d->recordValidation(result);
+        return result;
+    }
+
     if (pageCount <= 0) {
         result.addError(InvalidFormat, "Document has no pages");
     } else if (pageCount > d->config.maxPageNumber) {
@@ -487,9 +505,10 @@ SearchValidator::ValidationResult SearchValidator::applyCustomRules(
 }
 
 // ValidationScope implementation
-ValidationScope::ValidationScope(SearchValidator* validator,
-                                 QString operation)
-    : m_validator(validator), m_operation(std::move(operation)), m_valid(true) {}
+ValidationScope::ValidationScope(SearchValidator* validator, QString operation)
+    : m_validator(validator),
+      m_operation(std::move(operation)),
+      m_valid(true) {}
 
 ValidationScope::~ValidationScope() {
     if (!m_valid && m_validator) {
@@ -527,7 +546,8 @@ SearchValidator::ValidationResult SearchValidator::validateMemoryLimit(
     }
 
     // Check against reasonable limits (e.g., 1GB max)
-    const qint64 maxMemoryLimit = static_cast<qint64>(1024) * 1024 * 1024;  // 1GB
+    const qint64 maxMemoryLimit =
+        static_cast<qint64>(1024) * 1024 * 1024;  // 1GB
     if (memoryLimit > maxMemoryLimit) {
         result.addError(ResourceLimit,
                         QString("Memory limit %1 exceeds maximum allowed %2")
@@ -642,13 +662,19 @@ SearchValidator::ValidationResult SearchValidator::validateForSecurityThreats(
                         "Potential script injection detected");
     }
 
-    // Check for path traversal patterns (including URL-encoded and Unicode variants)
+    // Check for path traversal patterns (including URL-encoded and Unicode
+    // variants)
     QString lowerInput = input.toLower();
-    if (input.contains("..") || input.contains("../") || input.contains("..\\") ||
-        lowerInput.contains("%2e%2e%2f") || lowerInput.contains("%2e%2e%5c") ||
-        lowerInput.contains("..%2f") || lowerInput.contains("..%5c") ||
-        lowerInput.contains("%252e%252e%252f") || lowerInput.contains("%252e%252e%252") ||
-        input.contains(R"(\u002e\u002e\u002f)") || input.contains(R"(\u002E\u002E\u002F)")) {
+    if (input.contains("..") || input.contains("../") ||
+        input.contains("..\\") || lowerInput.contains("%2e%2e%2f") ||
+        lowerInput.contains("%2e%2e%5c") || lowerInput.contains("..%2f") ||
+        lowerInput.contains("..%5c") ||
+        lowerInput.contains("%252e%252e%252f") ||
+        lowerInput.contains("%252e%252e%252") ||
+        input.contains(R"(\u002e\u002e\u002f)") ||
+        input.contains(R"(\u002E\u002E\u002F)") ||
+        input.contains(R"(\u002e\u002e\u005c)") ||
+        input.contains(R"(\u002E\u002E\u005C)")) {
         result.addError(SecurityViolation, "Potential path traversal detected");
     }
 
@@ -806,47 +832,77 @@ SearchValidator::Implementation::validateRegexPattern(
         };
 
         // Check for repeated greedy quantifiers like (.*){2,} or (.+){2,}
-        static const QRegularExpression repeatedGreedy(R"(\([^)]*[\.\*\+][^)]*\)\{[0-9]+,\})");
+        static const QRegularExpression repeatedGreedy(
+            R"(\([^)]*[\.\*\+][^)]*\)\{[0-9]+,\})");
         if (repeatedGreedy.match(pattern).hasMatch()) {
-            flag("Regular expression repeats greedy groups with quantified ranges");
+            flag(
+                "Regular expression repeats greedy groups with quantified "
+                "ranges");
         }
 
         // Check for multiple sequential greedy patterns like (.*).* (.*)
-        static const QRegularExpression sequentialGreedy(R"(\([^)]*\.\*[^)]*\)[^(]*\.\*[^(]*\([^)]*\.\*[^)]*\))");
+        static const QRegularExpression sequentialGreedy(
+            R"(\([^)]*\.\*[^)]*\)[^(]*\.\*[^(]*\([^)]*\.\*[^)]*\))");
         if (sequentialGreedy.match(pattern).hasMatch()) {
-            flag("Regular expression contains multiple greedy groups that may overlap");
+            flag(
+                "Regular expression contains multiple greedy groups that may "
+                "overlap");
+        }
+
+        // Check for multiple greedy groups with quantifiers like (.*)(.*)+(.*)+
+        static const QRegularExpression multipleGreedyGroups(
+            R"(\([^)]*\.\*[^)]*\)[+*]\([^)]*\.\*[^)]*\)[+*])");
+        if (multipleGreedyGroups.match(pattern).hasMatch()) {
+            flag(
+                "Regular expression contains multiple greedy groups with "
+                "quantifiers");
         }
 
         // Check for lookaround with quantifiers
-        static const QRegularExpression lookaroundQuant(R"(\(\?[=!<][^)]*\)[*+?{])");
+        static const QRegularExpression lookaroundQuant(
+            R"(\(\?[=!<][^)]*\)[*+?{])");
         if (lookaroundQuant.match(pattern).hasMatch()) {
-            flag("Regular expression applies quantifiers directly to lookaround assertions");
+            flag(
+                "Regular expression applies quantifiers directly to lookaround "
+                "assertions");
         }
 
         // Check for broad Unicode categories with heavy quantifiers
-        static const QRegularExpression unicodeQuant(R"(\\[pP]\{[^}]+\}[*+]\{[0-9]+,\})");
+        static const QRegularExpression unicodeQuant(
+            R"(\\[pP]\{[^}]+\}[*+]\{[0-9]+,\})");
         if (unicodeQuant.match(pattern).hasMatch()) {
-            flag("Regular expression uses broad Unicode categories with heavy quantifiers");
+            flag(
+                "Regular expression uses broad Unicode categories with heavy "
+                "quantifiers");
         }
 
         // Check for backreferences with repeated quantifiers
-        static const QRegularExpression backrefExplosion(R"(\\[0-9]+[*+]\{[0-9]+,\})");
+        static const QRegularExpression backrefExplosion(
+            R"(\\[0-9]+[*+]\{[0-9]+,\})");
         if (backrefExplosion.match(pattern).hasMatch()) {
-            flag("Regular expression applies repeated quantifiers to backreferences");
+            flag(
+                "Regular expression applies repeated quantifiers to "
+                "backreferences");
         }
 
         if (!result.hasError(SecurityViolation)) {
-            int quantifierCount = static_cast<int>(pattern.count(QRegularExpression("[*+?]")));
-            int groupCount = static_cast<int>(pattern.count(QRegularExpression("[()]")));
+            int quantifierCount =
+                static_cast<int>(pattern.count(QRegularExpression("[*+?]")));
+            int groupCount =
+                static_cast<int>(pattern.count(QRegularExpression("[()]")));
             if (quantifierCount > 10 && groupCount > 5) {
-                flag("Regular expression appears too complex and may cause performance issues");
+                flag(
+                    "Regular expression appears too complex and may cause "
+                    "performance issues");
             }
         }
 
         if (!result.hasError(SecurityViolation)) {
             int alternationCount = static_cast<int>(pattern.count('|'));
             if (alternationCount > 20) {
-                flag("Regular expression contains too many alternations and may cause performance issues");
+                flag(
+                    "Regular expression contains too many alternations and may "
+                    "cause performance issues");
             }
         }
 
@@ -896,11 +952,12 @@ SearchValidator::Implementation::validateAgainstForbiddenPatterns(
 
 bool SearchValidator::Implementation::containsScriptInjection(
     const QString& input) const {
-    return std::ranges::any_of(config.forbiddenPatterns, [&input](const QString& pattern) {
-        QRegularExpression regex(pattern,
-                                 QRegularExpression::CaseInsensitiveOption);
-        return input.contains(regex);
-    });
+    return std::ranges::any_of(
+        config.forbiddenPatterns, [&input](const QString& pattern) {
+            QRegularExpression regex(pattern,
+                                     QRegularExpression::CaseInsensitiveOption);
+            return input.contains(regex);
+        });
 }
 
 bool SearchValidator::Implementation::containsPathTraversal(
@@ -908,9 +965,10 @@ bool SearchValidator::Implementation::containsPathTraversal(
     static const QStringList pathTraversalPatterns = {
         "../", "..\\", "%2e%2e%2f", "%2e%2e%5c", "..%2f", "..%5c"};
 
-    return std::ranges::any_of(pathTraversalPatterns, [&input](const QString& pattern) {
-        return input.contains(pattern, Qt::CaseInsensitive);
-    });
+    return std::ranges::any_of(
+        pathTraversalPatterns, [&input](const QString& pattern) {
+            return input.contains(pattern, Qt::CaseInsensitive);
+        });
 }
 
 bool SearchValidator::Implementation::containsResourceExhaustion(

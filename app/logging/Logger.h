@@ -171,7 +171,7 @@ private:
 
 // Template method implementations - must be in header for proper instantiation
 template <typename... Args>
-void Logger::trace(const QString& format, Args&&... args) {
+inline void Logger::trace(const QString& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->trace(format.toStdString(), std::forward<Args>(args)...);
@@ -179,7 +179,7 @@ void Logger::trace(const QString& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::trace(const char* format, Args&&... args) {
+inline void Logger::trace(const char* format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->trace(fmt::runtime(format), std::forward<Args>(args)...);
@@ -187,7 +187,7 @@ void Logger::trace(const char* format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::trace(const std::string& format, Args&&... args) {
+inline void Logger::trace(const std::string& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->trace(fmt::runtime(format), std::forward<Args>(args)...);
@@ -195,7 +195,7 @@ void Logger::trace(const std::string& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::debug(const QString& format, Args&&... args) {
+inline void Logger::debug(const QString& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->debug(format.toStdString(), std::forward<Args>(args)...);
@@ -203,7 +203,7 @@ void Logger::debug(const QString& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::debug(const char* format, Args&&... args) {
+inline void Logger::debug(const char* format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->debug(fmt::runtime(format), std::forward<Args>(args)...);
@@ -211,7 +211,7 @@ void Logger::debug(const char* format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::debug(const std::string& format, Args&&... args) {
+inline void Logger::debug(const std::string& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->debug(fmt::runtime(format), std::forward<Args>(args)...);
@@ -219,7 +219,7 @@ void Logger::debug(const std::string& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::info(const QString& format, Args&&... args) {
+inline void Logger::info(const QString& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->info(format.toStdString(), std::forward<Args>(args)...);
@@ -227,7 +227,7 @@ void Logger::info(const QString& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::info(const char* format, Args&&... args) {
+inline void Logger::info(const char* format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->info(fmt::runtime(format), std::forward<Args>(args)...);
@@ -235,7 +235,7 @@ void Logger::info(const char* format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::info(const std::string& format, Args&&... args) {
+inline void Logger::info(const std::string& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->info(fmt::runtime(format), std::forward<Args>(args)...);
@@ -243,7 +243,7 @@ void Logger::info(const std::string& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::warning(const QString& format, Args&&... args) {
+inline void Logger::warning(const QString& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->warn(format.toStdString(), std::forward<Args>(args)...);
@@ -251,7 +251,7 @@ void Logger::warning(const QString& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::warning(const char* format, Args&&... args) {
+inline void Logger::warning(const char* format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->warn(fmt::runtime(format), std::forward<Args>(args)...);
@@ -259,7 +259,7 @@ void Logger::warning(const char* format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::warning(const std::string& format, Args&&... args) {
+inline void Logger::warning(const std::string& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->warn(fmt::runtime(format), std::forward<Args>(args)...);
@@ -267,7 +267,7 @@ void Logger::warning(const std::string& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::error(const QString& format, Args&&... args) {
+inline void Logger::error(const QString& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->error(format.toStdString(), std::forward<Args>(args)...);
@@ -275,7 +275,7 @@ void Logger::error(const QString& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::error(const char* format, Args&&... args) {
+inline void Logger::error(const char* format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->error(fmt::runtime(format), std::forward<Args>(args)...);
@@ -283,7 +283,7 @@ void Logger::error(const char* format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::error(const std::string& format, Args&&... args) {
+inline void Logger::error(const std::string& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->error(fmt::runtime(format), std::forward<Args>(args)...);
@@ -291,7 +291,7 @@ void Logger::error(const std::string& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::critical(const QString& format, Args&&... args) {
+inline void Logger::critical(const QString& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->critical(format.toStdString(), std::forward<Args>(args)...);
@@ -299,7 +299,7 @@ void Logger::critical(const QString& format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::critical(const char* format, Args&&... args) {
+inline void Logger::critical(const char* format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->critical(fmt::runtime(format), std::forward<Args>(args)...);
@@ -307,7 +307,7 @@ void Logger::critical(const char* format, Args&&... args) {
 }
 
 template <typename... Args>
-void Logger::critical(const std::string& format, Args&&... args) {
+inline void Logger::critical(const std::string& format, Args&&... args) {
     auto logger = getSpdlogLogger();
     if (logger) {
         logger->critical(fmt::runtime(format), std::forward<Args>(args)...);

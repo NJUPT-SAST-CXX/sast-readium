@@ -20,6 +20,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+class StyleManager;
+
 /**
  * Types of document differences
  */
@@ -142,7 +144,7 @@ public:
                                  Poppler::Document* doc2);
     QList<DocumentDifference> comparePageLayouts(int page1, int page2);
     void generateDetailedReport();
-    QString getDifferenceTypeName(DifferenceType type) const;
+    static QString getDifferenceTypeName(DifferenceType type);
     void exportDifferencesToCSV(const QString& filePath);
     void createVisualDifferenceMap();
 
@@ -183,6 +185,11 @@ private:
     void updateComparisonView();
     void highlightDifference(const DocumentDifference& diff);
     void clearHighlights();
+    void initializeMainLayout(StyleManager& styleManager);
+    void initializeToolbar(StyleManager& styleManager);
+    void initializeOptionsPanel(StyleManager& styleManager);
+    void initializeContentArea(StyleManager& styleManager);
+    void initializeProgressComponents();
 
     // Comparison algorithms
     QFuture<ComparisonResults> performComparison();
@@ -190,50 +197,51 @@ private:
     QList<DocumentDifference> comparePages(int page1, int page2);
     QList<DocumentDifference> compareText(const QString& text1,
                                           const QString& text2, int page1,
-                                          int page2);
+                                          int page2) const;
     QList<DocumentDifference> compareImages(const QPixmap& image1,
                                             const QPixmap& image2, int page1,
-                                            int page2);
-    double calculateTextSimilarity(const QString& text1, const QString& text2);
-    double calculateImageSimilarity(const QPixmap& image1,
-                                    const QPixmap& image2);
+                                            int page2) const;
+    static double calculateTextSimilarity(const QString& text1,
+                                          const QString& text2);
+    static double calculateImageSimilarity(const QPixmap& image1,
+                                           const QPixmap& image2);
 
     // UI Components
-    QVBoxLayout* m_mainLayout;
-    QHBoxLayout* m_toolbarLayout;
-    QHBoxLayout* m_contentLayout;
+    QVBoxLayout* m_mainLayout = nullptr;
+    QHBoxLayout* m_toolbarLayout = nullptr;
+    QHBoxLayout* m_contentLayout = nullptr;
 
     // Toolbar
-    QPushButton* m_compareButton;
-    QPushButton* m_stopButton;
-    QPushButton* m_optionsButton;
-    QPushButton* m_exportButton;
-    QComboBox* m_viewModeCombo;
-    QLabel* m_statusLabel;
-    QProgressBar* m_progressBar;
+    QPushButton* m_compareButton = nullptr;
+    QPushButton* m_stopButton = nullptr;
+    QPushButton* m_optionsButton = nullptr;
+    QPushButton* m_exportButton = nullptr;
+    QComboBox* m_viewModeCombo = nullptr;
+    QLabel* m_statusLabel = nullptr;
+    QProgressBar* m_progressBar = nullptr;
 
     // Options panel
-    QGroupBox* m_optionsGroup;
-    QCheckBox* m_compareTextCheck;
-    QCheckBox* m_compareImagesCheck;
-    QCheckBox* m_compareLayoutCheck;
-    QCheckBox* m_compareAnnotationsCheck;
-    QCheckBox* m_ignoreWhitespaceCheck;
-    QCheckBox* m_ignoreCaseCheck;
-    QSlider* m_similaritySlider;
-    QSpinBox* m_maxDifferencesSpinBox;
+    QGroupBox* m_optionsGroup = nullptr;
+    QCheckBox* m_compareTextCheck = nullptr;
+    QCheckBox* m_compareImagesCheck = nullptr;
+    QCheckBox* m_compareLayoutCheck = nullptr;
+    QCheckBox* m_compareAnnotationsCheck = nullptr;
+    QCheckBox* m_ignoreWhitespaceCheck = nullptr;
+    QCheckBox* m_ignoreCaseCheck = nullptr;
+    QSlider* m_similaritySlider = nullptr;
+    QSpinBox* m_maxDifferencesSpinBox = nullptr;
 
     // Results panel
-    QSplitter* m_resultsSplitter;
-    QTreeWidget* m_differencesTree;
-    QTextEdit* m_differenceDetails;
+    QSplitter* m_resultsSplitter = nullptr;
+    QTreeWidget* m_differencesTree = nullptr;
+    QTextEdit* m_differenceDetails = nullptr;
 
     // Comparison view
-    QSplitter* m_viewSplitter;
-    QScrollArea* m_leftView;
-    QScrollArea* m_rightView;
-    QLabel* m_leftImageLabel;
-    QLabel* m_rightImageLabel;
+    QSplitter* m_viewSplitter = nullptr;
+    QScrollArea* m_leftView = nullptr;
+    QScrollArea* m_rightView = nullptr;
+    QLabel* m_leftImageLabel = nullptr;
+    QLabel* m_rightImageLabel = nullptr;
 
     // Data
     Poppler::Document* m_document1;
@@ -247,6 +255,6 @@ private:
     // Comparison state
     bool m_isComparing;
     QFuture<ComparisonResults> m_comparisonFuture;
-    QFutureWatcher<ComparisonResults>* m_comparisonWatcher;
-    QTimer* m_progressTimer;
+    QFutureWatcher<ComparisonResults>* m_comparisonWatcher = nullptr;
+    QTimer* m_progressTimer = nullptr;
 };

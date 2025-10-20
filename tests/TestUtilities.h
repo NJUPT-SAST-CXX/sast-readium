@@ -30,7 +30,9 @@ class TestBase : public QObject {
 
 protected:
     // Setup and teardown
-    virtual void initTestCase() {}
+    virtual void initTestCase() {
+        qDebug() << "TestBase::initTestCase() called";
+    }
     virtual void cleanupTestCase() {}
     virtual void init() {}
     virtual void cleanup() {}

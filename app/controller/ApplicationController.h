@@ -44,6 +44,8 @@ public:
     // Explicitly delete copy operations due to destructor
     ApplicationController(const ApplicationController&) = delete;
     ApplicationController& operator=(const ApplicationController&) = delete;
+    ApplicationController(ApplicationController&&) = delete;
+    ApplicationController& operator=(ApplicationController&&) = delete;
 
     // Initialization methods (following Interface Segregation)
     void initializeApplication();
@@ -61,14 +63,20 @@ public:
     [[nodiscard]] DocumentController* documentController() const {
         return m_documentController;
     }
-    [[nodiscard]] PageController* pageController() const { return m_pageController; }
-    [[nodiscard]] DocumentModel* documentModel() const { return m_documentModel; }
+    [[nodiscard]] PageController* pageController() const {
+        return m_pageController;
+    }
+    [[nodiscard]] DocumentModel* documentModel() const {
+        return m_documentModel;
+    }
     [[nodiscard]] PageModel* pageModel() const { return m_pageModel; }
     [[nodiscard]] RenderModel* renderModel() const { return m_renderModel; }
     [[nodiscard]] RecentFilesManager* recentFilesManager() const {
         return m_recentFilesManager;
     }
-    [[nodiscard]] SystemTrayManager* systemTrayManager() const { return m_systemTrayManager; }
+    [[nodiscard]] SystemTrayManager* systemTrayManager() const {
+        return m_systemTrayManager;
+    }
 
     // View components access
     [[nodiscard]] MenuBar* menuBar() const { return m_menuBar; }

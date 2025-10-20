@@ -118,11 +118,27 @@ void WelcomeScreenManagerIntegrationTest::init() {
     m_manager->setMainWindow(m_mainWindow);
     m_manager->setWelcomeWidget(m_welcomeWidget);
     m_manager->setDocumentModel(m_documentModel);
+
+    // Reset to defaults to ensure clean state for each test
+    m_manager->resetToDefaults();
+
+    // Connect signals to actually show/hide the widget
+    // The manager emits signals but doesn't directly set widget visibility
+    connect(m_manager, &WelcomeScreenManager::showWelcomeScreenRequested,
+            m_welcomeWidget, [this]() { m_welcomeWidget->setVisible(true); });
+    connect(m_manager, &WelcomeScreenManager::hideWelcomeScreenRequested,
+            m_welcomeWidget, [this]() { m_welcomeWidget->setVisible(false); });
 }
 
 void WelcomeScreenManagerIntegrationTest::cleanup() {
     delete m_manager;
     m_manager = nullptr;
+
+    // Close all documents to ensure clean state for next test
+    while (!m_documentModel->isEmpty()) {
+        m_documentModel->closeDocument(0);
+    }
+
     clearTestSettings();
 }
 

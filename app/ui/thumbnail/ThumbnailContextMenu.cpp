@@ -17,15 +17,27 @@
 const QString ThumbnailContextMenu::DEFAULT_EXPORT_FORMAT = "PNG";
 const QStringList ThumbnailContextMenu::SUPPORTED_EXPORT_FORMATS = {
     "PNG", "JPEG", "PDF", "SVG"};
+namespace {
+constexpr int PAGE_NUMBER_BASE = 10;
+}
 
 ThumbnailContextMenu::ThumbnailContextMenu(QWidget* parent)
     : QMenu(parent),
       m_thumbnailModel(nullptr),
       m_currentPage(-1),
+      m_clipboard(QApplication::clipboard()),
+      m_copyPageAction(nullptr),
+      m_exportPageAction(nullptr),
+      m_printPageAction(nullptr),
+      m_refreshPageAction(nullptr),
+      m_pageInfoAction(nullptr),
+      m_goToPageAction(nullptr),
+      m_copyPageNumberAction(nullptr),
+      m_setBookmarkAction(nullptr),
+      m_separator1(nullptr),
+      m_separator2(nullptr),
       m_isDarkTheme(false) {
     setObjectName("ThumbnailContextMenu");
-
-    m_clipboard = QApplication::clipboard();
 
     createActions();
     setupMenu();
@@ -176,7 +188,7 @@ void ThumbnailContextMenu::updateMenuStyle() {
 
 void ThumbnailContextMenu::setDocument(
     std::shared_ptr<Poppler::Document> document) {
-    m_document = document;
+    m_document = std::move(document);
     updateActionStates();
 }
 
@@ -417,10 +429,9 @@ void ThumbnailContextMenu::exportPageToFile(int pageNumber) {
             }
         }
 
-        TOAST_SUCCESS(parentWidget(),
-                      QString("第 %1 页已成功导出到:\n%2")
-                          .arg(pageNumber + 1)
-                          .arg(filePath));
+        TOAST_SUCCESS(parentWidget(), QString("第 %1 页已成功导出到:\n%2")
+                                          .arg(pageNumber + 1)
+                                          .arg(filePath));
 
     } catch (const std::exception& e) {
         TOAST_ERROR(parentWidget(),
@@ -440,11 +451,13 @@ void ThumbnailContextMenu::showPageInfoDialog(int pageNumber) {
                QString("第 %1 页信息\n%2").arg(pageNumber + 1).arg(infoText));
 }
 
-QString ThumbnailContextMenu::getDefaultExportPath(int pageNumber) const {
+auto ThumbnailContextMenu::getDefaultExportPath(int pageNumber) const
+    -> QString {
     QString documentsPath =
         QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     QString fileName =
-        QString("page_%1.png").arg(pageNumber + 1, 3, 10, QChar('0'));
+        QString("page_%1.png")
+            .arg(pageNumber + 1, 3, PAGE_NUMBER_BASE, QChar('0'));
     return QDir(documentsPath).filePath(fileName);
 }
 

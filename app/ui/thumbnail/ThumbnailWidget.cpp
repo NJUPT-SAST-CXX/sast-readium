@@ -13,6 +13,14 @@
 #include <QStyleOption>
 #include <cmath>
 
+// 常量定义
+namespace {
+constexpr double DEFAULT_SHADOW_OPACITY = 0.3;
+constexpr int HOVER_ANIMATION_DURATION = 200;
+constexpr int SELECTION_ANIMATION_DURATION = 300;
+constexpr int LOADING_TIMER_INTERVAL = 50;  // 20 FPS
+}  // namespace
+
 // 颜色常量定义
 const QColor ThumbnailWidget::BORDER_COLOR_NORMAL = QColor(200, 200, 200);
 const QColor ThumbnailWidget::BORDER_COLOR_HOVERED =
@@ -28,9 +36,9 @@ const QColor ThumbnailWidget::ERROR_COLOR = QColor(234, 67, 53);  // Google Red
 ThumbnailWidget::ThumbnailWidget(int pageNumber, QWidget* parent)
     : QWidget(parent),
       m_pageNumber(pageNumber),
-      m_state(Normal),
+      m_state(State::Normal),
       m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT),
-      m_shadowOpacity(0.3),
+      m_shadowOpacity(DEFAULT_SHADOW_OPACITY),
       m_borderOpacity(0.0),
       m_loadingAngle(0),
       m_hoverAnimation(nullptr),
@@ -67,21 +75,21 @@ void ThumbnailWidget::setupUI() {
 void ThumbnailWidget::setupAnimations() {
     // 悬停动画
     m_hoverAnimation = new QPropertyAnimation(this, "borderOpacity", this);
-    m_hoverAnimation->setDuration(200);
+    m_hoverAnimation->setDuration(HOVER_ANIMATION_DURATION);
     m_hoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
     connect(m_hoverAnimation, &QPropertyAnimation::finished, this,
             &ThumbnailWidget::onHoverAnimationFinished);
 
     // 选中动画
     m_selectionAnimation = new QPropertyAnimation(this, "shadowOpacity", this);
-    m_selectionAnimation->setDuration(300);
+    m_selectionAnimation->setDuration(SELECTION_ANIMATION_DURATION);
     m_selectionAnimation->setEasingCurve(QEasingCurve::OutCubic);
     connect(m_selectionAnimation, &QPropertyAnimation::finished, this,
             &ThumbnailWidget::onSelectionAnimationFinished);
 
     // 加载动画定时器
     m_loadingTimer = new QTimer(this);
-    m_loadingTimer->setInterval(50);  // 20 FPS
+    m_loadingTimer->setInterval(LOADING_TIMER_INTERVAL);  // 20 FPS
     connect(m_loadingTimer, &QTimer::timeout, this,
             &ThumbnailWidget::updateLoadingAnimation);
 }
@@ -95,8 +103,8 @@ void ThumbnailWidget::setPageNumber(int pageNumber) {
 
 void ThumbnailWidget::setPixmap(const QPixmap& pixmap) {
     m_pixmap = pixmap;
-    if (!pixmap.isNull() && m_state == Loading) {
-        setState(Normal);
+    if (!pixmap.isNull() && m_state == State::Loading) {
+        setState(State::Normal);
     }
     update();
 }
@@ -110,35 +118,35 @@ void ThumbnailWidget::setState(State state) {
 
     // 处理状态变化
     switch (state) {
-        case Normal:
+        case State::Normal:
             if (m_loadingTimer->isActive()) {
                 m_loadingTimer->stop();
             }
-            if (oldState == Selected) {
+            if (oldState == State::Selected) {
                 m_selectionAnimation->setStartValue(m_shadowOpacity);
-                m_selectionAnimation->setEndValue(0.3);
+                m_selectionAnimation->setEndValue(DEFAULT_SHADOW_OPACITY);
                 m_selectionAnimation->start();
             }
             break;
 
-        case Hovered:
+        case State::Hovered:
             m_hoverAnimation->setStartValue(m_borderOpacity);
             m_hoverAnimation->setEndValue(1.0);
             m_hoverAnimation->start();
             break;
 
-        case Selected:
+        case State::Selected:
             m_selectionAnimation->setStartValue(m_shadowOpacity);
             m_selectionAnimation->setEndValue(0.8);
             m_selectionAnimation->start();
             break;
 
-        case Loading:
+        case State::Loading:
             m_loadingAngle = 0;
             m_loadingTimer->start();
             break;
 
-        case Error:
+        case State::Error:
             if (m_loadingTimer->isActive()) {
                 m_loadingTimer->stop();
             }
@@ -173,12 +181,12 @@ void ThumbnailWidget::setBorderOpacity(qreal opacity) {
 }
 
 void ThumbnailWidget::setLoading(bool loading) {
-    setState(loading ? Loading : Normal);
+    setState(loading ? State::Loading : State::Normal);
 }
 
 void ThumbnailWidget::setError(const QString& errorMessage) {
     m_errorMessage = errorMessage;
-    setState(Error);
+    setState(State::Error);
 }
 
 void ThumbnailWidget::updateShadowEffect() {
@@ -239,9 +247,9 @@ void ThumbnailWidget::paintEvent(QPaintEvent* event) {
     drawPageNumber(painter, pageNumRect);
 
     // 根据状态绘制额外内容
-    if (m_state == Loading) {
+    if (m_state == State::Loading) {
         drawLoadingIndicator(painter, thumbRect);
-    } else if (m_state == Error) {
+    } else if (m_state == State::Error) {
         drawErrorIndicator(painter, thumbRect);
     }
 }
@@ -286,10 +294,10 @@ void ThumbnailWidget::drawBorder(QPainter& painter, const QRect& rect) {
     if (m_borderOpacity > 0.001) {
         QColor borderColor;
         switch (m_state) {
-            case Hovered:
+            case State::Hovered:
                 borderColor = BORDER_COLOR_HOVERED;
                 break;
-            case Selected:
+            case State::Selected:
                 borderColor = BORDER_COLOR_SELECTED;
                 break;
             default:
@@ -382,16 +390,16 @@ void ThumbnailWidget::mouseDoubleClickEvent(QMouseEvent* event) {
 }
 
 void ThumbnailWidget::enterEvent(QEnterEvent* event) {
-    if (m_state == Normal) {
-        setState(Hovered);
+    if (m_state == State::Normal) {
+        setState(State::Hovered);
         emit hoverEntered(m_pageNumber);
     }
     QWidget::enterEvent(event);
 }
 
 void ThumbnailWidget::leaveEvent(QEvent* event) {
-    if (m_state == Hovered) {
-        setState(Normal);
+    if (m_state == State::Hovered) {
+        setState(State::Normal);
         m_hoverAnimation->setStartValue(m_borderOpacity);
         m_hoverAnimation->setEndValue(0.0);
         m_hoverAnimation->start();

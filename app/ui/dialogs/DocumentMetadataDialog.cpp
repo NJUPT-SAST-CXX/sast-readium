@@ -14,10 +14,7 @@
 #include "../widgets/ToastNotification.h"
 
 DocumentMetadataDialog::DocumentMetadataDialog(QWidget* parent)
-    : QDialog(parent),
-      m_currentDocument(nullptr),
-      m_fontCount(0),
-      m_embeddedFontCount(0) {
+    : QDialog(parent) {
     setWindowTitle(tr("📄 文档详细信息"));
     setModal(true);
 
@@ -34,164 +31,185 @@ DocumentMetadataDialog::DocumentMetadataDialog(QWidget* parent)
 }
 
 void DocumentMetadataDialog::setupUI() {
-    StyleManager* styleManager = &StyleManager::instance();
+    StyleManager& styleManager = StyleManager::instance();
+    initializeMainLayout(styleManager);
+    createBasicInfoSection(styleManager);
+    createPropertiesSection(styleManager);
+    createSecuritySection(styleManager);
+    createActionButtons();
+}
 
+void DocumentMetadataDialog::initializeMainLayout(StyleManager& styleManager) {
     m_mainLayout = new QVBoxLayout(this);
-    m_mainLayout->setContentsMargins(styleManager->spacingLG(), styleManager->spacingLG(),
-                                    styleManager->spacingLG(), styleManager->spacingLG());
-    m_mainLayout->setSpacing(styleManager->spacingMD());
+    m_mainLayout->setContentsMargins(
+        styleManager.spacingLG(), styleManager.spacingLG(),
+        styleManager.spacingLG(), styleManager.spacingLG());
+    m_mainLayout->setSpacing(styleManager.spacingMD());
 
-    // 创建滚动区域
     m_propertiesScrollArea = new QScrollArea(this);
     m_propertiesScrollArea->setWidgetResizable(true);
     m_propertiesScrollArea->setFrameShape(QFrame::NoFrame);
-    m_propertiesScrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_propertiesScrollArea->setSizePolicy(QSizePolicy::Expanding,
+                                          QSizePolicy::Expanding);
 
     m_propertiesContentWidget = new QWidget();
-    m_propertiesContentWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_propertiesContentWidget->setSizePolicy(QSizePolicy::Expanding,
+                                             QSizePolicy::Preferred);
 
     m_propertiesContentLayout = new QVBoxLayout(m_propertiesContentWidget);
-    m_propertiesContentLayout->setContentsMargins(styleManager->spacingSM(), styleManager->spacingSM(),
-                                                  styleManager->spacingSM(), styleManager->spacingSM());
-    m_propertiesContentLayout->setSpacing(styleManager->spacingLG());
+    m_propertiesContentLayout->setContentsMargins(
+        styleManager.spacingSM(), styleManager.spacingSM(),
+        styleManager.spacingSM(), styleManager.spacingSM());
+    m_propertiesContentLayout->setSpacing(styleManager.spacingLG());
+}
 
-    // 基本信息组
+void DocumentMetadataDialog::createBasicInfoSection(
+    StyleManager& styleManager) {
     m_basicInfoGroup = new QGroupBox(tr("基本信息"), m_propertiesContentWidget);
     m_basicInfoLayout = new QGridLayout(m_basicInfoGroup);
-    m_basicInfoLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingLG(),
-                                         styleManager->spacingMD(), styleManager->spacingMD());
-    m_basicInfoLayout->setHorizontalSpacing(styleManager->spacingMD());
-    m_basicInfoLayout->setVerticalSpacing(styleManager->spacingSM());
-    m_basicInfoLayout->setColumnStretch(1, 1);  // Second column expands
+    m_basicInfoLayout->setContentsMargins(
+        styleManager.spacingMD(), styleManager.spacingLG(),
+        styleManager.spacingMD(), styleManager.spacingMD());
+    m_basicInfoLayout->setHorizontalSpacing(styleManager.spacingMD());
+    m_basicInfoLayout->setVerticalSpacing(styleManager.spacingSM());
+    m_basicInfoLayout->setColumnStretch(1, 1);
 
-    // 文件名
-    m_basicInfoLayout->addWidget(new QLabel(tr("文件名:")), 0, 0);
-    m_fileNameEdit = new QLineEdit();
+    auto* fileNameLabel = new QLabel(tr("文件名:"), m_basicInfoGroup);
+    m_basicInfoLayout->addWidget(fileNameLabel, 0, 0);
+    m_fileNameEdit = new QLineEdit(m_basicInfoGroup);
     m_fileNameEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_fileNameEdit, 0, 1);
 
-    // 文件路径
-    m_basicInfoLayout->addWidget(new QLabel(tr("文件路径:")), 1, 0);
-    m_filePathEdit = new QLineEdit();
+    auto* filePathLabel = new QLabel(tr("文件路径:"), m_basicInfoGroup);
+    m_basicInfoLayout->addWidget(filePathLabel, 1, 0);
+    m_filePathEdit = new QLineEdit(m_basicInfoGroup);
     m_filePathEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_filePathEdit, 1, 1);
 
-    // 文件大小
-    m_basicInfoLayout->addWidget(new QLabel(tr("文件大小:")), 2, 0);
-    m_fileSizeEdit = new QLineEdit();
+    auto* fileSizeLabel = new QLabel(tr("文件大小:"), m_basicInfoGroup);
+    m_basicInfoLayout->addWidget(fileSizeLabel, 2, 0);
+    m_fileSizeEdit = new QLineEdit(m_basicInfoGroup);
     m_fileSizeEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_fileSizeEdit, 2, 1);
 
-    // 页数
-    m_basicInfoLayout->addWidget(new QLabel(tr("页数:")), 3, 0);
-    m_pageCountEdit = new QLineEdit();
+    auto* pageCountLabel = new QLabel(tr("页数:"), m_basicInfoGroup);
+    m_basicInfoLayout->addWidget(pageCountLabel, 3, 0);
+    m_pageCountEdit = new QLineEdit(m_basicInfoGroup);
     m_pageCountEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_pageCountEdit, 3, 1);
 
     m_propertiesContentLayout->addWidget(m_basicInfoGroup);
+}
 
-    // 文档属性组
+void DocumentMetadataDialog::createPropertiesSection(
+    StyleManager& styleManager) {
     m_propertiesGroup =
         new QGroupBox(tr("文档属性"), m_propertiesContentWidget);
     m_propertiesLayout = new QGridLayout(m_propertiesGroup);
-    m_propertiesLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingLG(),
-                                          styleManager->spacingMD(), styleManager->spacingMD());
-    m_propertiesLayout->setHorizontalSpacing(styleManager->spacingMD());
-    m_propertiesLayout->setVerticalSpacing(styleManager->spacingSM());
-    m_propertiesLayout->setColumnStretch(1, 1);  // Second column expands
+    m_propertiesLayout->setContentsMargins(
+        styleManager.spacingMD(), styleManager.spacingLG(),
+        styleManager.spacingMD(), styleManager.spacingMD());
+    m_propertiesLayout->setHorizontalSpacing(styleManager.spacingMD());
+    m_propertiesLayout->setVerticalSpacing(styleManager.spacingSM());
+    m_propertiesLayout->setColumnStretch(1, 1);
 
-    // 标题
-    m_propertiesLayout->addWidget(new QLabel(tr("标题:")), 0, 0);
-    m_titleEdit = new QLineEdit();
+    auto* titleLabel = new QLabel(tr("标题:"), m_propertiesGroup);
+    m_propertiesLayout->addWidget(titleLabel, 0, 0);
+    m_titleEdit = new QLineEdit(m_propertiesGroup);
     m_titleEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_titleEdit, 0, 1);
 
-    // 作者
-    m_propertiesLayout->addWidget(new QLabel(tr("作者:")), 1, 0);
-    m_authorEdit = new QLineEdit();
+    auto* authorLabel = new QLabel(tr("作者:"), m_propertiesGroup);
+    m_propertiesLayout->addWidget(authorLabel, 1, 0);
+    m_authorEdit = new QLineEdit(m_propertiesGroup);
     m_authorEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_authorEdit, 1, 1);
 
-    // 主题
-    m_propertiesLayout->addWidget(new QLabel(tr("主题:")), 2, 0);
-    m_subjectEdit = new QLineEdit();
+    auto* subjectLabel = new QLabel(tr("主题:"), m_propertiesGroup);
+    m_propertiesLayout->addWidget(subjectLabel, 2, 0);
+    m_subjectEdit = new QLineEdit(m_propertiesGroup);
     m_subjectEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_subjectEdit, 2, 1);
 
-    // 关键词
-    m_propertiesLayout->addWidget(new QLabel(tr("关键词:")), 3, 0);
-    m_keywordsEdit = new QTextEdit();
+    auto* keywordsLabel = new QLabel(tr("关键词:"), m_propertiesGroup);
+    m_propertiesLayout->addWidget(keywordsLabel, 3, 0);
+    m_keywordsEdit = new QTextEdit(m_propertiesGroup);
     m_keywordsEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_keywordsEdit, 3, 1);
 
-    // 创建者
-    m_propertiesLayout->addWidget(new QLabel(tr("创建者:")), 4, 0);
-    m_creatorEdit = new QLineEdit();
+    auto* creatorLabel = new QLabel(tr("创建者:"), m_propertiesGroup);
+    m_propertiesLayout->addWidget(creatorLabel, 4, 0);
+    m_creatorEdit = new QLineEdit(m_propertiesGroup);
     m_creatorEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_creatorEdit, 4, 1);
 
-    // 生成者
-    m_propertiesLayout->addWidget(new QLabel(tr("生成者:")), 5, 0);
-    m_producerEdit = new QLineEdit();
+    auto* producerLabel = new QLabel(tr("生成者:"), m_propertiesGroup);
+    m_propertiesLayout->addWidget(producerLabel, 5, 0);
+    m_producerEdit = new QLineEdit(m_propertiesGroup);
     m_producerEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_producerEdit, 5, 1);
 
-    // 创建时间
-    m_propertiesLayout->addWidget(new QLabel(tr("创建时间:")), 6, 0);
-    m_creationDateEdit = new QLineEdit();
+    auto* creationDateLabel = new QLabel(tr("创建时间:"), m_propertiesGroup);
+    m_propertiesLayout->addWidget(creationDateLabel, 6, 0);
+    m_creationDateEdit = new QLineEdit(m_propertiesGroup);
     m_creationDateEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_creationDateEdit, 6, 1);
 
-    // 修改时间
-    m_propertiesLayout->addWidget(new QLabel(tr("修改时间:")), 7, 0);
-    m_modificationDateEdit = new QLineEdit();
+    auto* modificationDateLabel =
+        new QLabel(tr("修改时间:"), m_propertiesGroup);
+    m_propertiesLayout->addWidget(modificationDateLabel, 7, 0);
+    m_modificationDateEdit = new QLineEdit(m_propertiesGroup);
     m_modificationDateEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_modificationDateEdit, 7, 1);
 
     m_propertiesContentLayout->addWidget(m_propertiesGroup);
+}
 
-    // 安全信息组
+void DocumentMetadataDialog::createSecuritySection(StyleManager& styleManager) {
     m_securityGroup = new QGroupBox(tr("安全信息"), m_propertiesContentWidget);
     m_securityLayout = new QGridLayout(m_securityGroup);
-    m_securityLayout->setContentsMargins(styleManager->spacingMD(), styleManager->spacingLG(),
-                                        styleManager->spacingMD(), styleManager->spacingMD());
-    m_securityLayout->setHorizontalSpacing(styleManager->spacingMD());
-    m_securityLayout->setVerticalSpacing(styleManager->spacingSM());
+    m_securityLayout->setContentsMargins(
+        styleManager.spacingMD(), styleManager.spacingLG(),
+        styleManager.spacingMD(), styleManager.spacingMD());
+    m_securityLayout->setHorizontalSpacing(styleManager.spacingMD());
+    m_securityLayout->setVerticalSpacing(styleManager.spacingSM());
     m_securityLayout->setColumnStretch(1, 1);
 
-    // 加密状态
-    m_securityLayout->addWidget(new QLabel(tr("加密状态:")), 0, 0);
-    m_encryptedEdit = new QLineEdit();
+    auto* encryptedLabel = new QLabel(tr("加密状态:"), m_securityGroup);
+    m_securityLayout->addWidget(encryptedLabel, 0, 0);
+    m_encryptedEdit = new QLineEdit(m_securityGroup);
     m_encryptedEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_encryptedEdit, 0, 1);
 
-    // 可提取文本
-    m_securityLayout->addWidget(new QLabel(tr("可提取文本:")), 1, 0);
-    m_canExtractTextEdit = new QLineEdit();
+    auto* extractLabel = new QLabel(tr("可提取文本:"), m_securityGroup);
+    m_securityLayout->addWidget(extractLabel, 1, 0);
+    m_canExtractTextEdit = new QLineEdit(m_securityGroup);
     m_canExtractTextEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canExtractTextEdit, 1, 1);
 
-    // 可打印
-    m_securityLayout->addWidget(new QLabel(tr("可打印:")), 2, 0);
-    m_canPrintEdit = new QLineEdit();
+    auto* printLabel = new QLabel(tr("可打印:"), m_securityGroup);
+    m_securityLayout->addWidget(printLabel, 2, 0);
+    m_canPrintEdit = new QLineEdit(m_securityGroup);
     m_canPrintEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canPrintEdit, 2, 1);
 
-    // 可修改
-    m_securityLayout->addWidget(new QLabel(tr("可修改:")), 3, 0);
-    m_canModifyEdit = new QLineEdit();
+    auto* modifyLabel = new QLabel(tr("可修改:"), m_securityGroup);
+    m_securityLayout->addWidget(modifyLabel, 3, 0);
+    m_canModifyEdit = new QLineEdit(m_securityGroup);
     m_canModifyEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canModifyEdit, 3, 1);
 
     m_propertiesContentLayout->addWidget(m_securityGroup);
+}
 
-    // 添加弹性空间
+void DocumentMetadataDialog::createActionButtons() {
     m_propertiesContentLayout->addStretch();
 
-    m_propertiesScrollArea->setWidget(m_propertiesContentWidget);
-    m_mainLayout->addWidget(m_propertiesScrollArea);
+    if (m_propertiesScrollArea != nullptr) {
+        m_propertiesScrollArea->setWidget(m_propertiesContentWidget);
+        m_mainLayout->addWidget(m_propertiesScrollArea);
+    }
 
-    // 按钮布局
     m_buttonLayout = new QHBoxLayout();
     m_buttonLayout->addStretch();
 
@@ -222,7 +240,7 @@ void DocumentMetadataDialog::setDocument(Poppler::Document* document,
     m_currentDocument = document;
     m_currentFilePath = filePath;
 
-    if (!document || filePath.isEmpty()) {
+    if (document == nullptr || filePath.isEmpty()) {
         clearMetadata();
         return;
     }
@@ -275,17 +293,18 @@ void DocumentMetadataDialog::populateBasicInfo(const QString& filePath,
     m_fileSizeEdit->setText(formatFileSize(fileSize));
 
     // 页数
-    if (document) {
+    if (document != nullptr) {
         int pageCount = document->numPages();
         m_pageCountEdit->setText(QString::number(pageCount));
-    } else {
-        m_pageCountEdit->setText(tr("未知"));
+        return;
     }
+
+    m_pageCountEdit->setText(tr("未知"));
 }
 
 void DocumentMetadataDialog::populateDocumentProperties(
     Poppler::Document* document) {
-    if (!document) {
+    if (document == nullptr) {
         return;
     }
 
@@ -316,7 +335,7 @@ void DocumentMetadataDialog::populateDocumentProperties(
 }
 
 void DocumentMetadataDialog::populateSecurityInfo(Poppler::Document* document) {
-    if (!document) {
+    if (document == nullptr) {
         return;
     }
 
@@ -364,20 +383,24 @@ QString DocumentMetadataDialog::formatFileSize(qint64 bytes) {
         return tr("未知");
     }
 
-    const qint64 KB = 1024;
-    const qint64 MB = KB * 1024;
-    const qint64 GB = MB * 1024;
+    constexpr qint64 KB_VALUE = 1024;
+    constexpr qint64 MB_VALUE = KB_VALUE * 1024;
+    constexpr qint64 GB_VALUE = MB_VALUE * 1024;
 
-    if (bytes >= GB) {
-        return QString("%1 GB").arg(
-            QString::number(bytes / double(GB), 'f', 2));
-    } else if (bytes >= MB) {
-        return QString("%1 MB").arg(
-            QString::number(bytes / double(MB), 'f', 2));
-    } else if (bytes >= KB) {
-        return QString("%1 KB").arg(
-            QString::number(bytes / double(KB), 'f', 1));
-    } else {
-        return QString("%1 字节").arg(bytes);
+    if (bytes >= GB_VALUE) {
+        double sizeInGigabytes =
+            static_cast<double>(bytes) / static_cast<double>(GB_VALUE);
+        return QString("%1 GB").arg(QString::number(sizeInGigabytes, 'f', 2));
     }
+    if (bytes >= MB_VALUE) {
+        double sizeInMegabytes =
+            static_cast<double>(bytes) / static_cast<double>(MB_VALUE);
+        return QString("%1 MB").arg(QString::number(sizeInMegabytes, 'f', 2));
+    }
+    if (bytes >= KB_VALUE) {
+        double sizeInKilobytes =
+            static_cast<double>(bytes) / static_cast<double>(KB_VALUE);
+        return QString("%1 KB").arg(QString::number(sizeInKilobytes, 'f', 1));
+    }
+    return QString("%1 字节").arg(bytes);
 }

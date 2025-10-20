@@ -40,13 +40,13 @@ void DocumentTabBar::mouseMoveEvent(QMouseEvent* event) {
         return;
     }
 
-    QDrag* drag = new QDrag(this);
-    QMimeData* mimeData = new QMimeData;
+    auto* drag = new QDrag(this);
+    auto* mimeData = new QMimeData;
     mimeData->setData("application/x-tab-index", QByteArray::number(tabIndex));
     drag->setMimeData(mimeData);
 
     dragInProgress = true;
-    Qt::DropAction dropAction = drag->exec(Qt::MoveAction);
+    drag->exec(Qt::MoveAction);
     dragInProgress = false;
 
     QTabBar::mouseMoveEvent(event);
@@ -89,7 +89,8 @@ void DocumentTabBar::dropEvent(QDropEvent* event) {
 }
 
 // DocumentTabWidget Implementation
-DocumentTabWidget::DocumentTabWidget(QWidget* parent) : QTabWidget(parent) {
+DocumentTabWidget::DocumentTabWidget(QWidget* parent)
+    : QTabWidget(parent), customTabBar(nullptr) {
     setupTabBar();
     setTabsClosable(true);
     setMovable(true);
@@ -208,11 +209,11 @@ QString DocumentTabWidget::getTabFilePath(int index) const {
 int DocumentTabWidget::getTabCount() const { return count(); }
 
 QWidget* DocumentTabWidget::createTabWidget(const QString& fileName,
-                                            const QString& filePath) {
-    QWidget* widget = new QWidget(this);
-    QVBoxLayout* layout = new QVBoxLayout(widget);
+                                            const QString& /*filePath*/) {
+    auto* widget = new QWidget(this);
+    auto* layout = new QVBoxLayout(widget);
 
-    QLabel* label = new QLabel(QString("PDF内容: %1").arg(fileName), widget);
+    auto* label = new QLabel(QString("PDF内容: %1").arg(fileName), widget);
     label->setAlignment(Qt::AlignCenter);
     layout->addWidget(label);
 

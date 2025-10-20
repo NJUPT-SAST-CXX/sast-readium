@@ -21,28 +21,36 @@ class Event : public QObject {
     Q_OBJECT
 
 public:
-    explicit Event(const QString& type, QObject* parent = nullptr);
-    virtual ~Event() = default;
+    explicit Event(QString type, QObject* parent = nullptr);
+    ~Event() override = default;
+
+    // Special member functions
+    Event(const Event&) = delete;
+    Event& operator=(const Event&) = delete;
+    Event(Event&&) = delete;
+    Event& operator=(Event&&) = delete;
 
     // Event metadata
-    QString type() const { return m_type; }
-    qint64 timestamp() const { return m_timestamp; }
-    QString source() const { return m_source; }
+    [[nodiscard]] QString type() const { return m_type; }
+    [[nodiscard]] qint64 timestamp() const { return m_timestamp; }
+    [[nodiscard]] QString source() const { return m_source; }
     void setSource(const QString& source) { m_source = source; }
 
     // Event data
-    QVariant data() const { return m_data; }
+    [[nodiscard]] QVariant data() const { return m_data; }
     void setData(const QVariant& data) { m_data = data; }
 
     // Event properties
-    bool isHandled() const { return m_handled; }
+    [[nodiscard]] bool isHandled() const { return m_handled; }
     void setHandled(bool handled = true) { m_handled = handled; }
 
-    bool isPropagationStopped() const { return m_propagationStopped; }
+    [[nodiscard]] bool isPropagationStopped() const {
+        return m_propagationStopped;
+    }
     void stopPropagation() { m_propagationStopped = true; }
 
     // Clone event
-    virtual Event* clone() const;
+    [[nodiscard]] virtual Event* clone() const;
 
 protected:
     QString m_type;
@@ -63,7 +71,7 @@ class EventBus : public QObject {
     Q_OBJECT
 
 public:
-    ~EventBus();
+    ~EventBus() override;
 
     // Singleton access
     static EventBus& instance();
@@ -95,7 +103,7 @@ public:
     // Event queue management
     void processEventQueue();
     void clearEventQueue();
-    int queueSize() const { return m_eventQueue.size(); }
+    int queueSize() const { return static_cast<int>(m_eventQueue.size()); }
     bool isProcessing() const { return m_isProcessing; }
 
     // Statistics
@@ -125,10 +133,15 @@ private slots:
     void onSubscriberDestroyed(QObject* obj);
 
 private:
-    EventBus(QObject* parent = nullptr);
+    explicit EventBus(QObject* parent = nullptr);
+
+public:
     EventBus(const EventBus&) = delete;
     EventBus& operator=(const EventBus&) = delete;
+    EventBus(EventBus&&) = delete;
+    EventBus& operator=(EventBus&&) = delete;
 
+private:
     struct Subscription {
         QObject* subscriber;
         EventHandler handler;
@@ -180,7 +193,7 @@ public:
 
     T payload() const { return m_payload; }
 
-    Event* clone() const override {
+    [[nodiscard]] Event* clone() const override {
         return new TypedEvent<T>(type(), m_payload);
     }
 
@@ -194,6 +207,12 @@ private:
 class EventEmitter {
 public:
     virtual ~EventEmitter() = default;
+
+    // Special member functions
+    EventEmitter(const EventEmitter&) = delete;
+    EventEmitter& operator=(const EventEmitter&) = delete;
+    EventEmitter(EventEmitter&&) = delete;
+    EventEmitter& operator=(EventEmitter&&) = delete;
 
 protected:
     void emitEvent(Event* event) {
@@ -211,7 +230,7 @@ protected:
         EventBus::instance().publishAsync(event, delayMs);
     }
 
-    virtual QString objectName() const = 0;
+    [[nodiscard]] virtual QString objectName() const = 0;
 };
 
 /**
@@ -222,7 +241,13 @@ class EventSubscriber : public QObject {
 
 public:
     explicit EventSubscriber(QObject* parent = nullptr);
-    ~EventSubscriber();
+    ~EventSubscriber() override;
+
+    // Special member functions
+    EventSubscriber(const EventSubscriber&) = delete;
+    EventSubscriber& operator=(const EventSubscriber&) = delete;
+    EventSubscriber(EventSubscriber&&) = delete;
+    EventSubscriber& operator=(EventSubscriber&&) = delete;
 
 protected:
     void subscribeTo(const QString& eventType, EventBus::EventHandler handler);
@@ -246,18 +271,24 @@ public:
     explicit EventAggregator(const QStringList& eventTypes,
                              int timeWindowMs = 1000,
                              QObject* parent = nullptr);
-    ~EventAggregator();
+    ~EventAggregator() override;
+
+    // Special member functions
+    EventAggregator(const EventAggregator&) = delete;
+    EventAggregator& operator=(const EventAggregator&) = delete;
+    EventAggregator(EventAggregator&&) = delete;
+    EventAggregator& operator=(EventAggregator&&) = delete;
 
     void start();
     void stop();
-    bool isRunning() const { return m_isRunning; }
+    [[nodiscard]] bool isRunning() const { return m_isRunning; }
 
     // Configuration
     void setTimeWindow(int ms) { m_timeWindowMs = ms; }
-    int timeWindow() const { return m_timeWindowMs; }
+    [[nodiscard]] int timeWindow() const { return m_timeWindowMs; }
     void setAggregationFunction(
         std::function<QVariant(const QList<Event*>&)> func) {
-        m_aggregationFunction = func;
+        m_aggregationFunction = std::move(func);
     }
 
 signals:
@@ -281,25 +312,88 @@ private:
  */
 namespace AppEvents {
 // Document events
-const QString DOCUMENT_OPENED = "document.opened";
-const QString DOCUMENT_CLOSED = "document.closed";
-const QString DOCUMENT_SAVED = "document.saved";
-const QString DOCUMENT_MODIFIED = "document.modified";
+inline const QString&
+DOCUMENT_OPENED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "document.opened";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
+inline const QString&
+DOCUMENT_CLOSED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "document.closed";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
+inline const QString&
+DOCUMENT_SAVED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "document.saved";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
+inline const QString&
+DOCUMENT_MODIFIED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "document.modified";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
 
 // Navigation events
-const QString PAGE_CHANGED = "navigation.page_changed";
-const QString ZOOM_CHANGED = "navigation.zoom_changed";
-const QString VIEW_MODE_CHANGED = "navigation.view_mode_changed";
+inline const QString& PAGE_CHANGED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "navigation.page_changed";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
+inline const QString& ZOOM_CHANGED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "navigation.zoom_changed";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
+inline const QString&
+VIEW_MODE_CHANGED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "navigation.view_mode_changed";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
 
 // UI events
-const QString THEME_CHANGED = "ui.theme_changed";
-const QString LAYOUT_CHANGED = "ui.layout_changed";
-const QString SIDEBAR_TOGGLED = "ui.sidebar_toggled";
+inline const QString&
+THEME_CHANGED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "ui.theme_changed";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
+inline const QString&
+LAYOUT_CHANGED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "ui.layout_changed";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
+inline const QString&
+SIDEBAR_TOGGLED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "ui.sidebar_toggled";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
 
 // System events
-const QString APPLICATION_READY = "system.application_ready";
-const QString SHUTDOWN_REQUESTED = "system.shutdown_requested";
-const QString ERROR_OCCURRED = "system.error_occurred";
+inline const QString&
+APPLICATION_READY() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "system.application_ready";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
+inline const QString&
+SHUTDOWN_REQUESTED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "system.shutdown_requested";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
+inline const QString&
+ERROR_OCCURRED() {  // NOLINT(readability-identifier-naming)
+    static const QString kValue =
+        "system.error_occurred";  // NOLINT(readability-identifier-naming)
+    return kValue;
+}
 }  // namespace AppEvents
 
 // Convenience macros

@@ -21,7 +21,6 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMutexLocker>
-#include "ToastNotification.h"
 #include <QOverload>
 #include <QProgressBar>
 #include <QPushButton>
@@ -49,8 +48,9 @@
 #include <QWidget>
 #include <QtCore/Qt>
 #include "../../managers/StyleManager.h"
+#include "ToastNotification.h"
 
-const QString DebugLogPanel::SETTINGS_GROUP = "DebugLogPanel";
+const QString DebugLogPanel::SETTINGS_GROUP = QStringLiteral("DebugLogPanel");
 const int DebugLogPanel::DEFAULT_MAX_ENTRIES = 10000;
 const int DebugLogPanel::UPDATE_INTERVAL_MS = 100;
 const int DebugLogPanel::STATISTICS_UPDATE_INTERVAL_MS = 1000;
@@ -86,34 +86,29 @@ DebugLogPanel::DebugLogPanel(QWidget* parent)
       m_clearAction(nullptr),
       m_exportAction(nullptr),
       m_pauseAction(nullptr),
-      m_updateTimer(nullptr),
-      m_statisticsTimer(nullptr),
+      m_updateTimer(new QTimer(this)),
+      m_statisticsTimer(new QTimer(this)),
       m_paused(false),
       m_autoScroll(true),
       m_currentSearchIndex(-1),
       m_lastUpdateTime(QDateTime::currentDateTime()),
       m_pendingMessages(0),
-      m_settings(nullptr) {
+      m_settings(new QSettings(this)) {
     setupUI();
     connectSignals();
     loadConfiguration();
     applyConfiguration();
 
-    // Initialize timers
-    m_updateTimer = new QTimer(this);
+    // Configure timers
     m_updateTimer->setInterval(UPDATE_INTERVAL_MS);
     connect(m_updateTimer, &QTimer::timeout, this,
             &DebugLogPanel::onUpdateTimer);
     m_updateTimer->start();
 
-    m_statisticsTimer = new QTimer(this);
     m_statisticsTimer->setInterval(STATISTICS_UPDATE_INTERVAL_MS);
     connect(m_statisticsTimer, &QTimer::timeout, this,
             &DebugLogPanel::updateStatistics);
     m_statisticsTimer->start();
-
-    // Initialize settings
-    m_settings = new QSettings(this);
 
     // Connect to logging manager
     connect(&LoggingManager::instance(), &LoggingManager::statisticsUpdated,
@@ -1101,7 +1096,8 @@ void DebugLogPanel::scrollToBottom() {
 void DebugLogPanel::exportToFile(const QString& filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        TOAST_ERROR(this, tr("Could not open file for writing: %1").arg(filePath));
+        TOAST_ERROR(this,
+                    tr("Could not open file for writing: %1").arg(filePath));
         return;
     }
 
@@ -1176,7 +1172,8 @@ void DebugLogPanel::showSettingsDialog() {
     batchLayout->addWidget(batchSpin);
 
     // Buttons
-    QDialogButtonBox* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    QDialogButtonBox* buttons =
+        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
 
     layout->addLayout(maxEntriesLayout);
     layout->addWidget(autoScrollBox);
@@ -1186,8 +1183,10 @@ void DebugLogPanel::showSettingsDialog() {
     layout->addLayout(batchLayout);
     layout->addWidget(buttons);
 
-    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog,
+                     &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog,
+                     &QDialog::reject);
 
     if (dialog.exec() == QDialog::Accepted) {
         m_config.maxLogEntries = maxEntriesSpin->value();
@@ -1202,7 +1201,6 @@ void DebugLogPanel::showSettingsDialog() {
         TOAST_SUCCESS(this, tr("Settings updated"));
     }
 }
-
 
 void DebugLogPanel::applyTheme() {
     // Apply theme-based styling to the debug panel
@@ -1528,4 +1526,3 @@ void DebugLogPanel::changeEvent(QEvent* event) {
     }
     QWidget::changeEvent(event);
 }
-

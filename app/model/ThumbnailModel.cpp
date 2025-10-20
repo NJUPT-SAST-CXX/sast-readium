@@ -10,7 +10,7 @@
 ThumbnailModel::ThumbnailModel(QObject* parent)
     : QAbstractListModel(parent),
       m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT),
-      m_thumbnailQuality(DEFAULT_QUALITY),
+      m_thumbnailQuality(THUMBNAIL_DEFAULT_QUALITY),
       m_maxCacheSize(DEFAULT_CACHE_SIZE),
       m_maxMemory(DEFAULT_MEMORY_LIMIT),
       m_preloadRange(DEFAULT_PRELOAD_RANGE),

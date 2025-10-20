@@ -14,37 +14,28 @@
 // Private implementation class
 class OnboardingManagerImpl {
 public:
-    OnboardingManagerImpl()
-        : m_isActive(false),
-          m_isFirstTimeUser(true),
-          m_currentStep(OnboardingStep::Welcome),
-          m_onboardingWidget(nullptr),
-          m_attachedWidget(nullptr),
-          m_showTips(true),
-          m_showOnStartup(true) {
-        m_settings = std::make_unique<QSettings>();
-    }
+    OnboardingManagerImpl() { m_settings = std::make_unique<QSettings>(); }
 
     void initializeSteps();
     void initializeTutorials();
     void setupConnections();
-    QString stepToString(OnboardingStep step) const;
-    OnboardingStep stringToStep(const QString& str) const;
+    [[nodiscard]] QString stepToString(OnboardingStep step) const;
+    [[nodiscard]] OnboardingStep stringToStep(const QString& str) const;
 
     // State
-    bool m_isActive;
-    bool m_isFirstTimeUser;
-    OnboardingStep m_currentStep;
+    bool m_isActive{false};
+    bool m_isFirstTimeUser{true};
+    OnboardingStep m_currentStep{OnboardingStep::Welcome};
     QList<OnboardingStep> m_completedSteps;
 
     // Widgets
-    OnboardingWidget* m_onboardingWidget;
-    QWidget* m_attachedWidget;
+    OnboardingWidget* m_onboardingWidget{nullptr};
+    QWidget* m_attachedWidget{nullptr};
 
     // Settings
     std::unique_ptr<QSettings> m_settings;
-    bool m_showTips;
-    bool m_showOnStartup;
+    bool m_showTips{true};
+    bool m_showOnStartup{true};
 
     // Tutorials
     QJsonArray m_availableTutorials;
@@ -58,11 +49,11 @@ public:
 OnboardingManager* OnboardingManager::s_instance = nullptr;
 
 OnboardingManager::OnboardingManager(QObject* parent)
-    : QObject(parent), pImpl(std::make_unique<OnboardingManagerImpl>()) {
-    pImpl->initializeSteps();
-    pImpl->initializeTutorials();
+    : QObject(parent), m_pImpl(std::make_unique<OnboardingManagerImpl>()) {
+    m_pImpl->initializeSteps();
+    m_pImpl->initializeTutorials();
     loadSettings();
-    pImpl->setupConnections();
+    m_pImpl->setupConnections();
 }
 
 OnboardingManager::~OnboardingManager() { saveSettings(); }
@@ -75,40 +66,42 @@ OnboardingManager& OnboardingManager::instance() {
 }
 
 bool OnboardingManager::isFirstTimeUser() const {
-    return pImpl->m_isFirstTimeUser;
+    return m_pImpl->m_isFirstTimeUser;
 }
 
 bool OnboardingManager::isOnboardingCompleted() const {
-    return pImpl->m_completedSteps.size() >=
+    return m_pImpl->m_completedSteps.size() >=
            getTotalStepsCount() - 1;  // Exclude Complete step
 }
 
-bool OnboardingManager::isOnboardingActive() const { return pImpl->m_isActive; }
+bool OnboardingManager::isOnboardingActive() const {
+    return m_pImpl->m_isActive;
+}
 
 void OnboardingManager::startOnboarding() {
-    if (pImpl->m_isActive)
+    if (m_pImpl->m_isActive)
         return;
 
-    pImpl->m_isActive = true;
-    pImpl->m_currentStep = OnboardingStep::Welcome;
+    m_pImpl->m_isActive = true;
+    m_pImpl->m_currentStep = OnboardingStep::Welcome;
 
-    if (pImpl->m_onboardingWidget) {
-        pImpl->m_onboardingWidget->showStep(pImpl->m_currentStep);
+    if (m_pImpl->m_onboardingWidget) {
+        m_pImpl->m_onboardingWidget->showStep(m_pImpl->m_currentStep);
     }
 
-    trackStepStarted(pImpl->m_currentStep);
+    trackStepStarted(m_pImpl->m_currentStep);
     emit onboardingStarted();
-    emit stepChanged(pImpl->m_currentStep);
+    emit stepChanged(m_pImpl->m_currentStep);
 }
 
 void OnboardingManager::stopOnboarding() {
-    if (!pImpl->m_isActive)
+    if (!m_pImpl->m_isActive)
         return;
 
-    pImpl->m_isActive = false;
+    m_pImpl->m_isActive = false;
 
-    if (pImpl->m_onboardingWidget) {
-        pImpl->m_onboardingWidget->hideStep();
+    if (m_pImpl->m_onboardingWidget) {
+        m_pImpl->m_onboardingWidget->hideStep();
     }
 
     saveSettings();
@@ -116,21 +109,21 @@ void OnboardingManager::stopOnboarding() {
 }
 
 void OnboardingManager::resetOnboarding() {
-    pImpl->m_completedSteps.clear();
-    pImpl->m_currentStep = OnboardingStep::Welcome;
-    pImpl->m_isFirstTimeUser = true;
-    pImpl->m_analyticsData = QJsonObject();
+    m_pImpl->m_completedSteps.clear();
+    m_pImpl->m_currentStep = OnboardingStep::Welcome;
+    m_pImpl->m_isFirstTimeUser = true;
+    m_pImpl->m_analyticsData = QJsonObject();
 
     saveSettings();
 
-    if (pImpl->m_isActive) {
+    if (m_pImpl->m_isActive) {
         stopOnboarding();
         startOnboarding();
     }
 }
 
 void OnboardingManager::skipOnboarding() {
-    if (!pImpl->m_isActive)
+    if (!m_pImpl->m_isActive)
         return;
 
     // Mark all steps as completed
@@ -142,81 +135,81 @@ void OnboardingManager::skipOnboarding() {
         }
     }
 
-    pImpl->m_isFirstTimeUser = false;
+    m_pImpl->m_isFirstTimeUser = false;
     stopOnboarding();
     emit onboardingSkipped();
     emit onboardingCompleted();
 }
 
 OnboardingStep OnboardingManager::currentStep() const {
-    return pImpl->m_currentStep;
+    return m_pImpl->m_currentStep;
 }
 
 void OnboardingManager::nextStep() {
-    if (!pImpl->m_isActive)
+    if (!m_pImpl->m_isActive)
         return;
 
-    markStepCompleted(pImpl->m_currentStep);
+    markStepCompleted(m_pImpl->m_currentStep);
 
-    int nextStepInt = static_cast<int>(pImpl->m_currentStep) + 1;
+    int nextStepInt = static_cast<int>(m_pImpl->m_currentStep) + 1;
     if (nextStepInt >= static_cast<int>(OnboardingStep::Complete)) {
-        pImpl->m_currentStep = OnboardingStep::Complete;
-        pImpl->m_isFirstTimeUser = false;
+        m_pImpl->m_currentStep = OnboardingStep::Complete;
+        m_pImpl->m_isFirstTimeUser = false;
         stopOnboarding();
         emit onboardingCompleted();
     } else {
-        pImpl->m_currentStep = static_cast<OnboardingStep>(nextStepInt);
+        m_pImpl->m_currentStep = static_cast<OnboardingStep>(nextStepInt);
 
-        if (pImpl->m_onboardingWidget) {
-            pImpl->m_onboardingWidget->showStep(pImpl->m_currentStep);
+        if (m_pImpl->m_onboardingWidget) {
+            m_pImpl->m_onboardingWidget->showStep(m_pImpl->m_currentStep);
         }
 
-        trackStepStarted(pImpl->m_currentStep);
-        emit stepChanged(pImpl->m_currentStep);
+        trackStepStarted(m_pImpl->m_currentStep);
+        emit stepChanged(m_pImpl->m_currentStep);
     }
 
     updateProgress();
 }
 
 void OnboardingManager::previousStep() {
-    if (!pImpl->m_isActive)
+    if (!m_pImpl->m_isActive)
         return;
 
-    int prevStepInt = static_cast<int>(pImpl->m_currentStep) - 1;
+    int prevStepInt = static_cast<int>(m_pImpl->m_currentStep) - 1;
     if (prevStepInt < 0) {
         return;
     }
 
-    pImpl->m_currentStep = static_cast<OnboardingStep>(prevStepInt);
+    m_pImpl->m_currentStep = static_cast<OnboardingStep>(prevStepInt);
 
-    if (pImpl->m_onboardingWidget) {
-        pImpl->m_onboardingWidget->showStep(pImpl->m_currentStep);
+    if (m_pImpl->m_onboardingWidget) {
+        m_pImpl->m_onboardingWidget->showStep(m_pImpl->m_currentStep);
     }
 
-    emit stepChanged(pImpl->m_currentStep);
+    emit stepChanged(m_pImpl->m_currentStep);
 }
 
 void OnboardingManager::jumpToStep(OnboardingStep step) {
-    if (!pImpl->m_isActive)
+    if (!m_pImpl->m_isActive)
         return;
 
-    pImpl->m_currentStep = step;
+    m_pImpl->m_currentStep = step;
 
-    if (pImpl->m_onboardingWidget) {
-        pImpl->m_onboardingWidget->showStep(pImpl->m_currentStep);
+    if (m_pImpl->m_onboardingWidget) {
+        m_pImpl->m_onboardingWidget->showStep(m_pImpl->m_currentStep);
     }
 
-    trackStepStarted(pImpl->m_currentStep);
-    emit stepChanged(pImpl->m_currentStep);
+    trackStepStarted(m_pImpl->m_currentStep);
+    emit stepChanged(m_pImpl->m_currentStep);
 }
 
 bool OnboardingManager::isStepCompleted(OnboardingStep step) const {
-    return pImpl->m_completedSteps.contains(step);
+    return m_pImpl->m_completedSteps.contains(step);
 }
 
 void OnboardingManager::markStepCompleted(OnboardingStep step) {
-    if (!pImpl->m_completedSteps.contains(step)) {
-        pImpl->m_completedSteps.append(step);
+    if (!m_pImpl->m_completedSteps.contains(step)) {
+        m_pImpl->m_completedSteps.append(step);
         trackStepCompleted(step);
         emit stepCompleted(step);
         updateProgress();
@@ -265,7 +258,7 @@ void OnboardingManager::startSpecificTutorial(const QString& tutorialId) {
         jumpToStep(OnboardingStep::KeyboardShortcuts);
     }
 
-    if (!pImpl->m_isActive) {
+    if (!m_pImpl->m_isActive) {
         startOnboarding();
     }
 
@@ -273,12 +266,12 @@ void OnboardingManager::startSpecificTutorial(const QString& tutorialId) {
 }
 
 QJsonArray OnboardingManager::getAvailableTutorials() const {
-    return pImpl->m_availableTutorials;
+    return m_pImpl->m_availableTutorials;
 }
 
 QJsonObject OnboardingManager::getTutorialInfo(
     const QString& tutorialId) const {
-    for (const auto& tutorial : pImpl->m_availableTutorials) {
+    for (const auto& tutorial : m_pImpl->m_availableTutorials) {
         QJsonObject obj = tutorial.toObject();
         if (obj["id"].toString() == tutorialId) {
             return obj;
@@ -288,7 +281,7 @@ QJsonObject OnboardingManager::getTutorialInfo(
 }
 
 int OnboardingManager::getCompletedStepsCount() const {
-    return pImpl->m_completedSteps.size();
+    return static_cast<int>(m_pImpl->m_completedSteps.size());
 }
 
 int OnboardingManager::getTotalStepsCount() const {
@@ -297,19 +290,22 @@ int OnboardingManager::getTotalStepsCount() const {
 
 float OnboardingManager::getProgressPercentage() const {
     int total = getTotalStepsCount() - 1;  // Exclude Complete step
-    if (total == 0)
-        return 100.0f;
-    return (static_cast<float>(getCompletedStepsCount()) / total) * 100.0f;
+    if (total == 0) {
+        return 100.0F;
+    }
+    return (static_cast<float>(getCompletedStepsCount()) /
+            static_cast<float>(total)) *
+           100.0F;
 }
 
 QList<OnboardingStep> OnboardingManager::getCompletedSteps() const {
-    return pImpl->m_completedSteps;
+    return m_pImpl->m_completedSteps;
 }
 
 QList<OnboardingStep> OnboardingManager::getRemainingSteps() const {
     QList<OnboardingStep> remaining;
     for (int i = 0; i < static_cast<int>(OnboardingStep::Complete); ++i) {
-        OnboardingStep step = static_cast<OnboardingStep>(i);
+        auto step = static_cast<OnboardingStep>(i);
         if (!isStepCompleted(step)) {
             remaining.append(step);
         }
@@ -318,216 +314,217 @@ QList<OnboardingStep> OnboardingManager::getRemainingSteps() const {
 }
 
 void OnboardingManager::setOnboardingWidget(OnboardingWidget* widget) {
-    pImpl->m_onboardingWidget = widget;
+    m_pImpl->m_onboardingWidget = widget;
 
-    if (pImpl->m_onboardingWidget) {
-        connect(pImpl->m_onboardingWidget, &OnboardingWidget::nextClicked, this,
-                &OnboardingManager::nextStep);
-        connect(pImpl->m_onboardingWidget, &OnboardingWidget::previousClicked,
+    if (m_pImpl->m_onboardingWidget) {
+        connect(m_pImpl->m_onboardingWidget, &OnboardingWidget::nextClicked,
+                this, &OnboardingManager::nextStep);
+        connect(m_pImpl->m_onboardingWidget, &OnboardingWidget::previousClicked,
                 this, &OnboardingManager::previousStep);
-        connect(pImpl->m_onboardingWidget, &OnboardingWidget::skipClicked, this,
-                &OnboardingManager::skipOnboarding);
-        connect(pImpl->m_onboardingWidget, &OnboardingWidget::closeClicked,
+        connect(m_pImpl->m_onboardingWidget, &OnboardingWidget::skipClicked,
+                this, &OnboardingManager::skipOnboarding);
+        connect(m_pImpl->m_onboardingWidget, &OnboardingWidget::closeClicked,
                 this, &OnboardingManager::stopOnboarding);
     }
 }
 
 OnboardingWidget* OnboardingManager::onboardingWidget() const {
-    return pImpl->m_onboardingWidget;
+    return m_pImpl->m_onboardingWidget;
 }
 
 void OnboardingManager::attachToWidget(QWidget* widget) {
-    pImpl->m_attachedWidget = widget;
+    m_pImpl->m_attachedWidget = widget;
 
-    if (pImpl->m_onboardingWidget && pImpl->m_attachedWidget) {
-        pImpl->m_onboardingWidget->setParent(pImpl->m_attachedWidget);
-        pImpl->m_onboardingWidget->resize(pImpl->m_attachedWidget->size());
-        pImpl->m_onboardingWidget->raise();
+    if (m_pImpl->m_onboardingWidget && m_pImpl->m_attachedWidget) {
+        m_pImpl->m_onboardingWidget->setParent(m_pImpl->m_attachedWidget);
+        m_pImpl->m_onboardingWidget->resize(m_pImpl->m_attachedWidget->size());
+        m_pImpl->m_onboardingWidget->raise();
     }
 }
 
 void OnboardingManager::detachFromWidget() {
-    if (pImpl->m_onboardingWidget) {
-        pImpl->m_onboardingWidget->setParent(nullptr);
+    if (m_pImpl->m_onboardingWidget) {
+        m_pImpl->m_onboardingWidget->setParent(nullptr);
     }
-    pImpl->m_attachedWidget = nullptr;
+    m_pImpl->m_attachedWidget = nullptr;
 }
 
 void OnboardingManager::loadSettings() {
-    pImpl->m_settings->beginGroup(SETTINGS_GROUP);
+    m_pImpl->m_settings->beginGroup(SETTINGS_GROUP);
 
-    pImpl->m_isFirstTimeUser =
-        pImpl->m_settings->value(SETTINGS_FIRST_TIME_KEY, true).toBool();
-    pImpl->m_showTips =
-        pImpl->m_settings->value(SETTINGS_SHOW_TIPS_KEY, true).toBool();
-    pImpl->m_showOnStartup =
-        pImpl->m_settings->value(SETTINGS_SHOW_ON_STARTUP_KEY, true).toBool();
+    m_pImpl->m_isFirstTimeUser =
+        m_pImpl->m_settings->value(SETTINGS_FIRST_TIME_KEY, true).toBool();
+    m_pImpl->m_showTips =
+        m_pImpl->m_settings->value(SETTINGS_SHOW_TIPS_KEY, true).toBool();
+    m_pImpl->m_showOnStartup =
+        m_pImpl->m_settings->value(SETTINGS_SHOW_ON_STARTUP_KEY, true).toBool();
 
     // Load completed steps
     QStringList completedStepStrings =
-        pImpl->m_settings->value(SETTINGS_COMPLETED_STEPS_KEY).toStringList();
-    pImpl->m_completedSteps.clear();
+        m_pImpl->m_settings->value(SETTINGS_COMPLETED_STEPS_KEY).toStringList();
+    m_pImpl->m_completedSteps.clear();
     for (const QString& stepStr : completedStepStrings) {
-        pImpl->m_completedSteps.append(pImpl->stringToStep(stepStr));
+        m_pImpl->m_completedSteps.append(m_pImpl->stringToStep(stepStr));
     }
 
     // Load analytics data
     QString analyticsJson =
-        pImpl->m_settings->value(SETTINGS_ANALYTICS_KEY).toString();
+        m_pImpl->m_settings->value(SETTINGS_ANALYTICS_KEY).toString();
     if (!analyticsJson.isEmpty()) {
         QJsonDocument doc = QJsonDocument::fromJson(analyticsJson.toUtf8());
-        pImpl->m_analyticsData = doc.object();
+        m_pImpl->m_analyticsData = doc.object();
     }
 
-    pImpl->m_settings->endGroup();
+    m_pImpl->m_settings->endGroup();
 }
 
 void OnboardingManager::saveSettings() {
-    pImpl->m_settings->beginGroup(SETTINGS_GROUP);
+    m_pImpl->m_settings->beginGroup(SETTINGS_GROUP);
 
-    pImpl->m_settings->setValue(SETTINGS_FIRST_TIME_KEY,
-                                pImpl->m_isFirstTimeUser);
-    pImpl->m_settings->setValue(SETTINGS_COMPLETED_KEY,
-                                isOnboardingCompleted());
-    pImpl->m_settings->setValue(SETTINGS_SHOW_TIPS_KEY, pImpl->m_showTips);
-    pImpl->m_settings->setValue(SETTINGS_SHOW_ON_STARTUP_KEY,
-                                pImpl->m_showOnStartup);
+    m_pImpl->m_settings->setValue(SETTINGS_FIRST_TIME_KEY,
+                                  m_pImpl->m_isFirstTimeUser);
+    m_pImpl->m_settings->setValue(SETTINGS_COMPLETED_KEY,
+                                  isOnboardingCompleted());
+    m_pImpl->m_settings->setValue(SETTINGS_SHOW_TIPS_KEY, m_pImpl->m_showTips);
+    m_pImpl->m_settings->setValue(SETTINGS_SHOW_ON_STARTUP_KEY,
+                                  m_pImpl->m_showOnStartup);
 
     // Save completed steps
     QStringList completedStepStrings;
-    for (OnboardingStep step : pImpl->m_completedSteps) {
-        completedStepStrings.append(pImpl->stepToString(step));
+    for (OnboardingStep step : m_pImpl->m_completedSteps) {
+        completedStepStrings.append(m_pImpl->stepToString(step));
     }
-    pImpl->m_settings->setValue(SETTINGS_COMPLETED_STEPS_KEY,
-                                completedStepStrings);
+    m_pImpl->m_settings->setValue(SETTINGS_COMPLETED_STEPS_KEY,
+                                  completedStepStrings);
 
     // Save analytics data
-    QJsonDocument doc(pImpl->m_analyticsData);
-    pImpl->m_settings->setValue(
+    QJsonDocument doc(m_pImpl->m_analyticsData);
+    m_pImpl->m_settings->setValue(
         SETTINGS_ANALYTICS_KEY,
         QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
 
-    pImpl->m_settings->endGroup();
-    pImpl->m_settings->sync();
+    m_pImpl->m_settings->endGroup();
+    m_pImpl->m_settings->sync();
 }
 
 void OnboardingManager::resetSettings() {
-    pImpl->m_settings->beginGroup(SETTINGS_GROUP);
-    pImpl->m_settings->remove("");
-    pImpl->m_settings->endGroup();
+    m_pImpl->m_settings->beginGroup(SETTINGS_GROUP);
+    m_pImpl->m_settings->remove("");
+    m_pImpl->m_settings->endGroup();
 
-    pImpl->m_isFirstTimeUser = true;
-    pImpl->m_completedSteps.clear();
-    pImpl->m_showTips = true;
-    pImpl->m_showOnStartup = true;
-    pImpl->m_analyticsData = QJsonObject();
+    m_pImpl->m_isFirstTimeUser = true;
+    m_pImpl->m_completedSteps.clear();
+    m_pImpl->m_showTips = true;
+    m_pImpl->m_showOnStartup = true;
+    m_pImpl->m_analyticsData = QJsonObject();
 }
 
-bool OnboardingManager::shouldShowTips() const { return pImpl->m_showTips; }
+bool OnboardingManager::shouldShowTips() const { return m_pImpl->m_showTips; }
 
 void OnboardingManager::setShowTips(bool show) {
-    if (pImpl->m_showTips != show) {
-        pImpl->m_showTips = show;
+    if (m_pImpl->m_showTips != show) {
+        m_pImpl->m_showTips = show;
         emit showTipsChanged(show);
         saveSettings();
     }
 }
 
 bool OnboardingManager::shouldShowOnStartup() const {
-    return pImpl->m_showOnStartup;
+    return m_pImpl->m_showOnStartup;
 }
 
 void OnboardingManager::setShowOnStartup(bool show) {
-    if (pImpl->m_showOnStartup != show) {
-        pImpl->m_showOnStartup = show;
+    if (m_pImpl->m_showOnStartup != show) {
+        m_pImpl->m_showOnStartup = show;
         emit showOnStartupChanged(show);
         saveSettings();
     }
 }
 
 void OnboardingManager::trackStepStarted(OnboardingStep step) {
-    QString stepStr = pImpl->stepToString(step);
-    QJsonObject stepData = pImpl->m_analyticsData[stepStr].toObject();
+    QString stepStr = m_pImpl->stepToString(step);
+    QJsonObject stepData = m_pImpl->m_analyticsData[stepStr].toObject();
     stepData["started_count"] = stepData["started_count"].toInt() + 1;
     stepData["last_started"] =
         QDateTime::currentDateTime().toString(Qt::ISODate);
-    pImpl->m_analyticsData[stepStr] = stepData;
+    m_pImpl->m_analyticsData[stepStr] = stepData;
 }
 
 void OnboardingManager::trackStepCompleted(OnboardingStep step) {
-    QString stepStr = pImpl->stepToString(step);
-    QJsonObject stepData = pImpl->m_analyticsData[stepStr].toObject();
+    QString stepStr = m_pImpl->stepToString(step);
+    QJsonObject stepData = m_pImpl->m_analyticsData[stepStr].toObject();
     stepData["completed_count"] = stepData["completed_count"].toInt() + 1;
     stepData["last_completed"] =
         QDateTime::currentDateTime().toString(Qt::ISODate);
-    pImpl->m_analyticsData[stepStr] = stepData;
+    m_pImpl->m_analyticsData[stepStr] = stepData;
 }
 
 void OnboardingManager::trackStepSkipped(OnboardingStep step) {
-    QString stepStr = pImpl->stepToString(step);
-    QJsonObject stepData = pImpl->m_analyticsData[stepStr].toObject();
+    QString stepStr = m_pImpl->stepToString(step);
+    QJsonObject stepData = m_pImpl->m_analyticsData[stepStr].toObject();
     stepData["skipped_count"] = stepData["skipped_count"].toInt() + 1;
     stepData["last_skipped"] =
         QDateTime::currentDateTime().toString(Qt::ISODate);
-    pImpl->m_analyticsData[stepStr] = stepData;
+    m_pImpl->m_analyticsData[stepStr] = stepData;
 }
 
 void OnboardingManager::trackTutorialStarted(const QString& tutorialId) {
-    QJsonObject tutorialData = pImpl->m_analyticsData["tutorials"].toObject();
+    QJsonObject tutorialData = m_pImpl->m_analyticsData["tutorials"].toObject();
     QJsonObject specific = tutorialData[tutorialId].toObject();
     specific["started_count"] = specific["started_count"].toInt() + 1;
     specific["last_started"] =
         QDateTime::currentDateTime().toString(Qt::ISODate);
     tutorialData[tutorialId] = specific;
-    pImpl->m_analyticsData["tutorials"] = tutorialData;
+    m_pImpl->m_analyticsData["tutorials"] = tutorialData;
 }
 
 void OnboardingManager::trackTutorialCompleted(const QString& tutorialId) {
-    QJsonObject tutorialData = pImpl->m_analyticsData["tutorials"].toObject();
+    QJsonObject tutorialData = m_pImpl->m_analyticsData["tutorials"].toObject();
     QJsonObject specific = tutorialData[tutorialId].toObject();
     specific["completed_count"] = specific["completed_count"].toInt() + 1;
     specific["last_completed"] =
         QDateTime::currentDateTime().toString(Qt::ISODate);
     tutorialData[tutorialId] = specific;
-    pImpl->m_analyticsData["tutorials"] = tutorialData;
+    m_pImpl->m_analyticsData["tutorials"] = tutorialData;
 
     emit tutorialCompleted(tutorialId);
 }
 
 void OnboardingManager::onApplicationStarted() {
-    if (pImpl->m_isFirstTimeUser && pImpl->m_showOnStartup) {
+    if (m_pImpl->m_isFirstTimeUser && m_pImpl->m_showOnStartup) {
         // Start onboarding after a short delay to let the UI settle
         QTimer::singleShot(500, this, [this]() { startOnboarding(); });
     }
 }
 
 void OnboardingManager::onDocumentOpened() {
-    if (pImpl->m_isActive && pImpl->m_currentStep == OnboardingStep::OpenFile) {
-        markStepCompleted(pImpl->m_currentStep);
+    if (m_pImpl->m_isActive &&
+        m_pImpl->m_currentStep == OnboardingStep::OpenFile) {
+        markStepCompleted(m_pImpl->m_currentStep);
         nextStep();
     }
 }
 
 void OnboardingManager::onFeatureUsed(const QString& featureName) {
     // Track feature usage and potentially advance onboarding
-    if (!pImpl->m_isActive)
+    if (!m_pImpl->m_isActive)
         return;
 
     if (featureName == "search" &&
-        pImpl->m_currentStep == OnboardingStep::Search) {
-        markStepCompleted(pImpl->m_currentStep);
+        m_pImpl->m_currentStep == OnboardingStep::Search) {
+        markStepCompleted(m_pImpl->m_currentStep);
     } else if (featureName == "bookmark" &&
-               pImpl->m_currentStep == OnboardingStep::Bookmarks) {
-        markStepCompleted(pImpl->m_currentStep);
+               m_pImpl->m_currentStep == OnboardingStep::Bookmarks) {
+        markStepCompleted(m_pImpl->m_currentStep);
     } else if (featureName == "annotation" &&
-               pImpl->m_currentStep == OnboardingStep::Annotations) {
-        markStepCompleted(pImpl->m_currentStep);
+               m_pImpl->m_currentStep == OnboardingStep::Annotations) {
+        markStepCompleted(m_pImpl->m_currentStep);
     }
 }
 
 void OnboardingManager::onStepTimeout() {
     // Handle timeout for automatic progression
-    if (pImpl->m_isActive) {
+    if (m_pImpl->m_isActive) {
         nextStep();
     }
 }

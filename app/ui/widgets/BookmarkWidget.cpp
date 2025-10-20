@@ -12,8 +12,26 @@
 
 BookmarkWidget::BookmarkWidget(QWidget* parent)
     : QWidget(parent),
-      m_bookmarkModel(new BookmarkModel(this)),
-      m_proxyModel(new QSortFilterProxyModel(this)) {
+      m_mainLayout(nullptr),
+      m_toolbarLayout(nullptr),
+      m_filterLayout(nullptr),
+      m_addButton(nullptr),
+      m_removeButton(nullptr),
+      m_editButton(nullptr),
+      m_refreshButton(nullptr),
+      m_searchEdit(nullptr),
+      m_categoryFilter(nullptr),
+      m_sortOrder(nullptr),
+      m_countLabel(nullptr),
+      m_bookmarkView(nullptr),
+      m_proxyModel(new QSortFilterProxyModel(this)),
+      m_contextMenu(nullptr),
+      m_navigateAction(nullptr),
+      m_editAction(nullptr),
+      m_deleteAction(nullptr),
+      m_addCategoryAction(nullptr),
+      m_removeCategoryAction(nullptr),
+      m_bookmarkModel(new BookmarkModel(this)) {
     setupUI();
     setupConnections();
     setupContextMenu();
@@ -184,7 +202,7 @@ void BookmarkWidget::setupContextMenu() {
         m_contextMenu->addAction(tr("Add to Category"), [this]() {
             Bookmark bookmark = getSelectedBookmark();
             if (!bookmark.id.isEmpty()) {
-                bool ok;
+                bool ok = false;
                 QString category = QInputDialog::getText(
                     this, tr("Add to Category"), tr("Category Name:"),
                     QLineEdit::Normal, bookmark.category, &ok);
@@ -219,7 +237,8 @@ bool BookmarkWidget::addBookmark(const QString& documentPath, int pageNumber,
 
     // Check if bookmark already exists
     if (m_bookmarkModel->hasBookmarkForPage(documentPath, pageNumber)) {
-        TOAST_INFO(this, tr("Page %1 already has a bookmark").arg(pageNumber + 1));
+        TOAST_INFO(this,
+                   tr("Page %1 already has a bookmark").arg(pageNumber + 1));
         return false;
     }
 
@@ -228,7 +247,7 @@ bool BookmarkWidget::addBookmark(const QString& documentPath, int pageNumber,
 
     // Allow user to customize title
     if (title.isEmpty()) {
-        bool ok;
+        bool ok = false;
         QString customTitle = QInputDialog::getText(
             this, tr("Add Bookmark"), tr("Bookmark Title:"), QLineEdit::Normal,
             bookmark.title, &ok);
@@ -289,7 +308,7 @@ void BookmarkWidget::onAddBookmarkRequested() {
 
     // This would typically get the current page from the parent viewer
     // For now, we'll ask the user
-    bool ok;
+    bool ok = false;
     int pageNumber = QInputDialog::getInt(this, tr("Add Bookmark"), tr("Page:"),
                                           1, 1, 9999, 1, &ok) -
                      1;
@@ -321,7 +340,7 @@ void BookmarkWidget::onEditBookmarkRequested() {
         return;
     }
 
-    bool ok;
+    bool ok = false;
     QString newTitle =
         QInputDialog::getText(this, tr("Edit Bookmark"), tr("Bookmark Title:"),
                               QLineEdit::Normal, bookmark.title, &ok);
@@ -375,7 +394,7 @@ void BookmarkWidget::filterBookmarks() {
     QString categoryFilter = m_categoryFilter->currentData().toString();
 
     // Combine search and category filters
-    QString filterPattern = searchText;
+    const QString& filterPattern = searchText;
 
     m_proxyModel->setFilterRegularExpression(QRegularExpression(
         filterPattern, QRegularExpression::CaseInsensitiveOption));
@@ -454,15 +473,15 @@ void BookmarkWidget::retranslateUi() {
     }
 
     // Update labels
-    QLabel* searchLabel = findChild<QLabel*>("searchLabel");
+    auto* searchLabel = findChild<QLabel*>("searchLabel");
     if (searchLabel)
         searchLabel->setText(tr("Search:"));
 
-    QLabel* categoryLabel = findChild<QLabel*>("categoryLabel");
+    auto* categoryLabel = findChild<QLabel*>("categoryLabel");
     if (categoryLabel)
         categoryLabel->setText(tr("Category:"));
 
-    QLabel* sortLabel = findChild<QLabel*>("sortLabel");
+    auto* sortLabel = findChild<QLabel*>("sortLabel");
     if (sortLabel)
         sortLabel->setText(tr("Sort:"));
 

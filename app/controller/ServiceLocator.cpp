@@ -10,6 +10,8 @@ ServiceLocator::ServiceLocator(QObject* parent)
         m_logger.debug("ServiceLocator created");
     } catch (...) {
         // Logging system not initialized, continue silently
+        // Intentionally not re-throwing - this is expected during static
+        // initialization
     }
 }
 

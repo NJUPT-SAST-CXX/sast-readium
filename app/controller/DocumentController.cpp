@@ -65,7 +65,7 @@ void DocumentController::initializeCommandMap() {
              }
          }},
         {ActionMap::closeTab,
-         [this](QWidget* ctx) {
+         [this](QWidget* /*ctx*/) {
              // 这里需要从上下文获取要关闭的标签页索引
              // 暂时关闭当前文档
              bool success = closeCurrentDocument();

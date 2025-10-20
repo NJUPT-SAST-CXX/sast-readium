@@ -39,26 +39,28 @@ FileTypeIconManager& FileTypeIconManager::instance() {
 }
 
 FileTypeIconManager::FileTypeIconManager(QObject* parent)
-    : QObject(parent), pImpl(std::make_unique<FileTypeIconManagerImpl>()) {
+    : QObject(parent), m_pImpl(std::make_unique<FileTypeIconManagerImpl>()) {
     Logger::instance().info(
         "[managers] Initializing FileTypeIconManager with base path: {}",
-        pImpl->m_iconBasePath.toStdString());
-    pImpl->initializeExtensionMapping();
+        m_pImpl->m_iconBasePath.toStdString());
+    m_pImpl->initializeExtensionMapping();
 
     // CRITICAL FIX: Defer icon preloading until after Qt event loop starts
-    // Preloading SVG icons synchronously during initialization (before QApplication::exec())
-    // can cause the application to hang. Instead, we defer this to the event loop.
+    // Preloading SVG icons synchronously during initialization (before
+    // QApplication::exec()) can cause the application to hang. Instead, we
+    // defer this to the event loop.
     Logger::instance().info(
         "[managers] Deferring icon preloading to avoid initialization hang");
     QTimer::singleShot(0, this, [this]() {
         Logger::instance().info("[managers] Starting deferred icon preloading");
         preloadIcons();
-        Logger::instance().info("[managers] Deferred icon preloading completed");
+        Logger::instance().info(
+            "[managers] Deferred icon preloading completed");
     });
 
     Logger::instance().debug(
         "[managers] FileTypeIconManager initialized with {} file type mappings",
-        pImpl->m_fileTypeMapping.size());
+        m_pImpl->m_fileTypeMapping.size());
 }
 
 FileTypeIconManager::~FileTypeIconManager() = default;
@@ -110,26 +112,26 @@ QPixmap FileTypeIconManager::getFileTypePixmap(const QString& filePath,
 
 QPixmap FileTypeIconManager::getFileTypePixmap(const QFileInfo& fileInfo,
                                                int size) const {
-    QString extension = pImpl->normalizeExtension(fileInfo.suffix());
+    QString extension = m_pImpl->normalizeExtension(fileInfo.suffix());
     QString cacheKey = QString("%1_%2").arg(extension).arg(size);
 
     // Check cache first
-    if (pImpl->m_iconCache.contains(cacheKey)) {
+    if (m_pImpl->m_iconCache.contains(cacheKey)) {
         Logger::instance().trace(
             "[managers] Icon cache hit for extension '{}' size {}",
             extension.toStdString(), size);
-        return pImpl->m_iconCache[cacheKey];
+        return m_pImpl->m_iconCache[cacheKey];
     }
 
     // Load icon
-    QString iconPath = pImpl->getIconPath(extension);
+    QString iconPath = m_pImpl->getIconPath(extension);
     Logger::instance().debug(
         "[managers] Loading icon for extension '{}' from path: {}",
         extension.toStdString(), iconPath.toStdString());
-    QPixmap pixmap = pImpl->loadSvgIcon(iconPath, size);
+    QPixmap pixmap = m_pImpl->loadSvgIcon(iconPath, size);
 
     // Cache the result
-    pImpl->m_iconCache[cacheKey] = pixmap;
+    m_pImpl->m_iconCache[cacheKey] = pixmap;
     Logger::instance().trace("[managers] Cached icon for key: {}",
                              cacheKey.toStdString());
 
@@ -203,37 +205,37 @@ void FileTypeIconManager::preloadIcons() {
     for (const QString& iconType : iconTypes) {
         for (int size : sizes) {
             QString iconPath =
-                QString("%1%2.svg").arg(pImpl->m_iconBasePath).arg(iconType);
-            QPixmap pixmap = pImpl->loadSvgIcon(iconPath, size);
+                QString("%1%2.svg").arg(m_pImpl->m_iconBasePath).arg(iconType);
+            QPixmap pixmap = m_pImpl->loadSvgIcon(iconPath, size);
             QString cacheKey = QString("%1_%2").arg(iconType).arg(size);
-            pImpl->m_iconCache[cacheKey] = pixmap;
+            m_pImpl->m_iconCache[cacheKey] = pixmap;
         }
     }
 
     Logger::instance().info(
         "[managers] Icon preloading completed - cached {} icons",
-        pImpl->m_iconCache.size());
+        m_pImpl->m_iconCache.size());
 }
 
 void FileTypeIconManager::clearCache() {
-    const auto cacheSize = pImpl->m_iconCache.size();
-    pImpl->m_iconCache.clear();
+    const auto cacheSize = m_pImpl->m_iconCache.size();
+    m_pImpl->m_iconCache.clear();
     Logger::instance().info(
         "[managers] Icon cache cleared - removed {} cached icons", cacheSize);
 }
 
 void FileTypeIconManager::setIconSize(int size) {
-    if (pImpl->m_defaultIconSize != size) {
-        pImpl->m_defaultIconSize = size;
+    if (m_pImpl->m_defaultIconSize != size) {
+        m_pImpl->m_defaultIconSize = size;
         clearCache();  // Clear cache to force reload with new size
     }
 }
 
 QStringList FileTypeIconManager::getSupportedExtensions() const {
-    return pImpl->m_fileTypeMapping.keys();
+    return m_pImpl->m_fileTypeMapping.keys();
 }
 
 bool FileTypeIconManager::isSupported(const QString& extension) const {
-    return pImpl->m_fileTypeMapping.contains(
-        pImpl->normalizeExtension(extension));
+    return m_pImpl->m_fileTypeMapping.contains(
+        m_pImpl->normalizeExtension(extension));
 }

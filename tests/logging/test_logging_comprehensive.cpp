@@ -192,6 +192,9 @@ void LoggingComprehensiveTest::testLoggerSinkManagement() {
 }
 
 void LoggingComprehensiveTest::testLoggerThreadSafety() {
+    // Verify log file path is valid
+    QVERIFY(!m_logFilePath.isEmpty());
+
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.enableConsole = true;

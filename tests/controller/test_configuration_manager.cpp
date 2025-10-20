@@ -78,15 +78,16 @@ private slots:
                          of(&ConfigurationManager::configurationChanged));
 
         // Test group-based operations
-        config.setValue(ConfigurationManager::UI, "theme", "dark");
-        QCOMPARE(config.getValue(ConfigurationManager::UI, "theme").toString(),
+        config.setValue(ConfigurationManager::ConfigGroup::UI, "theme", "dark");
+        QCOMPARE(config.getValue(ConfigurationManager::ConfigGroup::UI, "theme")
+                     .toString(),
                  QString("dark"));
 
         // Should emit group-based signal
         QCOMPARE(groupConfigChangedSpy.count(), 1);
         QList<QVariant> arguments = groupConfigChangedSpy.takeFirst();
         QCOMPARE(arguments.at(0).toInt(),
-                 static_cast<int>(ConfigurationManager::UI));
+                 static_cast<int>(ConfigurationManager::ConfigGroup::UI));
         QCOMPARE(arguments.at(1).toString(), QString("theme"));
         QCOMPARE(arguments.at(2).toString(), QString("dark"));
     }
@@ -136,7 +137,8 @@ private slots:
 
         // Set some values
         config.setValue("test.save", "saved_value");
-        config.setValue(ConfigurationManager::General, "app.version", "1.0.0");
+        config.setValue(ConfigurationManager::ConfigGroup::General,
+                        "app.version", "1.0.0");
 
         // Save configuration
         config.saveConfiguration();
@@ -150,7 +152,9 @@ private slots:
         // Values should be restored
         QCOMPARE(config.getValue("test.save").toString(),
                  QString("saved_value"));
-        QCOMPARE(config.getValue(ConfigurationManager::General, "app.version")
+        QCOMPARE(config
+                     .getValue(ConfigurationManager::ConfigGroup::General,
+                               "app.version")
                      .toString(),
                  QString("1.0.0"));
     }
@@ -178,21 +182,28 @@ private slots:
         ConfigurationManager& config = ConfigurationManager::instance();
 
         // Set values in different groups
-        config.setValue(ConfigurationManager::UI, "theme", "dark");
-        config.setValue(ConfigurationManager::UI, "font_size", 12);
-        config.setValue(ConfigurationManager::General, "language", "en");
+        config.setValue(ConfigurationManager::ConfigGroup::UI, "theme", "dark");
+        config.setValue(ConfigurationManager::ConfigGroup::UI, "font_size", 12);
+        config.setValue(ConfigurationManager::ConfigGroup::General, "language",
+                        "en");
 
         // Reset UI group
-        config.resetGroup(ConfigurationManager::UI);
+        config.resetGroup(ConfigurationManager::ConfigGroup::UI);
 
         // UI values should be reset, General should remain
-        QCOMPARE(config.getValue(ConfigurationManager::UI, "theme", "light")
+        QCOMPARE(config
+                     .getValue(ConfigurationManager::ConfigGroup::UI, "theme",
+                               "light")
                      .toString(),
                  QString("light"));
-        QCOMPARE(
-            config.getValue(ConfigurationManager::UI, "font_size", 10).toInt(),
-            10);
-        QCOMPARE(config.getValue(ConfigurationManager::General, "language")
+        QCOMPARE(config
+                     .getValue(ConfigurationManager::ConfigGroup::UI,
+                               "font_size", 10)
+                     .toInt(),
+                 10);
+        QCOMPARE(config
+                     .getValue(ConfigurationManager::ConfigGroup::General,
+                               "language")
                      .toString(),
                  QString("en"));
     }
@@ -240,7 +251,8 @@ private slots:
         // Set some test values
         config.setValue("export.test1", "value1");
         config.setValue("export.test2", 42);
-        config.setValue(ConfigurationManager::UI, "export.theme", "dark");
+        config.setValue(ConfigurationManager::ConfigGroup::UI, "export.theme",
+                        "dark");
 
         // Create temporary file for export
         QTemporaryFile tempFile;
@@ -264,9 +276,11 @@ private slots:
         // Values should be restored
         QCOMPARE(config.getValue("export.test1").toString(), QString("value1"));
         QCOMPARE(config.getInt("export.test2"), 42);
-        QCOMPARE(config.getValue(ConfigurationManager::UI, "export.theme")
-                     .toString(),
-                 QString("dark"));
+        QCOMPARE(
+            config
+                .getValue(ConfigurationManager::ConfigGroup::UI, "export.theme")
+                .toString(),
+            QString("dark"));
     }
 
     // Validation
@@ -289,14 +303,20 @@ private slots:
     // Configuration groups enum
     void testConfigurationGroups() {
         // Test that all enum values are valid
-        QVERIFY(static_cast<int>(ConfigurationManager::General) >= 0);
-        QVERIFY(static_cast<int>(ConfigurationManager::UI) >= 0);
-        QVERIFY(static_cast<int>(ConfigurationManager::Document) >= 0);
-        QVERIFY(static_cast<int>(ConfigurationManager::View) >= 0);
-        QVERIFY(static_cast<int>(ConfigurationManager::Navigation) >= 0);
-        QVERIFY(static_cast<int>(ConfigurationManager::Performance) >= 0);
-        QVERIFY(static_cast<int>(ConfigurationManager::Network) >= 0);
-        QVERIFY(static_cast<int>(ConfigurationManager::Advanced) >= 0);
+        QVERIFY(static_cast<int>(ConfigurationManager::ConfigGroup::General) >=
+                0);
+        QVERIFY(static_cast<int>(ConfigurationManager::ConfigGroup::UI) >= 0);
+        QVERIFY(static_cast<int>(ConfigurationManager::ConfigGroup::Document) >=
+                0);
+        QVERIFY(static_cast<int>(ConfigurationManager::ConfigGroup::View) >= 0);
+        QVERIFY(static_cast<int>(
+                    ConfigurationManager::ConfigGroup::Navigation) >= 0);
+        QVERIFY(static_cast<int>(
+                    ConfigurationManager::ConfigGroup::Performance) >= 0);
+        QVERIFY(static_cast<int>(ConfigurationManager::ConfigGroup::Network) >=
+                0);
+        QVERIFY(static_cast<int>(ConfigurationManager::ConfigGroup::Advanced) >=
+                0);
     }
 
     // Convenience macros
@@ -317,5 +337,5 @@ private slots:
     }
 };
 
-QTEST_MAIN(ConfigurationManagerTest)
 #include "test_configuration_manager.moc"
+QTEST_MAIN(ConfigurationManagerTest)

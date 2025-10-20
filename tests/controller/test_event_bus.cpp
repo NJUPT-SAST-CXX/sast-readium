@@ -415,22 +415,22 @@ private slots:
     // Common application events
     void testCommonApplicationEvents() {
         // Test that common event constants are defined
-        QVERIFY(!AppEvents::DOCUMENT_OPENED.isEmpty());
-        QVERIFY(!AppEvents::DOCUMENT_CLOSED.isEmpty());
-        QVERIFY(!AppEvents::DOCUMENT_SAVED.isEmpty());
-        QVERIFY(!AppEvents::DOCUMENT_MODIFIED.isEmpty());
+        QVERIFY(!AppEvents::DOCUMENT_OPENED().isEmpty());
+        QVERIFY(!AppEvents::DOCUMENT_CLOSED().isEmpty());
+        QVERIFY(!AppEvents::DOCUMENT_SAVED().isEmpty());
+        QVERIFY(!AppEvents::DOCUMENT_MODIFIED().isEmpty());
 
-        QVERIFY(!AppEvents::PAGE_CHANGED.isEmpty());
-        QVERIFY(!AppEvents::ZOOM_CHANGED.isEmpty());
-        QVERIFY(!AppEvents::VIEW_MODE_CHANGED.isEmpty());
+        QVERIFY(!AppEvents::PAGE_CHANGED().isEmpty());
+        QVERIFY(!AppEvents::ZOOM_CHANGED().isEmpty());
+        QVERIFY(!AppEvents::VIEW_MODE_CHANGED().isEmpty());
 
-        QVERIFY(!AppEvents::THEME_CHANGED.isEmpty());
-        QVERIFY(!AppEvents::LAYOUT_CHANGED.isEmpty());
-        QVERIFY(!AppEvents::SIDEBAR_TOGGLED.isEmpty());
+        QVERIFY(!AppEvents::THEME_CHANGED().isEmpty());
+        QVERIFY(!AppEvents::LAYOUT_CHANGED().isEmpty());
+        QVERIFY(!AppEvents::SIDEBAR_TOGGLED().isEmpty());
 
-        QVERIFY(!AppEvents::APPLICATION_READY.isEmpty());
-        QVERIFY(!AppEvents::SHUTDOWN_REQUESTED.isEmpty());
-        QVERIFY(!AppEvents::ERROR_OCCURRED.isEmpty());
+        QVERIFY(!AppEvents::APPLICATION_READY().isEmpty());
+        QVERIFY(!AppEvents::SHUTDOWN_REQUESTED().isEmpty());
+        QVERIFY(!AppEvents::ERROR_OCCURRED().isEmpty());
     }
 
     // Configuration tests

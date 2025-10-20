@@ -23,18 +23,16 @@
 #include <QWidget>
 #include <QtGlobal>
 
+class StyleManager;
+
 class DocumentMetadataDialog : public QDialog {
     Q_OBJECT
 
 public:
     explicit DocumentMetadataDialog(QWidget* parent = nullptr);
-    ~DocumentMetadataDialog() = default;
 
     // 设置要显示元数据的PDF文档
     void setDocument(Poppler::Document* document, const QString& filePath);
-
-private slots:
-    void onThemeChanged();
 
 private:
     void setupUI();
@@ -51,113 +49,119 @@ private:
     void copyToClipboard(const QString& text);
     void copyAllMetadata();
 
-    QString formatDateTime(const QString& dateTimeStr);
-    QString formatFileSize(qint64 bytes);
+    static QString formatDateTime(const QString& dateTimeStr);
+    static QString formatFileSize(qint64 bytes);
     QString getPdfVersion(Poppler::Document* document);
     QString getPageSizeString(const QSizeF& size);
     QIcon getSectionIcon(const QString& section);
+    void initializeMainLayout(StyleManager& styleManager);
+    void createBasicInfoSection(StyleManager& styleManager);
+    void createPropertiesSection(StyleManager& styleManager);
+    void createSecuritySection(StyleManager& styleManager);
+    void createActionButtons();
+    Q_SLOT void onThemeChanged();
 
     // UI组件
-    QVBoxLayout* m_mainLayout;
-    QTabWidget* m_tabWidget;
+    QVBoxLayout* m_mainLayout = nullptr;
+    QTabWidget* m_tabWidget = nullptr;
 
     // 标题栏
-    QWidget* m_headerWidget;
-    QHBoxLayout* m_headerLayout;
-    QLabel* m_iconLabel;
-    QLabel* m_titleLabel;
-    QToolButton* m_copyAllButton;
+    QWidget* m_headerWidget = nullptr;
+    QHBoxLayout* m_headerLayout = nullptr;
+    QLabel* m_iconLabel = nullptr;
+    QLabel* m_titleLabel = nullptr;
+    QToolButton* m_copyAllButton = nullptr;
 
     // 基本信息标签页
-    QWidget* m_basicTab;
-    QVBoxLayout* m_basicTabLayout;
-    QScrollArea* m_basicScrollArea;
-    QWidget* m_basicContentWidget;
-    QVBoxLayout* m_basicContentLayout;
+    QWidget* m_basicTab = nullptr;
+    QVBoxLayout* m_basicTabLayout = nullptr;
+    QScrollArea* m_basicScrollArea = nullptr;
+    QWidget* m_basicContentWidget = nullptr;
+    QVBoxLayout* m_basicContentLayout = nullptr;
 
     // 基本信息组
-    QGroupBox* m_basicInfoGroup;
-    QGridLayout* m_basicInfoLayout;
-    QLineEdit* m_fileNameEdit;
-    QLineEdit* m_filePathEdit;
-    QLineEdit* m_fileSizeEdit;
-    QLineEdit* m_pageCountEdit;
-    QLineEdit* m_pdfVersionEdit;
-    QLineEdit* m_creationDateFileEdit;
-    QLineEdit* m_modificationDateFileEdit;
-    QToolButton* m_copyPathButton;
+    QGroupBox* m_basicInfoGroup = nullptr;
+    QGridLayout* m_basicInfoLayout = nullptr;
+    QLineEdit* m_fileNameEdit = nullptr;
+    QLineEdit* m_filePathEdit = nullptr;
+    QLineEdit* m_fileSizeEdit = nullptr;
+    QLineEdit* m_pageCountEdit = nullptr;
+    QLineEdit* m_pdfVersionEdit = nullptr;
+    QLineEdit* m_creationDateFileEdit = nullptr;
+    QLineEdit* m_modificationDateFileEdit = nullptr;
+    QToolButton* m_copyPathButton = nullptr;
 
     // 页面信息组
-    QGroupBox* m_pageInfoGroup;
-    QGridLayout* m_pageInfoLayout;
-    QLineEdit* m_pageSizeEdit;
-    QLineEdit* m_pageOrientationEdit;
-    QLineEdit* m_pageRotationEdit;
+    QGroupBox* m_pageInfoGroup = nullptr;
+    QGridLayout* m_pageInfoLayout = nullptr;
+    QLineEdit* m_pageSizeEdit = nullptr;
+    QLineEdit* m_pageOrientationEdit = nullptr;
+    QLineEdit* m_pageRotationEdit = nullptr;
 
     // 文档属性标签页
-    QWidget* m_propertiesTab;
-    QVBoxLayout* m_propertiesTabLayout;
-    QScrollArea* m_propertiesScrollArea;
-    QWidget* m_propertiesContentWidget;
-    QVBoxLayout* m_propertiesContentLayout;
+    QWidget* m_propertiesTab = nullptr;
+    QVBoxLayout* m_propertiesTabLayout = nullptr;
+    QScrollArea* m_propertiesScrollArea = nullptr;
+    QWidget* m_propertiesContentWidget = nullptr;
+    QVBoxLayout* m_propertiesContentLayout = nullptr;
 
     // 文档属性组
-    QGroupBox* m_propertiesGroup;
-    QGridLayout* m_propertiesLayout;
-    QLineEdit* m_titleEdit;
-    QLineEdit* m_authorEdit;
-    QLineEdit* m_subjectEdit;
-    QTextEdit* m_keywordsEdit;
-    QLineEdit* m_creatorEdit;
-    QLineEdit* m_producerEdit;
-    QLineEdit* m_creationDateEdit;
-    QLineEdit* m_modificationDateEdit;
+    QGroupBox* m_propertiesGroup = nullptr;
+    QGridLayout* m_propertiesLayout = nullptr;
+    QLineEdit* m_titleEdit = nullptr;
+    QLineEdit* m_authorEdit = nullptr;
+    QLineEdit* m_subjectEdit = nullptr;
+    QTextEdit* m_keywordsEdit = nullptr;
+    QLineEdit* m_creatorEdit = nullptr;
+    QLineEdit* m_producerEdit = nullptr;
+    QLineEdit* m_creationDateEdit = nullptr;
+    QLineEdit* m_modificationDateEdit = nullptr;
 
     // 安全信息标签页
-    QWidget* m_securityTab;
-    QVBoxLayout* m_securityTabLayout;
+    QWidget* m_securityTab = nullptr;
+    QVBoxLayout* m_securityTabLayout = nullptr;
 
     // 安全信息组
-    QGroupBox* m_securityGroup;
-    QGridLayout* m_securityLayout;
-    QLineEdit* m_encryptedEdit;
-    QLineEdit* m_encryptionMethodEdit;
-    QLineEdit* m_canExtractTextEdit;
-    QLineEdit* m_canPrintEdit;
-    QLineEdit* m_canPrintHighResEdit;
-    QLineEdit* m_canModifyEdit;
-    QLineEdit* m_canModifyAnnotationsEdit;
-    QLineEdit* m_canFillFormsEdit;
-    QLineEdit* m_canAssembleEdit;
+    QGroupBox* m_securityGroup = nullptr;
+    QGridLayout* m_securityLayout = nullptr;
+    QLineEdit* m_encryptedEdit = nullptr;
+    QLineEdit* m_encryptionMethodEdit = nullptr;
+    QLineEdit* m_canExtractTextEdit = nullptr;
+    QLineEdit* m_canPrintEdit = nullptr;
+    QLineEdit* m_canPrintHighResEdit = nullptr;
+    QLineEdit* m_canModifyEdit = nullptr;
+    QLineEdit* m_canModifyAnnotationsEdit = nullptr;
+    QLineEdit* m_canFillFormsEdit = nullptr;
+    QLineEdit* m_canAssembleEdit = nullptr;
 
     // 高级信息标签页
-    QWidget* m_advancedTab;
-    QVBoxLayout* m_advancedTabLayout;
+    QWidget* m_advancedTab = nullptr;
+    QVBoxLayout* m_advancedTabLayout = nullptr;
 
     // 字体信息组
-    QGroupBox* m_fontGroup;
-    QVBoxLayout* m_fontLayout;
-    QTreeWidget* m_fontTree;
-    QLabel* m_fontCountLabel;
+    QGroupBox* m_fontGroup = nullptr;
+    QVBoxLayout* m_fontLayout = nullptr;
+    QTreeWidget* m_fontTree = nullptr;
+    QLabel* m_fontCountLabel = nullptr;
 
     // 其他信息组
-    QGroupBox* m_advancedGroup;
-    QGridLayout* m_advancedLayout;
-    QLineEdit* m_linearizedEdit;
-    QLineEdit* m_hasFormsEdit;
-    QLineEdit* m_hasJavaScriptEdit;
-    QLineEdit* m_hasEmbeddedFilesEdit;
+    QGroupBox* m_advancedGroup = nullptr;
+    QGridLayout* m_advancedLayout = nullptr;
+    QLineEdit* m_linearizedEdit = nullptr;
+    QLineEdit* m_hasFormsEdit = nullptr;
+    QLineEdit* m_hasJavaScriptEdit = nullptr;
+    QLineEdit* m_hasEmbeddedFilesEdit = nullptr;
 
     // 按钮
-    QHBoxLayout* m_buttonLayout;
-    QPushButton* m_exportButton;
-    QPushButton* m_closeButton;
+    QHBoxLayout* m_buttonLayout = nullptr;
+    QPushButton* m_exportButton = nullptr;
+    QPushButton* m_closeButton = nullptr;
 
     // 当前文档信息
     QString m_currentFilePath;
-    Poppler::Document* m_currentDocument;
+    Poppler::Document* m_currentDocument = nullptr;
 
     // 统计信息
-    int m_fontCount;
-    int m_embeddedFontCount;
+    int m_fontCount = 0;
+    int m_embeddedFontCount = 0;
 };

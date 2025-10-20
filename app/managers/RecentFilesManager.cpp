@@ -17,8 +17,7 @@
 // Private implementation class
 class RecentFilesManagerImpl {
 public:
-    RecentFilesManagerImpl()
-        : m_settings{nullptr}, m_maxRecentFiles{DEFAULT_MAX_RECENT_FILES} {}
+    RecentFilesManagerImpl() = default;
 
     void loadSettings();
     void loadSettingsWithoutCleanup();
@@ -37,23 +36,19 @@ public:
     static const int DEFAULT_MAX_RECENT_FILES = 10;
 };
 
-// Static constant definitions
-const QString RecentFilesManager::SETTINGS_GROUP{QLatin1String("recentFiles")};
-const QString RecentFilesManager::SETTINGS_MAX_FILES_KEY{
-    QLatin1String("maxFiles")};
-const QString RecentFilesManager::SETTINGS_FILES_KEY{QLatin1String("files")};
+// Static constant definitions moved to header as constexpr
 
 RecentFilesManager::RecentFilesManager(QObject* parent)
-    : QObject(parent), pImpl(std::make_unique<RecentFilesManagerImpl>()) {
+    : QObject(parent), m_pImpl(std::make_unique<RecentFilesManagerImpl>()) {
     // 初始化设置
-    pImpl->m_settings = new QSettings("SAST", "Readium-RecentFiles", this);
+    m_pImpl->m_settings = new QSettings("SAST", "Readium-RecentFiles", this);
 
     // 加载配置 (不执行文件清理以避免阻塞)
-    pImpl->loadSettingsWithoutCleanup();
+    m_pImpl->loadSettingsWithoutCleanup();
 
     Logger::instance().debug(
         "RecentFilesManager: Initialized with max files: {}",
-        pImpl->m_maxRecentFiles);
+        m_pImpl->m_maxRecentFiles);
 }
 
 RecentFilesManager::~RecentFilesManager() { saveSettings(); }
@@ -63,7 +58,7 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
         return;
     }
 
-    QMutexLocker locker(&pImpl->m_mutex);
+    QMutexLocker locker(&m_pImpl->m_mutex);
 
     // 创建文件信息
     RecentFileInfo newFile(filePath);
@@ -74,20 +69,20 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
     }
 
     // 移除已存在的相同文件
-    auto it =
-        std::find_if(pImpl->m_recentFiles.begin(), pImpl->m_recentFiles.end(),
-                     [&filePath](const RecentFileInfo& info) {
-                         return info.filePath == filePath;
-                     });
-    if (it != pImpl->m_recentFiles.end()) {
-        pImpl->m_recentFiles.erase(it);
+    auto it = std::find_if(m_pImpl->m_recentFiles.begin(),
+                           m_pImpl->m_recentFiles.end(),
+                           [&filePath](const RecentFileInfo& info) {
+                               return info.filePath == filePath;
+                           });
+    if (it != m_pImpl->m_recentFiles.end()) {
+        m_pImpl->m_recentFiles.erase(it);
     }
 
     // 添加到列表开头
-    pImpl->m_recentFiles.prepend(newFile);
+    m_pImpl->m_recentFiles.prepend(newFile);
 
     // 强制执行最大数量限制
-    pImpl->enforceMaxSize();
+    m_pImpl->enforceMaxSize();
 
     // 保存设置
     saveSettings();
@@ -100,14 +95,14 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
 }
 
 QList<RecentFileInfo> RecentFilesManager::getRecentFiles() const {
-    QMutexLocker locker(&pImpl->m_mutex);
-    return pImpl->m_recentFiles;
+    QMutexLocker locker(&m_pImpl->m_mutex);
+    return m_pImpl->m_recentFiles;
 }
 
 QStringList RecentFilesManager::getRecentFilePaths() const {
-    QMutexLocker locker(&pImpl->m_mutex);
+    QMutexLocker locker(&m_pImpl->m_mutex);
     QStringList paths;
-    for (const RecentFileInfo& info : pImpl->m_recentFiles) {
+    for (const RecentFileInfo& info : m_pImpl->m_recentFiles) {
         if (info.isValid()) {
             paths.append(info.filePath);
         }
@@ -116,13 +111,13 @@ QStringList RecentFilesManager::getRecentFilePaths() const {
 }
 
 void RecentFilesManager::clearRecentFiles() {
-    QMutexLocker locker(&pImpl->m_mutex);
+    QMutexLocker locker(&m_pImpl->m_mutex);
 
-    if (pImpl->m_recentFiles.isEmpty()) {
+    if (m_pImpl->m_recentFiles.isEmpty()) {
         return;
     }
 
-    pImpl->m_recentFiles.clear();
+    m_pImpl->m_recentFiles.clear();
     saveSettings();
 
     emit recentFilesCleared();
@@ -132,16 +127,16 @@ void RecentFilesManager::clearRecentFiles() {
 }
 
 void RecentFilesManager::removeRecentFile(const QString& filePath) {
-    QMutexLocker locker(&pImpl->m_mutex);
+    QMutexLocker locker(&m_pImpl->m_mutex);
 
-    auto it =
-        std::find_if(pImpl->m_recentFiles.begin(), pImpl->m_recentFiles.end(),
-                     [&filePath](const RecentFileInfo& info) {
-                         return info.filePath == filePath;
-                     });
+    auto it = std::find_if(m_pImpl->m_recentFiles.begin(),
+                           m_pImpl->m_recentFiles.end(),
+                           [&filePath](const RecentFileInfo& info) {
+                               return info.filePath == filePath;
+                           });
 
-    if (it != pImpl->m_recentFiles.end()) {
-        pImpl->m_recentFiles.erase(it);
+    if (it != m_pImpl->m_recentFiles.end()) {
+        m_pImpl->m_recentFiles.erase(it);
         saveSettings();
 
         emit recentFileRemoved(filePath);
@@ -159,11 +154,11 @@ void RecentFilesManager::setMaxRecentFiles(int maxFiles) {
         return;
     }
 
-    QMutexLocker locker(&pImpl->m_mutex);
+    QMutexLocker locker(&m_pImpl->m_mutex);
 
-    if (pImpl->m_maxRecentFiles != maxFiles) {
-        pImpl->m_maxRecentFiles = maxFiles;
-        pImpl->enforceMaxSize();
+    if (m_pImpl->m_maxRecentFiles != maxFiles) {
+        m_pImpl->m_maxRecentFiles = maxFiles;
+        m_pImpl->enforceMaxSize();
         saveSettings();
 
         emit recentFilesChanged();
@@ -174,30 +169,30 @@ void RecentFilesManager::setMaxRecentFiles(int maxFiles) {
 }
 
 int RecentFilesManager::getMaxRecentFiles() const {
-    QMutexLocker locker(&pImpl->m_mutex);
-    return pImpl->m_maxRecentFiles;
+    QMutexLocker locker(&m_pImpl->m_mutex);
+    return m_pImpl->m_maxRecentFiles;
 }
 
 bool RecentFilesManager::hasRecentFiles() const {
-    QMutexLocker locker(&pImpl->m_mutex);
-    return !pImpl->m_recentFiles.isEmpty();
+    QMutexLocker locker(&m_pImpl->m_mutex);
+    return !m_pImpl->m_recentFiles.isEmpty();
 }
 
 int RecentFilesManager::getRecentFilesCount() const {
-    QMutexLocker locker(&pImpl->m_mutex);
-    return pImpl->m_recentFiles.size();
+    QMutexLocker locker(&m_pImpl->m_mutex);
+    return static_cast<int>(m_pImpl->m_recentFiles.size());
 }
 
 void RecentFilesManager::cleanupInvalidFiles() {
-    QMutexLocker locker(&pImpl->m_mutex);
+    QMutexLocker locker(&m_pImpl->m_mutex);
 
     bool changed = false;
-    auto it = pImpl->m_recentFiles.begin();
-    while (it != pImpl->m_recentFiles.end()) {
+    auto it = m_pImpl->m_recentFiles.begin();
+    while (it != m_pImpl->m_recentFiles.end()) {
         if (!it->isValid()) {
             Logger::instance().debug("[managers] Removing invalid file: {}",
                                      it->filePath.toStdString());
-            it = pImpl->m_recentFiles.erase(it);
+            it = m_pImpl->m_recentFiles.erase(it);
             changed = true;
         } else {
             ++it;
@@ -217,7 +212,7 @@ void RecentFilesManager::initializeAsync() {
             Logger::instance().debug("[managers] Starting async cleanup");
 
             // 检查对象是否仍然有效
-            if (!pImpl->m_settings) {
+            if (!m_pImpl->m_settings) {
                 Logger::instance().warning(
                     "[managers] Settings object is null during async cleanup");
                 return;
@@ -238,13 +233,13 @@ void RecentFilesManager::initializeAsync() {
 }
 
 void RecentFilesManager::loadSettings() {
-    pImpl->loadSettingsWithoutCleanup();
+    m_pImpl->loadSettingsWithoutCleanup();
 
     // 清理无效文件
     cleanupInvalidFiles();
 
     Logger::instance().info("[managers] Loaded and cleaned {} recent files",
-                            pImpl->m_recentFiles.size());
+                            m_pImpl->m_recentFiles.size());
 }
 
 void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
@@ -294,7 +289,7 @@ void RecentFilesManagerImpl::loadSettingsWithoutCleanup() {
         validCount, size);
 }
 
-void RecentFilesManager::saveSettings() { pImpl->saveSettings(); }
+void RecentFilesManager::saveSettings() { m_pImpl->saveSettings(); }
 
 void RecentFilesManagerImpl::saveSettings() {
     if (!m_settings) {

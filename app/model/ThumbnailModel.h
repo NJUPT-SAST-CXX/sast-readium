@@ -392,7 +392,7 @@ private:
     // 常量
     static constexpr int DEFAULT_THUMBNAIL_WIDTH = 120;
     static constexpr int DEFAULT_THUMBNAIL_HEIGHT = 160;
-    static constexpr double DEFAULT_QUALITY = 1.0;
+    static constexpr double THUMBNAIL_DEFAULT_QUALITY = 1.0;
     static constexpr int DEFAULT_CACHE_SIZE = 100;
     static constexpr qint64 DEFAULT_MEMORY_LIMIT = 128 * 1024 * 1024;  // 128MB
     static constexpr int DEFAULT_PRELOAD_RANGE = 5;

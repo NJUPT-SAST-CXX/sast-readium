@@ -222,6 +222,12 @@ public:
     SearchSuggestionEngine();
     ~SearchSuggestionEngine();
 
+    // Explicit copy/move semantics
+    SearchSuggestionEngine(const SearchSuggestionEngine& other);
+    SearchSuggestionEngine& operator=(const SearchSuggestionEngine& other);
+    SearchSuggestionEngine(SearchSuggestionEngine&& other) noexcept;
+    SearchSuggestionEngine& operator=(SearchSuggestionEngine&& other) noexcept;
+
     void trainModel(const QStringList& queries, const QList<int>& frequencies);
     QStringList generateSuggestions(const QString& partialQuery,
                                     int maxSuggestions = 5);

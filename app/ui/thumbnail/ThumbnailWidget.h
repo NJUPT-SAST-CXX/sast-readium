@@ -19,6 +19,7 @@
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
+#include <cstdint>
 
 /**
  * @brief Chrome风格的PDF页面缩略图组件
@@ -36,24 +37,32 @@ class ThumbnailWidget : public QWidget {
     Q_PROPERTY(qreal borderOpacity READ borderOpacity WRITE setBorderOpacity)
 
 public:
-    enum State { Normal, Hovered, Selected, Loading, Error };
+    enum class State : std::uint8_t {
+        Normal,
+        Hovered,
+        Selected,
+        Loading,
+        Error
+    };
 
     explicit ThumbnailWidget(int pageNumber = 0, QWidget* parent = nullptr);
     ~ThumbnailWidget() override;
 
     // 基础属性
     void setPageNumber(int pageNumber);
-    int pageNumber() const { return m_pageNumber; }
+    [[nodiscard]] auto pageNumber() const -> int { return m_pageNumber; }
 
     void setPixmap(const QPixmap& pixmap);
-    QPixmap pixmap() const { return m_pixmap; }
+    [[nodiscard]] auto pixmap() const -> QPixmap { return m_pixmap; }
 
     void setState(State state);
-    State state() const { return m_state; }
+    [[nodiscard]] auto state() const -> State { return m_state; }
 
     // 尺寸设置
     void setThumbnailSize(const QSize& size);
-    QSize thumbnailSize() const { return m_thumbnailSize; }
+    [[nodiscard]] auto thumbnailSize() const -> QSize {
+        return m_thumbnailSize;
+    }
 
     // 动画属性
     qreal shadowOpacity() const { return m_shadowOpacity; }
@@ -64,10 +73,10 @@ public:
 
     // 加载状态
     void setLoading(bool loading);
-    bool isLoading() const { return m_state == Loading; }
+    bool isLoading() const { return m_state == State::Loading; }
 
     void setError(const QString& errorMessage = QString());
-    bool hasError() const { return m_state == Error; }
+    bool hasError() const { return m_state == State::Error; }
 
 signals:
     void clicked(int pageNumber);

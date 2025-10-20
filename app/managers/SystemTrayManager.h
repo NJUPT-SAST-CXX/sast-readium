@@ -403,33 +403,47 @@ private:
      */
     void createDefaultTrayIcon(QIcon& icon);
 
-    std::unique_ptr<SystemTrayManagerImpl> pImpl;
+    std::unique_ptr<SystemTrayManagerImpl> m_pImpl;
 
 public:
     // Settings keys - made public for implementation class access
-    static const QString SETTINGS_GROUP;
-    static const QString SETTINGS_ENABLED_KEY;
-    static const QString SETTINGS_MINIMIZE_TO_TRAY_KEY;
-    static const QString SETTINGS_SHOW_NOTIFICATIONS_KEY;
-    static const QString SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY;
+    // Using constexpr to avoid cert-err58-cpp (static storage duration
+    // exceptions)
+    static constexpr QLatin1StringView SETTINGS_GROUP{"UI"};
+    static constexpr QLatin1StringView SETTINGS_ENABLED_KEY{
+        "system_tray_enabled"};
+    static constexpr QLatin1StringView SETTINGS_MINIMIZE_TO_TRAY_KEY{
+        "minimize_to_tray"};
+    static constexpr QLatin1StringView SETTINGS_SHOW_NOTIFICATIONS_KEY{
+        "show_tray_notifications"};
+    static constexpr QLatin1StringView
+        SETTINGS_FIRST_TIME_NOTIFICATION_SHOWN_KEY{
+            "first_time_tray_notification_shown"};
 
     // Enhanced feature settings keys
-    static const QString SETTINGS_SHOW_STATUS_INDICATORS_KEY;
-    static const QString SETTINGS_SHOW_RECENT_FILES_KEY;
-    static const QString SETTINGS_RECENT_FILES_COUNT_KEY;
-    static const QString SETTINGS_SHOW_QUICK_ACTIONS_KEY;
-    static const QString SETTINGS_ENHANCED_NOTIFICATIONS_KEY;
-    static const QString SETTINGS_NOTIFICATION_TYPES_KEY;
-    static const QString SETTINGS_DYNAMIC_TOOLTIP_KEY;
+    static constexpr QLatin1StringView SETTINGS_SHOW_STATUS_INDICATORS_KEY{
+        "show_status_indicators"};
+    static constexpr QLatin1StringView SETTINGS_SHOW_RECENT_FILES_KEY{
+        "show_recent_files"};
+    static constexpr QLatin1StringView SETTINGS_RECENT_FILES_COUNT_KEY{
+        "recent_files_count"};
+    static constexpr QLatin1StringView SETTINGS_SHOW_QUICK_ACTIONS_KEY{
+        "show_quick_actions"};
+    static constexpr QLatin1StringView SETTINGS_ENHANCED_NOTIFICATIONS_KEY{
+        "enhanced_notifications"};
+    static constexpr QLatin1StringView SETTINGS_NOTIFICATION_TYPES_KEY{
+        "notification_types"};
+    static constexpr QLatin1StringView SETTINGS_DYNAMIC_TOOLTIP_KEY{
+        "dynamic_tooltip"};
 
     // Default values - made public for implementation class access
-    static const bool DEFAULT_ENABLED;
-    static const bool DEFAULT_MINIMIZE_TO_TRAY;
-    static const bool DEFAULT_SHOW_NOTIFICATIONS;
-    static const bool DEFAULT_SHOW_STATUS_INDICATORS;
-    static const bool DEFAULT_SHOW_RECENT_FILES;
-    static const int DEFAULT_RECENT_FILES_COUNT;
-    static const bool DEFAULT_SHOW_QUICK_ACTIONS;
-    static const bool DEFAULT_ENHANCED_NOTIFICATIONS;
-    static const bool DEFAULT_DYNAMIC_TOOLTIP;
+    static constexpr bool DEFAULT_ENABLED = true;
+    static constexpr bool DEFAULT_MINIMIZE_TO_TRAY = true;
+    static constexpr bool DEFAULT_SHOW_NOTIFICATIONS = true;
+    static constexpr bool DEFAULT_SHOW_STATUS_INDICATORS = true;
+    static constexpr bool DEFAULT_SHOW_RECENT_FILES = true;
+    static constexpr int DEFAULT_RECENT_FILES_COUNT = 5;
+    static constexpr bool DEFAULT_SHOW_QUICK_ACTIONS = true;
+    static constexpr bool DEFAULT_ENHANCED_NOTIFICATIONS = true;
+    static constexpr bool DEFAULT_DYNAMIC_TOOLTIP = true;
 };

@@ -19,22 +19,22 @@
 class State {
 public:
     State() = default;
-    explicit State(const QJsonObject& data);
+    explicit State(QJsonObject data);
 
     // State access
-    QVariant get(const QString& path) const;
-    QJsonObject getObject(const QString& path) const;
-    QJsonValue getValue(const QString& path) const;
-    bool has(const QString& path) const;
+    [[nodiscard]] QVariant get(const QString& path) const;
+    [[nodiscard]] QJsonObject getObject(const QString& path) const;
+    [[nodiscard]] QJsonValue getValue(const QString& path) const;
+    [[nodiscard]] bool has(const QString& path) const;
 
     // State manipulation (returns new state)
-    State set(const QString& path, const QVariant& value) const;
-    State merge(const QJsonObject& data) const;
-    State remove(const QString& path) const;
+    State set(const QString& path, const QVariant& value);
+    State merge(const QJsonObject& data);
+    State remove(const QString& path);
 
     // Serialization
-    QJsonObject toJson() const { return m_data; }
-    QString toString() const;
+    [[nodiscard]] QJsonObject toJson() const { return m_data; }
+    [[nodiscard]] QString toString() const;
 
     // Comparison
     bool operator==(const State& other) const;
@@ -44,10 +44,13 @@ private:
     QJsonObject m_data;
 
     // Helper methods
-    QJsonValue getValueByPath(const QJsonObject& obj,
-                              const QStringList& path) const;
-    QJsonObject setValueByPath(const QJsonObject& obj, const QStringList& path,
-                               const QJsonValue& value) const;
+    [[nodiscard]] QJsonValue getValueByPath(const QJsonObject& obj,
+                                            const QStringList& path) const;
+    [[nodiscard]] QJsonObject setValueByPath(const QJsonObject& obj,
+                                             const QStringList& path,
+                                             const QJsonValue& value) const;
+    [[nodiscard]] QJsonObject removeValueByPath(const QJsonObject& obj,
+                                                const QStringList& path) const;
 };
 
 /**
@@ -58,16 +61,16 @@ public:
     StateChange(const State& oldState, const State& newState,
                 const QString& reason = QString());
 
-    State oldState() const { return m_oldState; }
-    State newState() const { return m_newState; }
-    QString reason() const { return m_reason; }
-    qint64 timestamp() const { return m_timestamp; }
+    [[nodiscard]] State oldState() const { return m_oldState; }
+    [[nodiscard]] State newState() const { return m_newState; }
+    [[nodiscard]] QString reason() const { return m_reason; }
+    [[nodiscard]] qint64 timestamp() const { return m_timestamp; }
 
     // Change analysis
-    QStringList changedPaths() const;
-    bool hasChanged(const QString& path) const;
-    QVariant oldValue(const QString& path) const;
-    QVariant newValue(const QString& path) const;
+    [[nodiscard]] QStringList changedPaths() const;
+    [[nodiscard]] bool hasChanged(const QString& path) const;
+    [[nodiscard]] QVariant oldValue(const QString& path) const;
+    [[nodiscard]] QVariant newValue(const QString& path) const;
 
 private:
     State m_oldState;
@@ -86,7 +89,7 @@ class StateManager : public QObject {
     Q_OBJECT
 
 public:
-    ~StateManager();
+    ~StateManager() override;
 
     // Singleton access
     static StateManager& instance();
@@ -157,10 +160,15 @@ private slots:
     void onAutoSaveTimeout();
 
 private:
-    StateManager(QObject* parent = nullptr);
+    explicit StateManager(QObject* parent = nullptr);
+
+public:
     StateManager(const StateManager&) = delete;
     StateManager& operator=(const StateManager&) = delete;
+    StateManager(StateManager&&) = delete;
+    StateManager& operator=(StateManager&&) = delete;
 
+private:
     // State mutation helper
     void setState(const State& newState, const QString& reason);
     void notifyObservers(const StateChange& change);
@@ -232,8 +240,8 @@ public:
     void dispatch(const QString& type, const QVariant& payload = QVariant());
 
     // State access
-    State state() const { return m_state; }
-    QVariant get(const QString& path) const;
+    [[nodiscard]] State state() const { return m_state; }
+    [[nodiscard]] QVariant get(const QString& path) const;
 
     // Subscriptions
     using StoreObserver = std::function<void(const State&, const Action&)>;

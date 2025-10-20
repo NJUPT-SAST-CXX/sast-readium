@@ -6,6 +6,7 @@
 #include <QDebug>
 #include <QEasingCurve>
 #include <QGraphicsOpacityEffect>
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QListView>
 #include <QMenu>
@@ -25,6 +26,10 @@
 #include "../../delegate/ThumbnailDelegate.h"
 #include "../../model/ThumbnailModel.h"
 
+namespace {
+constexpr int DEFAULT_MARGIN = 8;
+}
+
 ThumbnailListView::ThumbnailListView(QWidget* parent)
     : QListView(parent),
       m_thumbnailModel(nullptr),
@@ -42,15 +47,19 @@ ThumbnailListView::ThumbnailListView(QWidget* parent)
       m_preloadTimer(nullptr),
       m_lastFirstVisible(-1),
       m_lastLastVisible(-1),
+      m_visibleRange(-1, -1),
+      m_isScrolling(false),
+      m_viewportUpdateTimer(nullptr),
+      m_viewportUpdatePending(false),
+      m_lastVisibleStart(-1),
+      m_lastVisibleEnd(-1),
       m_fadeInTimer(nullptr),
       m_opacityEffect(nullptr),
       m_contextMenuEnabled(true),
       m_contextMenu(nullptr),
       m_contextMenuPage(-1),
       m_currentPage(-1),
-      m_viewportUpdatePending(false),
-      m_lastVisibleStart(-1),
-      m_lastVisibleEnd(-1) {
+      m_selectedPages() {
     setupUI();
     setupScrollBars();
     setupAnimations();
@@ -91,7 +100,8 @@ void ThumbnailListView::setupUI() {
     setSpacing(m_thumbnailSpacing);
 
     // 设置边距
-    setContentsMargins(8, 8, 8, 8);
+    setContentsMargins(DEFAULT_MARGIN, DEFAULT_MARGIN, DEFAULT_MARGIN,
+                       DEFAULT_MARGIN);
 
     // 启用鼠标跟踪
     setMouseTracking(true);
@@ -114,13 +124,26 @@ void ThumbnailListView::setupScrollBars() {
 }
 
 void ThumbnailListView::setupAnimations() {
-    // 滚动动画
-    m_scrollAnimation =
-        new QPropertyAnimation(verticalScrollBar(), "value", this);
-    m_scrollAnimation->setDuration(SCROLL_ANIMATION_DURATION);
-    m_scrollAnimation->setEasingCurve(QEasingCurve::OutCubic);
-    connect(m_scrollAnimation, &QPropertyAnimation::finished, this,
-            &ThumbnailListView::onScrollAnimationFinished);
+    // Don't create animations in offscreen mode to avoid crashes
+    if (QGuiApplication::platformName() == "offscreen") {
+        m_scrollAnimation = nullptr;
+        m_opacityEffect = nullptr;
+    } else {
+        // 滚动动画
+        m_scrollAnimation =
+            new QPropertyAnimation(verticalScrollBar(), "value", this);
+        m_scrollAnimation->setDuration(SCROLL_ANIMATION_DURATION);
+        m_scrollAnimation->setEasingCurve(QEasingCurve::OutCubic);
+        connect(m_scrollAnimation, &QPropertyAnimation::finished, this,
+                &ThumbnailListView::onScrollAnimationFinished);
+
+        // 透明度效果
+        if (m_fadeInEnabled) {
+            m_opacityEffect = new QGraphicsOpacityEffect(this);
+            m_opacityEffect->setOpacity(1.0);
+            setGraphicsEffect(m_opacityEffect);
+        }
+    }
 
     // 预加载定时器
     m_preloadTimer = new QTimer(this);
@@ -142,13 +165,6 @@ void ThumbnailListView::setupAnimations() {
     m_fadeInTimer->setSingleShot(false);
     connect(m_fadeInTimer, &QTimer::timeout, this,
             &ThumbnailListView::onFadeInTimer);
-
-    // 透明度效果
-    if (m_fadeInEnabled) {
-        m_opacityEffect = new QGraphicsOpacityEffect(this);
-        m_opacityEffect->setOpacity(1.0);
-        setGraphicsEffect(m_opacityEffect);
-    }
 }
 
 void ThumbnailListView::setupContextMenu() {

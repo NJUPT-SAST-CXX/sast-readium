@@ -106,67 +106,67 @@ endif()
 # Controller Tests - Service-oriented architecture tests
 # ============================================================================
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/service_locator_test.cpp)
-    create_test_target(service_locator_test
-        SOURCES controller/service_locator_test.cpp controller/ControllerTestMocks.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/test_service_locator.cpp)
+    create_test_target(test_service_locator
+        SOURCES controller/test_service_locator.cpp controller/ControllerTestMocks.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/state_manager_test.cpp)
-    create_test_target(state_manager_test
-        SOURCES controller/state_manager_test.cpp controller/ControllerTestMocks.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/test_state_manager.cpp)
+    create_test_target(test_state_manager
+        SOURCES controller/test_state_manager.cpp controller/ControllerTestMocks.cpp
         TIMEOUT 300
     )
 endif()
 
-# State Manager Comprehensive Tests - TEMPORARILY DISABLED - API mismatch
-# if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/state_manager_comprehensive_test.cpp)
-#     create_test_target(state_manager_comprehensive_test
-#         SOURCES controller/state_manager_comprehensive_test.cpp controller/ControllerTestMocks.cpp
-#         TIMEOUT 300
-#     )
-# endif()
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/event_bus_test.cpp)
-    create_test_target(event_bus_test
-        SOURCES controller/event_bus_test.cpp controller/ControllerTestMocks.cpp
+# State Manager Comprehensive Tests - ENABLED - Updated with correct filename
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/test_state_manager_comprehensive.cpp)
+    create_test_target(test_state_manager_comprehensive
+        SOURCES controller/test_state_manager_comprehensive.cpp controller/ControllerTestMocks.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/application_controller_test.cpp)
-    create_test_target(application_controller_test
-        SOURCES controller/application_controller_test.cpp controller/ControllerTestMocks.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/test_event_bus.cpp)
+    create_test_target(test_event_bus
+        SOURCES controller/test_event_bus.cpp controller/ControllerTestMocks.cpp
+        TIMEOUT 300
+    )
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/test_application_controller.cpp)
+    create_test_target(test_application_controller
+        SOURCES controller/test_application_controller.cpp controller/ControllerTestMocks.cpp
         TIMEOUT 300
     )
 endif()
 
 # Note: document_controller_test and page_controller_test have their own mock definitions
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/document_controller_test.cpp)
-    create_test_target(document_controller_test
-        SOURCES controller/document_controller_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/test_document_controller.cpp)
+    create_test_target(test_document_controller
+        SOURCES controller/test_document_controller.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/page_controller_test.cpp)
-    create_test_target(page_controller_test
-        SOURCES controller/page_controller_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/test_page_controller.cpp)
+    create_test_target(test_page_controller
+        SOURCES controller/test_page_controller.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/configuration_manager_test.cpp)
-    create_test_target(configuration_manager_test
-        SOURCES controller/configuration_manager_test.cpp controller/ControllerTestMocks.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/test_configuration_manager.cpp)
+    create_test_target(test_configuration_manager
+        SOURCES controller/test_configuration_manager.cpp controller/ControllerTestMocks.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/action_map_test.cpp)
-    create_test_target(action_map_test
-        SOURCES controller/action_map_test.cpp controller/ControllerTestMocks.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/controller/test_action_map.cpp)
+    create_test_target(test_action_map
+        SOURCES controller/test_action_map.cpp controller/ControllerTestMocks.cpp
         TIMEOUT 300
     )
 endif()
@@ -175,17 +175,17 @@ endif()
 # Factory Tests - Factory pattern implementation tests
 # ============================================================================
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/model_factory_test.cpp)
-    create_test_target(model_factory_test
-        SOURCES factory/model_factory_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/test_model_factory.cpp)
+    create_test_target(test_model_factory
+        SOURCES factory/test_model_factory.cpp
         TIMEOUT 300
     )
 endif()
 
-# Command Prototype Registry Test - FIXED
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/command_prototype_registry_test.cpp)
-    create_test_target(command_prototype_registry_test
-        SOURCES factory/command_prototype_registry_test.cpp
+# Command Prototype Registry Test - Updated with correct filename
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/test_command_prototype_registry.cpp)
+    create_test_target(test_command_prototype_registry
+        SOURCES factory/test_command_prototype_registry.cpp
         TIMEOUT 300
     )
 endif()
@@ -227,10 +227,10 @@ endif()
 # Logging Tests - Logging system tests
 # ============================================================================
 
-# Logging Comprehensive Test - FIXED
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/logging/logging_comprehensive_test.cpp)
-    create_test_target(logging_comprehensive_test
-        SOURCES logging/logging_comprehensive_test.cpp
+# Logging Comprehensive Test - Updated with correct filename
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/logging/test_logging_comprehensive.cpp)
+    create_test_target(test_logging_comprehensive
+        SOURCES logging/test_logging_comprehensive.cpp
         TIMEOUT 300
     )
 endif()
@@ -239,18 +239,18 @@ endif()
 # Managers Tests - Manager component tests
 # ============================================================================
 
-# Windows Path Test - Uses GTest, requires special handling
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/managers/windows_path_test.cpp)
+# Windows Path Test - Uses GTest, requires special handling - Updated with correct filename
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/managers/test_windows_path.cpp)
     find_package(GTest QUIET)
     if(GTest_FOUND)
-        create_test_target(windows_path_test
-            SOURCES managers/windows_path_test.cpp
+        create_test_target(test_windows_path
+            SOURCES managers/test_windows_path.cpp
             LINK_LIBRARIES GTest::gtest GTest::gtest_main
             TIMEOUT 300
         )
         message(STATUS "Windows path tests enabled with Google Test")
     else()
-        message(WARNING "Google Test not found, windows_path_test disabled")
+        message(WARNING "Google Test not found, test_windows_path disabled")
     endif()
 endif()
 
@@ -258,9 +258,9 @@ endif()
 # Model Tests - Model component tests
 # ============================================================================
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/model/search_model_test.cpp)
-    create_test_target(search_model_test
-        SOURCES model/search_model_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/model/test_search_model.cpp)
+    create_test_target(test_search_model
+        SOURCES model/test_search_model.cpp
         TIMEOUT 300
     )
 endif()
@@ -307,45 +307,30 @@ endif()
 # Search Tests - Search subsystem tests
 # ============================================================================
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_engine_test.cpp)
-    create_test_target(search_engine_test
-        SOURCES search/search_engine_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_engine.cpp)
+    create_test_target(test_search_engine
+        SOURCES search/test_search_engine.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_configuration_test.cpp)
-    create_test_target(search_configuration_test
-        SOURCES search/search_configuration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_configuration.cpp)
+    create_test_target(test_search_configuration
+        SOURCES search/test_search_configuration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_executor_test.cpp)
-    create_test_target(search_executor_test
-        SOURCES search/search_executor_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_executor.cpp)
+    create_test_target(test_search_executor
+        SOURCES search/test_search_executor.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_features_test.cpp)
-    create_test_target(search_features_test
-        SOURCES search/search_features_test.cpp
-        TIMEOUT 300
-    )
-endif()
-
-# New standardized test naming pattern (test_*.cpp)
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_features.cpp)
     create_test_target(test_search_features
         SOURCES search/test_search_features.cpp
-        TIMEOUT 300
-    )
-endif()
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_metrics_test.cpp)
-    create_test_target(search_metrics_test
-        SOURCES search/search_metrics_test.cpp
         TIMEOUT 300
     )
 endif()
@@ -357,17 +342,9 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_metrics.cpp)
     )
 endif()
 
-# Search Performance Test - FIXED
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_performance_test.cpp)
-    create_test_target(search_performance_test
-        SOURCES search/search_performance_test.cpp
-        TIMEOUT 300
-    )
-endif()
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_validator_test.cpp)
-    create_test_target(search_validator_test
-        SOURCES search/search_validator_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_performance.cpp)
+    create_test_target(test_search_performance
+        SOURCES search/test_search_performance.cpp
         TIMEOUT 300
     )
 endif()
@@ -379,72 +356,72 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_validator.cpp)
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/text_extractor_test.cpp)
-    create_test_target(text_extractor_test
-        SOURCES search/text_extractor_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_text_extractor.cpp)
+    create_test_target(test_text_extractor
+        SOURCES search/test_text_extractor.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/background_processor_test.cpp)
-    create_test_target(background_processor_test
-        SOURCES search/background_processor_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_background_processor.cpp)
+    create_test_target(test_background_processor
+        SOURCES search/test_background_processor.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/incremental_search_manager_test.cpp)
-    create_test_target(incremental_search_manager_test
-        SOURCES search/incremental_search_manager_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_incremental_search_manager.cpp)
+    create_test_target(test_incremental_search_manager
+        SOURCES search/test_incremental_search_manager.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/memory_aware_search_results_test.cpp)
-    create_test_target(memory_aware_search_results_test
-        SOURCES search/memory_aware_search_results_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_memory_aware_search_results.cpp)
+    create_test_target(test_memory_aware_search_results
+        SOURCES search/test_memory_aware_search_results.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/memory_manager_test.cpp)
-    create_test_target(memory_manager_test
-        SOURCES search/memory_manager_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_memory_manager.cpp)
+    create_test_target(test_memory_manager
+        SOURCES search/test_memory_manager.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/memory_manager_stubs_test.cpp)
-    create_test_target(memory_manager_stubs_test
-        SOURCES search/memory_manager_stubs_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_memory_manager_stubs.cpp)
+    create_test_target(test_memory_manager_stubs
+        SOURCES search/test_memory_manager_stubs.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/multi_search_engine_test.cpp)
-    create_test_target(multi_search_engine_test
-        SOURCES search/multi_search_engine_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_multi_search_engine.cpp)
+    create_test_target(test_multi_search_engine
+        SOURCES search/test_multi_search_engine.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/smart_eviction_policy_test.cpp)
-    create_test_target(smart_eviction_policy_test
-        SOURCES search/smart_eviction_policy_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_smart_eviction_policy.cpp)
+    create_test_target(test_smart_eviction_policy
+        SOURCES search/test_smart_eviction_policy.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_error_recovery_test.cpp)
-    create_test_target(search_error_recovery_test
-        SOURCES search/search_error_recovery_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_error_recovery.cpp)
+    create_test_target(test_search_error_recovery
+        SOURCES search/test_search_error_recovery.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/search_thread_safety_test.cpp)
-    create_test_target(search_thread_safety_test
-        SOURCES search/search_thread_safety_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_thread_safety.cpp)
+    create_test_target(test_search_thread_safety
+        SOURCES search/test_search_thread_safety.cpp
         TIMEOUT 600
     )
 endif()
@@ -453,128 +430,128 @@ endif()
 # UI Tests - User interface integration tests
 # ============================================================================
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/debug_log_panel_integration_test.cpp)
-    create_test_target(debug_log_panel_integration_test
-        SOURCES ui/debug_log_panel_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_debug_log_panel_integration.cpp)
+    create_test_target(test_debug_log_panel_integration
+        SOURCES ui/test_debug_log_panel_integration.cpp
         TIMEOUT 600
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/tool_bar_integration_test.cpp)
-    create_test_target(tool_bar_integration_test
-        SOURCES ui/tool_bar_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_tool_bar_integration.cpp)
+    create_test_target(test_tool_bar_integration
+        SOURCES ui/test_tool_bar_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/thumbnail_generator_integration_test.cpp)
-    create_test_target(thumbnail_generator_integration_test
-        SOURCES ui/thumbnail_generator_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_thumbnail_generator_integration.cpp)
+    create_test_target(test_thumbnail_generator_integration
+        SOURCES ui/test_thumbnail_generator_integration.cpp
         TIMEOUT 600
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/document_comparison_integration_test.cpp)
-    create_test_target(document_comparison_integration_test
-        SOURCES ui/document_comparison_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_document_comparison_integration.cpp)
+    create_test_target(test_document_comparison_integration
+        SOURCES ui/test_document_comparison_integration.cpp
         TIMEOUT 600
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/document_metadata_dialog_integration_test.cpp)
-    create_test_target(document_metadata_dialog_integration_test
-        SOURCES ui/document_metadata_dialog_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_document_metadata_dialog_integration.cpp)
+    create_test_target(test_document_metadata_dialog_integration
+        SOURCES ui/test_document_metadata_dialog_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/menu_bar_integration_test.cpp)
-    create_test_target(menu_bar_integration_test
-        SOURCES ui/menu_bar_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_menu_bar_integration.cpp)
+    create_test_target(test_menu_bar_integration
+        SOURCES ui/test_menu_bar_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/pdf_animations_integration_test.cpp)
-    create_test_target(pdf_animations_integration_test
-        SOURCES ui/pdf_animations_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_pdf_animations_integration.cpp)
+    create_test_target(test_pdf_animations_integration
+        SOURCES ui/test_pdf_animations_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/pdf_outline_widget_integration_test.cpp)
-    create_test_target(pdf_outline_widget_integration_test
-        SOURCES ui/pdf_outline_widget_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_pdf_outline_widget_integration.cpp)
+    create_test_target(test_pdf_outline_widget_integration
+        SOURCES ui/test_pdf_outline_widget_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/pdf_viewer_integration_test.cpp)
-    create_test_target(pdf_viewer_integration_test
-        SOURCES ui/pdf_viewer_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_pdf_viewer_integration.cpp)
+    create_test_target(test_pdf_viewer_integration
+        SOURCES ui/test_pdf_viewer_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/right_side_bar_integration_test.cpp)
-    create_test_target(right_side_bar_integration_test
-        SOURCES ui/right_side_bar_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_right_side_bar_integration.cpp)
+    create_test_target(test_right_side_bar_integration
+        SOURCES ui/test_right_side_bar_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/search_widget_integration_test.cpp)
-    create_test_target(search_widget_integration_test
-        SOURCES ui/search_widget_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_search_widget_integration.cpp)
+    create_test_target(test_search_widget_integration
+        SOURCES ui/test_search_widget_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/side_bar_integration_test.cpp)
-    create_test_target(side_bar_integration_test
-        SOURCES ui/side_bar_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_side_bar_integration.cpp)
+    create_test_target(test_side_bar_integration
+        SOURCES ui/test_side_bar_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/status_bar_integration_test.cpp)
-    create_test_target(status_bar_integration_test
-        SOURCES ui/status_bar_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_status_bar_integration.cpp)
+    create_test_target(test_status_bar_integration
+        SOURCES ui/test_status_bar_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/thumbnail_context_menu_integration_test.cpp)
-    create_test_target(thumbnail_context_menu_integration_test
-        SOURCES ui/thumbnail_context_menu_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_thumbnail_context_menu_integration.cpp)
+    create_test_target(test_thumbnail_context_menu_integration
+        SOURCES ui/test_thumbnail_context_menu_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/thumbnail_list_view_integration_test.cpp)
-    create_test_target(thumbnail_list_view_integration_test
-        SOURCES ui/thumbnail_list_view_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_thumbnail_list_view_integration.cpp)
+    create_test_target(test_thumbnail_list_view_integration
+        SOURCES ui/test_thumbnail_list_view_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/thumbnail_widget_integration_test.cpp)
-    create_test_target(thumbnail_widget_integration_test
-        SOURCES ui/thumbnail_widget_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_thumbnail_widget_integration.cpp)
+    create_test_target(test_thumbnail_widget_integration
+        SOURCES ui/test_thumbnail_widget_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/view_widget_integration_test.cpp)
-    create_test_target(view_widget_integration_test
-        SOURCES ui/view_widget_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_view_widget_integration.cpp)
+    create_test_target(test_view_widget_integration
+        SOURCES ui/test_view_widget_integration.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/welcome_screen_manager_integration_test.cpp)
-    create_test_target(welcome_screen_manager_integration_test
-        SOURCES ui/welcome_screen_manager_integration_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_welcome_screen_manager_integration.cpp)
+    create_test_target(test_welcome_screen_manager_integration
+        SOURCES ui/test_welcome_screen_manager_integration.cpp
         TIMEOUT 300
     )
 endif()
@@ -590,30 +567,30 @@ endif()
 # Utils Tests - Utility component tests
 # ============================================================================
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/document_analyzer_test.cpp)
-    create_test_target(document_analyzer_test
-        SOURCES utils/document_analyzer_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/test_document_analyzer.cpp)
+    create_test_target(test_document_analyzer
+        SOURCES utils/test_document_analyzer.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/error_handling_test.cpp)
-    create_test_target(utils_error_handling_test
-        SOURCES utils/error_handling_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/test_error_handling.cpp)
+    create_test_target(test_error_handling
+        SOURCES utils/test_error_handling.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/error_recovery_test.cpp)
-    create_test_target(utils_error_recovery_test
-        SOURCES utils/error_recovery_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/test_error_recovery.cpp)
+    create_test_target(test_error_recovery
+        SOURCES utils/test_error_recovery.cpp
         TIMEOUT 300
     )
 endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/pdf_utilities_test.cpp)
-    create_test_target(pdf_utilities_test
-        SOURCES utils/pdf_utilities_test.cpp
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/test_pdf_utilities.cpp)
+    create_test_target(test_pdf_utilities
+        SOURCES utils/test_pdf_utilities.cpp
         TIMEOUT 300
     )
 endif()

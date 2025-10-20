@@ -93,7 +93,14 @@ void PDFOutlineWidgetIntegrationTest::init() {
     m_outlineWidget = new PDFOutlineWidget(m_parentWidget);
     m_outlineWidget->setOutlineModel(m_outlineModel);
     m_outlineWidget->show();
-    QTest::qWaitForWindowExposed(m_outlineWidget);
+
+    // In offscreen mode, qWaitForWindowExposed() will timeout
+    // Use a simple wait instead to allow widget initialization
+    if (QGuiApplication::platformName() == "offscreen") {
+        QTest::qWait(100);  // Give widgets time to initialize
+    } else {
+        QVERIFY(QTest::qWaitForWindowExposed(m_outlineWidget));
+    }
 }
 
 void PDFOutlineWidgetIntegrationTest::cleanup() {
@@ -267,7 +274,9 @@ void PDFOutlineWidgetIntegrationTest::testSearchClear() {
 void PDFOutlineWidgetIntegrationTest::testContextMenu() {
     // Test context menu event
     QPoint testPoint(50, 50);
-    QContextMenuEvent contextEvent(QContextMenuEvent::Mouse, testPoint);
+    QPoint globalPos = m_outlineWidget->mapToGlobal(testPoint);
+    QContextMenuEvent contextEvent(QContextMenuEvent::Mouse, testPoint,
+                                   globalPos);
     QApplication::sendEvent(m_outlineWidget, &contextEvent);
 
     // Should handle context menu without crashing
@@ -297,12 +306,13 @@ void PDFOutlineWidgetIntegrationTest::testMouseEvents() {
     if (treeView) {
         // Test mouse click
         QPoint testPoint(50, 50);
-        QMouseEvent clickEvent(QEvent::MouseButtonPress, testPoint,
+        QPoint globalPos = treeView->mapToGlobal(testPoint);
+        QMouseEvent clickEvent(QEvent::MouseButtonPress, testPoint, globalPos,
                                Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
         QApplication::sendEvent(treeView, &clickEvent);
 
         QMouseEvent releaseEvent(QEvent::MouseButtonRelease, testPoint,
-                                 Qt::LeftButton, Qt::LeftButton,
+                                 globalPos, Qt::LeftButton, Qt::LeftButton,
                                  Qt::NoModifier);
         QApplication::sendEvent(treeView, &releaseEvent);
 
