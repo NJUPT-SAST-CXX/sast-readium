@@ -50,7 +50,71 @@ Cross-platform scripts to automatically update the `.clangd` configuration file 
 .\scripts\clangd-config.ps1 -Auto -Verbose
 ```
 
-## Build Scripts
+## Build Configuration Scripts
+
+### setup-build-environment.ps1 (Universal vcpkg Configuration) ⭐ RECOMMENDED
+
+**NEW**: Universal, intelligent build environment configuration script that automatically detects available compilers and configures the optimal build environment for vcpkg-based builds on Windows.
+
+**Features:**
+
+- Automatic compiler detection (MSVC, MinGW-w64, Clang)
+- Intelligent PATH configuration
+- Automatic vcpkg triplet selection
+- Support for both Debug and Release builds
+- Clean build option
+- Verbose output for debugging
+
+**Usage:**
+
+```powershell
+# Auto-detect compiler and configure (recommended)
+.\scripts\setup-build-environment.ps1
+
+# Force specific compiler
+.\scripts\setup-build-environment.ps1 -Compiler msvc
+.\scripts\setup-build-environment.ps1 -Compiler mingw
+
+# Release build with clean
+.\scripts\setup-build-environment.ps1 -BuildType Release -CleanBuild
+
+# Override vcpkg location
+.\scripts\setup-build-environment.ps1 -VcpkgRoot "C:\vcpkg"
+
+# Verbose output for debugging
+.\scripts\setup-build-environment.ps1 -Verbose
+
+# Use specific preset
+.\scripts\setup-build-environment.ps1 -Preset Debug-Windows
+```
+
+**Compiler Priority:**
+
+1. MSVC (Visual Studio) - Recommended for Windows
+2. MinGW-w64 (MSYS2) - Alternative for GCC-based builds
+3. Clang - Alternative for LLVM-based builds
+
+### configure-vcpkg-msvc.ps1 (Legacy - MSVC Only)
+
+Legacy script for configuring MSVC builds with vcpkg. **Recommended to use `setup-build-environment.ps1` instead.**
+
+**Usage:**
+
+```powershell
+.\scripts\configure-vcpkg-msvc.ps1
+```
+
+### configure-vcpkg-mingw.ps1 (Legacy - MinGW Only)
+
+Legacy script for configuring MinGW builds with vcpkg. **Recommended to use `setup-build-environment.ps1` instead.**
+
+**Note:** MinGW with vcpkg may have compatibility issues with Qt6 6.8.3. Consider using MSYS2 without vcpkg instead.
+
+**Usage:**
+
+```powershell
+.\scripts\configure-vcpkg-mingw.ps1
+```
 
 ### build-msys2.sh
 
@@ -132,38 +196,75 @@ Cross-platform packaging scripts for creating distribution packages.
 
 ## Quick Start
 
-1. **Configure your project with simplified presets:**
+### Windows with vcpkg (Recommended)
 
-   ```bash
-   # List available presets
-   cmake --list-presets=configure
+1. **Configure build environment (automatic compiler detection):**
 
-   # Configure for your platform
-   cmake --preset Debug-Unix        # Linux/macOS
-   cmake --preset Debug-Windows     # Windows with vcpkg
-   cmake --preset Debug-MSYS2       # Windows MSYS2
+   ```powershell
+   .\scripts\setup-build-environment.ps1
    ```
 
-2. **Update clangd configuration:**
+2. **Build the project:**
 
-   ```bash
-   # Auto-detect best configuration
-   ./scripts/clangd-config.sh --auto              # Unix/Linux/macOS
-   .\scripts\clangd-config.ps1 -Auto              # Windows PowerShell
+   ```powershell
+   cmake --build build\Debug-Windows --config Debug
    ```
 
-3. **Build the project:**
+3. **Update clangd configuration:**
 
-   ```bash
-   cmake --build --preset Debug-Unix              # Or your chosen preset
+   ```powershell
+   .\scripts\clangd-config.ps1 -Auto
    ```
 
-4. **Run tests:**
+### Windows MSYS2 (System Packages)
+
+1. **Configure your project:**
 
    ```bash
-   python scripts/run_qgraphics_tests.py          # Comprehensive testing
-   .\scripts\run_tests.ps1                        # Windows-specific tests
+   cmake --preset Debug-MSYS2
    ```
+
+2. **Build the project:**
+
+   ```bash
+   cmake --build build/Debug-MSYS2
+   ```
+
+3. **Update clangd configuration:**
+
+   ```bash
+   ./scripts/clangd-config.sh --auto
+   ```
+
+### Linux/macOS (System Packages)
+
+1. **Configure your project:**
+
+   ```bash
+   cmake --preset Debug-Unix
+   ```
+
+2. **Build the project:**
+
+   ```bash
+   cmake --build build/Debug
+   ```
+
+3. **Update clangd configuration:**
+
+   ```bash
+   ./scripts/clangd-config.sh --auto
+   ```
+
+### Running Tests
+
+```bash
+# Comprehensive testing (all platforms)
+python scripts/run_qgraphics_tests.py
+
+# Windows-specific tests
+.\scripts\run_tests.ps1
+```
 
 ## Simplified Architecture
 
