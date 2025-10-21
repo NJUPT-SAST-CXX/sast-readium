@@ -258,11 +258,10 @@ QImage SafePDFRenderer::safeRenderPageRegion(Poppler::Page* page,
             info->renderedSize = result.size();
             info->renderTimeMs = timer.elapsed();
             return result;
-        } else {
-            info->success = false;
-            info->errorMessage = "Region render failed";
-            return QImage();
         }
+        info->success = false;
+        info->errorMessage = "Region render failed";
+        return QImage();
 
     } catch (const std::exception& e) {
         Logger::instance().error(
@@ -293,7 +292,8 @@ SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkCompatibility(
                     checkPageCompatibility(firstPage.get());
                 if (pageResult == CompatibilityResult::Corrupted) {
                     return CompatibilityResult::Corrupted;
-                } else if (pageResult == CompatibilityResult::QtGenerated) {
+                }
+                if (pageResult == CompatibilityResult::QtGenerated) {
                     return CompatibilityResult::QtGenerated;
                 }
             } else {

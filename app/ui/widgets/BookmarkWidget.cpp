@@ -474,30 +474,38 @@ void BookmarkWidget::retranslateUi() {
 
     // Update labels
     auto* searchLabel = findChild<QLabel*>("searchLabel");
-    if (searchLabel)
+    if (searchLabel) {
         searchLabel->setText(tr("Search:"));
+    }
 
     auto* categoryLabel = findChild<QLabel*>("categoryLabel");
-    if (categoryLabel)
+    if (categoryLabel) {
         categoryLabel->setText(tr("Category:"));
+    }
 
     auto* sortLabel = findChild<QLabel*>("sortLabel");
-    if (sortLabel)
+    if (sortLabel) {
         sortLabel->setText(tr("Sort:"));
+    }
 
     m_countLabel->setText(tr("%1 bookmarks").arg(m_proxyModel->rowCount()));
 
     // Update context menu actions
-    if (m_navigateAction)
+    if (m_navigateAction) {
         m_navigateAction->setText(tr("Navigate to Page"));
-    if (m_editAction)
+    }
+    if (m_editAction) {
         m_editAction->setText(tr("Edit Bookmark"));
-    if (m_deleteAction)
+    }
+    if (m_deleteAction) {
         m_deleteAction->setText(tr("Delete Bookmark"));
-    if (m_addCategoryAction)
+    }
+    if (m_addCategoryAction) {
         m_addCategoryAction->setText(tr("Add to Category"));
-    if (m_removeCategoryAction)
+    }
+    if (m_removeCategoryAction) {
         m_removeCategoryAction->setText(tr("Remove Category"));
+    }
 }
 
 void BookmarkWidget::changeEvent(QEvent* event) {

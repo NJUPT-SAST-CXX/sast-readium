@@ -324,8 +324,9 @@ void RecentFileItemWidget::setupAnimations() {
 
 void RecentFileItemWidget::updateDisplay() {
     if (!m_fileNameLabel || !m_filePathLabel || !m_lastOpenedLabel ||
-        !m_fileIconLabel)
+        !m_fileIconLabel) {
         return;
+    }
 
     // 更新文件类型图标
     QIcon fileIcon = FILE_ICON_MANAGER.getFileTypeIcon(m_fileInfo.filePath, 32);
@@ -404,8 +405,9 @@ void RecentFileItemWidget::updateDisplay() {
 }
 
 void RecentFileItemWidget::setHovered(bool hovered) {
-    if (m_isHovered == hovered)
+    if (m_isHovered == hovered) {
         return;
+    }
 
     m_isHovered = hovered;
 
@@ -421,8 +423,9 @@ void RecentFileItemWidget::setHovered(bool hovered) {
 }
 
 void RecentFileItemWidget::startHoverAnimation(bool hovered) {
-    if (!m_hoverAnimation || !m_opacityEffect)
+    if (!m_hoverAnimation || !m_opacityEffect) {
         return;
+    }
 
     m_hoverAnimation->stop();
 
@@ -438,8 +441,9 @@ void RecentFileItemWidget::startHoverAnimation(bool hovered) {
 }
 
 void RecentFileItemWidget::startPressAnimation() {
-    if (!m_pressAnimation)
+    if (!m_pressAnimation) {
         return;
+    }
 
     QRect currentGeometry = geometry();
     QRect pressedGeometry = currentGeometry.adjusted(2, 2, -2, -2);
@@ -488,8 +492,9 @@ RecentFileListWidget::RecentFileListWidget(QWidget* parent)
 RecentFileListWidget::~RecentFileListWidget() {}
 
 void RecentFileListWidget::setRecentFilesManager(RecentFilesManager* manager) {
-    if (m_recentFilesManager == manager)
+    if (m_recentFilesManager == manager) {
         return;
+    }
 
     // 断开旧连接
     if (m_recentFilesManager) {
@@ -555,8 +560,9 @@ void RecentFileListWidget::clearList() {
 }
 
 void RecentFileListWidget::applyTheme() {
-    if (!m_isInitialized)
+    if (!m_isInitialized) {
         return;
+    }
 
     qDebug() << "RecentFileListWidget: Applying theme...";
 

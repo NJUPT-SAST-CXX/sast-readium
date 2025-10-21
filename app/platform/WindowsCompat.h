@@ -19,7 +19,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-// Include Windows headers
+// Include Windows headers (windows.h must come before psapi.h)
 #include <psapi.h>
 #include <windows.h>
 

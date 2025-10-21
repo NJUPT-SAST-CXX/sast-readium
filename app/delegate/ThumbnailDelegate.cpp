@@ -674,8 +674,9 @@ void ThumbnailDelegate::Implementation::paintPageNumber(
     QPainter* painter, const QRect& rect, int pageNumber,
     const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
-    if (rect.height() <= 0)
+    if (rect.height() <= 0) {
         return;
+    }
 
     painter->fillRect(rect, pageNumberBgColor);
     painter->setPen(pageNumberTextColor);
@@ -1026,10 +1027,8 @@ ThumbnailDelegate::Implementation::getRenderCache(const QString& key) const {
         if (cache->isValid &&
             (currentTime - cache->timestamp) < CACHE_EXPIRY_TIME) {
             return cache;
-        } else {
-            // Cache expired
-            cache->isValid = false;
-        }
+        }  // Cache expired
+        cache->isValid = false;
     }
     return nullptr;
 }

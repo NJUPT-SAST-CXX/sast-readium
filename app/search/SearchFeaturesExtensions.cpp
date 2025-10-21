@@ -421,44 +421,43 @@ std::shared_ptr<BooleanSearchParser::QueryNode> BooleanSearchParser::parseTerm(
         node->op = NOT;
         node->left = parseTerm(tokens, index);
         return node;
-    } else if (token == "(") {
+    }
+    if (token == "(") {
         index++;
         auto node = parseExpression(tokens, index);
         if (index < tokens.size() && tokens[index] == ")") {
             index++;
         }
         return node;
-    } else {
-        // Regular term or phrase
-        auto node = std::make_shared<QueryNode>();
-        node->term = token;
+    }  // Regular term or phrase
+    auto node = std::make_shared<QueryNode>();
+    node->term = token;
 
-        // Remove quotes if present
-        if (node->term.startsWith('"') && node->term.endsWith('"')) {
-            node->term = node->term.mid(1, node->term.length() - 2);
-            node->op = PHRASE;
-        }
-
-        index++;
-
-        // Check for NEAR operator
-        if (index < tokens.size() && tokens[index] == "NEAR") {
-            index++;
-            if (index < tokens.size()) {
-                bool ok;
-                int proximity = tokens[index].toInt(&ok);
-                if (ok) {
-                    node->proximity = proximity;
-                    index++;
-                } else {
-                    node->proximity = 10;  // Default proximity
-                }
-            }
-            node->op = NEAR;
-        }
-
-        return node;
+    // Remove quotes if present
+    if (node->term.startsWith('"') && node->term.endsWith('"')) {
+        node->term = node->term.mid(1, node->term.length() - 2);
+        node->op = PHRASE;
     }
+
+    index++;
+
+    // Check for NEAR operator
+    if (index < tokens.size() && tokens[index] == "NEAR") {
+        index++;
+        if (index < tokens.size()) {
+            bool ok;
+            int proximity = tokens[index].toInt(&ok);
+            if (ok) {
+                node->proximity = proximity;
+                index++;
+            } else {
+                node->proximity = 10;  // Default proximity
+            }
+        }
+        node->op = NEAR;
+    }
+
+    return node;
 }
 
 QList<SearchResult> BooleanSearchParser::evaluateNode(
@@ -494,15 +493,13 @@ QList<SearchResult> BooleanSearchParser::evaluateNode(
         }
 
         return results;
-    } else {
-        // Operator node
-        QList<SearchResult> leftResults =
-            evaluateNode(node->left, text, pageNumber);
-        QList<SearchResult> rightResults =
-            evaluateNode(node->right, text, pageNumber);
+    }  // Operator node
+    QList<SearchResult> leftResults =
+        evaluateNode(node->left, text, pageNumber);
+    QList<SearchResult> rightResults =
+        evaluateNode(node->right, text, pageNumber);
 
-        return combineResults(leftResults, rightResults, node->op);
-    }
+    return combineResults(leftResults, rightResults, node->op);
 }
 
 QList<SearchResult> BooleanSearchParser::combineResults(

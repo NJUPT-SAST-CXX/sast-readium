@@ -365,7 +365,8 @@ QString PDFUtilities::detectLanguage(const QString& text) {
 
     if (chineseCount > englishCount) {
         return "chinese";
-    } else if (englishCount > 0) {
+    }
+    if (englishCount > 0) {
         return "english";
     }
 
@@ -525,10 +526,12 @@ double PDFUtilities::calculateLevenshteinDistance(const QString& str1,
     int len1 = str1.length();
     int len2 = str2.length();
 
-    if (len1 == 0)
+    if (len1 == 0) {
         return len2;
-    if (len2 == 0)
+    }
+    if (len2 == 0) {
         return len1;
+    }
 
     QVector<QVector<int>> matrix(len1 + 1, QVector<int>(len2 + 1));
 

@@ -55,8 +55,9 @@ public:
 
 // Implementation method definitions
 void SearchResultCache::Implementation::evictLeastRecentlyUsed() {
-    if (cache.isEmpty())
+    if (cache.isEmpty()) {
         return;
+    }
 
     QString oldestKey;
     qint64 oldestTime = QDateTime::currentMSecsSinceEpoch();
@@ -107,8 +108,9 @@ void SearchResultCache::Implementation::updateAccessInfo(CacheEntry& entry) {
 
 bool SearchResultCache::Implementation::isExpired(
     const CacheEntry& entry) const {
-    if (expirationTime <= 0)
+    if (expirationTime <= 0) {
         return false;
+    }
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
     return (currentTime - entry.timestamp) > expirationTime;
 }
@@ -366,8 +368,9 @@ void SearchHighlightCache::Implementation::updateAccessInfo(
 }
 
 void SearchHighlightCache::Implementation::evictLeastRecentlyUsed() {
-    if (cache.isEmpty())
+    if (cache.isEmpty()) {
         return;
+    }
 
     QString oldestKey;
     qint64 oldestTime = QDateTime::currentMSecsSinceEpoch();

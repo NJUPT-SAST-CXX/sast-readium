@@ -221,8 +221,9 @@ ServiceProvider::~ServiceProvider() {
 
 // DependencyInjector implementation
 void DependencyInjector::injectServices(QObject* object) {
-    if (!object)
+    if (!object) {
         return;
+    }
 
     // Use Qt's meta-object system to find properties that need injection
     const QMetaObject* metaObject = object->metaObject();

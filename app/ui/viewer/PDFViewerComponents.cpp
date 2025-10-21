@@ -13,12 +13,15 @@ bool PDFRenderCache::CacheKey::operator==(const CacheKey& other) const {
 }
 
 bool PDFRenderCache::CacheKey::operator<(const CacheKey& other) const {
-    if (pageNumber != other.pageNumber)
+    if (pageNumber != other.pageNumber) {
         return pageNumber < other.pageNumber;
-    if (qAbs(scaleFactor - other.scaleFactor) >= 0.01)
+    }
+    if (qAbs(scaleFactor - other.scaleFactor) >= 0.01) {
         return scaleFactor < other.scaleFactor;
-    if (rotation != other.rotation)
+    }
+    if (rotation != other.rotation) {
         return rotation < other.rotation;
+    }
     return highQuality < other.highQuality;
 }
 
@@ -93,8 +96,9 @@ void PDFPerformanceMonitor::recordCacheMiss(int pageNumber) {
 
 double PDFPerformanceMonitor::getAverageRenderTime() const {
     QMutexLocker locker(&m_mutex);
-    if (m_renderTimes.isEmpty())
+    if (m_renderTimes.isEmpty()) {
         return 0.0;
+    }
 
     qint64 total = 0;
     for (qint64 time : m_renderTimes) {
@@ -128,8 +132,9 @@ void configureRenderHints(QPainter& painter, bool highQuality) {
 
 QPixmap renderPageHighQuality(Poppler::Page* page, double scaleFactor,
                               int rotation) {
-    if (!page)
+    if (!page) {
         return QPixmap();
+    }
 
     double dpi = calculateOptimalDPI(scaleFactor, true);
     QImage image = page->renderToImage(
@@ -144,8 +149,9 @@ QPixmap renderPageHighQuality(Poppler::Page* page, double scaleFactor,
 }
 
 QPixmap renderPageFast(Poppler::Page* page, double scaleFactor, int rotation) {
-    if (!page)
+    if (!page) {
         return QPixmap();
+    }
 
     double dpi = calculateOptimalDPI(scaleFactor, false);
     QImage image = page->renderToImage(

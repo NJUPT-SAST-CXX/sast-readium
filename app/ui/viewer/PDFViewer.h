@@ -459,6 +459,40 @@ private:
     QShortcut* nextPageShortcut;
     QShortcut* prevPageShortcut;
 
+    // Additional shortcuts stored as members to ensure proper lifetime and
+    // avoid analyzer false positives
+    QShortcut* zoomIn2Shortcut;
+    QShortcut* zoomActualSizeShortcut;
+    QShortcut* zoom25Shortcut;
+    QShortcut* zoom50Shortcut;
+    QShortcut* zoom75Shortcut;
+    QShortcut* zoom100Shortcut;
+    QShortcut* zoom150Shortcut;
+    QShortcut* zoom200Shortcut;
+    QShortcut* rotate180Shortcut;
+    QShortcut* toggleFullscreenShortcut;
+    QShortcut* toggleSidebarShortcut;
+    QShortcut* presentationModeShortcut;
+    QShortcut* readingModeShortcut;
+    QShortcut* findShortcut;
+    QShortcut* findNextShortcut;
+    QShortcut* findPrevShortcut;
+    QShortcut* addBookmarkShortcut;
+    QShortcut* showBookmarksShortcut;
+    QShortcut* refreshShortcut;
+    QShortcut* propertiesShortcut;
+    QShortcut* selectAllShortcut;
+    QShortcut* copyTextShortcut;
+    QShortcut* nextPage2Shortcut;
+    QShortcut* prevPage2Shortcut;
+    QShortcut* nextPage3Shortcut;
+    QShortcut* prevPage3Shortcut;
+    QShortcut* nextPage4Shortcut;
+    QShortcut* prevPage4Shortcut;
+    QShortcut* jump10ForwardShortcut;
+    QShortcut* jump10BackwardShortcut;
+    QShortcut* gotoPageShortcut;
+
     // Enhanced page cache with optimized key generation
     struct PageCacheItem {
         QPixmap pixmap;

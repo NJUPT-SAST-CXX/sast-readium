@@ -617,17 +617,20 @@ void ThumbnailListView::onFadeInTimer() {
 
 void ThumbnailListView::updateVisibleRange() {
     ThumbnailModel* thumbnailModel = qobject_cast<ThumbnailModel*>(model());
-    if (!thumbnailModel)
+    if (!thumbnailModel) {
         return;
+    }
 
     QRect viewportRect = viewport()->rect();
     int firstVisible = indexAt(viewportRect.topLeft()).row();
     int lastVisible = indexAt(viewportRect.bottomRight()).row();
 
-    if (firstVisible < 0)
+    if (firstVisible < 0) {
         firstVisible = 0;
-    if (lastVisible < 0)
+    }
+    if (lastVisible < 0) {
         lastVisible = thumbnailModel->rowCount() - 1;
+    }
 
     m_visibleRange = qMakePair(firstVisible, lastVisible);
 
@@ -694,8 +697,9 @@ void ThumbnailListView::updateScrollBarStyle() {
 
 void ThumbnailListView::updateItemSizes() {
     ThumbnailModel* thumbnailModel = qobject_cast<ThumbnailModel*>(model());
-    if (!thumbnailModel)
+    if (!thumbnailModel) {
         return;
+    }
 
     // 根据当前缩略图大小更新项目大小
     QSize itemSize = m_thumbnailSize + QSize(20, 40);  // 添加边距
@@ -719,8 +723,9 @@ void ThumbnailListView::animateScrollTo(int pageNumber) {
 
 QModelIndex ThumbnailListView::indexAtPage(int pageNumber) const {
     ThumbnailModel* thumbnailModel = qobject_cast<ThumbnailModel*>(model());
-    if (!thumbnailModel)
+    if (!thumbnailModel) {
         return QModelIndex();
+    }
 
     for (int i = 0; i < thumbnailModel->rowCount(); ++i) {
         QModelIndex index = thumbnailModel->index(i, 0);
@@ -733,15 +738,17 @@ QModelIndex ThumbnailListView::indexAtPage(int pageNumber) const {
 }
 
 int ThumbnailListView::pageAtIndex(const QModelIndex& index) const {
-    if (!index.isValid())
+    if (!index.isValid()) {
         return -1;
+    }
     return index.row();
 }
 
 void ThumbnailListView::updatePreloadRange() {
     ThumbnailModel* thumbnailModel = qobject_cast<ThumbnailModel*>(model());
-    if (!thumbnailModel || m_visibleRange.first < 0)
+    if (!thumbnailModel || m_visibleRange.first < 0) {
         return;
+    }
 
     // 预加载可见范围前后的几页
     int preloadCount = 3;
@@ -867,17 +874,20 @@ void ThumbnailListView::optimizedUpdateVisibleRange() {
     m_viewportUpdatePending = false;
 
     ThumbnailModel* thumbnailModel = qobject_cast<ThumbnailModel*>(model());
-    if (!thumbnailModel)
+    if (!thumbnailModel) {
         return;
+    }
 
     QRect viewportRect = viewport()->rect();
     int firstVisible = indexAt(viewportRect.topLeft()).row();
     int lastVisible = indexAt(viewportRect.bottomRight()).row();
 
-    if (firstVisible < 0)
+    if (firstVisible < 0) {
         firstVisible = 0;
-    if (lastVisible < 0)
+    }
+    if (lastVisible < 0) {
         lastVisible = thumbnailModel->rowCount() - 1;
+    }
 
     // 只有当可见范围发生显著变化时才更新
     if (qAbs(firstVisible - m_lastVisibleStart) > 1 ||

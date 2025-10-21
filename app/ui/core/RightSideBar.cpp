@@ -168,8 +168,9 @@ void RightSideBar::toggleVisibility(bool animated) {
 }
 
 void RightSideBar::show(bool animated) {
-    if (isCurrentlyVisible)
+    if (isCurrentlyVisible) {
         return;
+    }
 
     isCurrentlyVisible = true;
     QWidget::setVisible(true);
@@ -185,8 +186,9 @@ void RightSideBar::show(bool animated) {
 }
 
 void RightSideBar::hide(bool animated) {
-    if (!isCurrentlyVisible)
+    if (!isCurrentlyVisible) {
         return;
+    }
 
     lastWidth = width();  // Remember current width
     isCurrentlyVisible = false;
@@ -214,8 +216,9 @@ void RightSideBar::setPreferredWidth(int width) {
 }
 
 void RightSideBar::saveState() {
-    if (!settings)
+    if (!settings) {
         return;
+    }
 
     settings->beginGroup("RightSideBar");
     settings->setValue("visible", isCurrentlyVisible);
@@ -224,8 +227,9 @@ void RightSideBar::saveState() {
 }
 
 void RightSideBar::restoreState() {
-    if (!settings)
+    if (!settings) {
         return;
+    }
 
     settings->beginGroup("RightSideBar");
     bool visible = settings->value("visible", true).toBool();

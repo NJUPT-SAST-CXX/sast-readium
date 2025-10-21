@@ -19,8 +19,8 @@ MenuBar::MenuBar(QWidget* parent)
       m_recentFilesMenu(nullptr),
       m_clearRecentFilesAction(nullptr) {
     // Initialize shortcut array
-    for (int i = 0; i < 9; ++i) {
-        m_recentFileShortcuts[i] = nullptr;
+    for (auto& m_recentFileShortcut : m_recentFileShortcuts) {
+        m_recentFileShortcut = nullptr;
     }
 
     createFileMenu();

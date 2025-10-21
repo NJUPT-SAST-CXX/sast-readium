@@ -265,16 +265,15 @@ void AsyncDocumentLoader::resetState() {
 int AsyncDocumentLoader::calculateExpectedLoadTime(qint64 fileSize) const {
     if (fileSize < SIZE_THRESHOLD_FAST) {
         return MIN_LOAD_TIME;
-    } else if (fileSize < SIZE_THRESHOLD_MEDIUM) {
+    }
+    if (fileSize < SIZE_THRESHOLD_MEDIUM) {
         // 1MB到10MB之间线性增长
         double ratio = static_cast<double>(fileSize - SIZE_THRESHOLD_FAST) /
                        (SIZE_THRESHOLD_MEDIUM - SIZE_THRESHOLD_FAST);
         return MIN_LOAD_TIME +
                static_cast<int>(ratio * (MAX_LOAD_TIME - MIN_LOAD_TIME) * 0.6);
-    } else {
-        // 大于10MB的文件
-        return static_cast<int>(MAX_LOAD_TIME * 0.8);
-    }
+    }  // 大于10MB的文件
+    return static_cast<int>(MAX_LOAD_TIME * 0.8);
 }
 
 void AsyncDocumentLoader::setTimeoutConfiguration(int defaultTimeoutMs,

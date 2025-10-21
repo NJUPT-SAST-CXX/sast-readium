@@ -42,8 +42,9 @@ qint64 CacheItem::calculateSize() const {
 }
 
 bool CacheItem::isExpired(qint64 maxAge) const {
-    if (maxAge <= 0)
+    if (maxAge <= 0) {
         return false;
+    }
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
     return (currentTime - timestamp) > maxAge;
 }
@@ -279,10 +280,10 @@ void PDFCacheManager::Implementation::enforceMemoryLimit() {
     while (currentUsage > maxMemoryUsage && !cache.isEmpty()) {
         // Build list of evictable candidates (exclude Critical priority)
         QList<QPair<double, QString>> candidates;
-        for (auto it = cache.begin(); it != cache.end(); ++it) {
-            if (it->priority != CachePriority::Critical) {
-                double score = calculateEvictionScore(*it);
-                candidates.append({score, it->key});
+        for (auto& it : cache) {
+            if (it.priority != CachePriority::Critical) {
+                double score = calculateEvictionScore(it);
+                candidates.append({score, it.key});
             }
         }
 
@@ -339,10 +340,10 @@ void PDFCacheManager::Implementation::enforceItemLimit() {
     while (cache.size() > maxItems && !cache.isEmpty()) {
         // Build list of evictable candidates (exclude Critical priority)
         QList<QPair<double, QString>> candidates;
-        for (auto it = cache.begin(); it != cache.end(); ++it) {
-            if (it->priority != CachePriority::Critical) {
-                double score = calculateEvictionScore(*it);
-                candidates.append({score, it->key});
+        for (auto& it : cache) {
+            if (it.priority != CachePriority::Critical) {
+                double score = calculateEvictionScore(it);
+                candidates.append({score, it.key});
             }
         }
 
@@ -578,8 +579,9 @@ void PDFCacheManager::enablePreloading(bool enabled) {
 
 void PDFCacheManager::preloadPages(const QList<int>& pageNumbers,
                                    CacheItemType type) {
-    if (!m_pimpl->preloadingEnabled)
+    if (!m_pimpl->preloadingEnabled) {
         return;
+    }
 
     for (int pageNumber : pageNumbers) {
         m_pimpl->schedulePreload(pageNumber, type);
@@ -587,8 +589,9 @@ void PDFCacheManager::preloadPages(const QList<int>& pageNumbers,
 }
 
 void PDFCacheManager::preloadAroundPage(int centerPage, int radius) {
-    if (!m_pimpl->preloadingEnabled)
+    if (!m_pimpl->preloadingEnabled) {
         return;
+    }
 
     QList<int> pagesToPreload;
     for (int i = centerPage - radius; i <= centerPage + radius; ++i) {
@@ -668,8 +671,9 @@ void PDFCacheManager::optimizeCache() {
 }
 
 void PDFCacheManager::cleanupExpiredItems() {
-    if (m_pimpl->itemMaxAge <= 0)
+    if (m_pimpl->itemMaxAge <= 0) {
         return;
+    }
 
     QMutexLocker locker(&m_pimpl->cacheMutex);
     auto it = m_pimpl->cache.begin();
@@ -686,8 +690,9 @@ void PDFCacheManager::cleanupExpiredItems() {
 bool PDFCacheManager::evictLeastUsedItems(int count) {
     QMutexLocker locker(&m_pimpl->cacheMutex);
 
-    if (m_pimpl->cache.isEmpty() || count <= 0)
+    if (m_pimpl->cache.isEmpty() || count <= 0) {
         return false;
+    }
 
     // Create list of items with eviction scores
     QList<QPair<double, QString>> candidates;
@@ -704,8 +709,9 @@ bool PDFCacheManager::evictLeastUsedItems(int count) {
     // Evict items
     int evicted = 0;
     for (const auto& candidate : candidates) {
-        if (evicted >= count)
+        if (evicted >= count) {
             break;
+        }
 
         auto it = m_pimpl->cache.find(candidate.second);
         if (it != m_pimpl->cache.end()) {

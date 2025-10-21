@@ -718,7 +718,8 @@ QString SearchFeatures::exportSearchResults(const QList<SearchResult>& results,
 
         QJsonDocument doc(resultsArray);
         return doc.toJson();
-    } else if (format.toLower() == "csv") {
+    }
+    if (format.toLower() == "csv") {
         QString csv = "Page,Position,Length,Text,Context\n";
 
         for (const SearchResult& result : results) {
@@ -736,18 +737,16 @@ QString SearchFeatures::exportSearchResults(const QList<SearchResult>& results,
         }
 
         return csv;
-    } else {
-        // Plain text format
-        QString text;
-        for (const SearchResult& result : results) {
-            text += QString("Page %1: %2 (Position: %3)\n  Context: %4\n\n")
-                        .arg(result.pageNumber + 1)
-                        .arg(result.matchedText)
-                        .arg(result.textPosition)
-                        .arg(result.contextText);
-        }
-        return text;
+    }  // Plain text format
+    QString text;
+    for (const SearchResult& result : results) {
+        text += QString("Page %1: %2 (Position: %3)\n  Context: %4\n\n")
+                    .arg(result.pageNumber + 1)
+                    .arg(result.matchedText)
+                    .arg(result.textPosition)
+                    .arg(result.contextText);
     }
+    return text;
 }
 
 // FuzzySearchAlgorithms implementation
@@ -756,10 +755,12 @@ int FuzzySearchAlgorithms::levenshteinDistance(const QString& str1,
     int len1 = str1.length();
     int len2 = str2.length();
 
-    if (len1 == 0)
+    if (len1 == 0) {
         return len2;
-    if (len2 == 0)
+    }
+    if (len2 == 0) {
         return len1;
+    }
 
     QVector<QVector<int>> matrix(len1 + 1, QVector<int>(len2 + 1));
 
@@ -796,10 +797,12 @@ int FuzzySearchAlgorithms::levenshteinDistanceOptimized(const QString& str1,
         return maxDistance + 1;
     }
 
-    if (len1 == 0)
+    if (len1 == 0) {
         return len2;
-    if (len2 == 0)
+    }
+    if (len2 == 0) {
         return len1;
+    }
 
     // Use only two rows instead of full matrix
     QVector<int> prevRow(len2 + 1);
@@ -839,10 +842,12 @@ int FuzzySearchAlgorithms::damerauLevenshteinDistance(const QString& str1,
     int len1 = str1.length();
     int len2 = str2.length();
 
-    if (len1 == 0)
+    if (len1 == 0) {
         return len2;
-    if (len2 == 0)
+    }
+    if (len2 == 0) {
         return len1;
+    }
 
     QVector<QVector<int>> matrix(len1 + 1, QVector<int>(len2 + 1));
 
@@ -875,18 +880,21 @@ int FuzzySearchAlgorithms::damerauLevenshteinDistance(const QString& str1,
 
 double FuzzySearchAlgorithms::jaroWinklerSimilarity(const QString& str1,
                                                     const QString& str2) {
-    if (str1 == str2)
+    if (str1 == str2) {
         return 1.0;
+    }
 
     int len1 = str1.length();
     int len2 = str2.length();
 
-    if (len1 == 0 || len2 == 0)
+    if (len1 == 0 || len2 == 0) {
         return 0.0;
+    }
 
     int matchWindow = qMax(len1, len2) / 2 - 1;
-    if (matchWindow < 0)
+    if (matchWindow < 0) {
         matchWindow = 0;
+    }
 
     QVector<bool> str1Matches(len1, false);
     QVector<bool> str2Matches(len2, false);
@@ -900,8 +908,9 @@ double FuzzySearchAlgorithms::jaroWinklerSimilarity(const QString& str1,
         int end = qMin(i + matchWindow + 1, len2);
 
         for (int j = start; j < end; ++j) {
-            if (str2Matches[j] || str1[i] != str2[j])
+            if (str2Matches[j] || str1[i] != str2[j]) {
                 continue;
+            }
 
             str1Matches[i] = true;
             str2Matches[j] = true;
@@ -910,20 +919,24 @@ double FuzzySearchAlgorithms::jaroWinklerSimilarity(const QString& str1,
         }
     }
 
-    if (matches == 0)
+    if (matches == 0) {
         return 0.0;
+    }
 
     // Count transpositions
     int k = 0;
     for (int i = 0; i < len1; ++i) {
-        if (!str1Matches[i])
+        if (!str1Matches[i]) {
             continue;
+        }
 
-        while (!str2Matches[k])
+        while (!str2Matches[k]) {
             k++;
+        }
 
-        if (str1[i] != str2[k])
+        if (str1[i] != str2[k]) {
             transpositions++;
+        }
         k++;
     }
 
@@ -934,15 +947,17 @@ double FuzzySearchAlgorithms::jaroWinklerSimilarity(const QString& str1,
         3.0;
 
     // Winkler modification
-    if (jaro < 0.7)
+    if (jaro < 0.7) {
         return jaro;
+    }
 
     int prefix = 0;
     for (int i = 0; i < qMin(len1, len2) && i < 4; ++i) {
-        if (str1[i] == str2[i])
+        if (str1[i] == str2[i]) {
             prefix++;
-        else
+        } else {
             break;
+        }
     }
 
     return jaro + (0.1 * prefix * (1.0 - jaro));
@@ -950,10 +965,12 @@ double FuzzySearchAlgorithms::jaroWinklerSimilarity(const QString& str1,
 
 double FuzzySearchAlgorithms::ngramSimilarity(const QString& str1,
                                               const QString& str2, int n) {
-    if (str1 == str2)
+    if (str1 == str2) {
         return 1.0;
-    if (str1.isEmpty() || str2.isEmpty())
+    }
+    if (str1.isEmpty() || str2.isEmpty()) {
         return 0.0;
+    }
 
     QSet<QString> ngrams1, ngrams2;
 
@@ -976,8 +993,9 @@ double FuzzySearchAlgorithms::ngramSimilarity(const QString& str1,
 }
 
 QString FuzzySearchAlgorithms::soundex(const QString& word) {
-    if (word.isEmpty())
+    if (word.isEmpty()) {
         return "0000";
+    }
 
     QString result = word[0].toUpper();
     QString code = "01230120022455012623010202";

@@ -170,8 +170,9 @@ void SideBar::toggleVisibility(bool animated) {
 }
 
 void SideBar::show(bool animated) {
-    if (isCurrentlyVisible)
+    if (isCurrentlyVisible) {
         return;
+    }
 
     isCurrentlyVisible = true;
     QWidget::setVisible(true);
@@ -187,8 +188,9 @@ void SideBar::show(bool animated) {
 }
 
 void SideBar::hide(bool animated) {
-    if (!isCurrentlyVisible)
+    if (!isCurrentlyVisible) {
         return;
+    }
 
     lastWidth = width();  // Remember current width
     isCurrentlyVisible = false;

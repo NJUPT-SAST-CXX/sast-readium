@@ -95,8 +95,9 @@ void CollapsibleSection::setContentWidget(QWidget* widget) {
 }
 
 void CollapsibleSection::setExpanded(bool expanded) {
-    if (m_expanded == expanded)
+    if (m_expanded == expanded) {
         return;
+    }
 
     m_expanded = expanded;
     m_toggleButton->setArrowType(expanded ? Qt::DownArrow : Qt::RightArrow);
@@ -884,34 +885,44 @@ void ToolBar::updateDocumentInfo(const QString& fileName, qint64 fileSize,
 
 void ToolBar::setActionsEnabled(bool enabled) {
     // File actions always enabled except save
-    if (m_openAction)
+    if (m_openAction) {
         m_openAction->setEnabled(true);
-    if (m_openFolderAction)
+    }
+    if (m_openFolderAction) {
         m_openFolderAction->setEnabled(true);
-    if (m_saveAction)
+    }
+    if (m_saveAction) {
         m_saveAction->setEnabled(enabled);
-    if (m_saveAsAction)
+    }
+    if (m_saveAsAction) {
         m_saveAsAction->setEnabled(enabled);
-    if (m_printAction)
+    }
+    if (m_printAction) {
         m_printAction->setEnabled(enabled);
-    if (m_emailAction)
+    }
+    if (m_emailAction) {
         m_emailAction->setEnabled(enabled);
+    }
 
     // Navigation actions
-    if (m_navigationSection)
+    if (m_navigationSection) {
         m_navigationSection->setEnabled(enabled);
+    }
 
     // Zoom actions
-    if (m_zoomSection)
+    if (m_zoomSection) {
         m_zoomSection->setEnabled(enabled);
+    }
 
     // View actions
-    if (m_viewSection)
+    if (m_viewSection) {
         m_viewSection->setEnabled(enabled);
+    }
 
     // Tool actions
-    if (m_toolsSection)
+    if (m_toolsSection) {
         m_toolsSection->setEnabled(enabled);
+    }
 }
 
 void ToolBar::setCompactMode(bool compact) {
@@ -919,22 +930,29 @@ void ToolBar::setCompactMode(bool compact) {
 
     if (compact) {
         // Collapse all sections in compact mode
-        if (m_fileSection)
+        if (m_fileSection) {
             m_fileSection->setExpanded(false);
-        if (m_navigationSection)
+        }
+        if (m_navigationSection) {
             m_navigationSection->setExpanded(false);
-        if (m_zoomSection)
+        }
+        if (m_zoomSection) {
             m_zoomSection->setExpanded(false);
-        if (m_viewSection)
+        }
+        if (m_viewSection) {
             m_viewSection->setExpanded(false);
-        if (m_toolsSection)
+        }
+        if (m_toolsSection) {
             m_toolsSection->setExpanded(false);
+        }
     } else {
         // Expand important sections
-        if (m_navigationSection)
+        if (m_navigationSection) {
             m_navigationSection->setExpanded(true);
-        if (m_zoomSection)
+        }
+        if (m_zoomSection) {
             m_zoomSection->setExpanded(true);
+        }
     }
 }
 
@@ -1044,49 +1062,68 @@ void ToolBar::leaveEvent(QEvent* event) {
 
 void ToolBar::retranslateUi() {
     // Update section titles
-    if (m_fileSection)
+    if (m_fileSection) {
         m_fileSection->setWindowTitle(tr("File"));
-    if (m_navigationSection)
+    }
+    if (m_navigationSection) {
         m_navigationSection->setWindowTitle(tr("Navigation"));
-    if (m_zoomSection)
+    }
+    if (m_zoomSection) {
         m_zoomSection->setWindowTitle(tr("Zoom"));
-    if (m_viewSection)
+    }
+    if (m_viewSection) {
         m_viewSection->setWindowTitle(tr("View"));
-    if (m_toolsSection)
+    }
+    if (m_toolsSection) {
         m_toolsSection->setWindowTitle(tr("Tools"));
+    }
 
     // Update all tooltips and text with new translations
-    if (m_openAction)
+    if (m_openAction) {
         m_openAction->setToolTip(tr("Open PDF File (Ctrl+O)"));
-    if (m_openFolderAction)
+    }
+    if (m_openFolderAction) {
         m_openFolderAction->setToolTip(tr("Open Folder (Ctrl+Shift+O)"));
-    if (m_saveAction)
+    }
+    if (m_saveAction) {
         m_saveAction->setToolTip(tr("Save File (Ctrl+S)"));
+    }
 
-    if (m_firstPageAction)
+    if (m_firstPageAction) {
         m_firstPageAction->setToolTip(tr("First Page (Ctrl+Home)"));
-    if (m_prevPageAction)
+    }
+    if (m_prevPageAction) {
         m_prevPageAction->setToolTip(tr("Previous Page (Page Up)"));
-    if (m_nextPageAction)
+    }
+    if (m_nextPageAction) {
         m_nextPageAction->setToolTip(tr("Next Page (Page Down)"));
-    if (m_lastPageAction)
+    }
+    if (m_lastPageAction) {
         m_lastPageAction->setToolTip(tr("Last Page (Ctrl+End)"));
-    if (m_pageSpinBox)
+    }
+    if (m_pageSpinBox) {
         m_pageSpinBox->setToolTip(tr("Current Page"));
+    }
 
-    if (m_zoomOutAction)
+    if (m_zoomOutAction) {
         m_zoomOutAction->setToolTip(tr("Zoom Out (Ctrl+-)"));
-    if (m_zoomInAction)
+    }
+    if (m_zoomInAction) {
         m_zoomInAction->setToolTip(tr("Zoom In (Ctrl++)"));
-    if (m_fitWidthAction)
+    }
+    if (m_fitWidthAction) {
         m_fitWidthAction->setToolTip(tr("Fit to Width (Ctrl+1)"));
-    if (m_fitPageAction)
+    }
+    if (m_fitPageAction) {
         m_fitPageAction->setToolTip(tr("Fit to Page (Ctrl+0)"));
-    if (m_fitHeightAction)
+    }
+    if (m_fitHeightAction) {
         m_fitHeightAction->setToolTip(tr("Fit to Height (Ctrl+2)"));
+    }
 
-    if (m_toggleSidebarAction)
+    if (m_toggleSidebarAction) {
         m_toggleSidebarAction->setToolTip(tr("Toggle Sidebar (F9)"));
+    }
 
     // Update combo box items
     if (m_viewModeCombo) {
@@ -1100,13 +1137,16 @@ void ToolBar::retranslateUi() {
         m_viewModeCombo->blockSignals(false);
     }
 
-    if (m_rotateLeftAction)
+    if (m_rotateLeftAction) {
         m_rotateLeftAction->setToolTip(tr("Rotate Left 90° (Ctrl+L)"));
-    if (m_rotateRightAction)
+    }
+    if (m_rotateRightAction) {
         m_rotateRightAction->setToolTip(tr("Rotate Right 90° (Ctrl+R)"));
+    }
 
-    if (m_themeToggleAction)
+    if (m_themeToggleAction) {
         m_themeToggleAction->setToolTip(tr("Toggle Theme (Ctrl+T)"));
+    }
 }
 
 void ToolBar::changeEvent(QEvent* event) {

@@ -5,7 +5,21 @@
     "homepage": "https://github.com/NJUPT-SAST/sast-readium",
     "license": "MIT",
     "dependencies": [
-        "qtbase",
+        {
+            "name": "qtbase",
+            "default-features": false,
+            "features": [
+                "concurrent",
+                "gui",
+                "network",
+                "opengl",
+                "sql-sqlite",
+                "testlib",
+                "thread",
+                "widgets"
+            ]
+        },
+        "qt5compat",
         "qtspeech",
         "qtsvg",
         "spdlog",
@@ -20,6 +34,10 @@
             "features": [
                 "qt"
             ]
+        },
+        {
+            "name": "pkgconf",
+            "host": true
         },
         {
             "name": "vcpkg-cmake",

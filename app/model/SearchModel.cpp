@@ -99,18 +99,10 @@ void SearchModel::startSearch(Poppler::Document* document, const QString& query,
 
     clearResults();
 
-    // Use advanced search features if enabled
-    if (m_advancedSearchEnabled) {
-        // Advanced search features implemented directly
-        emit searchStarted();
-        performSearch();
-        emit searchFinished(m_searchResults.size());
-    } else {
-        emit searchStarted();
-        // Start search (synchronous for now)
-        performSearch();
-        emit searchFinished(m_searchResults.size());
-    }
+    // Advanced mode currently uses the same path; keep single implementation
+    emit searchStarted();
+    performSearch();
+    emit searchFinished(m_searchResults.size());
 }
 
 void SearchModel::startRealTimeSearch(Poppler::Document* document,
@@ -471,8 +463,9 @@ void SearchModel::startPageRangeSearch(Poppler::Document* document,
 
 // Search history management
 void SearchModel::addToSearchHistory(const QString& query) {
-    if (query.isEmpty())
+    if (query.isEmpty()) {
         return;
+    }
 
     // Remove if already exists to move to front
     m_searchHistory.removeAll(query);
@@ -508,9 +501,7 @@ QList<SearchResult> SearchModel::performFuzzySearch(
             QStringList words =
                 pageText.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
 
-            for (int wordIndex = 0; wordIndex < words.size(); ++wordIndex) {
-                const QString& word = words[wordIndex];
-
+            for (const auto& word : words) {
                 if (isFuzzyMatch(word, query, options.fuzzyThreshold)) {
                     // Find the position of this word in the original text
                     int position = pageText.indexOf(word, 0,
@@ -591,10 +582,12 @@ int SearchModel::calculateLevenshteinDistance(const QString& str1,
     const int len1 = str1.length();
     const int len2 = str2.length();
 
-    if (len1 == 0)
+    if (len1 == 0) {
         return len2;
-    if (len2 == 0)
+    }
+    if (len2 == 0) {
         return len1;
+    }
 
     QVector<QVector<int>> matrix(len1 + 1, QVector<int>(len2 + 1));
 

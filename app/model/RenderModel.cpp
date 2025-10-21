@@ -515,7 +515,6 @@ double RenderModel::getEffectiveDpiY(double scaleFactor,
 // Rendering Quality Methods
 void RenderModel::setRenderQuality(RenderQuality quality) {
     if (renderQuality != quality) {
-        RenderQuality oldQuality = renderQuality;
         renderQuality = quality;
 
         QString qualityStr;

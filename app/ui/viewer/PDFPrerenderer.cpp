@@ -240,8 +240,7 @@ void PDFPrerenderer::scheduleAdaptivePrerendering(int currentPage) {
 
     QList<int> pagesToPrerender = predictNextPages(currentPage);
 
-    for (int i = 0; i < pagesToPrerender.size(); ++i) {
-        int pageNum = pagesToPrerender[i];
+    for (int pageNum : pagesToPrerender) {
         int priority = calculatePriority(pageNum, currentPage);
 
         // Use current zoom and rotation settings

@@ -92,8 +92,9 @@ void OnboardingWidget::hideStep() {
 }
 
 void OnboardingWidget::updateStepContent() {
-    if (!m_manager)
+    if (!m_manager) {
         return;
+    }
 
     OnboardingStep currentStep = m_manager->currentStep();
 
@@ -396,8 +397,9 @@ void OnboardingWidget::onPulseTimer() {
 }
 
 void OnboardingWidget::updateLayout() {
-    if (!m_tooltipWidget)
+    if (!m_tooltipWidget) {
         return;
+    }
 
     // Calculate tooltip position
     QPoint pos = m_tooltipPosition;
@@ -463,8 +465,9 @@ void OnboardingWidget::initializeUI() {
 }
 
 void OnboardingWidget::setupTooltip() {
-    if (!m_tooltipWidget)
+    if (!m_tooltipWidget) {
         return;
+    }
 
     auto* layout = new QVBoxLayout(m_tooltipWidget);
     layout->setContentsMargins(16, 16, 16, 16);
@@ -534,8 +537,9 @@ void OnboardingWidget::positionTooltip() {
 }
 
 void OnboardingWidget::updateNavigationButtons() {
-    if (!m_manager || !m_previousButton || !m_nextButton)
+    if (!m_manager || !m_previousButton || !m_nextButton) {
         return;
+    }
 
     int currentStepNum = static_cast<int>(m_manager->currentStep()) + 1;
     int totalSteps = m_manager->getTotalStepsCount();

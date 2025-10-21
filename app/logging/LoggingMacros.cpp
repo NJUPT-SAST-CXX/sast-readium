@@ -304,9 +304,8 @@ QString formatQtObject(const QObject* obj) {
 
     if (name.isEmpty()) {
         return QString("%1(unnamed)").arg(className);
-    } else {
-        return QString("%1(\"%2\")").arg(className, name);
     }
+    return QString("%1(\"%2\")").arg(className, name);
 }
 
 /**
@@ -344,9 +343,8 @@ QString getCurrentThreadInfo() {
     if (threadName.isEmpty()) {
         return QString("Thread(0x%1)")
             .arg(reinterpret_cast<quintptr>(currentThread), 0, 16);
-    } else {
-        return QString("Thread(\"%1\")").arg(threadName);
     }
+    return QString("Thread(\"%1\")").arg(threadName);
 }
 
 /**

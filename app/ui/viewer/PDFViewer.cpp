@@ -252,7 +252,8 @@ void PDFPageWidget::renderPage() {
             optimizedDpi = qMin(optimizedDpi, 300.0);
         }
 
-        QSizeF pageSize = currentPage->pageSizeF();
+        // QSizeF pageSize = currentPage->pageSizeF();  // not used; removed to
+        // avoid dead store warnings
 
         // Note: Document configuration would be done at document level
         // High-quality rendering is achieved through optimized DPI and render
@@ -350,9 +351,10 @@ void PDFPageWidget::paintEvent(QPaintEvent* event) {
 bool PDFPageWidget::event(QEvent* event) {
     if (event->type() == QEvent::Gesture) {
         return gestureEvent(static_cast<QGestureEvent*>(event));
-    } else if (event->type() == QEvent::TouchBegin ||
-               event->type() == QEvent::TouchUpdate ||
-               event->type() == QEvent::TouchEnd) {
+    }
+    if (event->type() == QEvent::TouchBegin ||
+        event->type() == QEvent::TouchUpdate ||
+        event->type() == QEvent::TouchEnd) {
         touchEvent(static_cast<QTouchEvent*>(event));
         return true;
     }
@@ -538,7 +540,6 @@ void PDFPageWidget::mousePressEvent(QMouseEvent* event) {
 void PDFPageWidget::mouseMoveEvent(QMouseEvent* event) {
     if (isDragging && (event->buttons() & Qt::LeftButton)) {
         // 实现拖拽平移功能
-        QPoint delta = event->pos() - lastPanPoint;
         lastPanPoint = event->pos();
 
         // 这里可以实现滚动区域的平移
@@ -1096,19 +1097,19 @@ void PDFViewer::setupShortcuts() {
     fitHeightShortcut = new QShortcut(QKeySequence("Ctrl+2"), this);
 
     // 额外缩放快捷键
-    QShortcut* zoomIn2 = new QShortcut(QKeySequence("Ctrl+="), this);
-    QShortcut* zoomActualSize = new QShortcut(QKeySequence("Ctrl+Alt+0"), this);
-    QShortcut* zoom25 = new QShortcut(QKeySequence("Ctrl+Alt+1"), this);
-    QShortcut* zoom50 = new QShortcut(QKeySequence("Ctrl+Alt+2"), this);
-    QShortcut* zoom75 = new QShortcut(QKeySequence("Ctrl+Alt+3"), this);
-    QShortcut* zoom100 = new QShortcut(QKeySequence("Ctrl+Alt+4"), this);
-    QShortcut* zoom150 = new QShortcut(QKeySequence("Ctrl+Alt+5"), this);
-    QShortcut* zoom200 = new QShortcut(QKeySequence("Ctrl+Alt+6"), this);
+    zoomIn2Shortcut = new QShortcut(QKeySequence("Ctrl+="), this);
+    zoomActualSizeShortcut = new QShortcut(QKeySequence("Ctrl+Alt+0"), this);
+    zoom25Shortcut = new QShortcut(QKeySequence("Ctrl+Alt+1"), this);
+    zoom50Shortcut = new QShortcut(QKeySequence("Ctrl+Alt+2"), this);
+    zoom75Shortcut = new QShortcut(QKeySequence("Ctrl+Alt+3"), this);
+    zoom100Shortcut = new QShortcut(QKeySequence("Ctrl+Alt+4"), this);
+    zoom150Shortcut = new QShortcut(QKeySequence("Ctrl+Alt+5"), this);
+    zoom200Shortcut = new QShortcut(QKeySequence("Ctrl+Alt+6"), this);
 
     // 旋转快捷键
     rotateLeftShortcut = new QShortcut(QKeySequence("Ctrl+L"), this);
     rotateRightShortcut = new QShortcut(QKeySequence("Ctrl+R"), this);
-    QShortcut* rotate180 = new QShortcut(QKeySequence("Ctrl+Shift+R"), this);
+    rotate180Shortcut = new QShortcut(QKeySequence("Ctrl+Shift+R"), this);
 
     // 主题切换快捷键
     QShortcut* themeToggleShortcut =
@@ -1121,41 +1122,41 @@ void PDFViewer::setupShortcuts() {
     prevPageShortcut = new QShortcut(QKeySequence("Page Up"), this);
 
     // 导航快捷键 - 高级
-    QShortcut* nextPage2 = new QShortcut(QKeySequence("Space"), this);
-    QShortcut* prevPage2 = new QShortcut(QKeySequence("Shift+Space"), this);
-    QShortcut* nextPage3 = new QShortcut(QKeySequence("Right"), this);
-    QShortcut* prevPage3 = new QShortcut(QKeySequence("Left"), this);
-    QShortcut* nextPage4 = new QShortcut(QKeySequence("Down"), this);
-    QShortcut* prevPage4 = new QShortcut(QKeySequence("Up"), this);
-    QShortcut* jump10Forward = new QShortcut(QKeySequence("Ctrl+Right"), this);
-    QShortcut* jump10Backward = new QShortcut(QKeySequence("Ctrl+Left"), this);
-    QShortcut* gotoPage = new QShortcut(QKeySequence("Ctrl+G"), this);
+    nextPage2Shortcut = new QShortcut(QKeySequence("Space"), this);
+    prevPage2Shortcut = new QShortcut(QKeySequence("Shift+Space"), this);
+    nextPage3Shortcut = new QShortcut(QKeySequence("Right"), this);
+    prevPage3Shortcut = new QShortcut(QKeySequence("Left"), this);
+    nextPage4Shortcut = new QShortcut(QKeySequence("Down"), this);
+    prevPage4Shortcut = new QShortcut(QKeySequence("Up"), this);
+    jump10ForwardShortcut = new QShortcut(QKeySequence("Ctrl+Right"), this);
+    jump10BackwardShortcut = new QShortcut(QKeySequence("Ctrl+Left"), this);
+    gotoPageShortcut = new QShortcut(QKeySequence("Ctrl+G"), this);
 
     // 视图模式快捷键
-    QShortcut* toggleFullscreen = new QShortcut(QKeySequence("F11"), this);
-    QShortcut* toggleSidebar = new QShortcut(QKeySequence("F9"), this);
-    QShortcut* presentationMode = new QShortcut(QKeySequence("F5"), this);
-    QShortcut* readingMode = new QShortcut(QKeySequence("F6"), this);
+    toggleFullscreenShortcut = new QShortcut(QKeySequence("F11"), this);
+    toggleSidebarShortcut = new QShortcut(QKeySequence("F9"), this);
+    presentationModeShortcut = new QShortcut(QKeySequence("F5"), this);
+    readingModeShortcut = new QShortcut(QKeySequence("F6"), this);
 
     // 搜索快捷键
-    QShortcut* findShortcut = new QShortcut(QKeySequence("Ctrl+F"), this);
-    QShortcut* findNext = new QShortcut(QKeySequence("F3"), this);
-    QShortcut* findPrev = new QShortcut(QKeySequence("Shift+F3"), this);
+    findShortcut = new QShortcut(QKeySequence("Ctrl+F"), this);
+    findNextShortcut = new QShortcut(QKeySequence("F3"), this);
+    findPrevShortcut = new QShortcut(QKeySequence("Shift+F3"), this);
 
     // 书签快捷键
-    QShortcut* addBookmark = new QShortcut(QKeySequence("Ctrl+D"), this);
-    QShortcut* showBookmarks = new QShortcut(QKeySequence("Ctrl+B"), this);
+    addBookmarkShortcut = new QShortcut(QKeySequence("Ctrl+D"), this);
+    showBookmarksShortcut = new QShortcut(QKeySequence("Ctrl+B"), this);
 
     // 文档操作快捷键
-    QShortcut* refresh = new QShortcut(QKeySequence("F5"), this);
-    QShortcut* properties = new QShortcut(QKeySequence("Alt+Enter"), this);
-    QShortcut* selectAll = new QShortcut(QKeySequence("Ctrl+A"), this);
-    QShortcut* copyText = new QShortcut(QKeySequence("Ctrl+C"), this);
+    refreshShortcut = new QShortcut(QKeySequence("F5"), this);
+    propertiesShortcut = new QShortcut(QKeySequence("Alt+Enter"), this);
+    selectAllShortcut = new QShortcut(QKeySequence("Ctrl+A"), this);
+    copyTextShortcut = new QShortcut(QKeySequence("Ctrl+C"), this);
 
     // 连接快捷键信号 - 基本缩放
     connect(zoomInShortcut, &QShortcut::activated, this, &PDFViewer::zoomIn);
     connect(zoomOutShortcut, &QShortcut::activated, this, &PDFViewer::zoomOut);
-    connect(zoomIn2, &QShortcut::activated, this, &PDFViewer::zoomIn);
+    connect(zoomIn2Shortcut, &QShortcut::activated, this, &PDFViewer::zoomIn);
     connect(fitPageShortcut, &QShortcut::activated, this,
             &PDFViewer::zoomToFit);
     connect(fitWidthShortcut, &QShortcut::activated, this,
@@ -1164,21 +1165,27 @@ void PDFViewer::setupShortcuts() {
             &PDFViewer::zoomToHeight);
 
     // 连接预设缩放级别
-    connect(zoomActualSize, &QShortcut::activated, this,
+    connect(zoomActualSizeShortcut, &QShortcut::activated, this,
             [this]() { setZoom(1.0); });
-    connect(zoom25, &QShortcut::activated, this, [this]() { setZoom(0.25); });
-    connect(zoom50, &QShortcut::activated, this, [this]() { setZoom(0.5); });
-    connect(zoom75, &QShortcut::activated, this, [this]() { setZoom(0.75); });
-    connect(zoom100, &QShortcut::activated, this, [this]() { setZoom(1.0); });
-    connect(zoom150, &QShortcut::activated, this, [this]() { setZoom(1.5); });
-    connect(zoom200, &QShortcut::activated, this, [this]() { setZoom(2.0); });
+    connect(zoom25Shortcut, &QShortcut::activated, this,
+            [this]() { setZoom(0.25); });
+    connect(zoom50Shortcut, &QShortcut::activated, this,
+            [this]() { setZoom(0.5); });
+    connect(zoom75Shortcut, &QShortcut::activated, this,
+            [this]() { setZoom(0.75); });
+    connect(zoom100Shortcut, &QShortcut::activated, this,
+            [this]() { setZoom(1.0); });
+    connect(zoom150Shortcut, &QShortcut::activated, this,
+            [this]() { setZoom(1.5); });
+    connect(zoom200Shortcut, &QShortcut::activated, this,
+            [this]() { setZoom(2.0); });
 
     // 连接旋转快捷键
     connect(rotateLeftShortcut, &QShortcut::activated, this,
             &PDFViewer::rotateLeft);
     connect(rotateRightShortcut, &QShortcut::activated, this,
             &PDFViewer::rotateRight);
-    connect(rotate180, &QShortcut::activated, this,
+    connect(rotate180Shortcut, &QShortcut::activated, this,
             [this]() { setRotation(currentRotation + 180); });
 
     // 连接主题快捷键
@@ -1196,19 +1203,25 @@ void PDFViewer::setupShortcuts() {
             &PDFViewer::previousPage);
 
     // 连接高级导航快捷键
-    connect(nextPage2, &QShortcut::activated, this, &PDFViewer::nextPage);
-    connect(prevPage2, &QShortcut::activated, this, &PDFViewer::previousPage);
-    connect(nextPage3, &QShortcut::activated, this, &PDFViewer::nextPage);
-    connect(prevPage3, &QShortcut::activated, this, &PDFViewer::previousPage);
-    connect(nextPage4, &QShortcut::activated, this, &PDFViewer::nextPage);
-    connect(prevPage4, &QShortcut::activated, this, &PDFViewer::previousPage);
+    connect(nextPage2Shortcut, &QShortcut::activated, this,
+            &PDFViewer::nextPage);
+    connect(prevPage2Shortcut, &QShortcut::activated, this,
+            &PDFViewer::previousPage);
+    connect(nextPage3Shortcut, &QShortcut::activated, this,
+            &PDFViewer::nextPage);
+    connect(prevPage3Shortcut, &QShortcut::activated, this,
+            &PDFViewer::previousPage);
+    connect(nextPage4Shortcut, &QShortcut::activated, this,
+            &PDFViewer::nextPage);
+    connect(prevPage4Shortcut, &QShortcut::activated, this,
+            &PDFViewer::previousPage);
 
     // 连接跳转快捷键
-    connect(jump10Forward, &QShortcut::activated, this,
+    connect(jump10ForwardShortcut, &QShortcut::activated, this,
             [this]() { goToPage(currentPageNumber + 10); });
-    connect(jump10Backward, &QShortcut::activated, this,
+    connect(jump10BackwardShortcut, &QShortcut::activated, this,
             [this]() { goToPage(currentPageNumber - 10); });
-    connect(gotoPage, &QShortcut::activated, this, [this]() {
+    connect(gotoPageShortcut, &QShortcut::activated, this, [this]() {
         // Focus on page number input
         if (pageNumberSpinBox) {
             pageNumberSpinBox->setFocus();
@@ -1217,7 +1230,7 @@ void PDFViewer::setupShortcuts() {
     });
 
     // 连接视图模式快捷键
-    connect(toggleFullscreen, &QShortcut::activated, this, [this]() {
+    connect(toggleFullscreenShortcut, &QShortcut::activated, this, [this]() {
         // Toggle fullscreen mode
         if (window()->isFullScreen()) {
             window()->showNormal();
@@ -1226,7 +1239,7 @@ void PDFViewer::setupShortcuts() {
         }
     });
 
-    connect(toggleSidebar, &QShortcut::activated, this, [this]() {
+    connect(toggleSidebarShortcut, &QShortcut::activated, this, [this]() {
         // Emit signal to toggle sidebar
         emit sidebarToggleRequested();
     });
@@ -1235,14 +1248,14 @@ void PDFViewer::setupShortcuts() {
     connect(findShortcut, &QShortcut::activated, this, &PDFViewer::showSearch);
 
     // 连接书签快捷键
-    connect(addBookmark, &QShortcut::activated, this, [this]() {
+    connect(addBookmarkShortcut, &QShortcut::activated, this, [this]() {
         if (document && currentPageNumber >= 0) {
             emit bookmarkRequested(currentPageNumber);
         }
     });
 
     // 连接文档操作快捷键
-    connect(refresh, &QShortcut::activated, this, [this]() {
+    connect(refreshShortcut, &QShortcut::activated, this, [this]() {
         // Refresh current page
         if (singlePageWidget) {
             singlePageWidget->renderPage();
@@ -1477,8 +1490,9 @@ void PDFViewer::zoomOut() {
 }
 
 void PDFViewer::zoomToFit() {
-    if (!document)
+    if (!document) {
         return;
+    }
 
     // 获取当前视图的viewport大小
     QScrollArea* currentScrollArea =
@@ -1499,8 +1513,9 @@ void PDFViewer::zoomToFit() {
 }
 
 void PDFViewer::zoomToWidth() {
-    if (!document)
+    if (!document) {
         return;
+    }
 
     // 获取当前视图的viewport大小
     QScrollArea* currentScrollArea =
@@ -1750,8 +1765,9 @@ void PDFViewer::switchToContinuousMode() {
 }
 
 void PDFViewer::createContinuousPages() {
-    if (!document)
+    if (!document) {
         return;
+    }
 
     // 清空现有页面
     QLayoutItem* item;
@@ -1812,16 +1828,18 @@ void PDFViewer::updateVisiblePages() {
     }
 
     QScrollBar* scrollBar = continuousScrollArea->verticalScrollBar();
-    if (!scrollBar)
+    if (!scrollBar) {
         return;
+    }
 
     int viewportHeight = continuousScrollArea->viewport()->height();
     int scrollValue = scrollBar->value();
 
     // 估算可见页面范围
     int totalPages = document->numPages();
-    if (totalPages == 0)
+    if (totalPages == 0) {
         return;
+    }
 
     // 简化计算：假设所有页面高度相似
     int estimatedPageHeight = viewportHeight;  // 粗略估算
@@ -1832,8 +1850,9 @@ void PDFViewer::updateVisiblePages() {
         }
     }
 
-    if (estimatedPageHeight <= 0)
+    if (estimatedPageHeight <= 0) {
         estimatedPageHeight = viewportHeight;
+    }
 
     int newVisibleStart =
         qMax(0, (scrollValue / estimatedPageHeight) - renderBuffer);
@@ -2072,8 +2091,9 @@ void PDFViewer::setZoomWithType(double factor, ZoomType type) {
 }
 
 void PDFViewer::zoomToHeight() {
-    if (!document)
+    if (!document) {
         return;
+    }
 
     // 获取当前视图的viewport大小
     QScrollArea* currentScrollArea =
@@ -2779,8 +2799,9 @@ void PDFViewer::setQGraphicsViewMode(int mode) {
 
 // Virtual Scrolling Implementation
 void PDFViewer::setupVirtualScrolling() {
-    if (!document)
+    if (!document) {
         return;
+    }
 
     calculateTotalDocumentHeight();
 
@@ -2801,8 +2822,9 @@ void PDFViewer::updateVirtualScrolling() {
     }
 
     QScrollBar* scrollBar = continuousScrollArea->verticalScrollBar();
-    if (!scrollBar)
+    if (!scrollBar) {
         return;
+    }
 
     int viewportHeight = continuousScrollArea->viewport()->height();
     int scrollValue = scrollBar->value();
@@ -2985,8 +3007,9 @@ void PDFViewer::invalidatePagePositionsCache() {
 }
 
 void PDFViewer::updatePagePositionsCache() {
-    if (!document)
+    if (!document) {
         return;
+    }
 
     pagePositions.clear();
     pagePositions.reserve(document->numPages() + 1);
@@ -3036,7 +3059,8 @@ int PDFViewer::findPageAtPosition(int yPosition) {
         if (pagePositions[mid] <= yPosition &&
             yPosition < pagePositions[mid + 1]) {
             return mid;
-        } else if (pagePositions[mid] > yPosition) {
+        }
+        if (pagePositions[mid] > yPosition) {
             right = mid - 1;
         } else {
             left = mid + 1;
@@ -3121,8 +3145,9 @@ void PDFPageWidget::onRenderDebounceTimeout() {
 
 // Lazy Loading Implementation
 void PDFViewer::setupLazyLoading() {
-    if (!document)
+    if (!document) {
         return;
+    }
 
     // Initialize all pages as not loaded
     for (int i = 0; i < document->numPages(); ++i) {
@@ -3227,8 +3252,9 @@ bool PDFViewer::isPageInViewport(int pageNumber) {
     }
 
     QScrollBar* scrollBar = continuousScrollArea->verticalScrollBar();
-    if (!scrollBar)
+    if (!scrollBar) {
         return false;
+    }
 
     int viewportHeight = continuousScrollArea->viewport()->height();
     int scrollValue = scrollBar->value();
@@ -3247,8 +3273,9 @@ bool PDFViewer::isPageInViewport(int pageNumber) {
 }
 
 void PDFViewer::prioritizeVisiblePages() {
-    if (!document)
+    if (!document) {
         return;
+    }
 
     // Schedule visible pages first
     for (int i = 0; i < document->numPages(); ++i) {
@@ -3290,8 +3317,9 @@ quint32 PDFViewer::getZoomFactorId(double zoomFactor) {
 }
 
 void PDFViewer::evictLeastImportantItems() {
-    if (pageCache.isEmpty())
+    if (pageCache.isEmpty()) {
         return;
+    }
 
     // Use LRU eviction - remove from tail (least recently used)
     int itemsToRemove = qMax(1, pageCache.size() / 4);  // Remove at least 25%
@@ -3313,23 +3341,26 @@ void PDFViewer::evictLeastImportantItems() {
 }
 
 qint64 PDFViewer::calculatePixmapMemorySize(const QPixmap& pixmap) {
-    if (pixmap.isNull())
+    if (pixmap.isNull()) {
         return 0;
+    }
     return pixmap.width() * pixmap.height() * pixmap.depth() / 8;
 }
 
 // LRU cache operations for O(1) performance
 void PDFViewer::moveToHead(PageCacheItem* item) {
-    if (!item || item == cacheHead)
+    if (!item || item == cacheHead) {
         return;
+    }
 
     removeFromList(item);
     addToHead(item);
 }
 
 void PDFViewer::removeFromList(PageCacheItem* item) {
-    if (!item)
+    if (!item) {
         return;
+    }
 
     if (item->prev) {
         item->prev->next = item->next;
@@ -3348,8 +3379,9 @@ void PDFViewer::removeFromList(PageCacheItem* item) {
 }
 
 void PDFViewer::addToHead(PageCacheItem* item) {
-    if (!item)
+    if (!item) {
         return;
+    }
 
     item->prev = nullptr;
     item->next = cacheHead;
@@ -3365,8 +3397,9 @@ void PDFViewer::addToHead(PageCacheItem* item) {
 }
 
 PDFViewer::PageCacheItem* PDFViewer::removeTail() {
-    if (!cacheTail)
+    if (!cacheTail) {
         return nullptr;
+    }
 
     PDFViewer::PageCacheItem* tail = cacheTail;
     removeFromList(tail);

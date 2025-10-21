@@ -99,8 +99,9 @@ WelcomeWidget::WelcomeWidget(QWidget* parent)
 WelcomeWidget::~WelcomeWidget() { LOG_DEBUG("WelcomeWidget: Destroying..."); }
 
 void WelcomeWidget::setRecentFilesManager(RecentFilesManager* manager) {
-    if (m_recentFilesManager == manager)
+    if (m_recentFilesManager == manager) {
         return;
+    }
 
     // 断开旧连接
     if (m_recentFilesManager) {
@@ -125,31 +126,41 @@ void WelcomeWidget::setWelcomeScreenManager(WelcomeScreenManager* manager) {
 }
 
 void WelcomeWidget::applyTheme() {
-    if (!m_isInitialized)
+    if (!m_isInitialized) {
         return;
+    }
 
     LOG_DEBUG("WelcomeWidget: Applying theme...");
 
     // 清除所有内联样式，让QSS文件接管样式控制
     setStyleSheet("");
-    if (m_scrollArea)
+    if (m_scrollArea) {
         m_scrollArea->setStyleSheet("");
-    if (m_contentWidget)
+    }
+    if (m_contentWidget) {
         m_contentWidget->setStyleSheet("");
-    if (m_titleLabel)
+    }
+    if (m_titleLabel) {
         m_titleLabel->setStyleSheet("");
-    if (m_versionLabel)
+    }
+    if (m_versionLabel) {
         m_versionLabel->setStyleSheet("");
-    if (m_recentFilesTitle)
+    }
+    if (m_recentFilesTitle) {
         m_recentFilesTitle->setStyleSheet("");
-    if (m_noRecentFilesLabel)
+    }
+    if (m_noRecentFilesLabel) {
         m_noRecentFilesLabel->setStyleSheet("");
-    if (m_separatorLine)
+    }
+    if (m_separatorLine) {
         m_separatorLine->setStyleSheet("");
-    if (m_newFileButton)
+    }
+    if (m_newFileButton) {
         m_newFileButton->setStyleSheet("");
-    if (m_openFileButton)
+    }
+    if (m_openFileButton) {
         m_openFileButton->setStyleSheet("");
+    }
 
     // 更新logo（仍需要根据主题选择不同的图标）
     updateLogo();
@@ -176,8 +187,9 @@ void WelcomeWidget::applyTheme() {
 }
 
 void WelcomeWidget::refreshContent() {
-    if (!m_isInitialized)
+    if (!m_isInitialized) {
         return;
+    }
 
     LOG_DEBUG("WelcomeWidget: Refreshing content...");
 
@@ -187,16 +199,20 @@ void WelcomeWidget::refreshContent() {
 
         // 更新最近文件区域的可见性
         bool hasRecentFiles = m_recentFilesManager->hasRecentFiles();
-        if (m_recentFilesList)
+        if (m_recentFilesList) {
             m_recentFilesList->setVisible(hasRecentFiles);
-        if (m_noRecentFilesLabel)
+        }
+        if (m_noRecentFilesLabel) {
             m_noRecentFilesLabel->setVisible(!hasRecentFiles);
+        }
     } else {
         // 如果没有管理器，显示无最近文件标签
-        if (m_recentFilesList)
+        if (m_recentFilesList) {
             m_recentFilesList->setVisible(false);
-        if (m_noRecentFilesLabel)
+        }
+        if (m_noRecentFilesLabel) {
             m_noRecentFilesLabel->setVisible(true);
+        }
     }
 
     // 更新布局
@@ -346,8 +362,9 @@ void WelcomeWidget::initializeUI() {
 }
 
 void WelcomeWidget::setupLayout() {
-    if (!m_contentWidget)
+    if (!m_contentWidget) {
         return;
+    }
 
     QVBoxLayout* contentLayout = new QVBoxLayout(m_contentWidget);
     contentLayout->setContentsMargins(SPACING_XLARGE, SPACING_XLARGE,
@@ -456,8 +473,9 @@ void WelcomeWidget::setupLayout() {
 }
 
 void WelcomeWidget::setupLogo() {
-    if (!m_logoWidget)
+    if (!m_logoWidget) {
         return;
+    }
 
     m_logoLayout = new QVBoxLayout(m_logoWidget);
     m_logoLayout->setContentsMargins(0, 0, 0, 0);
@@ -480,8 +498,9 @@ void WelcomeWidget::setupLogo() {
 
     // 版本信息
     QString version = QApplication::applicationVersion();
-    if (version.isEmpty())
+    if (version.isEmpty()) {
         version = "1.0.0";
+    }
     m_versionLabel = new QLabel(QString("Version %1").arg(version));
     m_versionLabel->setObjectName("WelcomeVersionLabel");
     m_versionLabel->setAlignment(Qt::AlignCenter);
@@ -495,8 +514,9 @@ void WelcomeWidget::setupLogo() {
 }
 
 void WelcomeWidget::updateLogo() {
-    if (!m_logoLabel)
+    if (!m_logoLabel) {
         return;
+    }
 
     // 根据当前主题选择合适的logo
     StyleManager& styleManager = StyleManager::instance();
@@ -545,8 +565,9 @@ void WelcomeWidget::updateLogo() {
 }
 
 void WelcomeWidget::setupActions() {
-    if (!m_actionsWidget)
+    if (!m_actionsWidget) {
         return;
+    }
 
     // Create a more visually appealing action button layout
     QHBoxLayout* actionsContainerLayout = new QHBoxLayout(m_actionsWidget);
@@ -598,8 +619,9 @@ void WelcomeWidget::setupActions() {
 }
 
 void WelcomeWidget::setupRecentFiles() {
-    if (!m_recentFilesWidget)
+    if (!m_recentFilesWidget) {
         return;
+    }
 
     m_recentFilesLayout = new QVBoxLayout(m_recentFilesWidget);
     m_recentFilesLayout->setContentsMargins(0, 0, 0, 0);
@@ -626,8 +648,9 @@ void WelcomeWidget::setupRecentFiles() {
 }
 
 void WelcomeWidget::setupQuickActions() {
-    if (!m_quickActionsWidget)
+    if (!m_quickActionsWidget) {
         return;
+    }
 
     m_quickActionsLayout = new QGridLayout(m_quickActionsWidget);
     m_quickActionsLayout->setContentsMargins(0, 0, 0, 0);
@@ -657,8 +680,9 @@ void WelcomeWidget::setupQuickActions() {
 }
 
 void WelcomeWidget::setupTutorialCards() {
-    if (!m_tutorialCardsWidget)
+    if (!m_tutorialCardsWidget) {
         return;
+    }
 
     m_tutorialCardsLayout = new QVBoxLayout(m_tutorialCardsWidget);
     m_tutorialCardsLayout->setContentsMargins(0, 0, 0, 0);
@@ -700,8 +724,9 @@ void WelcomeWidget::setupTutorialCards() {
 }
 
 void WelcomeWidget::setupTipsSection() {
-    if (!m_tipsWidget)
+    if (!m_tipsWidget) {
         return;
+    }
 
     m_tipsLayout = new QVBoxLayout(m_tipsWidget);
     m_tipsLayout->setContentsMargins(0, 0, 0, 0);
@@ -738,14 +763,16 @@ void WelcomeWidget::setupTipsSection() {
     m_nextTipButton = new QPushButton(tr("Next Tip"));
 
     connect(m_previousTipButton, &QPushButton::clicked, [this]() {
-        if (--m_currentTipIndex < 0)
+        if (--m_currentTipIndex < 0) {
             m_currentTipIndex = m_tips.size() - 1;
+        }
         m_currentTipLabel->setText(m_tips[m_currentTipIndex]);
     });
 
     connect(m_nextTipButton, &QPushButton::clicked, [this]() {
-        if (++m_currentTipIndex >= m_tips.size())
+        if (++m_currentTipIndex >= m_tips.size()) {
             m_currentTipIndex = 0;
+        }
         m_currentTipLabel->setText(m_tips[m_currentTipIndex]);
     });
 
@@ -759,8 +786,9 @@ void WelcomeWidget::setupTipsSection() {
 }
 
 void WelcomeWidget::setupKeyboardShortcuts() {
-    if (!m_shortcutsWidget)
+    if (!m_shortcutsWidget) {
         return;
+    }
 
     m_shortcutsLayout = new QVBoxLayout(m_shortcutsWidget);
     m_shortcutsLayout->setContentsMargins(0, 0, 0, 0);
@@ -938,8 +966,9 @@ void WelcomeWidget::setupKeyboardNavigation() {
 }
 
 void WelcomeWidget::updateLayout() {
-    if (!m_contentWidget)
+    if (!m_contentWidget) {
         return;
+    }
 
     // 根据窗口大小调整内容宽度
     int availableWidth = width();
@@ -958,8 +987,9 @@ void WelcomeWidget::updateLayout() {
 void WelcomeWidget::createTutorialCard(const QString& id, const QString& title,
                                        const QString& description,
                                        const QString& iconPath) {
-    if (!m_tutorialCardsContainerLayout)
+    if (!m_tutorialCardsContainerLayout) {
         return;
+    }
 
     TutorialCard* card =
         new TutorialCard(id, title, description, QIcon(iconPath));
@@ -996,8 +1026,9 @@ void WelcomeWidget::refreshShortcuts() {
 }
 
 void WelcomeWidget::startFadeInAnimation() {
-    if (!m_fadeAnimation || !m_opacityEffect)
+    if (!m_fadeAnimation || !m_opacityEffect) {
         return;
+    }
 
     m_opacityEffect->setOpacity(0.0);
     m_fadeAnimation->setStartValue(0.0);

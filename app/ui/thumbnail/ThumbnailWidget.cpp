@@ -110,8 +110,9 @@ void ThumbnailWidget::setPixmap(const QPixmap& pixmap) {
 }
 
 void ThumbnailWidget::setState(State state) {
-    if (m_state == state)
+    if (m_state == state) {
         return;
+    }
 
     State oldState = m_state;
     m_state = state;
@@ -316,8 +317,9 @@ void ThumbnailWidget::drawBorder(QPainter& painter, const QRect& rect) {
 }
 
 void ThumbnailWidget::drawPageNumber(QPainter& painter, const QRect& rect) {
-    if (rect.height() <= 0)
+    if (rect.height() <= 0) {
         return;
+    }
 
     // 绘制页码背景
     QPainterPath bgPath;

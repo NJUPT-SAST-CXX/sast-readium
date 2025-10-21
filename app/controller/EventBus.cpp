@@ -298,8 +298,9 @@ void EventBus::processNextEvent() {
 void EventBus::onSubscriberDestroyed(QObject* obj) { unsubscribeAll(obj); }
 
 void EventBus::deliverEvent(Event* event) {
-    if (!event)
+    if (!event) {
         return;
+    }
 
     const QString& eventType = event->type();
 
@@ -339,8 +340,9 @@ void EventBus::deliverEvent(Event* event) {
 }
 
 bool EventBus::applyFilters(Event* event) {
-    if (!event)
+    if (!event) {
         return false;
+    }
 
     const QString& eventType = event->type();
     if (!m_filters.contains(eventType)) {
@@ -438,8 +440,9 @@ EventAggregator::~EventAggregator() {
 }
 
 void EventAggregator::start() {
-    if (m_isRunning)
+    if (m_isRunning) {
         return;
+    }
 
     m_isRunning = true;
 
@@ -451,8 +454,9 @@ void EventAggregator::start() {
 }
 
 void EventAggregator::stop() {
-    if (!m_isRunning)
+    if (!m_isRunning) {
         return;
+    }
 
     m_isRunning = false;
     m_windowTimer->stop();
@@ -468,8 +472,9 @@ void EventAggregator::stop() {
 }
 
 void EventAggregator::onEventReceived(Event* event) {
-    if (!m_isRunning)
+    if (!m_isRunning) {
         return;
+    }
 
     // Clone the event to avoid ownership issues
     Event* clonedEvent = event->clone();
@@ -480,8 +485,9 @@ void EventAggregator::onEventReceived(Event* event) {
 }
 
 void EventAggregator::onTimeWindowExpired() {
-    if (m_bufferedEvents.isEmpty())
+    if (m_bufferedEvents.isEmpty()) {
         return;
+    }
 
     // Apply aggregation function
     QVariant aggregatedData = m_aggregationFunction(m_bufferedEvents);

@@ -212,17 +212,15 @@ void SkeletonWidget::drawShimmer(QPainter& painter, const QRect& rect) {
 QColor SkeletonWidget::getBaseColor() const {
     if (STYLE.currentTheme() == Theme::Light) {
         return QColor(240, 240, 240);  // Light gray
-    } else {
-        return QColor(60, 60, 60);  // Dark gray
     }
+    return QColor(60, 60, 60);  // Dark gray
 }
 
 QColor SkeletonWidget::getShimmerColor() const {
     if (STYLE.currentTheme() == Theme::Light) {
         return QColor(255, 255, 255, 180);  // White with transparency
-    } else {
-        return QColor(100, 100, 100, 180);  // Lighter gray with transparency
     }
+    return QColor(100, 100, 100, 180);  // Lighter gray with transparency
 }
 
 // DocumentSkeletonWidget Implementation
@@ -269,25 +267,33 @@ void DocumentSkeletonWidget::setupLayout() {
 }
 
 void DocumentSkeletonWidget::startAnimation() {
-    if (m_headerSkeleton)
+    if (m_headerSkeleton) {
         m_headerSkeleton->startAnimation();
-    if (m_contentSkeleton1)
+    }
+    if (m_contentSkeleton1) {
         m_contentSkeleton1->startAnimation();
-    if (m_contentSkeleton2)
+    }
+    if (m_contentSkeleton2) {
         m_contentSkeleton2->startAnimation();
-    if (m_contentSkeleton3)
+    }
+    if (m_contentSkeleton3) {
         m_contentSkeleton3->startAnimation();
+    }
 }
 
 void DocumentSkeletonWidget::stopAnimation() {
-    if (m_headerSkeleton)
+    if (m_headerSkeleton) {
         m_headerSkeleton->stopAnimation();
-    if (m_contentSkeleton1)
+    }
+    if (m_contentSkeleton1) {
         m_contentSkeleton1->stopAnimation();
-    if (m_contentSkeleton2)
+    }
+    if (m_contentSkeleton2) {
         m_contentSkeleton2->stopAnimation();
-    if (m_contentSkeleton3)
+    }
+    if (m_contentSkeleton3) {
         m_contentSkeleton3->stopAnimation();
+    }
 }
 
 void DocumentSkeletonWidget::paintEvent(QPaintEvent* event) {
@@ -324,17 +330,21 @@ void ThumbnailSkeletonWidget::setupLayout() {
 }
 
 void ThumbnailSkeletonWidget::startAnimation() {
-    if (m_thumbnailSkeleton)
+    if (m_thumbnailSkeleton) {
         m_thumbnailSkeleton->startAnimation();
-    if (m_pageNumberSkeleton)
+    }
+    if (m_pageNumberSkeleton) {
         m_pageNumberSkeleton->startAnimation();
+    }
 }
 
 void ThumbnailSkeletonWidget::stopAnimation() {
-    if (m_thumbnailSkeleton)
+    if (m_thumbnailSkeleton) {
         m_thumbnailSkeleton->stopAnimation();
-    if (m_pageNumberSkeleton)
+    }
+    if (m_pageNumberSkeleton) {
         m_pageNumberSkeleton->stopAnimation();
+    }
 }
 
 void ThumbnailSkeletonWidget::setThumbnailSize(const QSize& size) {

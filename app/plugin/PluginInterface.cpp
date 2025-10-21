@@ -20,8 +20,12 @@ PluginBase::PluginBase(QObject* parent) : QObject(parent), m_logger("Plugin") {
 }
 
 PluginBase::~PluginBase() {
+    // Avoid calling virtual functions from destructor. The host should call
+    // shutdown() explicitly before destruction. If still initialized, log only.
     if (m_initialized) {
-        shutdown();
+        m_logger.warning(
+            "Plugin destroyed while still initialized; skipping shutdown in "
+            "destructor");
     }
 }
 

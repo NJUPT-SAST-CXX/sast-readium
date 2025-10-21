@@ -425,15 +425,15 @@ void DocumentAnalyzer::finalizeBatchAnalysis() {
 QString DocumentAnalyzer::formatAnalysisTime(qint64 milliseconds) const {
     if (milliseconds < 1000) {
         return QString("%1 ms").arg(milliseconds);
-    } else if (milliseconds < 60000) {
+    }
+    if (milliseconds < 60000) {
         return QString("%1.%2 s")
             .arg(milliseconds / 1000)
             .arg((milliseconds % 1000) / 100);
-    } else {
-        int minutes = milliseconds / 60000;
-        int seconds = (milliseconds % 60000) / 1000;
-        return QString("%1m %2s").arg(minutes).arg(seconds);
     }
+    int minutes = milliseconds / 60000;
+    int seconds = (milliseconds % 60000) / 1000;
+    return QString("%1m %2s").arg(minutes).arg(seconds);
 }
 
 void DocumentAnalyzer::onBatchProgressUpdate() { updateBatchProgress(); }
@@ -1180,9 +1180,11 @@ QString DocumentAnalyzer::classifyDocument(const AnalysisResult& result,
     // Simple rule-based classification
     if (pageCount < 5 && wordCount < 1000) {
         return "short_document";
-    } else if (pageCount > 100) {
+    }
+    if (pageCount > 100) {
         return "book";
-    } else if (imageCount > pageCount * 2) {
+    }
+    if (imageCount > pageCount * 2) {
         return "image_heavy";
     } else if (wordCount > 10000) {
         return "text_heavy";

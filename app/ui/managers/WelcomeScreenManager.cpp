@@ -42,8 +42,9 @@ WelcomeScreenManager::~WelcomeScreenManager() {
 }
 
 void WelcomeScreenManager::setMainWindow(MainWindow* mainWindow) {
-    if (m_mainWindow == mainWindow)
+    if (m_mainWindow == mainWindow) {
         return;
+    }
 
     // 断开旧连接
     if (m_mainWindow) {
@@ -61,8 +62,9 @@ void WelcomeScreenManager::setMainWindow(MainWindow* mainWindow) {
 }
 
 void WelcomeScreenManager::setWelcomeWidget(WelcomeWidget* welcomeWidget) {
-    if (m_welcomeWidget == welcomeWidget)
+    if (m_welcomeWidget == welcomeWidget) {
         return;
+    }
 
     m_welcomeWidget = welcomeWidget;
 
@@ -74,8 +76,9 @@ void WelcomeScreenManager::setWelcomeWidget(WelcomeWidget* welcomeWidget) {
 }
 
 void WelcomeScreenManager::setDocumentModel(DocumentModel* documentModel) {
-    if (m_documentModel == documentModel)
+    if (m_documentModel == documentModel) {
         return;
+    }
 
     // 断开旧连接
     if (m_documentModel) {
@@ -104,8 +107,9 @@ bool WelcomeScreenManager::isWelcomeScreenEnabled() const {
 }
 
 void WelcomeScreenManager::setWelcomeScreenEnabled(bool enabled) {
-    if (m_welcomeScreenEnabled == enabled)
+    if (m_welcomeScreenEnabled == enabled) {
         return;
+    }
 
     m_welcomeScreenEnabled = enabled;
 
@@ -130,8 +134,9 @@ bool WelcomeScreenManager::shouldShowWelcomeScreen() const {
 }
 
 void WelcomeScreenManager::showWelcomeScreen() {
-    if (m_welcomeScreenVisible || !m_welcomeScreenEnabled)
+    if (m_welcomeScreenVisible || !m_welcomeScreenEnabled) {
         return;
+    }
 
     qDebug() << "WelcomeScreenManager: Showing welcome screen";
 
@@ -141,8 +146,9 @@ void WelcomeScreenManager::showWelcomeScreen() {
 }
 
 void WelcomeScreenManager::hideWelcomeScreen() {
-    if (!m_welcomeScreenVisible)
+    if (!m_welcomeScreenVisible) {
         return;
+    }
 
     qDebug() << "WelcomeScreenManager: Hiding welcome screen";
 
@@ -177,8 +183,9 @@ bool WelcomeScreenManager::hasOpenDocuments() const {
 }
 
 void WelcomeScreenManager::loadSettings() {
-    if (!m_settings)
+    if (!m_settings) {
         return;
+    }
 
     qDebug() << "WelcomeScreenManager: Loading settings...";
 
@@ -194,8 +201,9 @@ void WelcomeScreenManager::loadSettings() {
 }
 
 void WelcomeScreenManager::saveSettings() {
-    if (!m_settings)
+    if (!m_settings) {
         return;
+    }
 
     qDebug() << "WelcomeScreenManager: Saving settings...";
 

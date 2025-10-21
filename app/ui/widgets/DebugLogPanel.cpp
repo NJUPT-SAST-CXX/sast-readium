@@ -375,8 +375,9 @@ void DebugLogPanel::setConfiguration(const PanelConfiguration& config) {
 }
 
 void DebugLogPanel::saveConfiguration() {
-    if (!m_settings)
+    if (!m_settings) {
         return;
+    }
 
     m_settings->beginGroup(SETTINGS_GROUP);
     m_settings->setValue("maxLogEntries", m_config.maxLogEntries);
@@ -404,8 +405,9 @@ void DebugLogPanel::saveConfiguration() {
 }
 
 void DebugLogPanel::loadConfiguration() {
-    if (!m_settings)
+    if (!m_settings) {
         return;
+    }
 
     m_settings->beginGroup(SETTINGS_GROUP);
     m_config.maxLogEntries =
@@ -455,8 +457,9 @@ void DebugLogPanel::resetToDefaults() {
 }
 
 void DebugLogPanel::applyConfiguration() {
-    if (!m_logDisplay)
+    if (!m_logDisplay) {
         return;
+    }
 
     // Apply font and display settings
     m_logDisplay->setFont(m_config.logFont);
@@ -546,8 +549,9 @@ void DebugLogPanel::onLogMessageDetailed(const QDateTime& timestamp, int level,
                                          const QString& message,
                                          const QString& threadId,
                                          const QString& sourceLocation) {
-    if (m_paused)
+    if (m_paused) {
         return;
+    }
 
     LogEntry entry(timestamp, static_cast<Logger::LogLevel>(level), category,
                    message, threadId, sourceLocation);
@@ -625,8 +629,9 @@ void DebugLogPanel::onSearchTextChanged() {
 }
 
 void DebugLogPanel::onSearchNext() {
-    if (m_searchResults.isEmpty())
+    if (m_searchResults.isEmpty()) {
         return;
+    }
 
     m_currentSearchIndex = (m_currentSearchIndex + 1) % m_searchResults.size();
 
@@ -635,8 +640,9 @@ void DebugLogPanel::onSearchNext() {
 }
 
 void DebugLogPanel::onSearchPrevious() {
-    if (m_searchResults.isEmpty())
+    if (m_searchResults.isEmpty()) {
         return;
+    }
 
     m_currentSearchIndex = (m_currentSearchIndex - 1 + m_searchResults.size()) %
                            m_searchResults.size();
@@ -732,8 +738,9 @@ void DebugLogPanel::hideEvent(QHideEvent* event) {
 
 // Core functionality methods
 void DebugLogPanel::updateLogDisplay() {
-    if (!m_logDisplay || m_pendingEntries.empty())
+    if (!m_logDisplay || m_pendingEntries.empty()) {
         return;
+    }
 
     QMutexLocker locker(&m_logMutex);
 
@@ -767,8 +774,9 @@ void DebugLogPanel::updateLogDisplay() {
 }
 
 void DebugLogPanel::addLogEntryToDisplay(const LogEntry& entry) {
-    if (!m_logDisplay)
+    if (!m_logDisplay) {
         return;
+    }
 
     QString formattedEntry = formatLogEntry(entry);
 
@@ -787,8 +795,9 @@ void DebugLogPanel::addLogEntryToDisplay(const LogEntry& entry) {
 }
 
 void DebugLogPanel::filterLogEntries() {
-    if (!m_logDisplay)
+    if (!m_logDisplay) {
         return;
+    }
 
     QMutexLocker locker(&m_logMutex);
 
@@ -806,8 +815,9 @@ void DebugLogPanel::filterLogEntries() {
 }
 
 void DebugLogPanel::highlightSearchResults() {
-    if (!m_logDisplay || m_config.searchFilter.isEmpty())
+    if (!m_logDisplay || m_config.searchFilter.isEmpty()) {
         return;
+    }
 
     // Clear previous highlights
     QTextCursor cursor = m_logDisplay->textCursor();
@@ -926,8 +936,9 @@ void DebugLogPanel::jumpToSearchResult(int index) {
 }
 
 void DebugLogPanel::updateStatisticsDisplay() {
-    if (!m_statsTable || !m_messagesPerSecLabel)
+    if (!m_statsTable || !m_messagesPerSecLabel) {
         return;
+    }
 
     LogStatistics stats = getStatistics();
 
@@ -1297,20 +1308,27 @@ void DebugLogPanel::applyTheme() {
             "}")
             .arg(buttonColor, textColor, borderColor, highlightColor);
 
-    if (m_clearBtn)
+    if (m_clearBtn) {
         m_clearBtn->setStyleSheet(buttonStyle);
-    if (m_exportBtn)
+    }
+    if (m_exportBtn) {
         m_exportBtn->setStyleSheet(buttonStyle);
-    if (m_copyBtn)
+    }
+    if (m_copyBtn) {
         m_copyBtn->setStyleSheet(buttonStyle);
-    if (m_pauseBtn)
+    }
+    if (m_pauseBtn) {
         m_pauseBtn->setStyleSheet(buttonStyle);
-    if (m_settingsBtn)
+    }
+    if (m_settingsBtn) {
         m_settingsBtn->setStyleSheet(buttonStyle);
-    if (m_searchNextBtn)
+    }
+    if (m_searchNextBtn) {
         m_searchNextBtn->setStyleSheet(buttonStyle);
-    if (m_searchPrevBtn)
+    }
+    if (m_searchPrevBtn) {
         m_searchPrevBtn->setStyleSheet(buttonStyle);
+    }
 
     // Apply styles to combo boxes and line edits
     QString inputStyle =
@@ -1331,12 +1349,15 @@ void DebugLogPanel::applyTheme() {
             "}")
             .arg(backgroundColor, textColor, borderColor, highlightColor);
 
-    if (m_logLevelFilter)
+    if (m_logLevelFilter) {
         m_logLevelFilter->setStyleSheet(inputStyle);
-    if (m_categoryFilter)
+    }
+    if (m_categoryFilter) {
         m_categoryFilter->setStyleSheet(inputStyle);
-    if (m_searchEdit)
+    }
+    if (m_searchEdit) {
         m_searchEdit->setStyleSheet(inputStyle);
+    }
 
     // Apply styles to checkboxes
     QString checkboxStyle =
@@ -1358,12 +1379,15 @@ void DebugLogPanel::applyTheme() {
             "}")
             .arg(textColor, borderColor, backgroundColor, highlightColor);
 
-    if (m_caseSensitiveCheck)
+    if (m_caseSensitiveCheck) {
         m_caseSensitiveCheck->setStyleSheet(checkboxStyle);
-    if (m_regexCheck)
+    }
+    if (m_regexCheck) {
         m_regexCheck->setStyleSheet(checkboxStyle);
-    if (m_autoScrollCheck)
+    }
+    if (m_autoScrollCheck) {
         m_autoScrollCheck->setStyleSheet(checkboxStyle);
+    }
 
     // Apply styles to statistics table
     if (m_statsTable) {
@@ -1408,10 +1432,12 @@ void DebugLogPanel::applyTheme() {
 
 void DebugLogPanel::retranslateUi() {
     // Update group box titles
-    if (m_filterGroup)
+    if (m_filterGroup) {
         m_filterGroup->setTitle(tr("Filters"));
-    if (m_statsGroup)
+    }
+    if (m_statsGroup) {
         m_statsGroup->setTitle(tr("Statistics"));
+    }
 
     // Update filter labels (we need to find them as children since they're not
     // member variables)
@@ -1468,28 +1494,38 @@ void DebugLogPanel::retranslateUi() {
     }
 
     // Update buttons
-    if (m_searchNextBtn)
+    if (m_searchNextBtn) {
         m_searchNextBtn->setText(tr("Next"));
-    if (m_searchPrevBtn)
+    }
+    if (m_searchPrevBtn) {
         m_searchPrevBtn->setText(tr("Prev"));
-    if (m_pauseBtn)
+    }
+    if (m_pauseBtn) {
         m_pauseBtn->setText(tr("Pause"));
-    if (m_clearBtn)
+    }
+    if (m_clearBtn) {
         m_clearBtn->setText(tr("Clear"));
-    if (m_exportBtn)
+    }
+    if (m_exportBtn) {
         m_exportBtn->setText(tr("Export"));
-    if (m_copyBtn)
+    }
+    if (m_copyBtn) {
         m_copyBtn->setText(tr("Copy"));
-    if (m_settingsBtn)
+    }
+    if (m_settingsBtn) {
         m_settingsBtn->setText(tr("Settings"));
+    }
 
     // Update checkboxes
-    if (m_caseSensitiveCheck)
+    if (m_caseSensitiveCheck) {
         m_caseSensitiveCheck->setText(tr("Case sensitive"));
-    if (m_regexCheck)
+    }
+    if (m_regexCheck) {
         m_regexCheck->setText(tr("Regex"));
-    if (m_autoScrollCheck)
+    }
+    if (m_autoScrollCheck) {
         m_autoScrollCheck->setText(tr("Auto-scroll"));
+    }
 
     // Update statistics table headers
     if (m_statsTable) {
@@ -1508,16 +1544,21 @@ void DebugLogPanel::retranslateUi() {
     }
 
     // Update context menu actions
-    if (m_copyAction)
+    if (m_copyAction) {
         m_copyAction->setText(tr("Copy Selected"));
-    if (m_copyAllAction)
+    }
+    if (m_copyAllAction) {
         m_copyAllAction->setText(tr("Copy All"));
-    if (m_clearAction)
+    }
+    if (m_clearAction) {
         m_clearAction->setText(tr("Clear Logs"));
-    if (m_exportAction)
+    }
+    if (m_exportAction) {
         m_exportAction->setText(tr("Export Logs..."));
-    if (m_pauseAction)
+    }
+    if (m_pauseAction) {
         m_pauseAction->setText(tr("Pause Logging"));
+    }
 }
 
 void DebugLogPanel::changeEvent(QEvent* event) {

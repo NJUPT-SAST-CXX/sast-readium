@@ -596,20 +596,27 @@ void LoggingConfig::loadMinimalPreset() {
 Logger::LogLevel LoggingConfig::Implementation::parseLogLevelFromString(
     const QString& levelStr) const {
     QString lower = levelStr.toLower();
-    if (lower == "trace")
+    if (lower == "trace") {
         return Logger::LogLevel::Trace;
-    if (lower == "debug")
+    }
+    if (lower == "debug") {
         return Logger::LogLevel::Debug;
-    if (lower == "info")
+    }
+    if (lower == "info") {
         return Logger::LogLevel::Info;
-    if (lower == "warning" || lower == "warn")
+    }
+    if (lower == "warning" || lower == "warn") {
         return Logger::LogLevel::Warning;
-    if (lower == "error")
+    }
+    if (lower == "error") {
         return Logger::LogLevel::Error;
-    if (lower == "critical")
+    }
+    if (lower == "critical") {
         return Logger::LogLevel::Critical;
-    if (lower == "off")
+    }
+    if (lower == "off") {
         return Logger::LogLevel::Off;
+    }
     return Logger::LogLevel::Info;  // Default
 }
 
@@ -934,20 +941,27 @@ QJsonObject LoggingConfig::Implementation::categoryConfigToJson(
 Logger::LogLevel LoggingConfig::stringToLogLevel(
     const QString& levelStr) const {
     QString lower = levelStr.toLower();
-    if (lower == "trace")
+    if (lower == "trace") {
         return Logger::LogLevel::Trace;
-    if (lower == "debug")
+    }
+    if (lower == "debug") {
         return Logger::LogLevel::Debug;
-    if (lower == "info")
+    }
+    if (lower == "info") {
         return Logger::LogLevel::Info;
-    if (lower == "warning" || lower == "warn")
+    }
+    if (lower == "warning" || lower == "warn") {
         return Logger::LogLevel::Warning;
-    if (lower == "error")
+    }
+    if (lower == "error") {
         return Logger::LogLevel::Error;
-    if (lower == "critical")
+    }
+    if (lower == "critical") {
         return Logger::LogLevel::Critical;
-    if (lower == "off")
+    }
+    if (lower == "off") {
         return Logger::LogLevel::Off;
+    }
     return Logger::LogLevel::Info;  // default
 }
 

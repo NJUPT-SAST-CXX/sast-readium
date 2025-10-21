@@ -79,8 +79,9 @@ bool OnboardingManager::isOnboardingActive() const {
 }
 
 void OnboardingManager::startOnboarding() {
-    if (m_pImpl->m_isActive)
+    if (m_pImpl->m_isActive) {
         return;
+    }
 
     m_pImpl->m_isActive = true;
     m_pImpl->m_currentStep = OnboardingStep::Welcome;
@@ -95,8 +96,9 @@ void OnboardingManager::startOnboarding() {
 }
 
 void OnboardingManager::stopOnboarding() {
-    if (!m_pImpl->m_isActive)
+    if (!m_pImpl->m_isActive) {
         return;
+    }
 
     m_pImpl->m_isActive = false;
 
@@ -123,8 +125,9 @@ void OnboardingManager::resetOnboarding() {
 }
 
 void OnboardingManager::skipOnboarding() {
-    if (!m_pImpl->m_isActive)
+    if (!m_pImpl->m_isActive) {
         return;
+    }
 
     // Mark all steps as completed
     for (int i = 0; i < static_cast<int>(OnboardingStep::Complete); ++i) {
@@ -146,8 +149,9 @@ OnboardingStep OnboardingManager::currentStep() const {
 }
 
 void OnboardingManager::nextStep() {
-    if (!m_pImpl->m_isActive)
+    if (!m_pImpl->m_isActive) {
         return;
+    }
 
     markStepCompleted(m_pImpl->m_currentStep);
 
@@ -172,8 +176,9 @@ void OnboardingManager::nextStep() {
 }
 
 void OnboardingManager::previousStep() {
-    if (!m_pImpl->m_isActive)
+    if (!m_pImpl->m_isActive) {
         return;
+    }
 
     int prevStepInt = static_cast<int>(m_pImpl->m_currentStep) - 1;
     if (prevStepInt < 0) {
@@ -190,8 +195,9 @@ void OnboardingManager::previousStep() {
 }
 
 void OnboardingManager::jumpToStep(OnboardingStep step) {
-    if (!m_pImpl->m_isActive)
+    if (!m_pImpl->m_isActive) {
         return;
+    }
 
     m_pImpl->m_currentStep = step;
 
@@ -507,8 +513,9 @@ void OnboardingManager::onDocumentOpened() {
 
 void OnboardingManager::onFeatureUsed(const QString& featureName) {
     // Track feature usage and potentially advance onboarding
-    if (!m_pImpl->m_isActive)
+    if (!m_pImpl->m_isActive) {
         return;
+    }
 
     if (featureName == "search" &&
         m_pImpl->m_currentStep == OnboardingStep::Search) {
@@ -645,25 +652,35 @@ QString OnboardingManagerImpl::stepToString(OnboardingStep step) const {
 }
 
 OnboardingStep OnboardingManagerImpl::stringToStep(const QString& str) const {
-    if (str == "Welcome")
+    if (str == "Welcome") {
         return OnboardingStep::Welcome;
-    if (str == "OpenFile")
+    }
+    if (str == "OpenFile") {
         return OnboardingStep::OpenFile;
-    if (str == "Navigation")
+    }
+    if (str == "Navigation") {
         return OnboardingStep::Navigation;
-    if (str == "Search")
+    }
+    if (str == "Search") {
         return OnboardingStep::Search;
-    if (str == "Bookmarks")
+    }
+    if (str == "Bookmarks") {
         return OnboardingStep::Bookmarks;
-    if (str == "Annotations")
+    }
+    if (str == "Annotations") {
         return OnboardingStep::Annotations;
-    if (str == "ViewModes")
+    }
+    if (str == "ViewModes") {
         return OnboardingStep::ViewModes;
-    if (str == "Settings")
+    }
+    if (str == "Settings") {
         return OnboardingStep::Settings;
-    if (str == "KeyboardShortcuts")
+    }
+    if (str == "KeyboardShortcuts") {
         return OnboardingStep::KeyboardShortcuts;
-    if (str == "Complete")
+    }
+    if (str == "Complete") {
         return OnboardingStep::Complete;
+    }
     return OnboardingStep::Welcome;
 }

@@ -189,20 +189,15 @@ _find_pdf_dependencies
 Internal function to find PDF-related dependencies (poppler-qt6).
 #]=======================================================================]
 function(_find_pdf_dependencies)
-    if(USE_VCPKG_INTERNAL)
-        # vcpkg mode - use CONFIG mode for poppler
-        find_package(poppler CONFIG REQUIRED)
-        message(STATUS "poppler found via vcpkg")
+    # Both vcpkg and system packages use pkg-config for poppler
+    # vcpkg's poppler only provides pkg-config files, not CMake config
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(POPPLER_QT6 REQUIRED IMPORTED_TARGET poppler-qt6)
 
-        # Create an alias for consistency with pkg-config version
-        if(TARGET poppler::poppler-qt6 AND NOT TARGET PkgConfig::POPPLER_QT6)
-            add_library(PkgConfig::POPPLER_QT6 ALIAS poppler::poppler-qt6)
-        endif()
+    if(USE_VCPKG_INTERNAL)
+        message(STATUS "poppler-qt6 found via vcpkg (using pkg-config)")
     else()
-        # System packages mode - use pkg-config
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(POPPLER_QT6 REQUIRED IMPORTED_TARGET poppler-qt6)
-        message(STATUS "poppler-qt6 found via pkg-config")
+        message(STATUS "poppler-qt6 found via system packages (using pkg-config)")
     endif()
 endfunction()
 

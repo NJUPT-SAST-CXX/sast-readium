@@ -215,8 +215,9 @@ void PDFOutlineWidget::onOutlineCleared() { clearOutline(); }
 void PDFOutlineWidget::onItemClicked(QTreeWidgetItem* item, int column) {
     Q_UNUSED(column)
 
-    if (!item)
+    if (!item) {
         return;
+    }
 
     int pageNumber = getItemPageNumber(item);
     if (pageNumber >= 0) {
@@ -228,8 +229,9 @@ void PDFOutlineWidget::onItemClicked(QTreeWidgetItem* item, int column) {
 void PDFOutlineWidget::onItemDoubleClicked(QTreeWidgetItem* item, int column) {
     Q_UNUSED(column)
 
-    if (!item)
+    if (!item) {
         return;
+    }
 
     // 双击时展开/折叠节点
     if (item->childCount() > 0) {
@@ -248,8 +250,9 @@ void PDFOutlineWidget::onItemSelectionChanged() {
 }
 
 int PDFOutlineWidget::getItemPageNumber(QTreeWidgetItem* item) const {
-    if (!item)
+    if (!item) {
         return -1;
+    }
 
     QVariant data = item->data(0, PageNumberRole);
     return data.toInt();

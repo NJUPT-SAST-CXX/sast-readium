@@ -471,8 +471,9 @@ QStringList PluginManager::getPluginErrors(const QString& pluginName) const {
 }
 
 void PluginManager::loadSettings() {
-    if (!m_settings)
+    if (!m_settings) {
         return;
+    }
 
     m_settings->beginGroup("plugins");
 
@@ -487,8 +488,9 @@ void PluginManager::loadSettings() {
 }
 
 void PluginManager::saveSettings() {
-    if (!m_settings)
+    if (!m_settings) {
         return;
+    }
 
     m_settings->beginGroup("plugins");
 
@@ -521,8 +523,9 @@ void PluginManager::enableHotReloading(bool enabled) {
 }
 
 void PluginManager::checkForPluginChanges() {
-    if (!m_hotReloadingEnabled)
+    if (!m_hotReloadingEnabled) {
         return;
+    }
 
     for (auto it = m_pluginMetadata.begin(); it != m_pluginMetadata.end();
          ++it) {

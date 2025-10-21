@@ -25,8 +25,9 @@ PDFAnimationManager::~PDFAnimationManager() { stopAllAnimations(); }
 
 void PDFAnimationManager::animateZoom(QWidget* target, double fromScale,
                                       double toScale, int duration) {
-    if (!target)
+    if (!target) {
         return;
+    }
 
     QPropertyAnimation* animation =
         new QPropertyAnimation(target, "scaleFactor");
@@ -49,8 +50,9 @@ void PDFAnimationManager::animatePageTransition(QWidget* fromPage,
                                                 QWidget* toPage,
                                                 AnimationType type,
                                                 int duration) {
-    if (!fromPage || !toPage)
+    if (!fromPage || !toPage) {
         return;
+    }
 
     QParallelAnimationGroup* group = new QParallelAnimationGroup(this);
 
@@ -89,8 +91,9 @@ void PDFAnimationManager::animatePageTransition(QWidget* fromPage,
 }
 
 void PDFAnimationManager::animateFadeIn(QWidget* target, int duration) {
-    if (!target)
+    if (!target) {
         return;
+    }
 
     QGraphicsOpacityEffect* effect = ensureOpacityEffect(target);
     effect->setOpacity(0.0);
@@ -114,8 +117,9 @@ void PDFAnimationManager::animateFadeIn(QWidget* target, int duration) {
 }
 
 void PDFAnimationManager::animateFadeOut(QWidget* target, int duration) {
-    if (!target)
+    if (!target) {
         return;
+    }
 
     QGraphicsOpacityEffect* effect = ensureOpacityEffect(target);
 
@@ -138,8 +142,9 @@ void PDFAnimationManager::animateFadeOut(QWidget* target, int duration) {
 }
 
 void PDFAnimationManager::animateButtonPress(QWidget* button) {
-    if (!button)
+    if (!button) {
         return;
+    }
 
     QSequentialAnimationGroup* group = new QSequentialAnimationGroup(this);
 
@@ -165,8 +170,9 @@ void PDFAnimationManager::animateButtonPress(QWidget* button) {
 
 void PDFAnimationManager::animateHighlight(QWidget* target,
                                            const QColor& color) {
-    if (!target)
+    if (!target) {
         return;
+    }
 
     // Create highlight effect using background color animation
     QGraphicsOpacityEffect* effect = new QGraphicsOpacityEffect(target);
@@ -190,8 +196,9 @@ void PDFAnimationManager::animateHighlight(QWidget* target,
 }
 
 void PDFAnimationManager::animateShake(QWidget* target) {
-    if (!target)
+    if (!target) {
         return;
+    }
 
     QSequentialAnimationGroup* group = new QSequentialAnimationGroup(this);
     QPoint originalPos = target->pos();
@@ -236,8 +243,9 @@ void PDFAnimationManager::onAnimationFinished() {
 
 void PDFAnimationManager::setupAnimation(QPropertyAnimation* animation,
                                          int duration) {
-    if (!animation)
+    if (!animation) {
         return;
+    }
 
     animation->setDuration(duration > 0 ? duration : m_defaultDuration);
     animation->setEasingCurve(m_defaultEasing);
@@ -245,8 +253,9 @@ void PDFAnimationManager::setupAnimation(QPropertyAnimation* animation,
 
 QGraphicsOpacityEffect* PDFAnimationManager::ensureOpacityEffect(
     QWidget* widget) {
-    if (!widget)
+    if (!widget) {
         return nullptr;
+    }
 
     QGraphicsOpacityEffect* effect =
         qobject_cast<QGraphicsOpacityEffect*>(widget->graphicsEffect());
@@ -277,8 +286,9 @@ SmoothZoomWidget::SmoothZoomWidget(QWidget* parent)
 }
 
 void SmoothZoomWidget::setScaleFactor(double factor) {
-    if (qAbs(factor - m_scaleFactor) < 0.001)
+    if (qAbs(factor - m_scaleFactor) < 0.001) {
         return;
+    }
 
     m_scaleFactor = factor;
     updateContentTransform();
@@ -313,8 +323,9 @@ void SmoothZoomWidget::setContent(QWidget* content) {
 }
 
 void SmoothZoomWidget::updateContentTransform() {
-    if (!m_content)
+    if (!m_content) {
         return;
+    }
 
     // Apply scaling transformation
     QSize scaledSize = m_content->sizeHint() * m_scaleFactor;
@@ -358,8 +369,9 @@ void SmoothZoomWidget::onScaleAnimationFinished() {
 QPropertyAnimation* AnimationUtils::createFadeAnimation(QWidget* target,
                                                         double from, double to,
                                                         int duration) {
-    if (!target)
+    if (!target) {
         return nullptr;
+    }
 
     QGraphicsOpacityEffect* effect =
         qobject_cast<QGraphicsOpacityEffect*>(target->graphicsEffect());
@@ -381,8 +393,9 @@ QPropertyAnimation* AnimationUtils::createMoveAnimation(QWidget* target,
                                                         const QPoint& from,
                                                         const QPoint& to,
                                                         int duration) {
-    if (!target)
+    if (!target) {
         return nullptr;
+    }
 
     QPropertyAnimation* animation = new QPropertyAnimation(target, "pos");
     animation->setDuration(duration);
@@ -396,8 +409,9 @@ QPropertyAnimation* AnimationUtils::createMoveAnimation(QWidget* target,
 QPropertyAnimation* AnimationUtils::createScaleAnimation(
     QObject* target, const QByteArray& property, double from, double to,
     int duration) {
-    if (!target)
+    if (!target) {
         return nullptr;
+    }
 
     QPropertyAnimation* animation = new QPropertyAnimation(target, property);
     animation->setDuration(duration);
@@ -409,15 +423,17 @@ QPropertyAnimation* AnimationUtils::createScaleAnimation(
 }
 
 QPixmap AnimationUtils::grabWidget(QWidget* widget) {
-    if (!widget)
+    if (!widget) {
         return QPixmap();
+    }
 
     return widget->grab();
 }
 
 void AnimationUtils::applyDropShadow(QWidget* widget, const QColor& color) {
-    if (!widget)
+    if (!widget) {
         return;
+    }
 
     QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(widget);
     shadow->setColor(color);
@@ -457,8 +473,9 @@ void PageTransitionWidget::setCurrentWidget(QWidget* widget) {
 
 void PageTransitionWidget::transitionTo(QWidget* newWidget, TransitionType type,
                                         int duration) {
-    if (m_isTransitioning || !newWidget)
+    if (m_isTransitioning || !newWidget) {
         return;
+    }
 
     m_nextWidget = newWidget;
     m_currentTransition = type;

@@ -112,7 +112,8 @@ bool DocumentModel::openFromFile(const QString& filePath) {
         if (recoveryResult == RecoveryResult::Retry) {
             // Retry the operation once more
             return openFromFile(filePath);
-        } else if (recoveryResult == RecoveryResult::Fallback) {
+        }
+        if (recoveryResult == RecoveryResult::Fallback) {
             // Try alternative loading method or provide user feedback
             emit loadingFailed(
                 "Document loading failed, but recovery options available",
@@ -142,8 +143,8 @@ bool DocumentModel::openFromFiles(const QStringList& filePaths) {
 
         // 检查是否已经打开
         bool alreadyOpen = false;
-        for (size_t i = 0; i < documents.size(); ++i) {
-            if (documents[i]->filePath == filePath) {
+        for (const auto& document : documents) {
+            if (document->filePath == filePath) {
                 alreadyOpen = true;
                 break;
             }

@@ -543,8 +543,9 @@ QPixmap ThumbnailGenerator::generatePixmap(const GenerationRequest& request) {
                 if (m_gpuAccelerationAvailable) {
                     result = renderPageToPixmapGpu(page.get(), request.size,
                                                    request.quality);
-                    if (!result.isNull())
+                    if (!result.isNull()) {
                         break;
+                    }
                 }
                 // 如果GPU渲染失败，回退到CPU渲染
                 [[fallthrough]];
@@ -804,8 +805,9 @@ void ThumbnailGenerator::setCompressionQuality(int quality) {
 void ThumbnailGenerator::generateThumbnailBatch(const QList<int>& pageNumbers,
                                                 const QSize& size,
                                                 double quality) {
-    if (!m_document || pageNumbers.isEmpty())
+    if (!m_document || pageNumbers.isEmpty()) {
         return;
+    }
 
     QList<GenerationRequest> requests;
     requests.reserve(pageNumbers.size());
@@ -971,8 +973,9 @@ QPixmap ThumbnailGenerator::decompressPixmap(const QByteArray& data) {
 
 void ThumbnailGenerator::processBatchRequest(
     const QList<GenerationRequest>& requests) {
-    if (requests.isEmpty())
+    if (requests.isEmpty()) {
         return;
+    }
 
     QList<GenerationRequest> optimizedRequests = requests;
     optimizeBatchOrder(optimizedRequests);

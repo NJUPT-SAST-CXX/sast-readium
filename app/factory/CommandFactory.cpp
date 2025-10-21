@@ -327,10 +327,12 @@ std::unique_ptr<NavigationCommand> CommandFactory::createViewModeCommand(
     if (mode == "single-page") {
         return std::make_unique<ChangeViewModeCommand>(
             m_viewWidget, ChangeViewModeCommand::ViewMode::SinglePage);
-    } else if (mode == "continuous") {
+    }
+    if (mode == "continuous") {
         return std::make_unique<ChangeViewModeCommand>(
             m_viewWidget, ChangeViewModeCommand::ViewMode::Continuous);
-    } else if (mode == "facing-pages") {
+    }
+    if (mode == "facing-pages") {
         return std::make_unique<ChangeViewModeCommand>(
             m_viewWidget, ChangeViewModeCommand::ViewMode::FacingPages);
     } else if (mode == "book-view") {
@@ -678,9 +680,11 @@ QObject* CommandPrototypeRegistry::cloneCommand(const QString& prototypeName) {
     // Document commands
     if (prototypeName == "open-document") {
         return m_factory->createOpenCommand().release();
-    } else if (prototypeName == "close-document") {
+    }
+    if (prototypeName == "close-document") {
         return m_factory->createCloseCommand().release();
-    } else if (prototypeName == "save-as") {
+    }
+    if (prototypeName == "save-as") {
         return m_factory->createSaveAsCommand().release();
     } else if (prototypeName == "print") {
         return m_factory->createPrintCommand().release();

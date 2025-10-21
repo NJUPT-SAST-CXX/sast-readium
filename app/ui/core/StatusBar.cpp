@@ -79,8 +79,9 @@ void ExpandableInfoPanel::setContentWidget(QWidget* widget) {
 }
 
 void ExpandableInfoPanel::setExpanded(bool expanded, bool animated) {
-    if (m_expanded == expanded)
+    if (m_expanded == expanded) {
         return;
+    }
 
     m_expanded = expanded;
     m_toggleButton->setChecked(expanded);
@@ -580,12 +581,15 @@ void StatusBar::applyEnhancedStyle() {
         QStringLiteral("QLabel { color: %1; padding: 0 %2px; }")
             .arg(secondary)
             .arg(STYLE.spacingXS());
-    if (separatorLabel1)
+    if (separatorLabel1) {
         separatorLabel1->setStyleSheet(separatorStyle);
-    if (separatorLabel2)
+    }
+    if (separatorLabel2) {
         separatorLabel2->setStyleSheet(separatorStyle);
-    if (separatorLabel3)
+    }
+    if (separatorLabel3) {
         separatorLabel3->setStyleSheet(separatorStyle);
+    }
 
     if (m_clockLabel) {
         m_clockLabel->setStyleSheet(
@@ -777,8 +781,9 @@ void StatusBar::displayTransientMessage(const QString& text, int timeout,
 
 void StatusBar::setDocumentInfo(const QString& fileName, int currentPage,
                                 int totalPages, double zoomLevel) {
-    if (!m_fileNameLabel)
+    if (!m_fileNameLabel) {
         return;  // Skip if in minimal mode
+    }
     setFileName(fileName);
     setPageInfo(currentPage, totalPages);
     setZoomLevel(zoomLevel);
@@ -789,8 +794,9 @@ void StatusBar::setDocumentMetadata(const QString& title, const QString& author,
                                     const QString& keywords,
                                     const QDateTime& created,
                                     const QDateTime& modified) {
-    if (!m_titleLabel)
+    if (!m_titleLabel) {
         return;  // Skip if in minimal mode
+    }
     m_titleLabel->setText(tr("Title: %1").arg(title.isEmpty() ? "-" : title));
     m_authorLabel->setText(
         tr("Author: %1").arg(author.isEmpty() ? "-" : author));
@@ -804,8 +810,9 @@ void StatusBar::setDocumentMetadata(const QString& title, const QString& author,
 
 void StatusBar::setDocumentStatistics(int wordCount, int charCount,
                                       int pageCount) {
-    if (!m_wordCountLabel)
+    if (!m_wordCountLabel) {
         return;  // Skip if in minimal mode
+    }
     m_wordCountLabel->setText(tr("Words: %1").arg(wordCount));
     m_charCountLabel->setText(tr("Characters: %1").arg(charCount));
     m_pageCountLabel->setText(tr("Pages: %1").arg(pageCount));
@@ -874,8 +881,9 @@ void StatusBar::setDocumentSecurity(bool encrypted, bool copyAllowed,
 }
 
 void StatusBar::setPageInfo(int current, int total) {
-    if (!m_pageLabel)
+    if (!m_pageLabel) {
         return;  // Skip if in minimal mode
+    }
 
     // Input validation
     if (total < 0) {
@@ -917,8 +925,9 @@ void StatusBar::setPageInfo(int current, int total) {
 }
 
 void StatusBar::setZoomLevel(int percent) {
-    if (!m_zoomInputEdit)
+    if (!m_zoomInputEdit) {
         return;  // Skip if in minimal mode
+    }
 
     // Input validation - reasonable zoom range is 10% to 500%
     if (percent < 10 || percent > 500) {
@@ -946,8 +955,9 @@ void StatusBar::setZoomLevel(double percent) {
 }
 
 void StatusBar::setFileName(const QString& fileName) {
-    if (!m_fileNameLabel)
+    if (!m_fileNameLabel) {
         return;  // Skip if in minimal mode
+    }
 
     m_currentFileName = fileName;
     if (fileName.isEmpty()) {
@@ -1020,32 +1030,44 @@ void StatusBar::clearDocumentInfo() {
     clearSearchResults();
 
     // Clear metadata (only if panels were created)
-    if (m_titleLabel)
+    if (m_titleLabel) {
         m_titleLabel->setText(tr("Title: -"));
-    if (m_authorLabel)
+    }
+    if (m_authorLabel) {
         m_authorLabel->setText(tr("Author: -"));
-    if (m_subjectLabel)
+    }
+    if (m_subjectLabel) {
         m_subjectLabel->setText(tr("Subject: -"));
-    if (m_keywordsLabel)
+    }
+    if (m_keywordsLabel) {
         m_keywordsLabel->setText(tr("Keywords: -"));
-    if (m_createdLabel)
+    }
+    if (m_createdLabel) {
         m_createdLabel->setText(tr("Created: -"));
-    if (m_modifiedLabel)
+    }
+    if (m_modifiedLabel) {
         m_modifiedLabel->setText(tr("Modified: -"));
-    if (m_fileSizeLabel)
+    }
+    if (m_fileSizeLabel) {
         m_fileSizeLabel->setText(tr("Size: -"));
+    }
 
     // Clear statistics (only if panels were created)
-    if (m_wordCountLabel)
+    if (m_wordCountLabel) {
         m_wordCountLabel->setText(tr("Words: -"));
-    if (m_charCountLabel)
+    }
+    if (m_charCountLabel) {
         m_charCountLabel->setText(tr("Characters: -"));
-    if (m_pageCountLabel)
+    }
+    if (m_pageCountLabel) {
         m_pageCountLabel->setText(tr("Pages: -"));
-    if (m_avgWordsPerPageLabel)
+    }
+    if (m_avgWordsPerPageLabel) {
         m_avgWordsPerPageLabel->setText(tr("Avg Words/Page: -"));
-    if (m_readingTimeLabel)
+    }
+    if (m_readingTimeLabel) {
         m_readingTimeLabel->setText(tr("Est. Reading Time: -"));
+    }
 
     m_currentTotalPages = 0;
     m_currentPageNumber = 0;
@@ -1102,9 +1124,11 @@ QString StatusBar::formatFileName(const QString& fullPath) const {
 QString StatusBar::formatFileSize(qint64 size) const {
     if (size < 1024) {
         return QString("%1 B").arg(size);
-    } else if (size < 1024 * 1024) {
+    }
+    if (size < 1024 * 1024) {
         return QString("%1 KB").arg(size / 1024.0, 0, 'f', 2);
-    } else if (size < 1024 * 1024 * 1024) {
+    }
+    if (size < 1024 * 1024 * 1024) {
         return QString("%1 MB").arg(size / (1024.0 * 1024.0), 0, 'f', 2);
     } else {
         return QString("%1 GB").arg(size / (1024.0 * 1024.0 * 1024.0), 0, 'f',

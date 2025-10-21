@@ -379,8 +379,9 @@ void ViewDelegate::applyEditingLayout() {
 void ViewDelegate::applyCompactLayout() {
     showSideBar(false);
     showRightSideBar(false);
-    if (d->toolBar)
+    if (d->toolBar) {
         d->toolBar->hide();
+    }
     emit layoutChanged();
     d->logger.debug("Applied compact layout");
 }
@@ -620,12 +621,14 @@ void SideBarDelegate::updateAnnotations() {
     emit contentUpdated("annotations");
 }
 void SideBarDelegate::setMinimumWidth(int width) {
-    if (d->sideBar)
+    if (d->sideBar) {
         d->sideBar->setMinimumWidth(width);
+    }
 }
 void SideBarDelegate::setMaximumWidth(int width) {
-    if (d->sideBar)
+    if (d->sideBar) {
         d->sideBar->setMaximumWidth(width);
+    }
 }
 void SideBarDelegate::saveState() {
     QSettings settings;

@@ -403,8 +403,9 @@ void ThumbnailModel::requestThumbnail(int pageNumber) {
 }
 
 void ThumbnailModel::requestThumbnailRange(int startPage, int endPage) {
-    if (!m_document)
+    if (!m_document) {
         return;
+    }
 
     int numPages = m_document->numPages();
     startPage = qMax(0, startPage);
@@ -465,8 +466,9 @@ void ThumbnailModel::refreshAllThumbnails() {
 }
 
 void ThumbnailModel::preloadVisibleRange(int firstVisible, int lastVisible) {
-    if (!m_document)
+    if (!m_document) {
         return;
+    }
 
     int numPages = m_document->numPages();
 
@@ -695,8 +697,9 @@ void ThumbnailModel::setViewportRange(int start, int end, int margin) {
 }
 
 void ThumbnailModel::updateViewportPriorities() {
-    if (!m_document)
+    if (!m_document) {
         return;
+    }
 
     m_pagePriorities.clear();
 
@@ -774,8 +777,9 @@ void ThumbnailModel::updateAccessFrequency(int pageNumber) {
 }
 
 void ThumbnailModel::evictLeastFrequentlyUsed() {
-    if (m_thumbnails.isEmpty())
+    if (m_thumbnails.isEmpty()) {
         return;
+    }
 
     QMutexLocker locker(&m_thumbnailsMutex);
 
@@ -825,8 +829,9 @@ void ThumbnailModel::evictByAdaptivePolicy() {
 
 double ThumbnailModel::calculateCacheEfficiency() const {
     int totalAccess = m_cacheHits + m_cacheMisses;
-    if (totalAccess == 0)
+    if (totalAccess == 0) {
         return 1.0;
+    }
 
     return static_cast<double>(m_cacheHits.load()) / totalAccess;
 }
@@ -836,8 +841,9 @@ void ThumbnailModel::insertIntoOptimizedCache(int pageNumber,
                                               const ThumbnailItem& item) {
     // Calculate memory cost in KB for QCache
     int memoryCostKB = static_cast<int>(item.memorySize / 1024);
-    if (memoryCostKB == 0)
+    if (memoryCostKB == 0) {
         memoryCostKB = 1;  // Minimum cost
+    }
 
     // Create cache entry
     auto* cacheEntry = new CacheEntry(item, pageNumber);
@@ -894,8 +900,9 @@ void ThumbnailModel::evictFromOptimizedCache(int count) {
         std::sort(keys.begin(), keys.end(), [this](int a, int b) {
             CacheEntry* entryA = m_optimizedCache.object(a);
             CacheEntry* entryB = m_optimizedCache.object(b);
-            if (!entryA || !entryB)
+            if (!entryA || !entryB) {
                 return false;
+            }
 
             // Sort by access count (LFU), then by last accessed time
             if (entryA->item.accessCount != entryB->item.accessCount) {
@@ -1122,16 +1129,18 @@ double ThumbnailModel::compressionRatio() const {
     qint64 original = m_originalSize.load();
     qint64 compressed = m_compressedSize.load();
 
-    if (original == 0)
+    if (original == 0) {
         return 1.0;
+    }
     return static_cast<double>(compressed) / original;
 }
 
 double ThumbnailModel::averageAccessTime() const {
     QMutexLocker locker(&m_performanceMutex);
 
-    if (m_accessTimes.isEmpty())
+    if (m_accessTimes.isEmpty()) {
         return 0.0;
+    }
 
     qint64 total = 0;
     for (qint64 time : m_accessTimes) {
@@ -1146,8 +1155,9 @@ int ThumbnailModel::prefetchHitRate() const {
     int misses = m_prefetchMisses.load();
     int total = hits + misses;
 
-    if (total == 0)
+    if (total == 0) {
         return 0;
+    }
     return (hits * 100) / total;
 }
 
@@ -1395,11 +1405,11 @@ ThumbnailModel::PrefetchStrategy ThumbnailModel::determineBestStrategy() const {
 
     if (sequentialRatio > 0.7) {
         return PrefetchStrategy::LINEAR;  // 顺序访问较多
-    } else if (sequentialRatio > 0.3) {
-        return PrefetchStrategy::ADAPTIVE;  // 混合模式
-    } else {
-        return PrefetchStrategy::PREDICTIVE;  // 随机访问较多，使用预测
     }
+    if (sequentialRatio > 0.3) {
+        return PrefetchStrategy::ADAPTIVE;  // 混合模式
+    }
+    return PrefetchStrategy::PREDICTIVE;  // 随机访问较多，使用预测
 }
 
 void ThumbnailModel::optimizeMemoryUsage() {

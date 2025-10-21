@@ -172,8 +172,7 @@ void ApplicationController::initializeViews() {
     try {
         // Create factory for widget creation
         m_logger.debug("Creating WidgetFactory...");
-        WidgetFactory* factory =
-            new WidgetFactory(m_pageController, m_mainWindow);
+        WidgetFactory factory(m_pageController, m_mainWindow);
         m_logger.debug("WidgetFactory created");
 
         // Create UI components
@@ -205,7 +204,7 @@ void ApplicationController::initializeViews() {
             m_statusBar =
                 new StatusBar(m_mainWindow, true);  // true = minimal mode
         } else {
-            m_statusBar = new StatusBar(factory, m_mainWindow);
+            m_statusBar = new StatusBar(&factory, m_mainWindow);
         }
         m_logger.info("StatusBar created successfully");
 

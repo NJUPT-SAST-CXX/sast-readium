@@ -148,28 +148,39 @@ QString PDFAnnotation::getTypeString() const {
 }
 
 AnnotationType PDFAnnotation::typeFromString(const QString& typeStr) {
-    if (typeStr == "Highlight")
+    if (typeStr == "Highlight") {
         return AnnotationType::Highlight;
-    if (typeStr == "Note")
+    }
+    if (typeStr == "Note") {
         return AnnotationType::Note;
-    if (typeStr == "FreeText")
+    }
+    if (typeStr == "FreeText") {
         return AnnotationType::FreeText;
-    if (typeStr == "Underline")
+    }
+    if (typeStr == "Underline") {
         return AnnotationType::Underline;
-    if (typeStr == "StrikeOut")
+    }
+    if (typeStr == "StrikeOut") {
         return AnnotationType::StrikeOut;
-    if (typeStr == "Squiggly")
+    }
+    if (typeStr == "Squiggly") {
         return AnnotationType::Squiggly;
-    if (typeStr == "Rectangle")
+    }
+    if (typeStr == "Rectangle") {
         return AnnotationType::Rectangle;
-    if (typeStr == "Circle")
+    }
+    if (typeStr == "Circle") {
         return AnnotationType::Circle;
-    if (typeStr == "Line")
+    }
+    if (typeStr == "Line") {
         return AnnotationType::Line;
-    if (typeStr == "Arrow")
+    }
+    if (typeStr == "Arrow") {
         return AnnotationType::Arrow;
-    if (typeStr == "Ink")
+    }
+    if (typeStr == "Ink") {
         return AnnotationType::Ink;
+    }
     return AnnotationType::Highlight;  // Default
 }
 

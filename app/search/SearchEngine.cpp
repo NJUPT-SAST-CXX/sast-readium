@@ -2,6 +2,7 @@
 #include <poppler-qt6.h>
 #include <QDebug>
 #include <QElapsedTimer>
+#include <memory>
 #include "../cache/CacheManager.h"
 #include "../cache/PageTextCache.h"
 #include "../cache/SearchResultCache.h"
@@ -39,35 +40,35 @@ public:
 
     void initializeComponents() {
         // Initialize core components
-        textExtractor = new TextExtractor(q_ptr);
-        searchExecutor = new SearchExecutor(q_ptr);
-        backgroundProcessor = new BackgroundProcessor(q_ptr);
-        incrementalManager = new IncrementalSearchManager(q_ptr);
-        metrics = new SearchMetrics(q_ptr);
-        resultCache = new SearchResultCache(q_ptr);
-        memoryOptimizer = new MemoryManager(q_ptr);
+        textExtractor = std::make_unique<TextExtractor>(q_ptr);
+        searchExecutor = std::make_unique<SearchExecutor>(q_ptr);
+        backgroundProcessor = std::make_unique<BackgroundProcessor>(q_ptr);
+        incrementalManager = std::make_unique<IncrementalSearchManager>(q_ptr);
+        metrics = std::make_unique<SearchMetrics>(q_ptr);
+        resultCache = std::make_unique<SearchResultCache>(q_ptr);
+        memoryOptimizer = std::make_unique<MemoryManager>(q_ptr);
 
         // Initialize validator with strict validation for security
         ValidationConfig validationConfig;
         validationConfig.level = Strict;
         validationConfig.enableSanitization = true;
         validationConfig.preventResourceExhaustion = true;
-        validator = new SearchValidator(validationConfig);
+        validator = std::make_unique<SearchValidator>(validationConfig);
 
         // Initialize error recovery system
-        errorRecovery = new SearchErrorRecovery(q_ptr);
+        errorRecovery = std::make_unique<SearchErrorRecovery>(q_ptr);
         setupErrorRecovery();
 
         // Initialize performance optimizer
-        performanceOptimizer = new SearchPerformance(q_ptr);
+        performanceOptimizer = std::make_unique<SearchPerformance>(q_ptr);
         setupPerformanceOptimizer();
 
         // Initialize advanced search features
-        advancedFeatures = new SearchFeatures(q_ptr);
+        advancedFeatures = std::make_unique<SearchFeatures>(q_ptr);
         setupAdvancedFeatures();
 
         // Configure components
-        searchExecutor->setTextExtractor(textExtractor);
+        searchExecutor->setTextExtractor(textExtractor.get());
         backgroundProcessor->setMaxThreadCount(4);
         incrementalManager->setDelay(300);
     }
@@ -156,7 +157,8 @@ public:
 
         // Connect performance signals
         QObject::connect(
-            performanceOptimizer, &SearchPerformance::optimizationCompleted,
+            performanceOptimizer.get(),
+            &SearchPerformance::optimizationCompleted,
             [this](const SearchPerformance::PerformanceMetrics& metrics) {
                 qDebug() << "Search optimization completed:" << "Algorithm:"
                          << metrics.algorithmUsed
@@ -165,7 +167,7 @@ public:
             });
 
         QObject::connect(
-            performanceOptimizer, &SearchPerformance::algorithmSelected,
+            performanceOptimizer.get(), &SearchPerformance::algorithmSelected,
             [this](const QString& algorithm, const QString& reason) {
                 qDebug() << "Selected algorithm:" << algorithm
                          << "Reason:" << reason;
@@ -179,50 +181,54 @@ public:
 
         // Connect advanced search signals
         QObject::connect(
-            advancedFeatures, &SearchFeatures::fuzzySearchCompleted,
+            advancedFeatures.get(), &SearchFeatures::fuzzySearchCompleted,
             [this](const QList<SearchFeatures::FuzzyMatch>& matches) {
                 qDebug() << "Fuzzy search completed with" << matches.size()
                          << "matches";
             });
 
         QObject::connect(
-            advancedFeatures, &SearchFeatures::highlightsGenerated,
+            advancedFeatures.get(), &SearchFeatures::highlightsGenerated,
             [this](const QList<SearchFeatures::HighlightInfo>& highlights) {
                 qDebug() << "Generated" << highlights.size() << "highlights";
             });
 
-        QObject::connect(advancedFeatures, &SearchFeatures::historyUpdated,
+        QObject::connect(advancedFeatures.get(),
+                         &SearchFeatures::historyUpdated,
                          [this]() { qDebug() << "Search history updated"; });
 
-        QObject::connect(advancedFeatures, &SearchFeatures::suggestionsReady,
-                         [this](const QStringList& suggestions) {
-                             qDebug() << "Search suggestions ready:"
-                                      << suggestions.size() << "items";
-                         });
+        QObject::connect(
+            advancedFeatures.get(), &SearchFeatures::suggestionsReady,
+            [this](const QStringList& suggestions) {
+                qDebug() << "Search suggestions ready:" << suggestions.size()
+                         << "items";
+            });
     }
 
     void connectSignals() {
         // Connect incremental search manager
         QObject::connect(
-            incrementalManager, &IncrementalSearchManager::searchTriggered,
+            incrementalManager.get(),
+            &IncrementalSearchManager::searchTriggered,
             [this](const QString& query, const SearchOptions& options) {
                 performSearch(query, options);
             });
 
         // Connect search executor progress
-        QObject::connect(searchExecutor, &SearchExecutor::searchProgress, q_ptr,
-                         &SearchEngine::searchProgress);
+        QObject::connect(searchExecutor.get(), &SearchExecutor::searchProgress,
+                         q_ptr, &SearchEngine::searchProgress);
 
         // Connect background processor
         QObject::connect(
-            backgroundProcessor, &BackgroundProcessor::taskFinished, [this]() {
+            backgroundProcessor.get(), &BackgroundProcessor::taskFinished,
+            [this]() {
                 if (!isSearching.isSet() && backgroundProcessor->isIdle()) {
                     isSearching.clear();
                 }
             });
 
         // Connect metrics warnings
-        QObject::connect(metrics, &SearchMetrics::performanceWarning,
+        QObject::connect(metrics.get(), &SearchMetrics::performanceWarning,
                          [this](const QString& warning) {
                              qWarning() << "Performance:" << warning;
                          });
@@ -477,17 +483,17 @@ public:
     SearchEngine* q_ptr;
 
     // Core components
-    TextExtractor* textExtractor;
-    SearchExecutor* searchExecutor;
-    BackgroundProcessor* backgroundProcessor;
-    IncrementalSearchManager* incrementalManager;
-    SearchMetrics* metrics;
-    SearchResultCache* resultCache;
-    MemoryManager* memoryOptimizer;
-    SearchValidator* validator;
-    SearchErrorRecovery* errorRecovery;
-    SearchPerformance* performanceOptimizer;
-    SearchFeatures* advancedFeatures;
+    std::unique_ptr<TextExtractor> textExtractor;
+    std::unique_ptr<SearchExecutor> searchExecutor;
+    std::unique_ptr<BackgroundProcessor> backgroundProcessor;
+    std::unique_ptr<IncrementalSearchManager> incrementalManager;
+    std::unique_ptr<SearchMetrics> metrics;
+    std::unique_ptr<SearchResultCache> resultCache;
+    std::unique_ptr<MemoryManager> memoryOptimizer;
+    std::unique_ptr<SearchValidator> validator;
+    std::unique_ptr<SearchErrorRecovery> errorRecovery;
+    std::unique_ptr<SearchPerformance> performanceOptimizer;
+    std::unique_ptr<SearchFeatures> advancedFeatures;
 
     // Document state
     Poppler::Document* document;
@@ -521,16 +527,16 @@ SearchEngine::SearchEngine(QObject* parent)
 
     // Register SearchResultCache
     cacheManager.registerCache(CacheManager::SEARCH_RESULT_CACHE,
-                               d->resultCache);
+                               d->resultCache.get());
 
     // Register TextExtractor cache through adapter
     TextExtractorCacheAdapter* textCacheAdapter =
-        new TextExtractorCacheAdapter(d->textExtractor, this);
+        new TextExtractorCacheAdapter(d->textExtractor.get(), this);
     cacheManager.registerCache(CacheManager::PAGE_TEXT_CACHE, textCacheAdapter);
 
     // Register with memory optimizer
     d->memoryOptimizer->registerSearchEngine(this);
-    d->memoryOptimizer->registerTextExtractor(d->textExtractor);
+    d->memoryOptimizer->registerTextExtractor(d->textExtractor.get());
 }
 
 SearchEngine::~SearchEngine() = default;
@@ -554,7 +560,7 @@ void SearchEngine::setDocument(Poppler::Document* document) {
 Poppler::Document* SearchEngine::document() const { return d->document; }
 
 void SearchEngine::search(const QString& query, const SearchOptions& options) {
-    SEARCH_ERROR_SCOPE(d->errorRecovery, SearchErrorRecovery::SearchError,
+    SEARCH_ERROR_SCOPE(d->errorRecovery.get(), SearchErrorRecovery::SearchError,
                        "search", "SearchEngine");
 
     try {
@@ -716,8 +722,9 @@ void SearchEngine::fuzzySearch(const QString& query, int maxDistance,
         // Perform fuzzy search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page)
+            if (!page) {
                 continue;
+            }
 
             QString pageText = page->text(QRectF());
             auto fuzzyMatches =
@@ -774,8 +781,9 @@ void SearchEngine::wildcardSearch(const QString& pattern,
         // Perform wildcard search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page)
+            if (!page) {
                 continue;
+            }
 
             QString pageText = page->text(QRectF());
             auto wildcardResults =
@@ -818,8 +826,9 @@ void SearchEngine::phraseSearch(const QString& phrase, int proximity,
         // Perform phrase search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page)
+            if (!page) {
                 continue;
+            }
 
             QString pageText = page->text(QRectF());
             auto phraseResults = d->advancedFeatures->phraseSearch(
@@ -862,8 +871,9 @@ void SearchEngine::booleanSearch(const QString& query,
         // Perform boolean search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page)
+            if (!page) {
                 continue;
+            }
 
             QString pageText = page->text(QRectF());
             auto booleanResults =
@@ -914,8 +924,9 @@ void SearchEngine::proximitySearch(const QStringList& terms, int maxDistance,
         // Perform proximity search on all pages
         for (int pageNum = 0; pageNum < d->document->numPages(); ++pageNum) {
             std::unique_ptr<Poppler::Page> page(d->document->page(pageNum));
-            if (!page)
+            if (!page) {
                 continue;
+            }
 
             QString pageText = page->text(QRectF());
             auto proximityResults = d->advancedFeatures->proximitySearch(
@@ -942,7 +953,7 @@ void SearchEngine::proximitySearch(const QStringList& terms, int maxDistance,
 
 // Advanced features access methods
 SearchFeatures* SearchEngine::advancedFeatures() const {
-    return d->advancedFeatures;
+    return d->advancedFeatures.get();
 }
 
 void SearchEngine::setHighlightColors(const QColor& normalColor,
