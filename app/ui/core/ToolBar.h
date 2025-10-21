@@ -40,9 +40,11 @@ private:
 };
 
 /**
- * @brief Enhanced toolbar with file operations, navigation, zoom, view controls, and tools
+ * @brief Enhanced toolbar with file operations, navigation, zoom, view
+ * controls, and tools
  *
- * @details This toolbar provides comprehensive document manipulation controls including:
+ * @details This toolbar provides comprehensive document manipulation controls
+ * including:
  * - File operations (open, save, print, email)
  * - Navigation controls (first/prev/next/last page, page slider)
  * - Zoom controls (zoom in/out, fit width/page/height, zoom presets)
@@ -51,26 +53,29 @@ private:
  * - Quick access bar (theme toggle, settings, help)
  *
  * **Simplified Mode:**
- * The toolbar uses a simplified constructor that creates only essential actions without
- * CollapsibleSection widgets. This design decision was made to:
+ * The toolbar uses a simplified constructor that creates only essential actions
+ * without CollapsibleSection widgets. This design decision was made to:
  * - Avoid UI hangs and performance issues with complex collapsible sections
  * - Provide a more responsive user experience
  * - Reduce memory footprint
  * - Simplify the toolbar layout for better usability
  *
- * The full implementation methods (setupFileSection, setupNavigationSection, etc.) exist
- * in the codebase but are not called in the simplified mode. These methods are preserved
- * for potential future use if the performance issues with CollapsibleSections are resolved.
+ * The full implementation methods (setupFileSection, setupNavigationSection,
+ * etc.) exist in the codebase but are not called in the simplified mode. These
+ * methods are preserved for potential future use if the performance issues with
+ * CollapsibleSections are resolved.
  *
  * **Defensive Programming:**
- * All update methods (updatePageInfo, updateZoomLevel, etc.) include defensive null pointer
- * checks because some widget pointers may be nullptr in simplified mode. This ensures the
- * toolbar remains stable even when certain features are not initialized.
+ * All update methods (updatePageInfo, updateZoomLevel, etc.) include defensive
+ * null pointer checks because some widget pointers may be nullptr in simplified
+ * mode. This ensures the toolbar remains stable even when certain features are
+ * not initialized.
  *
- * @note All public methods are safe to call - they will gracefully handle nullptr widgets
- *       and log warnings when widgets are not initialized.
+ * @note All public methods are safe to call - they will gracefully handle
+ * nullptr widgets and log warnings when widgets are not initialized.
  *
- * @see CollapsibleSection for the collapsible section implementation (not used in simplified mode)
+ * @see CollapsibleSection for the collapsible section implementation (not used
+ * in simplified mode)
  */
 class ToolBar : public QToolBar {
     Q_OBJECT

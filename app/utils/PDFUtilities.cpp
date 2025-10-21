@@ -1,5 +1,4 @@
 #include "PDFUtilities.h"
-#include "SafePDFRenderer.h"
 #include <poppler/qt6/poppler-qt6.h>
 #include <QBuffer>
 #include <QCryptographicHash>
@@ -24,6 +23,7 @@
 #include <vector>
 #include "../logging/Logger.h"
 #include "../model/AnnotationModel.h"
+#include "SafePDFRenderer.h"
 
 QJsonObject PDFUtilities::analyzeDocument(Poppler::Document* document) {
     QJsonObject analysis;
@@ -636,8 +636,8 @@ QPixmap PDFUtilities::renderPageToPixmap(Poppler::Page* page, double dpi) {
 
     QImage image = renderer.safeRenderPage(page, dpi, &renderInfo);
     if (!renderInfo.success || image.isNull()) {
-        Logger::instance().warning(
-            "[utils] SafePDFRenderer failed: {}", renderInfo.errorMessage.toStdString());
+        Logger::instance().warning("[utils] SafePDFRenderer failed: {}",
+                                   renderInfo.errorMessage.toStdString());
         return QPixmap();  // Return empty pixmap on error
     }
 
@@ -654,10 +654,12 @@ QPixmap PDFUtilities::renderPageRegion(Poppler::Page* page,
     SafePDFRenderer& renderer = SafePDFRenderer::instance();
     SafePDFRenderer::RenderInfo renderInfo;
 
-    QImage image = renderer.safeRenderPageRegion(page, region, dpi, &renderInfo);
+    QImage image =
+        renderer.safeRenderPageRegion(page, region, dpi, &renderInfo);
     if (!renderInfo.success || image.isNull()) {
         Logger::instance().warning(
-            "[utils] SafePDFRenderer region render failed: {}", renderInfo.errorMessage.toStdString());
+            "[utils] SafePDFRenderer region render failed: {}",
+            renderInfo.errorMessage.toStdString());
         return QPixmap();  // Return empty pixmap on error
     }
 

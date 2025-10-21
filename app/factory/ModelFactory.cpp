@@ -315,14 +315,16 @@ ModelFactory::ModelSet ModelFactory::createCompleteModelSet(int dpiX,
     // Create core models
     models.renderModel = createRenderModel(dpiX, dpiY);
     if (!models.renderModel) {
-        m_logger.error("Failed to create RenderModel - aborting model set creation");
+        m_logger.error(
+            "Failed to create RenderModel - aborting model set creation");
         emit creationError("ModelSet", "Failed to create RenderModel");
         return models;
     }
 
     models.documentModel = createDocumentModel(models.renderModel);
     if (!models.documentModel) {
-        m_logger.error("Failed to create DocumentModel - cleaning up and aborting");
+        m_logger.error(
+            "Failed to create DocumentModel - cleaning up and aborting");
         emit creationError("ModelSet", "Failed to create DocumentModel");
         // Clean up already-created models if auto-delete is enabled
         if (m_autoDelete && models.renderModel) {
@@ -334,7 +336,8 @@ ModelFactory::ModelSet ModelFactory::createCompleteModelSet(int dpiX,
 
     models.pageModel = createPageModel(models.renderModel);
     if (!models.pageModel) {
-        m_logger.warning("Failed to create PageModel - continuing with partial set");
+        m_logger.warning(
+            "Failed to create PageModel - continuing with partial set");
     }
 
     // Create auxiliary models - failures are non-critical
@@ -382,14 +385,17 @@ ModelFactory::ModelSet ModelFactory::createMinimalModelSet(int dpiX, int dpiY) {
     // Create only essential models
     models.renderModel = createRenderModel(dpiX, dpiY);
     if (!models.renderModel) {
-        m_logger.error("Failed to create RenderModel - aborting minimal model set creation");
+        m_logger.error(
+            "Failed to create RenderModel - aborting minimal model set "
+            "creation");
         emit creationError("ModelSet", "Failed to create RenderModel");
         return models;
     }
 
     models.documentModel = createDocumentModel(models.renderModel);
     if (!models.documentModel) {
-        m_logger.error("Failed to create DocumentModel - cleaning up and aborting");
+        m_logger.error(
+            "Failed to create DocumentModel - cleaning up and aborting");
         emit creationError("ModelSet", "Failed to create DocumentModel");
         // Clean up already-created models if auto-delete is enabled
         if (m_autoDelete && models.renderModel) {
@@ -401,7 +407,8 @@ ModelFactory::ModelSet ModelFactory::createMinimalModelSet(int dpiX, int dpiY) {
 
     models.pageModel = createPageModel(models.renderModel);
     if (!models.pageModel) {
-        m_logger.warning("Failed to create PageModel - continuing with partial set");
+        m_logger.warning(
+            "Failed to create PageModel - continuing with partial set");
     }
 
     emit modelSetCreated(models);
@@ -418,14 +425,17 @@ ModelFactory::ModelSet ModelFactory::createViewerModelSet(int dpiX, int dpiY) {
     // Create models needed for viewing
     models.renderModel = createRenderModel(dpiX, dpiY);
     if (!models.renderModel) {
-        m_logger.error("Failed to create RenderModel - aborting viewer model set creation");
+        m_logger.error(
+            "Failed to create RenderModel - aborting viewer model set "
+            "creation");
         emit creationError("ModelSet", "Failed to create RenderModel");
         return models;
     }
 
     models.documentModel = createDocumentModel(models.renderModel);
     if (!models.documentModel) {
-        m_logger.error("Failed to create DocumentModel - cleaning up and aborting");
+        m_logger.error(
+            "Failed to create DocumentModel - cleaning up and aborting");
         emit creationError("ModelSet", "Failed to create DocumentModel");
         // Clean up already-created models if auto-delete is enabled
         if (m_autoDelete && models.renderModel) {

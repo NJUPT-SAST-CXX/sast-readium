@@ -1,20 +1,20 @@
 #pragma once
 
-#include <QWidget>
-#include <QLabel>
-#include <QPushButton>
-#include <QPropertyAnimation>
-#include <QTimer>
 #include <QGraphicsOpacityEffect>
+#include <QLabel>
+#include <QPropertyAnimation>
+#include <QPushButton>
+#include <QTimer>
+#include <QWidget>
 #include <functional>
 
 /**
  * @brief ToastNotification - Non-blocking notification widget
- * 
+ *
  * Provides a modern, non-intrusive notification system similar to Android's
  * Toast or Material Design's Snackbar. Notifications appear at the bottom
  * of the screen, auto-dismiss after a timeout, and can include actions.
- * 
+ *
  * Features:
  * - Multiple notification types (Info, Success, Warning, Error)
  * - Auto-dismiss with configurable timeout
@@ -22,16 +22,16 @@
  * - Smooth fade-in/fade-out animations
  * - Queue management for multiple notifications
  * - Theme-aware styling
- * 
+ *
  * Usage:
  * @code
- * ToastNotification::show(parentWidget, "File saved successfully", 
+ * ToastNotification::show(parentWidget, "File saved successfully",
  *                         ToastNotification::Type::Success);
- * 
+ *
  * // With action
- * ToastNotification::show(parentWidget, "File deleted", 
+ * ToastNotification::show(parentWidget, "File deleted",
  *                         ToastNotification::Type::Info,
- *                         3000, "Undo", []() { 
+ *                         3000, "Undo", []() {
  *                             // Undo action
  *                         });
  * @endcode
@@ -61,12 +61,11 @@ public:
     ~ToastNotification() override;
 
     // Static convenience methods
-    static void show(QWidget* parent, const QString& message, 
+    static void show(QWidget* parent, const QString& message,
                      Type type = Type::Info, int duration = 3000);
-    
-    static void show(QWidget* parent, const QString& message, 
-                     Type type, int duration,
-                     const QString& actionText, 
+
+    static void show(QWidget* parent, const QString& message, Type type,
+                     int duration, const QString& actionText,
                      std::function<void()> actionCallback);
 
     // Configuration
@@ -123,7 +122,7 @@ private:
 
 /**
  * @brief ToastManager - Manages toast notification queue
- * 
+ *
  * Singleton class that manages the display queue for toast notifications,
  * ensuring only one notification is shown at a time and queuing others.
  */
@@ -133,12 +132,12 @@ class ToastManager : public QObject {
 public:
     static ToastManager& instance();
 
-    void showToast(QWidget* parent, const QString& message, 
+    void showToast(QWidget* parent, const QString& message,
                    ToastNotification::Type type, int duration);
-    
-    void showToast(QWidget* parent, const QString& message, 
+
+    void showToast(QWidget* parent, const QString& message,
                    ToastNotification::Type type, int duration,
-                   const QString& actionText, 
+                   const QString& actionText,
                    std::function<void()> actionCallback);
 
     void clearQueue();
@@ -180,4 +179,3 @@ private:
 
 #define TOAST_ERROR(parent, message) \
     ToastNotification::show(parent, message, ToastNotification::Type::Error)
-

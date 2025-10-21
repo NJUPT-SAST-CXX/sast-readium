@@ -396,8 +396,10 @@ private:
 
     // 文档数据
     Poppler::Document* document;
-    std::unique_ptr<Poppler::Page> currentPage;  // Owned page for single page mode
-    std::map<int, std::unique_ptr<Poppler::Page>> continuousPages;  // Owned pages for continuous mode
+    std::unique_ptr<Poppler::Page>
+        currentPage;  // Owned page for single page mode
+    std::map<int, std::unique_ptr<Poppler::Page>>
+        continuousPages;  // Owned pages for continuous mode
     int currentPageNumber;
     double currentZoomFactor;
     PDFViewMode currentViewMode;

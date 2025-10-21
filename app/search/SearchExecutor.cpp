@@ -126,23 +126,28 @@ private:
         QList<QRectF> textBoxes;
 
         if (!page || text.isEmpty()) {
-            LOG_DEBUG("SearchExecutor::extractTextBoxes: Invalid page or empty text");
+            LOG_DEBUG(
+                "SearchExecutor::extractTextBoxes: Invalid page or empty text");
             return textBoxes;
         }
 
         try {
             // Get text boxes from Poppler page
-            // Poppler::Page::textList() returns a vector of unique_ptr<Poppler::TextBox>
-            // Each TextBox contains text content and its bounding rectangle
+            // Poppler::Page::textList() returns a vector of
+            // unique_ptr<Poppler::TextBox> Each TextBox contains text content
+            // and its bounding rectangle
             auto popplerTextBoxes = page->textList();
 
             if (popplerTextBoxes.empty()) {
-                LOG_DEBUG("SearchExecutor::extractTextBoxes: No text boxes found on page");
+                LOG_DEBUG(
+                    "SearchExecutor::extractTextBoxes: No text boxes found on "
+                    "page");
                 return textBoxes;
             }
 
             // Extract bounding rectangles from text boxes
-            // We need to find text boxes that contain parts of our search context
+            // We need to find text boxes that contain parts of our search
+            // context
             for (const auto& textBox : popplerTextBoxes) {
                 if (textBox) {
                     // Get the bounding box for this text element
@@ -151,31 +156,41 @@ private:
                     // Get the text content of this box
                     QString boxText = textBox->text();
 
-                    // Check if this text box contains any part of our search text
-                    // We use case-insensitive comparison to be more flexible
+                    // Check if this text box contains any part of our search
+                    // text We use case-insensitive comparison to be more
+                    // flexible
                     if (!boxText.isEmpty() &&
                         (text.contains(boxText, Qt::CaseInsensitive) ||
                          boxText.contains(text, Qt::CaseInsensitive))) {
                         textBoxes.append(boundingBox);
 
-                        LOG_TRACE("SearchExecutor::extractTextBoxes: Found matching text box at ({}, {}) size {}x{}",
-                                 boundingBox.x(), boundingBox.y(),
-                                 boundingBox.width(), boundingBox.height());
+                        LOG_TRACE(
+                            "SearchExecutor::extractTextBoxes: Found matching "
+                            "text box at ({}, {}) size {}x{}",
+                            boundingBox.x(), boundingBox.y(),
+                            boundingBox.width(), boundingBox.height());
                     }
                 }
             }
 
-            // No manual cleanup needed - unique_ptr handles memory automatically
+            // No manual cleanup needed - unique_ptr handles memory
+            // automatically
 
-            LOG_DEBUG("SearchExecutor::extractTextBoxes: Extracted {} text boxes from {} total",
-                     textBoxes.size(), popplerTextBoxes.size());
+            LOG_DEBUG(
+                "SearchExecutor::extractTextBoxes: Extracted {} text boxes "
+                "from {} total",
+                textBoxes.size(), popplerTextBoxes.size());
 
         } catch (const std::exception& e) {
-            LOG_ERROR("SearchExecutor::extractTextBoxes: Exception while extracting text boxes: {}",
-                     e.what());
+            LOG_ERROR(
+                "SearchExecutor::extractTextBoxes: Exception while extracting "
+                "text boxes: {}",
+                e.what());
             // Return empty list on error - fallback will be used
         } catch (...) {
-            LOG_ERROR("SearchExecutor::extractTextBoxes: Unknown exception while extracting text boxes");
+            LOG_ERROR(
+                "SearchExecutor::extractTextBoxes: Unknown exception while "
+                "extracting text boxes");
             // Return empty list on error - fallback will be used
         }
 
@@ -376,4 +391,3 @@ QRectF SearchExecutor::calculateBoundingRect(int pageNumber, int textPosition,
                                              int textLength) {
     return d->calculateBoundingRect(pageNumber, textPosition, textLength);
 }
-

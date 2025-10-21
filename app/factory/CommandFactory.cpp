@@ -88,7 +88,8 @@ void CommandFactory::initializeActionMap() {
     // Fullscreen operation
     m_actionMap["fullScreen"] = ActionMap::fullScreen;
 
-    m_logger.debug(QString("Initialized action map with %1 entries").arg(m_actionMap.size()));
+    m_logger.debug(QString("Initialized action map with %1 entries")
+                       .arg(m_actionMap.size()));
 }
 
 std::unique_ptr<DocumentCommand> CommandFactory::createDocumentCommand(
@@ -198,8 +199,8 @@ std::unique_ptr<DocumentCommand> CommandFactory::createPropertiesCommand() {
         parentWidget = m_mainWindow;
     }
 
-    return std::make_unique<ShowDocumentPropertiesCommand>(
-        m_documentController, parentWidget);
+    return std::make_unique<ShowDocumentPropertiesCommand>(m_documentController,
+                                                           parentWidget);
 }
 
 std::unique_ptr<NavigationCommand> CommandFactory::createNavigationCommand(
@@ -348,8 +349,9 @@ std::unique_ptr<NavigationCommand> CommandFactory::createRotateCommand(
         return nullptr;
     }
 
-    auto direction = clockwise ? RotateViewCommand::RotationDirection::Clockwise
-                               : RotateViewCommand::RotationDirection::CounterClockwise;
+    auto direction =
+        clockwise ? RotateViewCommand::RotationDirection::Clockwise
+                  : RotateViewCommand::RotationDirection::CounterClockwise;
     return std::make_unique<RotateViewCommand>(m_viewWidget, direction);
 }
 
@@ -437,7 +439,9 @@ void CommandFactory::configureCommand(QObject* command,
 
 ActionMap CommandFactory::mapStringToAction(const QString& actionStr) {
     if (!m_actionMap.contains(actionStr)) {
-        m_logger.warning(QString("Unknown action string '%1' - no mapping available").arg(actionStr));
+        m_logger.warning(
+            QString("Unknown action string '%1' - no mapping available")
+                .arg(actionStr));
         // Return a safe default but log the issue
         return ActionMap::openFile;
     }
@@ -623,13 +627,16 @@ void CommandPrototypeRegistry::registerStandardPrototypes() {
                       m_factory->createPropertiesCommand().release());
 
     // Navigation commands
-    registerPrototype("next-page", m_factory->createNextPageCommand().release());
+    registerPrototype("next-page",
+                      m_factory->createNextPageCommand().release());
     registerPrototype("previous-page",
                       m_factory->createPreviousPageCommand().release());
     registerPrototype("first-page",
                       m_factory->createFirstPageCommand().release());
-    registerPrototype("last-page", m_factory->createLastPageCommand().release());
-    registerPrototype("goto-page", m_factory->createGoToPageCommand(1).release());
+    registerPrototype("last-page",
+                      m_factory->createLastPageCommand().release());
+    registerPrototype("goto-page",
+                      m_factory->createGoToPageCommand(1).release());
 
     // Zoom commands
     registerPrototype("zoom-in", m_factory->createZoomInCommand().release());

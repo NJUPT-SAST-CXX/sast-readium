@@ -834,8 +834,8 @@ void PDFCacheManagerTest::testGetCacheKeysByPriority() {
     // Insert items with different priorities
     m_cacheManager->insert("low1", QString("test"), CacheItemType::TextContent,
                            CachePriority::Low);
-    m_cacheManager->insert("high1", QString("test"),
-                           CacheItemType::TextContent, CachePriority::High);
+    m_cacheManager->insert("high1", QString("test"), CacheItemType::TextContent,
+                           CachePriority::High);
     m_cacheManager->insert("low2", QString("test"), CacheItemType::TextContent,
                            CachePriority::Low);
 
@@ -862,10 +862,12 @@ void PDFCacheManagerTest::testGetCacheItemCount() {
                            CacheItemType::TextContent);
 
     // Get item count by type
-    int textCount = m_cacheManager->getCacheItemCount(CacheItemType::TextContent);
+    int textCount =
+        m_cacheManager->getCacheItemCount(CacheItemType::TextContent);
     QCOMPARE(textCount, 2);
 
-    int pageCount = m_cacheManager->getCacheItemCount(CacheItemType::RenderedPage);
+    int pageCount =
+        m_cacheManager->getCacheItemCount(CacheItemType::RenderedPage);
     QCOMPARE(pageCount, 1);
 }
 
@@ -877,17 +879,19 @@ void PDFCacheManagerTest::testGetCacheMemoryUsage() {
                            CacheItemType::RenderedPage);
 
     // Get memory usage by type
-    qint64 textMemory = m_cacheManager->getCacheMemoryUsage(CacheItemType::TextContent);
+    qint64 textMemory =
+        m_cacheManager->getCacheMemoryUsage(CacheItemType::TextContent);
     QVERIFY(textMemory > 0);
 
-    qint64 pageMemory = m_cacheManager->getCacheMemoryUsage(CacheItemType::RenderedPage);
+    qint64 pageMemory =
+        m_cacheManager->getCacheMemoryUsage(CacheItemType::RenderedPage);
     QVERIFY(pageMemory > 0);
 }
 
 void PDFCacheManagerTest::testSetCachePriority() {
     // Insert item with normal priority
-    m_cacheManager->insert("key1", QString("test"),
-                           CacheItemType::TextContent, CachePriority::Normal);
+    m_cacheManager->insert("key1", QString("test"), CacheItemType::TextContent,
+                           CachePriority::Normal);
 
     // Change priority to high
     m_cacheManager->setCachePriority("key1", CachePriority::High);
@@ -903,8 +907,8 @@ void PDFCacheManagerTest::testSetCachePriority() {
 
 void PDFCacheManagerTest::testPromoteToHighPriority() {
     // Insert item with normal priority
-    m_cacheManager->insert("key1", QString("test"),
-                           CacheItemType::TextContent, CachePriority::Normal);
+    m_cacheManager->insert("key1", QString("test"), CacheItemType::TextContent,
+                           CachePriority::Normal);
 
     // Promote to high priority
     m_cacheManager->promoteToHighPriority("key1");
@@ -920,8 +924,7 @@ void PDFCacheManagerTest::testPromoteToHighPriority() {
 
 void PDFCacheManagerTest::testRefreshCacheItem() {
     // Insert item
-    m_cacheManager->insert("key1", QString("test"),
-                           CacheItemType::TextContent);
+    m_cacheManager->insert("key1", QString("test"), CacheItemType::TextContent);
 
     // Refresh item (updates access time and count)
     m_cacheManager->refreshCacheItem("key1");

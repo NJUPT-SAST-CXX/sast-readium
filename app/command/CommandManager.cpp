@@ -86,8 +86,8 @@ void CommandManager::registerCommand(const QString& commandId,
     }
 
     if (!factory) {
-        m_logger.error(
-            QString("Cannot register command with null factory: %1").arg(commandId));
+        m_logger.error(QString("Cannot register command with null factory: %1")
+                           .arg(commandId));
         return;
     }
 
@@ -95,7 +95,8 @@ void CommandManager::registerCommand(const QString& commandId,
     m_logger.debug(QString("Registered command: %1").arg(commandId));
 }
 
-void CommandManager::registerCommand(const QString& commandId, const CommandFactory& factory,
+void CommandManager::registerCommand(const QString& commandId,
+                                     const CommandFactory& factory,
                                      const QString& shortcut) {
     registerCommand(commandId, factory);
 
@@ -506,7 +507,7 @@ bool GlobalCommandManager::execute(const QString& commandId) {
 }
 
 void GlobalCommandManager::registerCommand(
-    const QString& commandId, const CommandManager::CommandFactory &factory) {
+    const QString& commandId, const CommandManager::CommandFactory& factory) {
     instance().registerCommand(commandId, factory);
 }
 
@@ -565,7 +566,8 @@ void CommandInvoker::invoke(const QString& commandId) {
     emit invocationCompleted(commandId, success);
 }
 
-void CommandInvoker::invoke(const QString& commandId, const QVariant& /*param*/) {
+void CommandInvoker::invoke(const QString& commandId,
+                            const QVariant& /*param*/) {
     // For now, just invoke without parameters
     // Parameter support would require extending the command system
     invoke(commandId);

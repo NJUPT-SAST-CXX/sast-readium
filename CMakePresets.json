@@ -74,6 +74,36 @@
             }
         },
         {
+            "name": "Debug-Windows-vcpkg-mingw",
+            "displayName": "Debug build for Windows (vcpkg + MinGW)",
+            "description": "Debug build using vcpkg with MinGW/Ninja on Windows",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Debug-Windows-vcpkg",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "D:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "USE_VCPKG": "ON",
+                "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+                "BUILD_TESTING": "ON",
+                "ENABLE_CLANGD_CONFIG": "OFF"
+            }
+        },
+        {
+            "name": "Release-Windows-vcpkg-mingw",
+            "displayName": "Release build for Windows (vcpkg + MinGW)",
+            "description": "Release build using vcpkg with MinGW/Ninja on Windows",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Release-Windows-vcpkg",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "D:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_BUILD_TYPE": "Release",
+                "USE_VCPKG": "ON",
+                "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+                "BUILD_TESTING": "ON",
+                "ENABLE_CLANGD_CONFIG": "OFF"
+            }
+        },
+        {
             "name": "Debug-Linux-vcpkg",
             "displayName": "Debug build for Linux (with vcpkg)",
             "description": "Debug build using vcpkg for dependency management on Linux",
@@ -199,6 +229,18 @@
             "name": "Release-MSYS2",
             "displayName": "Release build for MSYS2 (system packages)",
             "configurePreset": "Release-MSYS2",
+            "jobs": 8
+        },
+        {
+            "name": "Debug-Windows-vcpkg-mingw",
+            "displayName": "Debug build for Windows (vcpkg + MinGW)",
+            "configurePreset": "Debug-Windows-vcpkg-mingw",
+            "jobs": 8
+        },
+        {
+            "name": "Release-Windows-vcpkg-mingw",
+            "displayName": "Release build for Windows (vcpkg + MinGW)",
+            "configurePreset": "Release-Windows-vcpkg-mingw",
             "jobs": 8
         },
         {

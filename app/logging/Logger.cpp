@@ -29,8 +29,9 @@ public:
     std::vector<std::shared_ptr<spdlog::sinks::sink>> sinks;
     Logger::LoggerConfig config;
     QTextEdit* qtWidget = nullptr;
-    // CRITICAL FIX: Use QRecursiveMutex instead of QMutex to allow same thread to lock multiple times
-    // This prevents deadlock when initialize() calls methods that also try to lock
+    // CRITICAL FIX: Use QRecursiveMutex instead of QMutex to allow same thread
+    // to lock multiple times This prevents deadlock when initialize() calls
+    // methods that also try to lock
     mutable QRecursiveMutex mutex;
     bool initialized = false;
 
@@ -164,7 +165,8 @@ void Logger::Implementation::createLogger() {
 }
 
 void Logger::setLogLevel(LogLevel level) {
-    // FIXED: Now using QRecursiveMutex, so this is safe even when called from initialize()
+    // FIXED: Now using QRecursiveMutex, so this is safe even when called from
+    // initialize()
     QMutexLocker locker(&d->mutex);
     d->config.level = level;
 
@@ -174,7 +176,8 @@ void Logger::setLogLevel(LogLevel level) {
 }
 
 void Logger::setPattern(const QString& pattern) {
-    // FIXED: Now using QRecursiveMutex, so this is safe even when called from initialize()
+    // FIXED: Now using QRecursiveMutex, so this is safe even when called from
+    // initialize()
     QMutexLocker locker(&d->mutex);
     d->config.pattern = pattern;
 
@@ -184,7 +187,8 @@ void Logger::setPattern(const QString& pattern) {
 }
 
 void Logger::addConsoleSink() {
-    // FIXED: Now using QRecursiveMutex, so this is safe even when called from initialize()
+    // FIXED: Now using QRecursiveMutex, so this is safe even when called from
+    // initialize()
     QMutexLocker locker(&d->mutex);
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     console_sink->set_level(Implementation::toSpdlogLevel(d->config.level));
@@ -192,7 +196,8 @@ void Logger::addConsoleSink() {
 }
 
 void Logger::addFileSink(const QString& filename) {
-    // FIXED: Now using QRecursiveMutex, so this is safe even when called from initialize()
+    // FIXED: Now using QRecursiveMutex, so this is safe even when called from
+    // initialize()
     QMutexLocker locker(&d->mutex);
     try {
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
@@ -210,7 +215,8 @@ void Logger::addFileSink(const QString& filename) {
 
 void Logger::addRotatingFileSink(const QString& filename, size_t maxSize,
                                  size_t maxFiles) {
-    // FIXED: Now using QRecursiveMutex, so this is safe even when called from initialize()
+    // FIXED: Now using QRecursiveMutex, so this is safe even when called from
+    // initialize()
     QMutexLocker locker(&d->mutex);
     try {
         auto rotating_sink =
@@ -233,7 +239,8 @@ void Logger::addQtWidgetSink(QTextEdit* widget) {
         return;
     }
 
-    // FIXED: Now using QRecursiveMutex, so this is safe even when called from initialize()
+    // FIXED: Now using QRecursiveMutex, so this is safe even when called from
+    // initialize()
     QMutexLocker locker(&d->mutex);
     d->qtWidget = widget;
 

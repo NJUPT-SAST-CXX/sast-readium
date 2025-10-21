@@ -28,12 +28,12 @@
 #include <QWheelEvent>
 #include <QtCore>
 #include <QtGlobal>
-#include "../../utils/SafePDFRenderer.h"
 #include <QtWidgets>
 #include <cmath>
 #include <memory>
 #include <stdexcept>
 #include "../../managers/StyleManager.h"
+#include "../../utils/SafePDFRenderer.h"
 
 // PDFPageWidget Implementation
 PDFPageWidget::PDFPageWidget(QWidget* parent)
@@ -268,23 +268,28 @@ void PDFPageWidget::renderPage() {
             // 对于Qt生成的PDF，使用保守的渲染设置以避免崩溃
             // 这里我们使用较低的DPI作为预防措施
             if (optimizedDpi > 150.0) {
-                qDebug() << "Using conservative DPI settings for PDF compatibility";
+                qDebug()
+                    << "Using conservative DPI settings for PDF compatibility";
                 optimizedDpi = qMin(optimizedDpi, 150.0);
             }
         }
 
-        QImage image = renderer.safeRenderPage(currentPage, optimizedDpi, &renderInfo);
+        QImage image =
+            renderer.safeRenderPage(currentPage, optimizedDpi, &renderInfo);
 
         if (!renderInfo.success || image.isNull()) {
-            QString errorMsg = renderInfo.errorMessage.isEmpty() ? "Failed to render page" : renderInfo.errorMessage;
+            QString errorMsg = renderInfo.errorMessage.isEmpty()
+                                   ? "Failed to render page"
+                                   : renderInfo.errorMessage;
             setText(errorMsg);
             renderState = RenderError;
 
             // 记录详细信息
             qWarning() << "PDF rendering failed:" << errorMsg
-                      << "Attempts:" << renderInfo.attemptCount
-                      << "Compatibility:" << static_cast<int>(renderInfo.compatibility)
-                      << "Used fallback:" << renderInfo.usedFallback;
+                       << "Attempts:" << renderInfo.attemptCount
+                       << "Compatibility:"
+                       << static_cast<int>(renderInfo.compatibility)
+                       << "Used fallback:" << renderInfo.usedFallback;
             return;
         }
 
@@ -1252,7 +1257,8 @@ PDFViewer::~PDFViewer() {
     }
 
     // Cancel all pending renders in continuous mode
-    for (auto it = activePageWidgets.begin(); it != activePageWidgets.end(); ++it) {
+    for (auto it = activePageWidgets.begin(); it != activePageWidgets.end();
+         ++it) {
         if (it.value()) {
             it.value()->cancelPendingRender();
         }
@@ -1270,8 +1276,8 @@ void PDFViewer::setDocument(Poppler::Document* doc) {
     try {
         // 清理旧文档
         if (document) {
-            clearPageCache();  // 清理缓存
-            currentPage.reset();  // Release the current page
+            clearPageCache();         // 清理缓存
+            currentPage.reset();      // Release the current page
             continuousPages.clear();  // Release continuous mode pages
 
             // Stop prerendering for old document
@@ -1307,15 +1313,21 @@ void PDFViewer::setDocument(Poppler::Document* doc) {
             pageCountLabel->setText(QString("/ %1").arg(numPages));
 
             // Initialize prerenderer with new document
-            qDebug() << "PDFViewer::setDocument - About to initialize prerenderer, ptr=" << prerenderer;
+            qDebug() << "PDFViewer::setDocument - About to initialize "
+                        "prerenderer, ptr="
+                     << prerenderer;
             if (prerenderer) {
-                qDebug() << "PDFViewer::setDocument - Calling prerenderer->setDocument()";
+                qDebug() << "PDFViewer::setDocument - Calling "
+                            "prerenderer->setDocument()";
                 prerenderer->setDocument(document);
-                qDebug() << "PDFViewer::setDocument - Calling prerenderer->startPrerendering()";
+                qDebug() << "PDFViewer::setDocument - Calling "
+                            "prerenderer->startPrerendering()";
                 prerenderer->startPrerendering();
-                qDebug() << "PDFPrerenderer initialized with" << numPages << "pages";
+                qDebug() << "PDFPrerenderer initialized with" << numPages
+                         << "pages";
             } else {
-                qDebug() << "PDFViewer::setDocument - WARNING: prerenderer is nullptr!";
+                qDebug() << "PDFViewer::setDocument - WARNING: prerenderer is "
+                            "nullptr!";
             }
 
             updatePageDisplay();
@@ -2237,8 +2249,9 @@ void PDFViewer::setRotation(int degrees) {
                         currentPage = document->page(currentPageNumber);
                         if (currentPage) {
                             singlePageWidget->setPageNumber(currentPageNumber);
-                            singlePageWidget->setPage(
-                                currentPage.get(), currentZoomFactor, currentRotation);
+                            singlePageWidget->setPage(currentPage.get(),
+                                                      currentZoomFactor,
+                                                      currentRotation);
                         } else {
                             throw std::runtime_error(
                                 "Failed to get page for rotation");
@@ -2362,8 +2375,8 @@ void PDFViewer::updateContinuousViewRotation() {
                     continuousPages[pageNumber] = document->page(pageNumber);
                     if (continuousPages[pageNumber]) {
                         pageWidget->blockSignals(true);
-                        pageWidget->setPage(continuousPages[pageNumber].get(), currentZoomFactor,
-                                            currentRotation);
+                        pageWidget->setPage(continuousPages[pageNumber].get(),
+                                            currentZoomFactor, currentRotation);
                         pageWidget->blockSignals(false);
                         successCount++;
                     } else {
@@ -2401,7 +2414,8 @@ void PDFViewer::updateContinuousViewRotation() {
                         if (continuousPages[i]) {
                             // 阻止信号发出，避免循环
                             pageWidget->blockSignals(true);
-                            pageWidget->setPage(continuousPages[i].get(), currentZoomFactor,
+                            pageWidget->setPage(continuousPages[i].get(),
+                                                currentZoomFactor,
                                                 currentRotation);
                             pageWidget->blockSignals(false);
                             successCount++;
@@ -2879,7 +2893,8 @@ void PDFViewer::createPageWidget(int pageNumber) {
     continuousPages[pageNumber] = document->page(pageNumber);
     if (continuousPages[pageNumber]) {
         pageWidget->blockSignals(true);
-        pageWidget->setPage(continuousPages[pageNumber].get(), currentZoomFactor, currentRotation);
+        pageWidget->setPage(continuousPages[pageNumber].get(),
+                            currentZoomFactor, currentRotation);
         pageWidget->blockSignals(false);
     }
 }

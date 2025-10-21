@@ -74,8 +74,9 @@ QStringList computePopularQueriesFromFrequency(
     }
 
     std::sort(queryPairs.begin(), queryPairs.end(),
-              [](const QPair<QString, int>& a,
-                 const QPair<QString, int>& b) { return a.second > b.second; });
+              [](const QPair<QString, int>& a, const QPair<QString, int>& b) {
+                  return a.second > b.second;
+              });
 
     QStringList popularQueries;
     int limit = qMin(maxQueries, queryPairs.size());
@@ -391,7 +392,7 @@ QStringList SearchFeatures::getRecentQueries(int maxQueries) const {
 QStringList SearchFeatures::getPopularQueries(int maxQueries) const {
     QMutexLocker locker(&d->statisticsMutex);
     return computePopularQueriesFromFrequency(d->statistics.queryFrequency,
-                                             maxQueries);
+                                              maxQueries);
 }
 
 void SearchFeatures::clearHistory() {

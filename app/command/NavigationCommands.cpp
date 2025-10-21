@@ -1,8 +1,8 @@
 #include "NavigationCommands.h"
 
 #include <QApplication>
-#include <QShortcut>
 #include <QKeySequence>
+#include <QShortcut>
 #include <QWidget>
 
 #include "../controller/PageController.h"
@@ -1165,8 +1165,7 @@ void NavigationCommandFactory::registerShortcuts(QWidget* widget) {
         {"Ctrl+Home", "Scroll to Top", "scroll-top"},
         {"Ctrl+End", "Scroll to Bottom", "scroll-bottom"},
         {"Ctrl+Left", "Scroll to Left", "scroll-left"},
-        {"Ctrl+Right", "Scroll to Right", "scroll-right"}
-    };
+        {"Ctrl+Right", "Scroll to Right", "scroll-right"}};
 
     int registeredCount = 0;
     int conflictCount = 0;
@@ -1175,7 +1174,8 @@ void NavigationCommandFactory::registerShortcuts(QWidget* widget) {
     for (const auto& shortcutDef : shortcuts) {
         try {
             // Create QShortcut object
-            auto* shortcut = new QShortcut(QKeySequence(shortcutDef.key), widget);
+            auto* shortcut =
+                new QShortcut(QKeySequence(shortcutDef.key), widget);
 
             // Set context to widget-specific to avoid global conflicts
             shortcut->setContext(Qt::WidgetWithChildrenShortcut);
@@ -1190,19 +1190,19 @@ void NavigationCommandFactory::registerShortcuts(QWidget* widget) {
             // creates and executes the appropriate command
 
             logger.debug(QString("Registered shortcut: %1 -> %2")
-                            .arg(shortcutDef.key)
-                            .arg(shortcutDef.description));
+                             .arg(shortcutDef.key)
+                             .arg(shortcutDef.description));
             registeredCount++;
 
         } catch (const std::exception& e) {
             logger.error(QString("Failed to register shortcut %1: %2")
-                            .arg(shortcutDef.key)
-                            .arg(e.what()));
+                             .arg(shortcutDef.key)
+                             .arg(e.what()));
             conflictCount++;
         }
     }
 
     logger.info(QString("Registered %1 navigation shortcuts (%2 conflicts)")
-                   .arg(registeredCount)
-                   .arg(conflictCount));
+                    .arg(registeredCount)
+                    .arg(conflictCount));
 }

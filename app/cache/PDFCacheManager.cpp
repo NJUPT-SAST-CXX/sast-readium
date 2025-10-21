@@ -267,7 +267,8 @@ void PDFCacheManager::Implementation::enforceMemoryLimit() {
     }
 
     LOG_INFO(
-        "PDFCacheManager: Enforcing memory limit - current: {} bytes, limit: {} "
+        "PDFCacheManager: Enforcing memory limit - current: {} bytes, limit: "
+        "{} "
         "bytes",
         currentUsage, maxMemoryUsage);
 
@@ -307,7 +308,8 @@ void PDFCacheManager::Implementation::enforceMemoryLimit() {
             itemsEvicted++;
         } else {
             LOG_WARNING(
-                "PDFCacheManager: Failed to find item for eviction during memory "
+                "PDFCacheManager: Failed to find item for eviction during "
+                "memory "
                 "limit enforcement");
             break;
         }
@@ -325,9 +327,10 @@ void PDFCacheManager::Implementation::enforceItemLimit() {
         return;  // Within limits, nothing to do
     }
 
-    LOG_INFO("PDFCacheManager: Enforcing item limit - current: {} items, limit: "
-             "{} items",
-             cache.size(), maxItems);
+    LOG_INFO(
+        "PDFCacheManager: Enforcing item limit - current: {} items, limit: "
+        "{} items",
+        cache.size(), maxItems);
 
     int itemsEvicted = 0;
     qint64 memoryFreed = 0;
@@ -371,7 +374,8 @@ void PDFCacheManager::Implementation::enforceItemLimit() {
     }
 
     LOG_INFO(
-        "PDFCacheManager: Item limit enforced - evicted {} items, freed {} bytes",
+        "PDFCacheManager: Item limit enforced - evicted {} items, freed {} "
+        "bytes",
         itemsEvicted, memoryFreed);
 }
 

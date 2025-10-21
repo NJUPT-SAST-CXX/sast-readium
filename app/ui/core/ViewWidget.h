@@ -34,7 +34,8 @@
  * - Document models are managed externally by DocumentController
  * - Proper cleanup in destructor ensures no memory leaks
  *
- * @note All document operations are bounds-checked and log errors for invalid indices
+ * @note All document operations are bounds-checked and log errors for invalid
+ * indices
  */
 class ViewWidget : public QWidget {
     Q_OBJECT
@@ -140,7 +141,7 @@ private:
     QList<PDFOutlineModel*> outlineModels;  // 每个文档对应一个目录模型
 
     // Loading state tracking
-    QMap<QString, QWidget*> loadingWidgets;  // filePath -> loading widget
+    QMap<QString, QWidget*> loadingWidgets;     // filePath -> loading widget
     QMap<QString, QProgressBar*> progressBars;  // filePath -> progress bar
 
     // 辅助方法

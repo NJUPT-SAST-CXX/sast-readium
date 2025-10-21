@@ -91,10 +91,13 @@ void TestSearchIntegration::initTestCase() {
     QVERIFY(m_testDocument != nullptr);
 
     // Check compatibility and log for debugging
-    SafePDFRenderer::CompatibilityResult compatibility = renderer.checkCompatibility(m_testDocument);
-    qDebug() << "Search test PDF compatibility:" << static_cast<int>(compatibility);
+    SafePDFRenderer::CompatibilityResult compatibility =
+        renderer.checkCompatibility(m_testDocument);
+    qDebug() << "Search test PDF compatibility:"
+             << static_cast<int>(compatibility);
     if (compatibility == SafePDFRenderer::CompatibilityResult::QtGenerated) {
-        qDebug() << "Qt-generated PDF detected in search test - using safe rendering";
+        qDebug() << "Qt-generated PDF detected in search test - using safe "
+                    "rendering";
     }
 }
 

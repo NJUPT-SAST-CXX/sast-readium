@@ -527,7 +527,8 @@ bool ThumbnailDelegate::eventFilter(QObject* object, QEvent* event) {
         QModelIndex index = view->indexAt(mouseEvent->pos());
 
         // Update hover states for all items
-        for (auto it = d->animationStates.begin(); it != d->animationStates.end(); ++it) {
+        for (auto it = d->animationStates.begin();
+             it != d->animationStates.end(); ++it) {
             bool isHovered = (it.key() == index && index.isValid());
             d->updateHoverState(it.key(), isHovered);
         }
@@ -715,8 +716,8 @@ void ThumbnailDelegate::Implementation::paintLoadingIndicator(
 
     // Draw main content rectangle (represents the page content)
     int mainHeight = contentRect.height() * 0.7;
-    QRect mainRect(contentRect.x(), contentRect.y(),
-                   contentRect.width(), mainHeight);
+    QRect mainRect(contentRect.x(), contentRect.y(), contentRect.width(),
+                   mainHeight);
     painter->fillRect(mainRect, shimmerColor);
 
     // Draw text line placeholders (represents page text)
@@ -724,7 +725,8 @@ void ThumbnailDelegate::Implementation::paintLoadingIndicator(
     int lineY = mainRect.bottom() + spacing * 2;
     int numLines = 3;
 
-    for (int i = 0; i < numLines && lineY + lineHeight < contentRect.bottom(); ++i) {
+    for (int i = 0; i < numLines && lineY + lineHeight < contentRect.bottom();
+         ++i) {
         int lineWidth = contentRect.width();
         if (i == numLines - 1) {
             lineWidth = lineWidth * 0.6;  // Last line shorter
@@ -774,8 +776,7 @@ void ThumbnailDelegate::Implementation::paintErrorIndicator(
 
     int iconSize = qMin(rect.width(), rect.height()) / 3;
     QRect iconRect(rect.center().x() - iconSize / 2,
-                   rect.center().y() - iconSize / 2,
-                   iconSize, iconSize);
+                   rect.center().y() - iconSize / 2, iconSize, iconSize);
 
     // Draw X
     painter->drawLine(iconRect.topLeft(), iconRect.bottomRight());
@@ -786,16 +787,19 @@ void ThumbnailDelegate::Implementation::paintErrorIndicator(
         painter->setFont(errorFont);
         painter->setPen(errorColor.darker(150));
 
-        QRect textRect = rect.adjusted(margin, iconRect.bottom() + 5, -margin, -margin);
+        QRect textRect =
+            rect.adjusted(margin, iconRect.bottom() + 5, -margin, -margin);
         QString displayText = errorMessage;
 
         // Truncate if too long
         QFontMetrics fm(errorFont);
         if (fm.horizontalAdvance(displayText) > textRect.width()) {
-            displayText = fm.elidedText(displayText, Qt::ElideRight, textRect.width());
+            displayText =
+                fm.elidedText(displayText, Qt::ElideRight, textRect.width());
         }
 
-        painter->drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap, displayText);
+        painter->drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap,
+                          displayText);
     }
 }
 
@@ -866,8 +870,9 @@ void ThumbnailDelegate::Implementation::setupAnimations(
     state->selectionAnimation = new QPropertyAnimation();
     state->selectionAnimation->setDuration(SELECTION_ANIMATION_DURATION);
     state->selectionAnimation->setEasingCurve(QEasingCurve::OutCubic);
-    QObject::connect(state->selectionAnimation, &QPropertyAnimation::valueChanged,
-                     q_ptr, [this, state](const QVariant& value) {
+    QObject::connect(state->selectionAnimation,
+                     &QPropertyAnimation::valueChanged, q_ptr,
+                     [this, state](const QVariant& value) {
                          state->selectionOpacity = value.toReal();
                          state->needsUpdate = true;
                      });
@@ -929,7 +934,8 @@ void ThumbnailDelegate::Implementation::paintOptimized(
     QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
     bool isLoading = index.data(ThumbnailModel::LoadingRole).toBool();
     bool hasError = index.data(ThumbnailModel::ErrorRole).toBool();
-    QString errorMessage = index.data(ThumbnailModel::ErrorMessageRole).toString();
+    QString errorMessage =
+        index.data(ThumbnailModel::ErrorMessageRole).toString();
     int pageNumber = index.data(ThumbnailModel::PageNumberRole).toInt();
 
     // Calculate rectangles
@@ -1017,7 +1023,8 @@ ThumbnailDelegate::Implementation::getRenderCache(const QString& key) const {
         RenderCache* cache = iter.value();
         // Check if cache is still valid (not expired)
         qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-        if (cache->isValid && (currentTime - cache->timestamp) < CACHE_EXPIRY_TIME) {
+        if (cache->isValid &&
+            (currentTime - cache->timestamp) < CACHE_EXPIRY_TIME) {
             return cache;
         } else {
             // Cache expired
@@ -1027,8 +1034,8 @@ ThumbnailDelegate::Implementation::getRenderCache(const QString& key) const {
     return nullptr;
 }
 
-void ThumbnailDelegate::Implementation::insertRenderCache(
-    const QString& key, RenderCache* cache) {
+void ThumbnailDelegate::Implementation::insertRenderCache(const QString& key,
+                                                          RenderCache* cache) {
     if (key.isEmpty() || !cache) {
         return;
     }
@@ -1041,7 +1048,8 @@ void ThumbnailDelegate::Implementation::insertRenderCache(
         qint64 oldestTime = QDateTime::currentMSecsSinceEpoch();
         QString oldestKey;
 
-        for (auto iter = renderCache.begin(); iter != renderCache.end(); ++iter) {
+        for (auto iter = renderCache.begin(); iter != renderCache.end();
+             ++iter) {
             if (iter.value()->timestamp < oldestTime) {
                 oldestTime = iter.value()->timestamp;
                 oldestKey = iter.key();
@@ -1068,7 +1076,8 @@ QPixmap ThumbnailDelegate::Implementation::renderToCache(
     pixmapPainter.setRenderHint(QPainter::Antialiasing, antiAliasingEnabled);
     pixmapPainter.setRenderHint(QPainter::SmoothPixmapTransform,
                                 smoothPixmapTransform);
-    pixmapPainter.setRenderHint(QPainter::TextAntialiasing, highQualityRendering);
+    pixmapPainter.setRenderHint(QPainter::TextAntialiasing,
+                                highQualityRendering);
 
     // Get data
     QPixmap thumbnail = index.data(ThumbnailModel::PixmapRole).value<QPixmap>();
@@ -1093,7 +1102,8 @@ QPixmap ThumbnailDelegate::Implementation::renderToCache(
     paintBorder(&pixmapPainter, thumbnailRect, option);
 
     if (hasError) {
-        paintErrorIndicator(&pixmapPainter, thumbnailRect, errorMessage, option);
+        paintErrorIndicator(&pixmapPainter, thumbnailRect, errorMessage,
+                            option);
     } else if (isLoading) {
         paintLoadingIndicator(&pixmapPainter, thumbnailRect, option);
     } else if (!thumbnail.isNull()) {
@@ -1112,7 +1122,8 @@ void ThumbnailDelegate::Implementation::paintFromCache(
     }
 
     painter->save();
-    painter->setRenderHint(QPainter::SmoothPixmapTransform, smoothPixmapTransform);
+    painter->setRenderHint(QPainter::SmoothPixmapTransform,
+                           smoothPixmapTransform);
     painter->drawPixmap(rect, cached);
     painter->restore();
 }
@@ -1127,8 +1138,8 @@ void ThumbnailDelegate::Implementation::updatePerformanceStats() const {
         qDebug() << "  Paint calls:" << performanceStats.paintCalls.load();
         qDebug() << "  Avg paint time:" << performanceStats.averagePaintTime()
                  << "ms";
-        qDebug() << "  Cache hit rate:" << (performanceStats.cacheHitRate() * 100)
-                 << "%";
+        qDebug() << "  Cache hit rate:"
+                 << (performanceStats.cacheHitRate() * 100) << "%";
         qDebug() << "  Cache size:" << renderCache.size();
     }
 }

@@ -82,7 +82,7 @@ void SideBar::initContent() {
 
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);  // No margins for sidebar
-    mainLayout->setSpacing(0);  // No spacing for tight layout
+    mainLayout->setSpacing(0);                   // No spacing for tight layout
     mainLayout->addWidget(tabWidget);
 }
 

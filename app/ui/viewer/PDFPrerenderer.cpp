@@ -658,8 +658,8 @@ QPixmap PDFRenderWorker::renderPage(
     QImage image = renderer.safeRenderPage(page.get(), dpi, &renderInfo);
     if (!renderInfo.success || image.isNull()) {
         // For prerendering, we can safely fail silently
-        qDebug() << "PDFPrerenderer: Safe rendering failed for page" << request.pageNumber
-                 << "Error:" << renderInfo.errorMessage;
+        qDebug() << "PDFPrerenderer: Safe rendering failed for page"
+                 << request.pageNumber << "Error:" << renderInfo.errorMessage;
         return QPixmap();
     }
 

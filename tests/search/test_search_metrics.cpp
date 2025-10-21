@@ -383,8 +383,7 @@ void SearchMetricsTest::testHistoryManagement() {
     const int totalMetrics = 1050;
     for (int i = 0; i < totalMetrics; ++i) {
         SearchMetrics::Metric metric =
-            createTestMetric(QString("history%1").arg(i), 40 + i,
-                             (i % 5) + 1);
+            createTestMetric(QString("history%1").arg(i), 40 + i, (i % 5) + 1);
         metric.timestamp = QDateTime::currentDateTime().addSecs(i);
         m_metrics->recordSearch(metric);
     }
@@ -531,8 +530,7 @@ void SearchMetricsTest::testConcurrentAccess() {
         futures.append(QtConcurrent::run([this, operationsPerThread, t]() {
             for (int i = 0; i < operationsPerThread; ++i) {
                 SearchMetrics::Metric metric = createTestMetric(
-                    QString("thread%1-%2").arg(t).arg(i), 25 + i,
-                    (i % 5) + 1);
+                    QString("thread%1-%2").arg(t).arg(i), 25 + i, (i % 5) + 1);
                 metric.incremental = (i % 2 == 0);
                 metric.timestamp = QDateTime::currentDateTime();
                 m_metrics->recordSearch(metric);
@@ -587,9 +585,8 @@ void SearchMetricsTest::testRealWorldScenario() {
     QCOMPARE(fastest.query, QString("quick-update"));
     QCOMPARE(slowest.query, QString("full-document"));
 
-    QList<SearchMetrics::Metric> metrics =
-        m_metrics->metricsInRange(docSearch.timestamp.addSecs(-1),
-                                  quickSearch.timestamp.addSecs(1));
+    QList<SearchMetrics::Metric> metrics = m_metrics->metricsInRange(
+        docSearch.timestamp.addSecs(-1), quickSearch.timestamp.addSecs(1));
     QCOMPARE(metrics.size(), 2);
 }
 
@@ -614,9 +611,8 @@ void SearchMetricsTest::testMetricsAccuracy() {
     SearchMetrics::Metric slowest = m_metrics->slowestSearch();
     QVERIFY(fastest.duration <= slowest.duration);
 
-    QList<SearchMetrics::Metric> range =
-        m_metrics->metricsInRange(fastest.timestamp.addSecs(-1),
-                                  slowest.timestamp.addSecs(1));
+    QList<SearchMetrics::Metric> range = m_metrics->metricsInRange(
+        fastest.timestamp.addSecs(-1), slowest.timestamp.addSecs(1));
     QVERIFY(range.size() >= 2);
 }
 

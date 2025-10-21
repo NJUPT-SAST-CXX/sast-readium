@@ -27,4 +27,3 @@ QLabel.message-pill {
     padding: 6px 10px;
     font-weight: 600;
 }
-

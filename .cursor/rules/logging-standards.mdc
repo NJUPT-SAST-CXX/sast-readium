@@ -317,7 +317,7 @@ Include full context for errors:
 m_logger.error("Failed");
 
 // GOOD
-m_logger.error("Failed to open document: {} (error: {})", 
+m_logger.error("Failed to open document: {} (error: {})",
                filePath, errorCode);
 ```
 
@@ -325,7 +325,7 @@ m_logger.error("Failed to open document: {} (error: {})",
 Use consistent formats for parsing:
 ```cpp
 // Good - structured and parseable
-m_logger.info("DocumentOpened: path={}, pages={}, size={}", 
+m_logger.info("DocumentOpened: path={}, pages={}, size={}",
               path, pages, size);
 
 // Bad - inconsistent format
@@ -370,16 +370,16 @@ public:
 ### Error Handling
 ```cpp
 void SearchEngine::search(const QString& query) {
-    m_logger.info("Search started: query='{}', options={}", 
+    m_logger.info("Search started: query='{}', options={}",
                   query.toStdString(), optionsToString());
 
     try {
         auto results = performSearch(query);
-        m_logger.info("Search completed: {} results in {} ms", 
+        m_logger.info("Search completed: {} results in {} ms",
                       results.size(), elapsed);
     }
     catch (const std::exception& e) {
-        m_logger.error("Search failed: {} (exception: {})", 
+        m_logger.error("Search failed: {} (exception: {})",
                        query.toStdString(), e.what());
         throw;
     }

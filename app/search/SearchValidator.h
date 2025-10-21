@@ -182,8 +182,7 @@ private:
  */
 class ValidationScope {
 public:
-    explicit ValidationScope(SearchValidator* validator,
-                             QString operation);
+    explicit ValidationScope(SearchValidator* validator, QString operation);
     ~ValidationScope();
 
     void addValidation(const SearchValidator::ValidationResult& result);

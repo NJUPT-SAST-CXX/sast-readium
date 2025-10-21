@@ -35,9 +35,7 @@ public:
 
 // Platform-specific includes for memory usage
 #ifdef Q_OS_WIN
-#define WIN32_LEAN_AND_MEAN  // Reduce Windows header size and avoid conflicts
-#include <windows.h>  // Must be included BEFORE psapi.h (defines base types)
-#include <psapi.h>    // Process Status API (depends on windows.h types)
+#include "platform/WindowsCompat.h"  // Windows headers with macro cleanup
 #elif defined(Q_OS_MACOS)
 #include <mach/mach.h>
 #include <mach/mach_init.h>

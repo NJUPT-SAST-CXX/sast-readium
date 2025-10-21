@@ -7,12 +7,12 @@
  */
 
 #include "SimpleLogging.h"
-#include <iostream>
 #include <spdlog/fmt/fmt.h>
 #include <QDateTime>
 #include <QDir>
 #include <QStandardPaths>
 #include <chrono>
+#include <iostream>
 #include "Logger.h"
 #include "LoggingConfig.h"
 #include "LoggingManager.h"

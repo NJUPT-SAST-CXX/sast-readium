@@ -1,24 +1,24 @@
 #pragma once
 
-#include <QWidget>
+#include <QColor>
+#include <QPainter>
 #include <QPropertyAnimation>
 #include <QTimer>
-#include <QPainter>
-#include <QColor>
+#include <QWidget>
 
 /**
  * @brief SkeletonWidget - A loading placeholder widget with shimmer animation
- * 
+ *
  * This widget provides a modern skeleton screen loading indicator that shows
  * the approximate layout of content while it's loading, improving perceived
  * performance compared to traditional spinners.
- * 
+ *
  * Features:
  * - Smooth shimmer animation
  * - Customizable shape (rectangle, circle, text line)
  * - Theme-aware colors
  * - Configurable animation speed
- * 
+ *
  * Usage:
  * @code
  * auto* skeleton = new SkeletonWidget(SkeletonWidget::Shape::Rectangle);
@@ -28,7 +28,8 @@
  */
 class SkeletonWidget : public QWidget {
     Q_OBJECT
-    Q_PROPERTY(qreal shimmerPosition READ shimmerPosition WRITE setShimmerPosition)
+    Q_PROPERTY(
+        qreal shimmerPosition READ shimmerPosition WRITE setShimmerPosition)
 
 public:
     enum class Shape {
@@ -38,7 +39,8 @@ public:
         Custom      // Custom shape (override paintEvent)
     };
 
-    explicit SkeletonWidget(Shape shape = Shape::Rectangle, QWidget* parent = nullptr);
+    explicit SkeletonWidget(Shape shape = Shape::Rectangle,
+                            QWidget* parent = nullptr);
     ~SkeletonWidget() override;
 
     // Animation control
@@ -85,7 +87,7 @@ private:
 
 /**
  * @brief DocumentSkeletonWidget - Skeleton for document loading
- * 
+ *
  * Provides a skeleton screen specifically designed for document loading,
  * showing a placeholder that resembles a document page.
  */
@@ -113,7 +115,7 @@ private:
 
 /**
  * @brief ThumbnailSkeletonWidget - Skeleton for thumbnail loading
- * 
+ *
  * Provides a skeleton screen specifically designed for thumbnail loading,
  * showing a placeholder that resembles a thumbnail with page number.
  */
@@ -139,4 +141,3 @@ private:
     SkeletonWidget* m_pageNumberSkeleton;
     QSize m_thumbnailSize;
 };
-

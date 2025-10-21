@@ -1,3 +1,15 @@
+// Platform-specific headers MUST come first to avoid type conflicts
+// NOTE: Use _WIN32 instead of Q_OS_WIN because Q_OS_WIN is not defined yet
+#ifdef _WIN32
+#include "../../app/platform/WindowsCompat.h"  // Windows headers with macro cleanup
+#elif defined(__linux__)
+#include <unistd.h>
+#include <fstream>
+#elif defined(__APPLE__)
+#include <mach/mach.h>
+#endif
+
+// Qt and other headers
 #include <poppler-qt6.h>
 #include <QApplication>
 #include <QDir>
@@ -14,17 +26,6 @@
 #include "../../app/ui/viewer/PDFViewer.h"
 #include "../../app/utils/SafePDFRenderer.h"
 #include "../TestUtilities.h"
-
-#ifdef Q_OS_WIN
-#define WIN32_LEAN_AND_MEAN  // Reduce Windows header size and avoid conflicts
-#include <windows.h>  // Must be included BEFORE psapi.h (defines base types)
-#include <psapi.h>    // Process Status API (depends on windows.h types)
-#elif defined(Q_OS_LINUX)
-#include <unistd.h>
-#include <fstream>
-#elif defined(Q_OS_MAC)
-#include <mach/mach.h>
-#endif
 
 class TestRenderingPerformance : public QObject {
     Q_OBJECT
@@ -95,10 +96,13 @@ void TestRenderingPerformance::initTestCase() {
     m_viewer->setDocument(m_testDocument);
 
     // Check compatibility for debugging
-    SafePDFRenderer::CompatibilityResult compatibility = renderer.checkCompatibility(m_testDocument);
-    qDebug() << "Performance test PDF compatibility:" << static_cast<int>(compatibility);
+    SafePDFRenderer::CompatibilityResult compatibility =
+        renderer.checkCompatibility(m_testDocument);
+    qDebug() << "Performance test PDF compatibility:"
+             << static_cast<int>(compatibility);
     if (compatibility == SafePDFRenderer::CompatibilityResult::QtGenerated) {
-        qDebug() << "Qt-generated PDF detected in performance test - using safe rendering";
+        qDebug() << "Qt-generated PDF detected in performance test - using "
+                    "safe rendering";
     }
 
     qDebug() << "Performance test initialized with document containing"
@@ -154,12 +158,12 @@ Poppler::Document* TestRenderingPerformance::createLargeTestDocument() {
 }
 
 size_t TestRenderingPerformance::getCurrentMemoryUsage() {
-#ifdef Q_OS_WIN
+#ifdef _WIN32
     PROCESS_MEMORY_COUNTERS pmc;
     if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
         return pmc.WorkingSetSize;
     }
-#elif defined(Q_OS_LINUX)
+#elif defined(__linux__)
     std::ifstream file("/proc/self/status");
     std::string line;
     while (std::getline(file, line)) {
@@ -168,7 +172,7 @@ size_t TestRenderingPerformance::getCurrentMemoryUsage() {
             return std::stoul(memStr) * 1024;  // Convert KB to bytes
         }
     }
-#elif defined(Q_OS_MAC)
+#elif defined(__APPLE__)
     struct task_basic_info info;
     mach_msg_type_number_t size = sizeof(info);
     if (task_info(mach_task_self(), TASK_BASIC_INFO, (task_info_t)&info,
@@ -740,14 +744,17 @@ void TestRenderingPerformance::testCacheEfficiency() {
     qDebug() << "  First pass time:" << firstPassTime << "ms";
     qDebug() << "  Second pass time:" << secondPassTime << "ms";
 
-    // If both passes are too fast to measure (< 1ms), the cache is working perfectly
+    // If both passes are too fast to measure (< 1ms), the cache is working
+    // perfectly
     if (firstPassTime == 0 && secondPassTime == 0) {
-        qDebug() << "  Both passes completed in <1ms - cache is working perfectly!";
+        qDebug()
+            << "  Both passes completed in <1ms - cache is working perfectly!";
         QVERIFY(true);
         return;
     }
 
-    // If only second pass is 0ms but first pass is measurable, cache is excellent
+    // If only second pass is 0ms but first pass is measurable, cache is
+    // excellent
     if (secondPassTime == 0 && firstPassTime > 0) {
         qDebug() << "  Second pass completed in <1ms - cache is excellent!";
         QVERIFY(true);

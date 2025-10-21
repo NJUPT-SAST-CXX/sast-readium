@@ -1,12 +1,12 @@
 #include "ToastNotification.h"
-#include "../../managers/StyleManager.h"
+#include <QApplication>
 #include <QHBoxLayout>
-#include <QVBoxLayout>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QApplication>
 #include <QScreen>
-#include <QMouseEvent>
+#include <QVBoxLayout>
+#include "../../managers/StyleManager.h"
 
 // ToastNotification Implementation
 ToastNotification::ToastNotification(QWidget* parent)
@@ -24,14 +24,14 @@ ToastNotification::ToastNotification(QWidget* parent)
       m_duration(3000),
       m_actionCallback(nullptr),
       m_isShowing(false) {
-    
-    setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint |
+                   Qt::WindowStaysOnTopHint);
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_ShowWithoutActivating);
-    
+
     setupUI();
     setupAnimations();
-    
+
     // Install event filter on parent to handle resize
     if (parent) {
         parent->installEventFilter(this);
@@ -46,22 +46,22 @@ ToastNotification::~ToastNotification() {
 
 void ToastNotification::setupUI() {
     QHBoxLayout* mainLayout = new QHBoxLayout(this);
-    mainLayout->setContentsMargins(STYLE.spacingMD(), STYLE.spacingSM(), 
+    mainLayout->setContentsMargins(STYLE.spacingMD(), STYLE.spacingSM(),
                                    STYLE.spacingMD(), STYLE.spacingSM());
     mainLayout->setSpacing(STYLE.spacingSM());
-    
+
     // Icon label
     m_iconLabel = new QLabel(this);
     m_iconLabel->setFixedSize(24, 24);
     m_iconLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(m_iconLabel);
-    
+
     // Message label
     m_messageLabel = new QLabel(this);
     m_messageLabel->setWordWrap(true);
     m_messageLabel->setFont(STYLE.defaultFont());
     mainLayout->addWidget(m_messageLabel, 1);
-    
+
     // Action button (hidden by default)
     m_actionButton = new QPushButton(this);
     m_actionButton->setFont(STYLE.buttonFont());
@@ -75,20 +75,21 @@ void ToastNotification::setupUI() {
         hideNotification();
     });
     mainLayout->addWidget(m_actionButton);
-    
+
     // Close button
     m_closeButton = new QPushButton("×", this);
     m_closeButton->setFixedSize(24, 24);
     m_closeButton->setCursor(Qt::PointingHandCursor);
     m_closeButton->setFlat(true);
-    connect(m_closeButton, &QPushButton::clicked, this, &ToastNotification::hideNotification);
+    connect(m_closeButton, &QPushButton::clicked, this,
+            &ToastNotification::hideNotification);
     mainLayout->addWidget(m_closeButton);
-    
+
     // Set minimum and maximum size
     setMinimumWidth(300);
     setMaximumWidth(600);
     setMinimumHeight(48);
-    
+
     updateStyle();
 }
 
@@ -96,31 +97,34 @@ void ToastNotification::setupAnimations() {
     // Opacity effect
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
-    
+
     // Fade in animation
-    m_fadeInAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
+    m_fadeInAnimation =
+        new QPropertyAnimation(m_opacityEffect, "opacity", this);
     m_fadeInAnimation->setDuration(STYLE.animationNormal());
     m_fadeInAnimation->setStartValue(0.0);
     m_fadeInAnimation->setEndValue(1.0);
     m_fadeInAnimation->setEasingCurve(QEasingCurve::OutCubic);
-    
+
     // Fade out animation
-    m_fadeOutAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
+    m_fadeOutAnimation =
+        new QPropertyAnimation(m_opacityEffect, "opacity", this);
     m_fadeOutAnimation->setDuration(STYLE.animationNormal());
     m_fadeOutAnimation->setStartValue(1.0);
     m_fadeOutAnimation->setEndValue(0.0);
     m_fadeOutAnimation->setEasingCurve(QEasingCurve::InCubic);
-    
+
     connect(m_fadeOutAnimation, &QPropertyAnimation::finished, this, [this]() {
         hide();
         emit dismissed();
         deleteLater();
     });
-    
+
     // Auto-dismiss timer
     m_dismissTimer = new QTimer(this);
     m_dismissTimer->setSingleShot(true);
-    connect(m_dismissTimer, &QTimer::timeout, this, &ToastNotification::hideNotification);
+    connect(m_dismissTimer, &QTimer::timeout, this,
+            &ToastNotification::hideNotification);
 }
 
 void ToastNotification::setMessage(const QString& message) {
@@ -138,9 +142,7 @@ void ToastNotification::setType(Type type) {
     }
 }
 
-void ToastNotification::setDuration(int ms) {
-    m_duration = ms;
-}
+void ToastNotification::setDuration(int ms) { m_duration = ms; }
 
 void ToastNotification::setPosition(Position position) {
     if (m_position != position) {
@@ -149,7 +151,8 @@ void ToastNotification::setPosition(Position position) {
     }
 }
 
-void ToastNotification::setActionButton(const QString& text, std::function<void()> callback) {
+void ToastNotification::setActionButton(const QString& text,
+                                        std::function<void()> callback) {
     if (m_actionButton) {
         m_actionButton->setText(text);
         m_actionButton->setVisible(!text.isEmpty());
@@ -168,10 +171,10 @@ void ToastNotification::showNotification() {
     updatePosition();
     QWidget::show();
     raise();
-    
+
     // Start fade-in animation
     m_fadeInAnimation->start();
-    
+
     // Start auto-dismiss timer
     if (m_duration > 0) {
         m_dismissTimer->start(m_duration);
@@ -182,14 +185,14 @@ void ToastNotification::hideNotification() {
     if (!m_isShowing) {
         return;
     }
-    
+
     m_isShowing = false;
-    
+
     // Stop dismiss timer
     if (m_dismissTimer) {
         m_dismissTimer->stop();
     }
-    
+
     // Start fade-out animation
     m_fadeOutAnimation->start();
 }
@@ -208,14 +211,14 @@ void ToastNotification::updatePosition() {
     if (!parentWidget()) {
         return;
     }
-    
+
     QWidget* parent = parentWidget();
     QRect parentRect = parent->rect();
     QSize toastSize = sizeHint();
-    
+
     int x = 0, y = 0;
     int margin = STYLE.spacingMD();
-    
+
     switch (m_position) {
         case Position::BottomCenter:
             x = (parentRect.width() - toastSize.width()) / 2;
@@ -242,7 +245,7 @@ void ToastNotification::updatePosition() {
             y = margin;
             break;
     }
-    
+
     // Convert to global coordinates
     QPoint globalPos = parent->mapToGlobal(QPoint(x, y));
     move(globalPos);
@@ -252,56 +255,58 @@ void ToastNotification::updateStyle() {
     QColor bgColor = getBackgroundColor();
     QColor textColor = getTextColor();
     QString icon = getIcon();
-    
+
     // Update icon
     if (m_iconLabel) {
         m_iconLabel->setText(icon);
-        m_iconLabel->setStyleSheet(QString("QLabel { color: %1; font-size: 18px; font-weight: bold; }")
-                                   .arg(textColor.name()));
+        m_iconLabel->setStyleSheet(
+            QString("QLabel { color: %1; font-size: 18px; font-weight: bold; }")
+                .arg(textColor.name()));
     }
-    
+
     // Update message label
     if (m_messageLabel) {
-        m_messageLabel->setStyleSheet(QString("QLabel { color: %1; }")
-                                     .arg(textColor.name()));
+        m_messageLabel->setStyleSheet(
+            QString("QLabel { color: %1; }").arg(textColor.name()));
     }
-    
+
     // Update action button
     if (m_actionButton) {
-        m_actionButton->setStyleSheet(QString(
-            "QPushButton {"
-            "   background-color: transparent;"
-            "   color: %1;"
-            "   border: 1px solid %1;"
-            "   border-radius: %2px;"
-            "   padding: 4px 12px;"
-            "   font-weight: bold;"
-            "}"
-            "QPushButton:hover {"
-            "   background-color: rgba(255, 255, 255, 0.1);"
-            "}"
-            "QPushButton:pressed {"
-            "   background-color: rgba(255, 255, 255, 0.2);"
-            "}"
-        ).arg(textColor.name()).arg(STYLE.radiusSM()));
+        m_actionButton->setStyleSheet(
+            QString("QPushButton {"
+                    "   background-color: transparent;"
+                    "   color: %1;"
+                    "   border: 1px solid %1;"
+                    "   border-radius: %2px;"
+                    "   padding: 4px 12px;"
+                    "   font-weight: bold;"
+                    "}"
+                    "QPushButton:hover {"
+                    "   background-color: rgba(255, 255, 255, 0.1);"
+                    "}"
+                    "QPushButton:pressed {"
+                    "   background-color: rgba(255, 255, 255, 0.2);"
+                    "}")
+                .arg(textColor.name())
+                .arg(STYLE.radiusSM()));
     }
-    
+
     // Update close button
     if (m_closeButton) {
-        m_closeButton->setStyleSheet(QString(
-            "QPushButton {"
-            "   background-color: transparent;"
-            "   color: %1;"
-            "   border: none;"
-            "   font-size: 20px;"
-            "   font-weight: bold;"
-            "}"
-            "QPushButton:hover {"
-            "   background-color: rgba(255, 255, 255, 0.1);"
-            "}"
-        ).arg(textColor.name()));
+        m_closeButton->setStyleSheet(
+            QString("QPushButton {"
+                    "   background-color: transparent;"
+                    "   color: %1;"
+                    "   border: none;"
+                    "   font-size: 20px;"
+                    "   font-weight: bold;"
+                    "}"
+                    "QPushButton:hover {"
+                    "   background-color: rgba(255, 255, 255, 0.1);"
+                    "}")
+                .arg(textColor.name()));
     }
-    
+
     update();
 }
 
@@ -339,16 +344,16 @@ QString ToastNotification::getIcon() const {
 
 void ToastNotification::paintEvent(QPaintEvent* event) {
     Q_UNUSED(event);
-    
+
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    
+
     // Draw rounded rectangle background
     QPainterPath path;
     path.addRoundedRect(rect(), STYLE.radiusLG(), STYLE.radiusLG());
-    
+
     painter.fillPath(path, getBackgroundColor());
-    
+
     // Draw subtle shadow
     painter.setPen(QPen(QColor(0, 0, 0, 30), 1));
     painter.drawPath(path);
@@ -373,13 +378,16 @@ bool ToastNotification::eventFilter(QObject* obj, QEvent* event) {
 }
 
 // Static convenience methods
-void ToastNotification::show(QWidget* parent, const QString& message, Type type, int duration) {
+void ToastNotification::show(QWidget* parent, const QString& message, Type type,
+                             int duration) {
     ToastManager::instance().showToast(parent, message, type, duration);
 }
 
-void ToastNotification::show(QWidget* parent, const QString& message, Type type, int duration,
-                             const QString& actionText, std::function<void()> actionCallback) {
-    ToastManager::instance().showToast(parent, message, type, duration, actionText, actionCallback);
+void ToastNotification::show(QWidget* parent, const QString& message, Type type,
+                             int duration, const QString& actionText,
+                             std::function<void()> actionCallback) {
+    ToastManager::instance().showToast(parent, message, type, duration,
+                                       actionText, actionCallback);
 }
 
 // ToastManager Implementation
@@ -389,14 +397,9 @@ ToastManager& ToastManager::instance() {
 }
 
 ToastManager::ToastManager()
-    : QObject(nullptr),
-      m_currentToast(nullptr),
-      m_isProcessing(false) {
-}
+    : QObject(nullptr), m_currentToast(nullptr), m_isProcessing(false) {}
 
-ToastManager::~ToastManager() {
-    clearQueue();
-}
+ToastManager::~ToastManager() { clearQueue(); }
 
 void ToastManager::showToast(QWidget* parent, const QString& message,
                              ToastNotification::Type type, int duration) {
@@ -436,9 +439,7 @@ void ToastManager::clearQueue() {
     }
 }
 
-int ToastManager::queueSize() const {
-    return m_queue.size();
-}
+int ToastManager::queueSize() const { return m_queue.size(); }
 
 void ToastManager::processQueue() {
     // If already processing or queue is empty, return
@@ -463,10 +464,12 @@ void ToastManager::processQueue() {
     m_currentToast->setDuration(request.duration);
 
     if (request.hasAction) {
-        m_currentToast->setActionButton(request.actionText, request.actionCallback);
+        m_currentToast->setActionButton(request.actionText,
+                                        request.actionCallback);
     }
 
-    connect(m_currentToast, &ToastNotification::dismissed, this, &ToastManager::onToastDismissed);
+    connect(m_currentToast, &ToastNotification::dismissed, this,
+            &ToastManager::onToastDismissed);
 
     m_currentToast->showNotification();
 
@@ -481,4 +484,3 @@ void ToastManager::onToastDismissed() {
         processQueue();
     }
 }
-

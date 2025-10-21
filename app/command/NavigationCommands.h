@@ -2,8 +2,8 @@
 
 #include <QObject>
 #include <QString>
-#include <memory>
 #include <cstdint>
+#include <memory>
 #include "../logging/SimpleLogging.h"
 
 // Forward declarations
@@ -273,9 +273,10 @@ class RotateViewCommand : public NavigationCommand {
 public:
     enum class RotationDirection : std::uint8_t { Clockwise, CounterClockwise };
 
-    explicit RotateViewCommand(ViewWidget* viewWidget,
-                               RotationDirection direction = RotationDirection::Clockwise,
-                               int degrees = 90, QObject* parent = nullptr);
+    explicit RotateViewCommand(
+        ViewWidget* viewWidget,
+        RotationDirection direction = RotationDirection::Clockwise,
+        int degrees = 90, QObject* parent = nullptr);
 
     void setDirection(RotationDirection dir) { m_direction = dir; }
     void setDegrees(int degrees) { m_degrees = degrees; }
@@ -317,7 +318,12 @@ class ChangeViewModeCommand : public NavigationCommand {
     Q_OBJECT
 
 public:
-    enum class ViewMode : std::uint8_t { SinglePage, Continuous, FacingPages, BookView };
+    enum class ViewMode : std::uint8_t {
+        SinglePage,
+        Continuous,
+        FacingPages,
+        BookView
+    };
 
     explicit ChangeViewModeCommand(ViewWidget* viewWidget, ViewMode mode,
                                    QObject* parent = nullptr);

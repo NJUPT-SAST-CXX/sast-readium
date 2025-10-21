@@ -41,7 +41,7 @@ public:
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
                const QModelIndex& index) const override;
     [[nodiscard]] QSize sizeHint(const QStyleOptionViewItem& option,
-                                  const QModelIndex& index) const override;
+                                 const QModelIndex& index) const override;
 
     // 自定义设置
     void setThumbnailSize(const QSize& size);

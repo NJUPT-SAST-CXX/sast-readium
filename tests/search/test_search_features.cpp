@@ -402,8 +402,7 @@ void SearchFeaturesTest::verifyHistoryEntry(
 void SearchFeaturesTest::testFuzzySearchPerformance() {
     QStringList tokens;
     for (int i = 0; i < 500; ++i) {
-        tokens << QString("test%1").arg(i)
-               << QString("tset%1").arg(i)
+        tokens << QString("test%1").arg(i) << QString("tset%1").arg(i)
                << QString("sample%1").arg(i);
     }
     QString largeText = tokens.join(' ');
@@ -462,7 +461,8 @@ void SearchFeaturesTest::testRemoveHistoryEntry() {
     m_features->addToHistory("query3", options, 8, 200);
 
     QSignalSpy historySpy(m_features, &SearchFeatures::historyUpdated);
-    QList<SearchFeatures::HistoryEntry> history = m_features->getSearchHistory();
+    QList<SearchFeatures::HistoryEntry> history =
+        m_features->getSearchHistory();
     QCOMPARE(history.size(), 3);
 
     m_features->removeHistoryEntry(1);
@@ -478,8 +478,7 @@ void SearchFeaturesTest::testRemoveHistoryEntry() {
 void SearchFeaturesTest::testGenerateSuggestions() {
     QStringList corpus = {"search engine optimization",
                           "advanced search features",
-                          "search history management",
-                          "testing utilities"};
+                          "search history management", "testing utilities"};
 
     m_features->updateSuggestionModel(corpus);
 
@@ -505,7 +504,7 @@ void SearchFeaturesTest::testQueryCompletions() {
 }
 
 void SearchFeaturesTest::testUpdateSuggestionModel() {
-    QStringList corpus = {"apple pie",    "apple tart",   "apply rules",
+    QStringList corpus = {"apple pie",    "apple tart",    "apply rules",
                           "banana bread", "band practice", "bandage"};
 
     m_features->updateSuggestionModel(corpus);
@@ -574,8 +573,7 @@ void SearchFeaturesTest::testSortCriteria() {
     QList<SearchResult> byLength =
         m_features->sortResults(results, SearchFeatures::ByLength, true);
     QCOMPARE(byLength.first().matchedText, QString("short"));
-    QCOMPARE(byLength.last().matchedText,
-             QString("averylongmatchingstring"));
+    QCOMPARE(byLength.last().matchedText, QString("averylongmatchingstring"));
 }
 
 void SearchFeaturesTest::testSearchStatistics() {
@@ -622,16 +620,14 @@ void SearchFeaturesTest::testStatisticsTracking() {
     m_features->addToHistory("test1", options, 5, 100, true);
     QVERIFY(statsSpy.count() >= 1);
 
-    SearchFeatures::SearchStatistics stats1 =
-        m_features->getSearchStatistics();
+    SearchFeatures::SearchStatistics stats1 = m_features->getSearchStatistics();
     QCOMPARE(stats1.totalSearches, 1);
     QCOMPARE(stats1.successfulSearches, 1);
 
     m_features->addToHistory("test2", options, 0, 50, false);
     QVERIFY(statsSpy.count() >= 2);
 
-    SearchFeatures::SearchStatistics stats2 =
-        m_features->getSearchStatistics();
+    SearchFeatures::SearchStatistics stats2 = m_features->getSearchStatistics();
     QCOMPARE(stats2.totalSearches, 2);
     QCOMPARE(stats2.successfulSearches, 1);
     QCOMPARE(stats2.averageSearchTime, 75.0);
@@ -685,7 +681,8 @@ void SearchFeaturesTest::testImportSearchHistory() {
 
     // Clear history
     m_features->clearHistory();
-    QList<SearchFeatures::HistoryEntry> emptyHistory = m_features->getSearchHistory();
+    QList<SearchFeatures::HistoryEntry> emptyHistory =
+        m_features->getSearchHistory();
     QCOMPARE(emptyHistory.size(), 0);
 
     // Import the history back
@@ -693,14 +690,17 @@ void SearchFeaturesTest::testImportSearchHistory() {
     QVERIFY(importSuccess);
 
     // Verify history was restored
-    QList<SearchFeatures::HistoryEntry> restoredHistory = m_features->getSearchHistory();
+    QList<SearchFeatures::HistoryEntry> restoredHistory =
+        m_features->getSearchHistory();
     QVERIFY(restoredHistory.size() >= 2);
 
     // Verify the queries are present
     bool foundTest1 = false, foundTest2 = false;
     for (const auto& entry : restoredHistory) {
-        if (entry.query == "import_test1") foundTest1 = true;
-        if (entry.query == "import_test2") foundTest2 = true;
+        if (entry.query == "import_test1")
+            foundTest1 = true;
+        if (entry.query == "import_test2")
+            foundTest2 = true;
     }
     QVERIFY(foundTest1);
     QVERIFY(foundTest2);

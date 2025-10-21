@@ -390,13 +390,15 @@ void WelcomeWidget::setupLayout() {
     // Quick Actions区域 - Compact and efficient
     m_quickActionsWidget = new QWidget();
     m_quickActionsWidget->setObjectName("WelcomeQuickActionsWidget");
-    m_quickActionsWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 - SPACING_LARGE / 2);
+    m_quickActionsWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 -
+                                          SPACING_LARGE / 2);
     leftColumnLayout->addWidget(m_quickActionsWidget, 0, Qt::AlignTop);
 
     // Tutorial Cards区域 - Enhanced layout
     m_tutorialCardsWidget = new QWidget();
     m_tutorialCardsWidget->setObjectName("WelcomeTutorialCardsWidget");
-    m_tutorialCardsWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 - SPACING_LARGE / 2);
+    m_tutorialCardsWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 -
+                                           SPACING_LARGE / 2);
     leftColumnLayout->addWidget(m_tutorialCardsWidget, 0, Qt::AlignTop);
 
     leftColumnLayout->addStretch();
@@ -409,7 +411,8 @@ void WelcomeWidget::setupLayout() {
     // 最近文件区域 - Enhanced prominence and organization
     m_recentFilesWidget = new QWidget();
     m_recentFilesWidget->setObjectName("WelcomeRecentFilesWidget");
-    m_recentFilesWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 - SPACING_LARGE / 2);
+    m_recentFilesWidget->setMaximumWidth(CONTENT_MAX_WIDTH / 2 -
+                                         SPACING_LARGE / 2);
     rightColumnLayout->addWidget(m_recentFilesWidget, 0, Qt::AlignTop);
 
     // Tips区域 - Repositioned for better UX
@@ -556,7 +559,8 @@ void WelcomeWidget::setupActions() {
     primaryActionsWidget->setObjectName("PrimaryActionsWidget");
     QHBoxLayout* primaryActionsLayout = new QHBoxLayout(primaryActionsWidget);
     primaryActionsLayout->setSpacing(SPACING_MEDIUM);
-    primaryActionsLayout->setContentsMargins(SPACING_SMALL, SPACING_SMALL, SPACING_SMALL, SPACING_SMALL);
+    primaryActionsLayout->setContentsMargins(SPACING_SMALL, SPACING_SMALL,
+                                             SPACING_SMALL, SPACING_SMALL);
 
     // Primary action - Open File (most common action)
     m_openFileButton = new QPushButton(tr("Open File..."));
@@ -584,10 +588,12 @@ void WelcomeWidget::setupActions() {
     actionsContainerLayout->addWidget(primaryActionsWidget, 0, Qt::AlignCenter);
 
     // Add keyboard shortcut hints for better UX
-    QLabel* shortcutsHint = new QLabel(tr("Quick access: Ctrl+O to open, Ctrl+N for new file"));
+    QLabel* shortcutsHint =
+        new QLabel(tr("Quick access: Ctrl+O to open, Ctrl+N for new file"));
     shortcutsHint->setObjectName("ShortcutsHintLabel");
     shortcutsHint->setAlignment(Qt::AlignCenter);
-    shortcutsHint->setStyleSheet("color: #8c8c8c; font-size: 11px; margin-top: 8px;");
+    shortcutsHint->setStyleSheet(
+        "color: #8c8c8c; font-size: 11px; margin-top: 8px;");
     actionsContainerLayout->addWidget(shortcutsHint, 0, Qt::AlignCenter);
 }
 
@@ -811,7 +817,8 @@ void WelcomeWidget::setupConnections() {
                 &WelcomeWidget::onNewFileClicked);
         // Set accessibility properties
         m_newFileButton->setAccessibleName(tr("Create new PDF document"));
-        m_newFileButton->setAccessibleDescription(tr("Click to create a new PDF document or press Ctrl+N"));
+        m_newFileButton->setAccessibleDescription(
+            tr("Click to create a new PDF document or press Ctrl+N"));
         m_newFileButton->setShortcut(QKeySequence::New);
     }
 
@@ -820,7 +827,8 @@ void WelcomeWidget::setupConnections() {
                 &WelcomeWidget::onOpenFileClicked);
         // Set accessibility properties
         m_openFileButton->setAccessibleName(tr("Open PDF file"));
-        m_openFileButton->setAccessibleDescription(tr("Click to open an existing PDF file or press Ctrl+O"));
+        m_openFileButton->setAccessibleDescription(
+            tr("Click to open an existing PDF file or press Ctrl+O"));
         m_openFileButton->setShortcut(QKeySequence::Open);
     }
 
@@ -828,8 +836,11 @@ void WelcomeWidget::setupConnections() {
         connect(m_openFolderButton, &QPushButton::clicked, this,
                 &WelcomeWidget::onOpenFolderClicked);
         // Set accessibility properties
-        m_openFolderButton->setAccessibleName(tr("Open folder containing PDF files"));
-        m_openFolderButton->setAccessibleDescription(tr("Click to open a folder and browse PDF files or press Ctrl+Shift+O"));
+        m_openFolderButton->setAccessibleName(
+            tr("Open folder containing PDF files"));
+        m_openFolderButton->setAccessibleDescription(
+            tr("Click to open a folder and browse PDF files or press "
+               "Ctrl+Shift+O"));
         m_openFolderButton->setShortcut(QKeySequence("Ctrl+Shift+O"));
     }
 
@@ -838,7 +849,9 @@ void WelcomeWidget::setupConnections() {
         connect(m_recentFilesList, &RecentFileListWidget::fileClicked, this,
                 &WelcomeWidget::onRecentFileClicked);
         m_recentFilesList->setAccessibleName(tr("Recent files list"));
-        m_recentFilesList->setAccessibleDescription(tr("List of recently opened PDF files. Use arrow keys to navigate and Enter to open."));
+        m_recentFilesList->setAccessibleDescription(
+            tr("List of recently opened PDF files. Use arrow keys to navigate "
+               "and Enter to open."));
     }
 
     // Quick action buttons accessibility
@@ -847,18 +860,22 @@ void WelcomeWidget::setupConnections() {
             QString action = button->text();
             if (action == tr("Search")) {
                 button->setAccessibleName(tr("Search in documents"));
-                button->setAccessibleDescription(tr("Search for text within PDF documents or press Ctrl+F"));
+                button->setAccessibleDescription(
+                    tr("Search for text within PDF documents or press Ctrl+F"));
                 button->setShortcut(QKeySequence::Find);
             } else if (action == tr("Bookmarks")) {
                 button->setAccessibleName(tr("Bookmarks"));
-                button->setAccessibleDescription(tr("View and manage bookmarks or press Ctrl+B"));
+                button->setAccessibleDescription(
+                    tr("View and manage bookmarks or press Ctrl+B"));
                 button->setShortcut(QKeySequence("Ctrl+B"));
             } else if (action == tr("Settings")) {
                 button->setAccessibleName(tr("Application settings"));
-                button->setAccessibleDescription(tr("Open application settings and preferences"));
+                button->setAccessibleDescription(
+                    tr("Open application settings and preferences"));
             } else if (action == tr("Help")) {
                 button->setAccessibleName(tr("Help and documentation"));
-                button->setAccessibleDescription(tr("Get help and view documentation or press F1"));
+                button->setAccessibleDescription(
+                    tr("Get help and view documentation or press F1"));
                 button->setShortcut(QKeySequence::HelpContents);
             }
         }
@@ -887,7 +904,9 @@ void WelcomeWidget::setupConnections() {
 void WelcomeWidget::setupKeyboardNavigation() {
     // Set overall accessibility
     setAccessibleName(tr("Welcome screen"));
-    setAccessibleDescription(tr("SAST Readium PDF viewer welcome screen. Use Tab to navigate between sections."));
+    setAccessibleDescription(
+        tr("SAST Readium PDF viewer welcome screen. Use Tab to navigate "
+           "between sections."));
 
     // Enable keyboard focus
     setFocusPolicy(Qt::TabFocus);

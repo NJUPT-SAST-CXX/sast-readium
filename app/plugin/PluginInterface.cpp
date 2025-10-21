@@ -168,8 +168,9 @@ void MenuExtensionPoint::extend(IPluginInterface* plugin) {
     if (!menuBarObj) {
         qWarning() << "MenuBar not registered in ServiceLocator. Plugin menu "
                       "extensions require MenuBar to be registered.";
-        qWarning() << "To enable plugin menu extensions, register MenuBar with "
-                      "ServiceLocator::instance().registerService<QMenuBar>(menuBar)";
+        qWarning()
+            << "To enable plugin menu extensions, register MenuBar with "
+               "ServiceLocator::instance().registerService<QMenuBar>(menuBar)";
         return;
     }
 
@@ -182,7 +183,8 @@ void MenuExtensionPoint::extend(IPluginInterface* plugin) {
     // Create a "Plugins" menu if it doesn't exist
     QMenu* pluginsMenu = nullptr;
     for (QAction* action : menuBar->actions()) {
-        if (action->text() == QCoreApplication::translate("MenuExtensionPoint", "Plugins") ||
+        if (action->text() ==
+                QCoreApplication::translate("MenuExtensionPoint", "Plugins") ||
             action->text() == "Plugins") {
             pluginsMenu = action->menu();
             break;

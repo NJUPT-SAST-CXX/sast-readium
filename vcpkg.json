@@ -4,13 +4,6 @@
     "description": "A Qt6-based PDF reader application with comprehensive build support for multiple environments",
     "homepage": "https://github.com/NJUPT-SAST/sast-readium",
     "license": "MIT",
-    "default-triplet": "x64-windows",
-    "triplets": [
-        "x64-windows",
-        "x64-linux",
-        "x64-osx",
-        "arm64-osx"
-    ],
     "dependencies": [
         "qtbase",
         "qtspeech",

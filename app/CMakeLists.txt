@@ -53,8 +53,12 @@ set_target_properties(app_lib PROPERTIES
 )
 
 # Configure precompiled headers for faster builds
+# IMPORTANT: Windows compatibility header must come BEFORE Qt headers to avoid type conflicts
 # Include frequently used Qt and STL headers
 target_precompile_headers(app_lib PRIVATE
+    # Platform-specific headers (must be first - has internal guards)
+    "platform/WindowsCompat.h"
+    # Qt headers
     <QWidget>
     <QString>
     <QList>
@@ -62,10 +66,12 @@ target_precompile_headers(app_lib PRIVATE
     <QMap>
     <QHash>
     <QDebug>
+    # STL headers
     <memory>
     <vector>
     <string>
     <algorithm>
+    # Project headers
     "logging/Logger.h"
 )
 

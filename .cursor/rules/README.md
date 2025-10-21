@@ -5,9 +5,11 @@ This directory contains Cursor Rules that help guide AI-assisted development for
 ## Available Rules
 
 ### 1. project-architecture.mdc (Always Applied)
+
 **Applies to:** All files
 
 Provides comprehensive overview of the project architecture including:
+
 - Core architecture patterns (MVC, Command, Service Locator, Event Bus, Factory, Plugin)
 - Key subsystems (Search, PDF Rendering, Caching, Logging)
 - Directory structure and organization
@@ -17,9 +19,11 @@ Provides comprehensive overview of the project architecture including:
 This rule is **always applied** to help the AI understand the overall project structure and design patterns.
 
 ### 2. cpp-coding-standards.mdc
+
 **Applies to:** `*.cpp`, `*.h`, `*.hpp`
 
 Defines C++ coding standards including:
+
 - Naming conventions (PascalCase, camelCase, prefixes)
 - Modern C++ practices (C++20, smart pointers, RAII)
 - Const correctness and auto keyword usage
@@ -30,9 +34,11 @@ Defines C++ coding standards including:
 - Performance considerations
 
 ### 3. qt-patterns.mdc
+
 **Applies to:** `*.cpp`, `*.h`, `*.ui`, `*.qrc`
 
 Qt framework-specific patterns and best practices:
+
 - Object model and QObject hierarchy
 - Signals and slots (modern syntax)
 - Widget patterns and lifecycle
@@ -44,9 +50,11 @@ Qt framework-specific patterns and best practices:
 - Performance best practices for Qt
 
 ### 4. cmake-conventions.mdc
+
 **Applies to:** `CMakeLists.txt`, `*.cmake`
 
 CMake build system conventions:
+
 - Project structure and module organization
 - Build presets for different platforms
 - Dependency management (system packages vs vcpkg)
@@ -58,9 +66,11 @@ CMake build system conventions:
 - IDE integration (clangd, compile_commands.json)
 
 ### 5. testing-conventions.mdc
+
 **Applies to:** `tests/**/*.cpp`, `tests/**/*.h`
 
 Testing framework and conventions:
+
 - Qt Test framework with custom TestUtilities
 - Test categories (unit, integration, performance)
 - Standard test structure and patterns
@@ -71,9 +81,11 @@ Testing framework and conventions:
 - Best practices for test independence and coverage
 
 ### 6. logging-standards.mdc
+
 **Applies when:** Manually referenced or when working with logging
 
 Logging system standards:
+
 - spdlog-based logging architecture
 - Using category loggers vs global logger
 - Log levels and when to use them (TRACE, DEBUG, INFO, WARN, ERROR, CRITICAL)
@@ -98,12 +110,15 @@ description: "..."       # Allows manual selection by AI
 ## Usage
 
 ### Automatic Application
+
 - Rules with `alwaysApply: true` are always included
 - Rules with `globs` are applied when working with matching files
 - Rules with `description` can be fetched by the AI when relevant
 
 ### Manual Application
+
 You can manually apply a rule by mentioning it in your request:
+
 ```
 "Follow the testing-conventions rule to create a new test"
 "Use the cmake-conventions for this CMakeLists.txt change"
@@ -112,6 +127,7 @@ You can manually apply a rule by mentioning it in your request:
 ## Maintenance
 
 When updating rules:
+
 1. Keep rules focused and relevant
 2. Reference actual project files using `[filename](mdc:path/to/file)`
 3. Update examples to match current project practices
@@ -120,6 +136,7 @@ When updating rules:
 ## Related Documentation
 
 These rules complement the project documentation in the `docs/` directory:
+
 - [docs/architecture.md](../../docs/architecture.md) - Detailed architecture documentation
 - [docs/logging-system.md](../../docs/logging-system.md) - Logging system guide
 - [tests/README.md](../../tests/README.md) - Testing framework documentation
@@ -128,10 +145,9 @@ These rules complement the project documentation in the `docs/` directory:
 ## Contributing
 
 When adding new rules:
+
 1. Use descriptive filenames ending in `.mdc`
 2. Include appropriate metadata in frontmatter
 3. Reference actual project files for examples
 4. Keep rules concise and actionable
 5. Update this README with the new rule
-
-

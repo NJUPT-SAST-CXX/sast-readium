@@ -85,7 +85,7 @@ void RightSideBar::initContent() {
 
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);  // No margins for sidebar
-    mainLayout->setSpacing(0);  // No spacing for tight layout
+    mainLayout->setSpacing(0);                   // No spacing for tight layout
     mainLayout->addWidget(tabWidget);
 }
 
@@ -101,8 +101,8 @@ QWidget* RightSideBar::createPropertiesTab() {
     layout->addWidget(titleLabel);
 
     // Placeholder content
-    QLabel* placeholderLabel =
-        new QLabel(tr("Document properties will be displayed here"), propertiesTab);
+    QLabel* placeholderLabel = new QLabel(
+        tr("Document properties will be displayed here"), propertiesTab);
     placeholderLabel->setStyleSheet("color: gray; font-size: 10px;");
     placeholderLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(placeholderLabel);
@@ -123,7 +123,8 @@ QWidget* RightSideBar::createToolsTab() {
     layout->addWidget(titleLabel);
 
     // Placeholder content
-    QLabel* placeholderLabel = new QLabel(tr("Tools panel will be displayed here"), toolsTab);
+    QLabel* placeholderLabel =
+        new QLabel(tr("Tools panel will be displayed here"), toolsTab);
     placeholderLabel->setStyleSheet("color: gray; font-size: 10px;");
     placeholderLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(placeholderLabel);

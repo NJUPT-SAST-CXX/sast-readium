@@ -32,8 +32,9 @@ MenuBar::MenuBar(QWidget* parent)
 
 MenuBar::~MenuBar() {
     // Clean up shortcuts (will be deleted by Qt parent-child ownership)
-    // All menus and actions are deleted automatically by Qt parent-child ownership
-    // No manual deletion needed for widgets/actions created with 'this' as parent
+    // All menus and actions are deleted automatically by Qt parent-child
+    // ownership No manual deletion needed for widgets/actions created with
+    // 'this' as parent
 
     LOG_DEBUG("MenuBar destroyed successfully");
 }

@@ -30,8 +30,8 @@ extern void qInitResources_app();
 #include "../../app/model/RenderModel.h"
 #include "../../app/plugin/PluginManager.h"
 #include "../../app/ui/core/MenuBar.h"
-#include "../../app/ui/core/SideBar.h"
 #include "../../app/ui/core/RightSideBar.h"
+#include "../../app/ui/core/SideBar.h"
 #include "../../app/ui/core/StatusBar.h"
 #include "../../app/ui/core/ToolBar.h"
 #include "../../app/ui/core/ViewWidget.h"
@@ -55,7 +55,8 @@ extern void qInitResources_app();
  * - Recent files manager
  * - I18n system
  * - Style/theme manager
- * - All UI components (MenuBar, ToolBar, SideBar, RightSideBar, StatusBar, ViewWidget)
+ * - All UI components (MenuBar, ToolBar, SideBar, RightSideBar, StatusBar,
+ * ViewWidget)
  */
 class ApplicationStartupTest : public TestBase {
     Q_OBJECT
@@ -107,7 +108,8 @@ private:
     bool waitForInitialization(int timeout = 10000);
     void verifyComponentNotNull(QObject* component, const QString& name);
     bool isOffscreenPlatform() const;
-    void createMainWindowOrSkip();  // Creates MainWindow or skips test if offscreen
+    void
+    createMainWindowOrSkip();  // Creates MainWindow or skips test if offscreen
 
     // Test data
     std::unique_ptr<MainWindow> m_mainWindow;
@@ -120,8 +122,9 @@ private:
     QString m_initializationError;
 
     // Static message handler
-    static void messageHandler(QtMsgType type, const QMessageLogContext& context,
-                                const QString& msg);
+    static void messageHandler(QtMsgType type,
+                               const QMessageLogContext& context,
+                               const QString& msg);
     static ApplicationStartupTest* s_instance;
 };
 
@@ -177,7 +180,8 @@ void ApplicationStartupTest::initTestCase() {
     QString platformName = QGuiApplication::platformName();
     qDebug() << "Platform:" << platformName;
     if (platformName == "offscreen") {
-        qDebug() << "WARNING: Running in offscreen mode - some UI tests may be skipped";
+        qDebug() << "WARNING: Running in offscreen mode - some UI tests may be "
+                    "skipped";
     }
 
     // Initialize logging system for tests
@@ -247,12 +251,15 @@ void ApplicationStartupTest::restoreQtMessages() {
 }
 
 bool ApplicationStartupTest::waitForInitialization(int timeout) {
-    return waitFor([this]() { return m_initializationCompleted || m_initializationFailed; },
-                   timeout);
+    return waitFor(
+        [this]() {
+            return m_initializationCompleted || m_initializationFailed;
+        },
+        timeout);
 }
 
 void ApplicationStartupTest::verifyComponentNotNull(QObject* component,
-                                                     const QString& name) {
+                                                    const QString& name) {
     if (!component) {
         QString error = QString("Component '%1' is NULL").arg(name);
         QFAIL(error.toStdString().c_str());
@@ -266,7 +273,9 @@ bool ApplicationStartupTest::isOffscreenPlatform() const {
 
 void ApplicationStartupTest::createMainWindowOrSkip() {
     if (isOffscreenPlatform()) {
-        QSKIP("Skipping in offscreen mode due to Qt platform limitations with UI widgets (QLabel::setText crashes)");
+        QSKIP(
+            "Skipping in offscreen mode due to Qt platform limitations with UI "
+            "widgets (QLabel::setText crashes)");
     }
     m_mainWindow = std::make_unique<MainWindow>();
 }
@@ -294,7 +303,8 @@ void ApplicationStartupTest::testMainWindowCreation() {
     // Create MainWindow (skips if offscreen)
     createMainWindowOrSkip();
     // Note: If skipped, m_mainWindow will be nullptr and test ends here
-    if (!m_mainWindow) return;
+    if (!m_mainWindow)
+        return;
 
     QVERIFY(m_mainWindow != nullptr);
     qDebug() << "�?MainWindow created without exceptions";
@@ -305,7 +315,8 @@ void ApplicationStartupTest::testApplicationControllerInitialization() {
 
     // Create MainWindow first (skips if offscreen)
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
+    if (!m_mainWindow)
+        return;
 
     QVERIFY(m_mainWindow != nullptr);
 
@@ -321,7 +332,8 @@ void ApplicationStartupTest::testModelInitialization() {
 
     // Create MainWindow (skips if offscreen)
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
+    if (!m_mainWindow)
+        return;
 
     QTest::qWait(500);
 
@@ -337,7 +349,8 @@ void ApplicationStartupTest::testControllerInitialization() {
 
     // Create MainWindow (skips if offscreen)
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
+    if (!m_mainWindow)
+        return;
 
     QTest::qWait(500);
 
@@ -362,7 +375,8 @@ void ApplicationStartupTest::testManagerInitialization() {
 
     // Create MainWindow to test other managers (skips if offscreen)
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
+    if (!m_mainWindow)
+        return;
 
     QTest::qWait(500);
 
@@ -400,7 +414,8 @@ void ApplicationStartupTest::testUIComponentsCreation() {
     qDebug() << "\n--- Test: UI Components Creation ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
+    if (!m_mainWindow)
+        return;
 
     QTest::qWait(500);
 
@@ -415,7 +430,8 @@ void ApplicationStartupTest::testMenuBarInitialization() {
     qDebug() << "\n--- Test: MenuBar Initialization ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
+    if (!m_mainWindow)
+        return;
 
     m_mainWindow->show();
     QTest::qWait(500);
@@ -427,15 +443,17 @@ void ApplicationStartupTest::testMenuBarInitialization() {
     // Verify menu bar has actions
     QVERIFY(menuBar->actions().size() > 0);
 
-    qDebug() << "�?MenuBar initialized with" << menuBar->actions().size() << "menus";
+    qDebug() << "�?MenuBar initialized with" << menuBar->actions().size()
+             << "menus";
 }
 
 void ApplicationStartupTest::testToolBarInitialization() {
     qDebug() << "\n--- Test: ToolBar Initialization ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
-    
+    if (!m_mainWindow)
+        return;
+
     m_mainWindow->show();
     QTest::qWait(500);
 
@@ -443,7 +461,8 @@ void ApplicationStartupTest::testToolBarInitialization() {
     QList<QToolBar*> toolbars = m_mainWindow->findChildren<QToolBar*>();
 
     if (!toolbars.isEmpty()) {
-        qDebug() << "�?ToolBar initialized, found" << toolbars.size() << "toolbar(s)";
+        qDebug() << "�?ToolBar initialized, found" << toolbars.size()
+                 << "toolbar(s)";
     } else {
         qDebug() << "�?No toolbars found (may be expected)";
     }
@@ -453,8 +472,9 @@ void ApplicationStartupTest::testSideBarInitialization() {
     qDebug() << "\n--- Test: SideBar Initialization ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
-    
+    if (!m_mainWindow)
+        return;
+
     m_mainWindow->show();
     QTest::qWait(500);
 
@@ -472,13 +492,15 @@ void ApplicationStartupTest::testRightSideBarInitialization() {
     qDebug() << "\n--- Test: RightSideBar Initialization ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
-    
+    if (!m_mainWindow)
+        return;
+
     m_mainWindow->show();
     QTest::qWait(500);
 
     // Find right sidebar
-    QList<RightSideBar*> rightSidebars = m_mainWindow->findChildren<RightSideBar*>();
+    QList<RightSideBar*> rightSidebars =
+        m_mainWindow->findChildren<RightSideBar*>();
 
     if (!rightSidebars.isEmpty()) {
         qDebug() << "�?RightSideBar initialized";
@@ -491,8 +513,9 @@ void ApplicationStartupTest::testStatusBarInitialization() {
     qDebug() << "\n--- Test: StatusBar Initialization ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
-    
+    if (!m_mainWindow)
+        return;
+
     m_mainWindow->show();
     QTest::qWait(500);
 
@@ -507,8 +530,9 @@ void ApplicationStartupTest::testViewWidgetInitialization() {
     qDebug() << "\n--- Test: ViewWidget Initialization ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
-    
+    if (!m_mainWindow)
+        return;
+
     m_mainWindow->show();
     QTest::qWait(500);
 
@@ -526,8 +550,9 @@ void ApplicationStartupTest::testWindowGeometry() {
     qDebug() << "\n--- Test: Window Geometry ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
-    
+    if (!m_mainWindow)
+        return;
+
     m_mainWindow->show();
     QTest::qWait(500);
 
@@ -545,8 +570,9 @@ void ApplicationStartupTest::testWidgetVisibility() {
     qDebug() << "\n--- Test: Widget Visibility ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
-    
+    if (!m_mainWindow)
+        return;
+
     m_mainWindow->show();
     QTest::qWait(500);
 
@@ -567,8 +593,9 @@ void ApplicationStartupTest::testLayoutStructure() {
     qDebug() << "\n--- Test: Layout Structure ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
-    
+    if (!m_mainWindow)
+        return;
+
     m_mainWindow->show();
     QTest::qWait(500);
 
@@ -592,7 +619,8 @@ void ApplicationStartupTest::testThemeApplication() {
              << (currentTheme == Theme::Light ? "Light" : "Dark");
 
     // Verify theme can be changed
-    Theme newTheme = (currentTheme == Theme::Light) ? Theme::Dark : Theme::Light;
+    Theme newTheme =
+        (currentTheme == Theme::Light) ? Theme::Dark : Theme::Light;
     QVERIFY_NO_EXCEPTION(styleManager.setTheme(newTheme));
 
     // Restore original theme
@@ -618,8 +646,9 @@ void ApplicationStartupTest::testNoStartupErrors() {
     qDebug() << "\n--- Test: No Startup Errors ---";
 
     createMainWindowOrSkip();
-    if (!m_mainWindow) return;
-    
+    if (!m_mainWindow)
+        return;
+
     m_mainWindow->show();
     QTest::qWait(1000);
 
@@ -660,6 +689,3 @@ void ApplicationStartupTest::testInitializationSignals() {
 
 QTEST_MAIN(ApplicationStartupTest)
 #include "test_application_startup.moc"
-
-
-

@@ -1,5 +1,4 @@
 #include "LoggingManager.h"
-#include <iostream>
 #include <spdlog/async.h>
 #include <spdlog/spdlog.h>
 #include <QCoreApplication>
@@ -15,6 +14,7 @@
 #include <QThread>
 #include <QTimer>
 #include <cstddef>
+#include <iostream>
 #include "Logger.h"
 #include "LoggingConfig.h"
 #include "LoggingMacros.h"
@@ -205,16 +205,20 @@ void LoggingManager::initialize(const LoggingConfiguration& config) {
     std::cout << "[DEBUG] LoggingManager::initialize() - Entry" << std::endl;
     std::cout.flush();
     QMutexLocker locker(&d->mutex);
-    std::cout << "[DEBUG] LoggingManager::initialize() - Mutex locked" << std::endl;
+    std::cout << "[DEBUG] LoggingManager::initialize() - Mutex locked"
+              << std::endl;
     std::cout.flush();
 
     if (d->initialized) {
-        std::cout << "[DEBUG] LoggingManager::initialize() - Already initialized, returning" << std::endl;
+        std::cout << "[DEBUG] LoggingManager::initialize() - Already "
+                     "initialized, returning"
+                  << std::endl;
         std::cout.flush();
         return;  // Already initialized
     }
 
-    std::cout << "[DEBUG] LoggingManager::initialize() - Setting config" << std::endl;
+    std::cout << "[DEBUG] LoggingManager::initialize() - Setting config"
+              << std::endl;
     std::cout.flush();
     d->config = config;
     d->statistics.initializationTime = QDateTime::currentDateTime();
@@ -223,32 +227,43 @@ void LoggingManager::initialize(const LoggingConfiguration& config) {
         // Initialize async logging if enabled (must be done before creating
         // loggers)
         if (d->config.enableAsyncLogging) {
-            std::cout << "[DEBUG] LoggingManager::initialize() - Initializing async logging" << std::endl;
+            std::cout << "[DEBUG] LoggingManager::initialize() - Initializing "
+                         "async logging"
+                      << std::endl;
             std::cout.flush();
             d->initializeAsyncLogging();
         }
 
         // Create log directory if needed
-        std::cout << "[DEBUG] LoggingManager::initialize() - Creating log directory" << std::endl;
+        std::cout
+            << "[DEBUG] LoggingManager::initialize() - Creating log directory"
+            << std::endl;
         std::cout.flush();
         d->createLogDirectory();
 
         // Initialize the core logger
-        std::cout << "[DEBUG] LoggingManager::initialize() - Initializing logger" << std::endl;
+        std::cout
+            << "[DEBUG] LoggingManager::initialize() - Initializing logger"
+            << std::endl;
         std::cout.flush();
         d->initializeLogger();
-        std::cout << "[DEBUG] LoggingManager::initialize() - Logger initialized" << std::endl;
+        std::cout << "[DEBUG] LoggingManager::initialize() - Logger initialized"
+                  << std::endl;
         std::cout.flush();
 
         // Initialize Qt bridge if enabled
         if (d->config.enableQtMessageHandlerRedirection) {
-            std::cout << "[DEBUG] LoggingManager::initialize() - Initializing Qt bridge" << std::endl;
+            std::cout << "[DEBUG] LoggingManager::initialize() - Initializing "
+                         "Qt bridge"
+                      << std::endl;
             std::cout.flush();
             d->initializeQtBridge();
         }
 
         // Setup periodic operations
-        std::cout << "[DEBUG] LoggingManager::initialize() - Setting up periodic flush" << std::endl;
+        std::cout << "[DEBUG] LoggingManager::initialize() - Setting up "
+                     "periodic flush"
+                  << std::endl;
         std::cout.flush();
         d->setupPeriodicFlush();
 
@@ -256,7 +271,9 @@ void LoggingManager::initialize(const LoggingConfiguration& config) {
         // CRITICAL FIX: Skip signal connections before event loop starts
         // d->connectSignals();
 
-        std::cout << "[DEBUG] LoggingManager::initialize() - Marking as initialized" << std::endl;
+        std::cout
+            << "[DEBUG] LoggingManager::initialize() - Marking as initialized"
+            << std::endl;
         std::cout.flush();
         d->initialized = true;
 
@@ -894,10 +911,11 @@ void LoggingManager::Implementation::setupPeriodicFlush() {
             // Currently Logger doesn't expose a flush method
         });
     }
-    // CRITICAL FIX: Do NOT start timer here - it will be started when the event loop begins
-    // Starting QTimer before QApplication::exec() causes hanging
-    // The timer will be started automatically when the event loop starts if needed
-    // flushTimer->start();  // COMMENTED OUT - causes hang before event loop
+    // CRITICAL FIX: Do NOT start timer here - it will be started when the event
+    // loop begins Starting QTimer before QApplication::exec() causes hanging
+    // The timer will be started automatically when the event loop starts if
+    // needed flushTimer->start();  // COMMENTED OUT - causes hang before event
+    // loop
 }
 
 void LoggingManager::Implementation::connectSignals() {

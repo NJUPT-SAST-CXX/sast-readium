@@ -171,7 +171,8 @@ private:
  * Note: This implements a "pseudo-prototype" pattern. Since Qt command objects
  * don't have built-in clone() methods, the registry stores prototype instances
  * for reference but creates new instances via the factory when cloning.
- * The registry owns all registered prototypes and will delete them on destruction.
+ * The registry owns all registered prototypes and will delete them on
+ * destruction.
  */
 class CommandPrototypeRegistry {
 public:

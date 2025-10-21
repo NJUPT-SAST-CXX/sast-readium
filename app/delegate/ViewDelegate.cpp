@@ -127,8 +127,8 @@ void ViewDelegate::setupMainLayout() {
 
     // Ensure central widget has proper size policy
     if (d->mainWindow->centralWidget()) {
-        d->mainWindow->centralWidget()->setSizePolicy(
-            QSizePolicy::Expanding, QSizePolicy::Expanding);
+        d->mainWindow->centralWidget()->setSizePolicy(QSizePolicy::Expanding,
+                                                      QSizePolicy::Expanding);
     }
 
     // Apply default layout
@@ -189,7 +189,8 @@ void MainViewDelegate::Implementation::updateRenderSettings() {
     // Note: ViewWidget doesn't expose direct render quality settings
     // These settings are stored for potential future use or for
     // propagation to PDFViewer through ViewWidget's executePDFAction
-    logger.debug(QString("Render settings updated: quality=%1, antiAliasing=%2, smoothTransform=%3")
+    logger.debug(QString("Render settings updated: quality=%1, "
+                         "antiAliasing=%2, smoothTransform=%3")
                      .arg(renderQuality)
                      .arg(antiAliasing)
                      .arg(smoothTransform));
@@ -201,19 +202,21 @@ void MainViewDelegate::Implementation::applyViewMode() {
     }
 
     // Map string view mode to integer mode for ViewWidget
-    int mode = 0; // Default to SinglePage
+    int mode = 0;  // Default to SinglePage
     if (currentViewMode == "single") {
-        mode = 0; // PDFViewMode::SinglePage
+        mode = 0;  // PDFViewMode::SinglePage
     } else if (currentViewMode == "continuous") {
-        mode = 1; // PDFViewMode::ContinuousScroll
+        mode = 1;  // PDFViewMode::ContinuousScroll
     } else if (currentViewMode == "facing") {
-        mode = 2; // Future: FacingPages mode
+        mode = 2;  // Future: FacingPages mode
     } else if (currentViewMode == "book") {
-        mode = 3; // Future: BookView mode
+        mode = 3;  // Future: BookView mode
     }
 
     viewWidget->setCurrentViewMode(mode);
-    logger.debug(QString("Applied view mode: %1 (mode=%2)").arg(currentViewMode).arg(mode));
+    logger.debug(QString("Applied view mode: %1 (mode=%2)")
+                     .arg(currentViewMode)
+                     .arg(mode));
 }
 
 void ViewDelegate::adjustSplitterSizes() {
@@ -283,7 +286,8 @@ void ViewDelegate::restoreLayoutState() {
     showSideBar(sideBarVisible);
 
     // Restore right sidebar visibility
-    bool rightSideBarVisible = settings.value("rightSideBarVisible", false).toBool();
+    bool rightSideBarVisible =
+        settings.value("rightSideBarVisible", false).toBool();
     showRightSideBar(rightSideBarVisible);
 
     // Restore view modes
@@ -437,7 +441,8 @@ void MainViewDelegate::zoomToWidth() {
         // Update our internal zoom level to match
         d->zoomLevel = d->viewWidget->getCurrentZoom();
         emit zoomChanged(d->zoomLevel);
-        d->logger.debug(QString("Zoom to width complete: %1").arg(d->zoomLevel));
+        d->logger.debug(
+            QString("Zoom to width complete: %1").arg(d->zoomLevel));
     } else {
         d->logger.warning("Cannot zoom to width: no documents open");
     }
@@ -559,7 +564,8 @@ void SideBarDelegate::showTab(const QString& name) {
         d->currentTab = targetIndex;
         tabWidget->setCurrentIndex(targetIndex);
         emit tabChanged(targetIndex);
-        d->logger.debug(QString("Showing tab: %1 (index=%2)").arg(name).arg(targetIndex));
+        d->logger.debug(
+            QString("Showing tab: %1 (index=%2)").arg(name).arg(targetIndex));
     } else {
         d->logger.warning(QString("Tab not found: %1").arg(name));
     }
@@ -579,7 +585,9 @@ void SideBarDelegate::enableTab(int index, bool enable) {
 
     if (index >= 0 && index < tabWidget->count()) {
         tabWidget->setTabEnabled(index, enable);
-        d->logger.debug(QString("Tab %1 %2").arg(index).arg(enable ? "enabled" : "disabled"));
+        d->logger.debug(QString("Tab %1 %2")
+                            .arg(index)
+                            .arg(enable ? "enabled" : "disabled"));
     } else {
         d->logger.warning(QString("Invalid tab index: %1").arg(index));
     }
@@ -599,7 +607,8 @@ void SideBarDelegate::setTabVisible(int index, bool visible) {
 
     if (index >= 0 && index < tabWidget->count()) {
         tabWidget->setTabVisible(index, visible);
-        d->logger.debug(QString("Tab %1 visibility set to %2").arg(index).arg(visible));
+        d->logger.debug(
+            QString("Tab %1 visibility set to %2").arg(index).arg(visible));
     } else {
         d->logger.warning(QString("Invalid tab index: %1").arg(index));
     }
@@ -641,7 +650,8 @@ void SideBarDelegate::restoreState() {
     // Apply restored tab if sidebar has a tab widget
     if (d->sideBar) {
         QTabWidget* tabWidget = d->sideBar->getTabWidget();
-        if (tabWidget && d->currentTab >= 0 && d->currentTab < tabWidget->count()) {
+        if (tabWidget && d->currentTab >= 0 &&
+            d->currentTab < tabWidget->count()) {
             tabWidget->setCurrentIndex(d->currentTab);
         }
 

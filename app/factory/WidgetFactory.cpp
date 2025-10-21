@@ -10,7 +10,8 @@ WidgetFactory::WidgetFactory(PageController* controller, QObject* parent)
     _actionMap[actionID::next] = new NextPageCommand(_controller, this);
     _actionMap[actionID::prev] = new PreviousPageCommand(_controller, this);
 
-    m_logger.debug(QString("Registered %1 action commands").arg(_actionMap.size()));
+    m_logger.debug(
+        QString("Registered %1 action commands").arg(_actionMap.size()));
 }
 
 WidgetFactory::~WidgetFactory() {
@@ -18,8 +19,7 @@ WidgetFactory::~WidgetFactory() {
     // Commands are deleted automatically via Qt parent-child ownership
 }
 
-QPushButton* WidgetFactory::createButton(actionID actionID,
-                                         const QString& text,
+QPushButton* WidgetFactory::createButton(actionID actionID, const QString& text,
                                          QWidget* parent) {
     try {
         m_logger.debug(QString("Creating button for action %1 with text '%2'")
@@ -27,7 +27,8 @@ QPushButton* WidgetFactory::createButton(actionID actionID,
                            .arg(text));
 
         if (!_actionMap.contains(actionID)) {
-            QString error = QString("Unknown action ID: %1").arg(static_cast<int>(actionID));
+            QString error = QString("Unknown action ID: %1")
+                                .arg(static_cast<int>(actionID));
             m_logger.error(error);
             emit creationError("QPushButton", error);
             return nullptr;
@@ -45,11 +46,13 @@ QPushButton* WidgetFactory::createButton(actionID actionID,
                 &NavigationCommand::execute);
 
         // Set object name for debugging
-        QString objectName = QString("Button_Action%1").arg(static_cast<int>(actionID));
+        QString objectName =
+            QString("Button_Action%1").arg(static_cast<int>(actionID));
         button->setObjectName(objectName);
 
         emit widgetCreated("QPushButton", button);
-        m_logger.debug(QString("Button created successfully: %1").arg(objectName));
+        m_logger.debug(
+            QString("Button created successfully: %1").arg(objectName));
 
         return button;
 

@@ -81,11 +81,10 @@ public:
     void performOptimizationByLevel(OptimizationLevel level) const {
         CacheManager& cacheManager = CacheManager::instance();
 
-        auto requestFractionalEviction = [&](CacheType type,
-                                             double fraction) {
+        auto requestFractionalEviction = [&](CacheType type, double fraction) {
             auto stats = cacheManager.getCacheStats(type);
-            auto bytesToFree =
-                static_cast<qint64>(static_cast<double>(stats.memoryUsage) * fraction);
+            auto bytesToFree = static_cast<qint64>(
+                static_cast<double>(stats.memoryUsage) * fraction);
             if (bytesToFree > 0) {
                 cacheManager.requestCacheEviction(type, bytesToFree);
             }
@@ -120,8 +119,7 @@ public:
                 cacheManager.analyzeUsagePatterns();
                 cacheManager.optimizeCacheDistribution();
                 cacheManager.handleMemoryPressure();
-                requestFractionalEviction(CacheType::SearchResultCache,
-                                          0.25);
+                requestFractionalEviction(CacheType::SearchResultCache, 0.25);
                 requestFractionalEviction(CacheType::PageTextCache, 0.25);
                 requestFractionalEviction(CacheType::SearchHighlightCache,
                                           0.25);
@@ -216,14 +214,15 @@ qint64 MemoryManager::getAvailableMemory() const {
 
 double MemoryManager::getMemoryEfficiency() const {
     CacheManager& cacheManager = CacheManager::instance();
-    CacheStats stats =
-        cacheManager.getCacheStats(CacheType::SearchResultCache);
+    CacheStats stats = cacheManager.getCacheStats(CacheType::SearchResultCache);
 
     qint64 totalHits = stats.totalHits;
     qint64 totalMisses = stats.totalMisses;
     qint64 total = totalHits + totalMisses;
 
-    return total > 0 ? static_cast<double>(totalHits) / static_cast<double>(total) : 0.0;
+    return total > 0
+               ? static_cast<double>(totalHits) / static_cast<double>(total)
+               : 0.0;
 }
 
 void MemoryManager::optimizeMemoryUsage() {
@@ -260,8 +259,7 @@ void MemoryManager::optimizeTextCaches() {
 
 void MemoryManager::optimizeHighlightCaches() {
     CacheManager& cacheManager = CacheManager::instance();
-    auto stats =
-        cacheManager.getCacheStats(CacheType::SearchHighlightCache);
+    auto stats = cacheManager.getCacheStats(CacheType::SearchHighlightCache);
     cacheManager.requestCacheEviction(
         CacheType::SearchHighlightCache,
         static_cast<qint64>(static_cast<double>(stats.memoryUsage) * 0.25));
@@ -353,7 +351,8 @@ void MemoryManager::unregisterTextExtractor(TextExtractor* extractor) {
 }
 
 void MemoryManager::onMemoryPressureDetected(double pressure) {
-    MemoryPressureLevel level = Implementation::calculatePressureLevel(pressure);
+    MemoryPressureLevel level =
+        Implementation::calculatePressureLevel(pressure);
 
     if (level != d->currentStats.pressureLevel) {
         d->currentStats.pressureLevel = level;
@@ -403,8 +402,7 @@ void MemoryManager::updateMemoryStats() {
         Implementation::calculatePressureLevel(d->currentStats.memoryPressure);
 
     // Get individual cache memory usage
-    auto searchStats =
-        cacheManager.getCacheStats(CacheType::SearchResultCache);
+    auto searchStats = cacheManager.getCacheStats(CacheType::SearchResultCache);
     auto textStats = cacheManager.getCacheStats(CacheType::PageTextCache);
     auto highlightStats =
         cacheManager.getCacheStats(CacheType::SearchHighlightCache);
@@ -454,11 +452,13 @@ public:
 
     // Data members
     QList<SearchResult> results;
-    mutable QHash<int, bool> loadedPages;  // Track which result pages are loaded (mutable for lazy loading)
+    mutable QHash<int, bool> loadedPages;  // Track which result pages are
+                                           // loaded (mutable for lazy loading)
     mutable QMutex mutex;
 
     // Memory management
-    qint64 maxMemoryUsage{static_cast<qint64>(50) * 1024 * 1024};  // 50MB default
+    qint64 maxMemoryUsage{static_cast<qint64>(50) * 1024 *
+                          1024};  // 50MB default
     qint64 currentMemoryUsage{0};
     bool lazyLoadingEnabled{false};
     QTimer* memoryTimer{nullptr};
@@ -557,7 +557,8 @@ public:
     PolicyImplementation& operator=(PolicyImplementation&&) = delete;
 
     // Data members
-    SmartEvictionPolicy::EvictionStrategy currentStrategy{SmartEvictionPolicy::LRU};
+    SmartEvictionPolicy::EvictionStrategy currentStrategy{
+        SmartEvictionPolicy::LRU};
     double adaptiveThreshold{0.75};
     mutable QMutex mutex;
     QTimer* analysisTimer{nullptr};
@@ -600,7 +601,8 @@ public:
         }
 
         qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-        qint64 timeSinceLastAccess = std::max(qint64{0}, currentTime - it->lastAccess);
+        qint64 timeSinceLastAccess =
+            std::max(qint64{0}, currentTime - it->lastAccess);
 
         // Higher score = more recently used = lower eviction priority
         double denominator =
@@ -640,7 +642,8 @@ public:
         // Calculate pattern score directly
         double patternScore = 0.5;  // Default neutral score
         if (info.isFrequent && info.averageInterval > 0) {
-            if (static_cast<double>(timeSinceLastAccess) < info.averageInterval * 1.5) {
+            if (static_cast<double>(timeSinceLastAccess) <
+                info.averageInterval * 1.5) {
                 patternScore = 1.0;
             }
         }
@@ -661,7 +664,8 @@ public:
             qint64 timeSinceLastAccess = currentTime - iter->lastAccess;
 
             // If item is accessed regularly and we're within expected interval
-            if (static_cast<double>(timeSinceLastAccess) < iter->averageInterval * 1.5) {
+            if (static_cast<double>(timeSinceLastAccess) <
+                iter->averageInterval * 1.5) {
                 return 1.0;  // High score, don't evict
             }
         }
@@ -690,7 +694,8 @@ public:
 
         double patternFactor = 0.5;  // Default neutral score
         if (info.isFrequent && info.averageInterval > 0) {
-            if (static_cast<double>(timeSinceLastAccess) < info.averageInterval * 1.5) {
+            if (static_cast<double>(timeSinceLastAccess) <
+                info.averageInterval * 1.5) {
                 patternFactor = 1.0;
             }
         }
@@ -721,7 +726,8 @@ public:
             if (it->averageInterval == 0) {
                 it->averageInterval = static_cast<double>(interval);
             } else {
-                it->averageInterval = (it->averageInterval + static_cast<double>(interval)) / 2.0;
+                it->averageInterval =
+                    (it->averageInterval + static_cast<double>(interval)) / 2.0;
             }
 
             it->lastAccess = currentTime;
@@ -839,7 +845,9 @@ void MemoryAwareSearchResults::optimizeMemoryUsage() {
     }
 
     qint64 memoryToFree =
-        d->currentMemoryUsage - static_cast<qint64>(static_cast<double>(d->maxMemoryUsage) * 0.8);  // Target 80% of max
+        d->currentMemoryUsage -
+        static_cast<qint64>(static_cast<double>(d->maxMemoryUsage) *
+                            0.8);  // Target 80% of max
     qint64 initialMemory = d->currentMemoryUsage;
 
     d->evictOldestResults(memoryToFree);
@@ -959,11 +967,10 @@ QStringList SmartEvictionPolicy::selectItemsForEviction(
     }
 
     // Sort by score (lower score = higher eviction priority)
-    std::ranges::sort(
-        scoredItems,
-        [](const QPair<QString, double>& a, const QPair<QString, double>& b) {
-            return a.second < b.second;
-        });
+    std::ranges::sort(scoredItems, [](const QPair<QString, double>& a,
+                                      const QPair<QString, double>& b) {
+        return a.second < b.second;
+    });
 
     // Select items for eviction
     QStringList itemsToEvict;
@@ -1066,16 +1073,19 @@ void SmartEvictionPolicy::analyzeAccessPatterns() {
         int consistentIntervals = 0;
         for (int i = 1; i < static_cast<int>(accessTimes.size()); ++i) {
             qint64 interval = accessTimes[i] - accessTimes[i - 1];
-            if (qAbs(interval - averageInterval) < static_cast<qint64>(static_cast<double>(averageInterval) * 0.3)) {
+            if (qAbs(interval - averageInterval) <
+                static_cast<qint64>(static_cast<double>(averageInterval) *
+                                    0.3)) {
                 consistentIntervals++;
             }
         }
 
-        if (static_cast<double>(consistentIntervals) >= static_cast<double>(accessTimes.size()) * 0.7) {
+        if (static_cast<double>(consistentIntervals) >=
+            static_cast<double>(accessTimes.size()) * 0.7) {
             PolicyImplementation::AccessPattern pattern;
             pattern.patternType = "sequential";
-            pattern.confidence =
-                static_cast<double>(consistentIntervals) / static_cast<double>(accessTimes.size());
+            pattern.confidence = static_cast<double>(consistentIntervals) /
+                                 static_cast<double>(accessTimes.size());
             pattern.detectedAt = QDateTime::currentDateTime();
             pattern.parameters["averageInterval"] = averageInterval;
             d->detectedPatterns.append(pattern);
@@ -1093,11 +1103,12 @@ void SmartEvictionPolicy::analyzeAccessPatterns() {
         }
     }
 
-    if (static_cast<double>(recentAccesses) >= static_cast<double>(d->accessHistory.size()) * 0.5) {
+    if (static_cast<double>(recentAccesses) >=
+        static_cast<double>(d->accessHistory.size()) * 0.5) {
         PolicyImplementation::AccessPattern pattern;
         pattern.patternType = "burst";
-        pattern.confidence =
-            static_cast<double>(recentAccesses) / static_cast<double>(d->accessHistory.size());
+        pattern.confidence = static_cast<double>(recentAccesses) /
+                             static_cast<double>(d->accessHistory.size());
         pattern.detectedAt = QDateTime::currentDateTime();
         pattern.parameters["burstWindow"] = burstWindow;
         pattern.parameters["burstCount"] = recentAccesses;

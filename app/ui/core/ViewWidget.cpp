@@ -2,10 +2,10 @@
 #include <QDebug>
 #include <QLabel>
 #include <QProgressBar>
-#include "../viewer/PDFViewer.h"
-#include "../widgets/ToastNotification.h"
 #include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
+#include "../viewer/PDFViewer.h"
+#include "../widgets/ToastNotification.h"
 
 ViewWidget::ViewWidget(QWidget* parent)
     : QWidget(parent),
@@ -21,7 +21,8 @@ ViewWidget::ViewWidget(QWidget* parent)
 
 ViewWidget::~ViewWidget() {
     // Close all documents and clean up viewers
-    LOG_DEBUG("ViewWidget::~ViewWidget() - Closing {} documents", pdfViewers.size());
+    LOG_DEBUG("ViewWidget::~ViewWidget() - Closing {} documents",
+              pdfViewers.size());
 
     // Clear all PDF viewers (will be deleted by Qt parent-child ownership)
     pdfViewers.clear();
@@ -40,7 +41,8 @@ ViewWidget::~ViewWidget() {
 }
 
 void ViewWidget::setupUI() {
-    // Set size policy for main view widget (should expand to fill available space)
+    // Set size policy for main view widget (should expand to fill available
+    // space)
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     mainLayout = new QVBoxLayout(this);
@@ -61,8 +63,9 @@ void ViewWidget::setupUI() {
     emptyLayout->setContentsMargins(20, 20, 20, 20);  // Padding for empty state
     emptyLayout->setSpacing(0);
 
-    auto* emptyLabel =
-        new QLabel(tr("No PDF documents open\nClick File menu to open a PDF document"), emptyWidget);
+    auto* emptyLabel = new QLabel(
+        tr("No PDF documents open\nClick File menu to open a PDF document"),
+        emptyWidget);
     emptyLabel->setAlignment(Qt::AlignCenter);
     emptyLabel->setStyleSheet("color: gray; font-size: 14px;");
     emptyLayout->addWidget(emptyLabel);
@@ -140,15 +143,18 @@ void ViewWidget::openDocument(const QString& filePath) {
     // Note: Duplicate document detection is handled by DocumentController
     // which has access to file paths. We just forward the request.
 
-    LOG_DEBUG("ViewWidget::openDocument() - Opening document: {}", filePath.toStdString());
+    LOG_DEBUG("ViewWidget::openDocument() - Opening document: {}",
+              filePath.toStdString());
     documentController->openDocument(filePath);
 }
 
 void ViewWidget::closeDocument(int index) {
     // Bounds checking
     if (index < 0 || index >= pdfViewers.size()) {
-        LOG_WARNING("ViewWidget::closeDocument() - Invalid index: {} (valid range: 0-{})",
-                    index, pdfViewers.size() - 1);
+        LOG_WARNING(
+            "ViewWidget::closeDocument() - Invalid index: {} (valid range: "
+            "0-{})",
+            index, pdfViewers.size() - 1);
         return;
     }
 
@@ -157,24 +163,30 @@ void ViewWidget::closeDocument(int index) {
         return;
     }
 
-    LOG_DEBUG("ViewWidget::closeDocument() - Closing document at index {}", index);
+    LOG_DEBUG("ViewWidget::closeDocument() - Closing document at index {}",
+              index);
     documentController->closeDocument(index);
 }
 
 void ViewWidget::switchToDocument(int index) {
     // Bounds checking
     if (index < 0 || index >= pdfViewers.size()) {
-        LOG_WARNING("ViewWidget::switchToDocument() - Invalid index: {} (valid range: 0-{})",
-                    index, pdfViewers.size() - 1);
+        LOG_WARNING(
+            "ViewWidget::switchToDocument() - Invalid index: {} (valid range: "
+            "0-{})",
+            index, pdfViewers.size() - 1);
         return;
     }
 
     if (!documentController) {
-        LOG_ERROR("ViewWidget::switchToDocument() - Document controller not set");
+        LOG_ERROR(
+            "ViewWidget::switchToDocument() - Document controller not set");
         return;
     }
 
-    LOG_DEBUG("ViewWidget::switchToDocument() - Switching to document at index {}", index);
+    LOG_DEBUG(
+        "ViewWidget::switchToDocument() - Switching to document at index {}",
+        index);
     documentController->switchToDocument(index);
 }
 
@@ -257,8 +269,9 @@ void ViewWidget::executePDFAction(ActionMap action) {
             currentViewer->rotateRight();
             break;
         default:
-            LOG_WARNING("ViewWidget::executePDFAction() - Unhandled PDF action: {}",
-                       static_cast<int>(action));
+            LOG_WARNING(
+                "ViewWidget::executePDFAction() - Unhandled PDF action: {}",
+                static_cast<int>(action));
             break;
     }
 }
@@ -455,7 +468,8 @@ void ViewWidget::onDocumentLoadingStarted(const QString& filePath) {
 
         // Track loading widget and find progress bar
         loadingWidgets[filePath] = loadingWidget;
-        auto* progressBar = loadingWidget->findChild<QProgressBar*>("documentLoadingProgress");
+        auto* progressBar =
+            loadingWidget->findChild<QProgressBar*>("documentLoadingProgress");
         if (progressBar) {
             progressBars[filePath] = progressBar;
         }
@@ -565,8 +579,9 @@ QWidget* ViewWidget::createLoadingWidget(const QString& fileName) {
     // Create container widget
     auto* container = new QWidget(this);
     auto* layout = new QVBoxLayout(container);
-    layout->setContentsMargins(styleManager->spacingXL(), styleManager->spacingXL(),
-                              styleManager->spacingXL(), styleManager->spacingXL());
+    layout->setContentsMargins(
+        styleManager->spacingXL(), styleManager->spacingXL(),
+        styleManager->spacingXL(), styleManager->spacingXL());
     layout->setSpacing(styleManager->spacingLG());
 
     // Add skeleton widget

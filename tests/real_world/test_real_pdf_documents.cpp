@@ -287,11 +287,14 @@ void TestRealPDFDocuments::testDocumentWithBothModes(const TestDocument& doc) {
 
     // Check if this is a Qt-generated PDF and adjust test expectations
     SafePDFRenderer& renderer = SafePDFRenderer::instance();
-    SafePDFRenderer::CompatibilityResult compatibility = renderer.checkCompatibility(document);
+    SafePDFRenderer::CompatibilityResult compatibility =
+        renderer.checkCompatibility(document);
 
     if (compatibility == SafePDFRenderer::CompatibilityResult::QtGenerated) {
-        qDebug() << "Qt-generated PDF detected in test, using safe rendering expectations";
-        // For Qt PDFs, rendering might use fallbacks, so we just verify it doesn't crash
+        qDebug() << "Qt-generated PDF detected in test, using safe rendering "
+                    "expectations";
+        // For Qt PDFs, rendering might use fallbacks, so we just verify it
+        // doesn't crash
         QTest::qWait(200);  // Give more time for safe rendering
     } else {
         QTest::qWait(100);

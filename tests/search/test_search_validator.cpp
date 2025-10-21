@@ -499,7 +499,7 @@ void SearchValidatorTest::testValidateCacheKey() {
 
 void SearchValidatorTest::testValidateCacheSize() {
     // Test valid cache size
-    qint64 maxSize = 1024 * 1024 * 100;  // 100 MB
+    qint64 maxSize = 1024 * 1024 * 100;     // 100 MB
     qint64 currentSize = 1024 * 1024 * 50;  // 50 MB
 
     SearchValidator::ValidationResult validResult =
@@ -712,11 +712,11 @@ void SearchValidatorTest::testPathTraversalValidation() {
     QVERIFY(m_validator->isQuerySafe("version number v1.2.3"));
 
     // Test edge cases that should be safe
-    QVERIFY(m_validator->isQuerySafe(".."));  // Just dots without slash
-    QVERIFY(m_validator->isQuerySafe("..."));  // Three dots
-    QVERIFY(m_validator->isQuerySafe("...."));  // Four dots
-    QVERIFY(m_validator->isQuerySafe(". . ."));  // Dots with spaces
-    QVERIFY(m_validator->isQuerySafe("2e2f"));  // Hex-like but not encoded
+    QVERIFY(m_validator->isQuerySafe(".."));         // Just dots without slash
+    QVERIFY(m_validator->isQuerySafe("..."));        // Three dots
+    QVERIFY(m_validator->isQuerySafe("...."));       // Four dots
+    QVERIFY(m_validator->isQuerySafe(". . ."));      // Dots with spaces
+    QVERIFY(m_validator->isQuerySafe("2e2f"));       // Hex-like but not encoded
     QVERIFY(m_validator->isQuerySafe("%25%2e%2f"));  // Not properly encoded
 
     // Test path traversal embedded in longer strings
@@ -731,33 +731,41 @@ void SearchValidatorTest::testRegexValidationSecurity() {
     regexOptions.useRegex = true;
 
     // Test safe regex patterns
-    auto safeResult1 = m_validator->validateQueryWithOptions("test.*", regexOptions);
+    auto safeResult1 =
+        m_validator->validateQueryWithOptions("test.*", regexOptions);
     QVERIFY(safeResult1.isValid);
 
-    auto safeResult2 = m_validator->validateQueryWithOptions("\\d+", regexOptions);
+    auto safeResult2 =
+        m_validator->validateQueryWithOptions("\\d+", regexOptions);
     QVERIFY(safeResult2.isValid);
 
-    auto safeResult3 = m_validator->validateQueryWithOptions("[a-zA-Z]+", regexOptions);
+    auto safeResult3 =
+        m_validator->validateQueryWithOptions("[a-zA-Z]+", regexOptions);
     QVERIFY(safeResult3.isValid);
 
     // Test dangerous patterns that should be flagged
-    auto dangerousResult1 = m_validator->validateQueryWithOptions("(.*){2,}", regexOptions);
+    auto dangerousResult1 =
+        m_validator->validateQueryWithOptions("(.*){2,}", regexOptions);
     QVERIFY(!dangerousResult1.isValid);
     QVERIFY(dangerousResult1.hasError(SecurityViolation));
 
-    auto dangerousResult2 = m_validator->validateQueryWithOptions("(.+){2,}", regexOptions);
+    auto dangerousResult2 =
+        m_validator->validateQueryWithOptions("(.+){2,}", regexOptions);
     QVERIFY(!dangerousResult2.isValid);
     QVERIFY(dangerousResult2.hasError(SecurityViolation));
 
-    auto dangerousResult3 = m_validator->validateQueryWithOptions("(.*).* (.*)", regexOptions);
+    auto dangerousResult3 =
+        m_validator->validateQueryWithOptions("(.*).* (.*)", regexOptions);
     QVERIFY(!dangerousResult3.isValid);
     QVERIFY(dangerousResult3.hasError(SecurityViolation));
 
-    auto dangerousResult4 = m_validator->validateQueryWithOptions("(.*)(.*)+(.*)+", regexOptions);
+    auto dangerousResult4 =
+        m_validator->validateQueryWithOptions("(.*)(.*)+(.*)+", regexOptions);
     QVERIFY(!dangerousResult4.isValid);
     QVERIFY(dangerousResult4.hasError(SecurityViolation));
 
-    auto dangerousResult5 = m_validator->validateQueryWithOptions("(.*)", regexOptions);
+    auto dangerousResult5 =
+        m_validator->validateQueryWithOptions("(.*)", regexOptions);
     QVERIFY(dangerousResult5.isValid);  // Single quantifier should be OK
 
     // Test complexity heuristics
@@ -765,42 +773,51 @@ void SearchValidatorTest::testRegexValidationSecurity() {
     for (int i = 0; i < 15; ++i) {
         complexRegex += "(a" + QString::number(i) + ")*";
     }
-    auto complexResult = m_validator->validateQueryWithOptions(complexRegex, regexOptions);
+    auto complexResult =
+        m_validator->validateQueryWithOptions(complexRegex, regexOptions);
     QVERIFY(!complexResult.isValid);
     QVERIFY(complexResult.hasError(SecurityViolation));
 
     // Test excessive alternation
     QString manyAlternatives;
     for (int i = 0; i < 25; ++i) {
-        if (i > 0) manyAlternatives += "|";
+        if (i > 0)
+            manyAlternatives += "|";
         manyAlternatives += "option" + QString::number(i);
     }
-    auto alternationResult = m_validator->validateQueryWithOptions(manyAlternatives, regexOptions);
+    auto alternationResult =
+        m_validator->validateQueryWithOptions(manyAlternatives, regexOptions);
     QVERIFY(!alternationResult.isValid);
     QVERIFY(alternationResult.hasError(SecurityViolation));
 
     // Test Unicode category patterns
-    auto unicodeResult = m_validator->validateQueryWithOptions("\\p{L}+", regexOptions);
+    auto unicodeResult =
+        m_validator->validateQueryWithOptions("\\p{L}+", regexOptions);
     QVERIFY(unicodeResult.isValid);  // Simple Unicode pattern should be OK
 
-    auto dangerousUnicodeResult = m_validator->validateQueryWithOptions("\\p{.*}*", regexOptions);
+    auto dangerousUnicodeResult =
+        m_validator->validateQueryWithOptions("\\p{.*}*", regexOptions);
     QVERIFY(!dangerousUnicodeResult.isValid);
     QVERIFY(dangerousUnicodeResult.hasError(SecurityViolation));
 
     // Test lookarounds with quantifiers
-    auto lookaroundResult1 = m_validator->validateQueryWithOptions("(?=.+)*", regexOptions);
+    auto lookaroundResult1 =
+        m_validator->validateQueryWithOptions("(?=.+)*", regexOptions);
     QVERIFY(!lookaroundResult1.isValid);
     QVERIFY(lookaroundResult1.hasError(SecurityViolation));
 
-    auto lookaroundResult2 = m_validator->validateQueryWithOptions("(?<!.*)+", regexOptions);
+    auto lookaroundResult2 =
+        m_validator->validateQueryWithOptions("(?<!.*)+", regexOptions);
     QVERIFY(!lookaroundResult2.isValid);
     QVERIFY(lookaroundResult2.hasError(SecurityViolation));
 
     // Test dangerous backreferences
-    auto backrefResult = m_validator->validateQueryWithOptions("(\\d)\\1*", regexOptions);
+    auto backrefResult =
+        m_validator->validateQueryWithOptions("(\\d)\\1*", regexOptions);
     QVERIFY(backrefResult.isValid);  // Simple backreference should be OK
 
-    auto dangerousBackrefResult = m_validator->validateQueryWithOptions("(\\d)\\1**", regexOptions);
+    auto dangerousBackrefResult =
+        m_validator->validateQueryWithOptions("(\\d)\\1**", regexOptions);
     QVERIFY(!dangerousBackrefResult.isValid);
     QVERIFY(dangerousBackrefResult.hasError(SecurityViolation));
 
@@ -808,11 +825,14 @@ void SearchValidatorTest::testRegexValidationSecurity() {
     SearchOptions noRegexOptions = createTestOptions();
     noRegexOptions.useRegex = false;
 
-    auto noRegexResult = m_validator->validateQueryWithOptions("test.*", noRegexOptions);
-    QVERIFY(noRegexResult.isValid);  // Should treat as literal text when regex disabled
+    auto noRegexResult =
+        m_validator->validateQueryWithOptions("test.*", noRegexOptions);
+    QVERIFY(noRegexResult
+                .isValid);  // Should treat as literal text when regex disabled
 
     // Test invalid regex syntax
-    auto invalidRegexResult = m_validator->validateQueryWithOptions("[invalid", regexOptions);
+    auto invalidRegexResult =
+        m_validator->validateQueryWithOptions("[invalid", regexOptions);
     QVERIFY(!invalidRegexResult.isValid);
     QVERIFY(invalidRegexResult.hasError(InvalidFormat));
 }

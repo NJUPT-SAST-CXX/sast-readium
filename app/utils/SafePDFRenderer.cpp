@@ -1,10 +1,10 @@
 #include "SafePDFRenderer.h"
-#include <QElapsedTimer>
 #include <QApplication>
+#include <QDebug>
+#include <QElapsedTimer>
 #include <QPainter>
 #include <QRegularExpression>
 #include <QThread>
-#include <QDebug>
 #include <QtCore>
 
 SafePDFRenderer& SafePDFRenderer::instance() {
@@ -22,7 +22,8 @@ const SafePDFRenderer::RenderConfig& SafePDFRenderer::getRenderConfig() const {
     return m_config;
 }
 
-QImage SafePDFRenderer::safeRenderPage(Poppler::Page* page, double dpi, RenderInfo* info) {
+QImage SafePDFRenderer::safeRenderPage(Poppler::Page* page, double dpi,
+                                       RenderInfo* info) {
     if (!page) {
         if (info) {
             info->success = false;
@@ -56,7 +57,8 @@ QImage SafePDFRenderer::safeRenderPage(Poppler::Page* page, double dpi, RenderIn
             info->compatibility = checkPageCompatibility(page);
             if (info->compatibility == CompatibilityResult::QtGenerated) {
                 Logger::instance().warning(
-                    "[SafePDFRenderer] Qt-generated PDF detected, using safe rendering");
+                    "[SafePDFRenderer] Qt-generated PDF detected, using safe "
+                    "rendering");
                 // Use conservative settings for Qt PDFs
                 info->actualDPI = qMin(dpi, m_config.fallbackDPI);
                 info->usedFallback = true;
@@ -74,7 +76,8 @@ QImage SafePDFRenderer::safeRenderPage(Poppler::Page* page, double dpi, RenderIn
             info->actualDPI = qMin(info->actualDPI, m_config.maxDPI);
             info->usedFallback = true;
             Logger::instance().warning(
-                "[SafePDFRenderer] DPI adjusted to safe value: {}", info->actualDPI);
+                "[SafePDFRenderer] DPI adjusted to safe value: {}",
+                info->actualDPI);
         }
 
         // Attempt rendering with retries
@@ -83,16 +86,19 @@ QImage SafePDFRenderer::safeRenderPage(Poppler::Page* page, double dpi, RenderIn
             info->attemptCount = attempt;
 
             try {
-                result = safeRenderPageInternal(page, info->actualDPI, QRectF(), info);
+                result = safeRenderPageInternal(page, info->actualDPI, QRectF(),
+                                                info);
 
                 if (!result.isNull()) {
                     // Validate image size
                     if (!isSafeImageSize(result.size())) {
                         Logger::instance().warning(
-                            "[SafePDFRenderer] Rendered image too large, scaling down");
+                            "[SafePDFRenderer] Rendered image too large, "
+                            "scaling down");
                         result = result.scaled(
                             qMin(result.width(), m_config.maxImageSize.width()),
-                            qMin(result.height(), m_config.maxImageSize.height()),
+                            qMin(result.height(),
+                                 m_config.maxImageSize.height()),
                             Qt::KeepAspectRatio, Qt::SmoothTransformation);
                         info->usedFallback = true;
                     }
@@ -105,30 +111,39 @@ QImage SafePDFRenderer::safeRenderPage(Poppler::Page* page, double dpi, RenderIn
                     {
                         QMutexLocker locker(&m_statsMutex);
                         m_statistics["successfulRenders"] =
-                            m_statistics.value("successfulRenders", 0).toInt() + 1;
+                            m_statistics.value("successfulRenders", 0).toInt() +
+                            1;
                         m_statistics["totalRenderTime"] =
-                            m_statistics.value("totalRenderTime", 0).toLongLong() + info->renderTimeMs;
+                            m_statistics.value("totalRenderTime", 0)
+                                .toLongLong() +
+                            info->renderTimeMs;
                     }
 
                     Logger::instance().debug(
-                        "[SafePDFRenderer] Successfully rendered page in {}ms", info->renderTimeMs);
+                        "[SafePDFRenderer] Successfully rendered page in {}ms",
+                        info->renderTimeMs);
                     return result;
                 }
 
             } catch (const std::exception& e) {
                 Logger::instance().warning(
-                    "[SafePDFRenderer] Render attempt {} failed: {}", attempt, e.what());
+                    "[SafePDFRenderer] Render attempt {} failed: {}", attempt,
+                    e.what());
                 info->errorMessage = QString("Render failed: %1").arg(e.what());
             } catch (...) {
                 Logger::instance().warning(
-                    "[SafePDFRenderer] Render attempt {} failed with unknown error", attempt);
+                    "[SafePDFRenderer] Render attempt {} failed with unknown "
+                    "error",
+                    attempt);
                 info->errorMessage = "Unknown rendering error";
             }
 
             // Apply fallback strategy for failed attempts
             if (attempt < m_config.maxRetries) {
-                if (m_config.fallbackStrategy == FallbackStrategy::TryLowResolution) {
-                    QImage fallbackResult = tryLowDpiRender(page, QRectF(), info);
+                if (m_config.fallbackStrategy ==
+                    FallbackStrategy::TryLowResolution) {
+                    QImage fallbackResult =
+                        tryLowDpiRender(page, QRectF(), info);
                     if (!fallbackResult.isNull()) {
                         info->success = true;
                         info->usedFallback = true;
@@ -150,12 +165,14 @@ QImage SafePDFRenderer::safeRenderPage(Poppler::Page* page, double dpi, RenderIn
         switch (m_config.fallbackStrategy) {
             case FallbackStrategy::UsePlaceholder:
                 Logger::instance().warning(
-                    "[SafePDFRenderer] All render attempts failed, using placeholder");
+                    "[SafePDFRenderer] All render attempts failed, using "
+                    "placeholder");
                 return createPlaceholderImage(QSize(400, 300), "Render Failed");
 
             case FallbackStrategy::TryLowResolution:
                 Logger::instance().warning(
-                    "[SafePDFRenderer] All render attempts failed, trying final low-res attempt");
+                    "[SafePDFRenderer] All render attempts failed, trying "
+                    "final low-res attempt");
                 {
                     QImage finalResult = tryLowDpiRender(page, QRectF(), info);
                     if (!finalResult.isNull()) {
@@ -169,18 +186,21 @@ QImage SafePDFRenderer::safeRenderPage(Poppler::Page* page, double dpi, RenderIn
             case FallbackStrategy::Fail:
             default:
                 Logger::instance().error(
-                    "[SafePDFRenderer] All render attempts failed, returning null image");
+                    "[SafePDFRenderer] All render attempts failed, returning "
+                    "null image");
                 return QImage();
         }
 
     } catch (const std::exception& e) {
-        Logger::instance().error("[SafePDFRenderer] Critical error in safeRenderPage: {}", e.what());
+        Logger::instance().error(
+            "[SafePDFRenderer] Critical error in safeRenderPage: {}", e.what());
         info->success = false;
         info->errorMessage = QString("Critical error: %1").arg(e.what());
         info->renderTimeMs = timer.elapsed();
         return createPlaceholderImage(QSize(400, 300), "Critical Error");
     } catch (...) {
-        Logger::instance().error("[SafePDFRenderer] Unknown critical error in safeRenderPage");
+        Logger::instance().error(
+            "[SafePDFRenderer] Unknown critical error in safeRenderPage");
         info->success = false;
         info->errorMessage = "Unknown critical error";
         info->renderTimeMs = timer.elapsed();
@@ -188,12 +208,15 @@ QImage SafePDFRenderer::safeRenderPage(Poppler::Page* page, double dpi, RenderIn
     }
 }
 
-QPixmap SafePDFRenderer::safeRenderPageToPixmap(Poppler::Page* page, double dpi, RenderInfo* info) {
+QPixmap SafePDFRenderer::safeRenderPageToPixmap(Poppler::Page* page, double dpi,
+                                                RenderInfo* info) {
     QImage image = safeRenderPage(page, dpi, info);
     return QPixmap::fromImage(image);
 }
 
-QImage SafePDFRenderer::safeRenderPageRegion(Poppler::Page* page, const QRectF& region, double dpi, RenderInfo* info) {
+QImage SafePDFRenderer::safeRenderPageRegion(Poppler::Page* page,
+                                             const QRectF& region, double dpi,
+                                             RenderInfo* info) {
     if (!page || region.isEmpty()) {
         if (info) {
             info->success = false;
@@ -227,7 +250,8 @@ QImage SafePDFRenderer::safeRenderPageRegion(Poppler::Page* page, const QRectF& 
             info->usedFallback = true;
         }
 
-        QImage result = safeRenderPageInternal(page, info->actualDPI, region, info);
+        QImage result =
+            safeRenderPageInternal(page, info->actualDPI, region, info);
 
         if (!result.isNull()) {
             info->success = true;
@@ -241,14 +265,16 @@ QImage SafePDFRenderer::safeRenderPageRegion(Poppler::Page* page, const QRectF& 
         }
 
     } catch (const std::exception& e) {
-        Logger::instance().error("[SafePDFRenderer] Error in safeRenderPageRegion: {}", e.what());
+        Logger::instance().error(
+            "[SafePDFRenderer] Error in safeRenderPageRegion: {}", e.what());
         info->success = false;
         info->errorMessage = QString("Region render error: %1").arg(e.what());
         return QImage();
     }
 }
 
-SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkCompatibility(Poppler::Document* document) {
+SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkCompatibility(
+    Poppler::Document* document) {
     if (!document) {
         return CompatibilityResult::Unknown;
     }
@@ -263,7 +289,8 @@ SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkCompatibility(Poppler
         if (document->numPages() > 0) {
             std::unique_ptr<Poppler::Page> firstPage(document->page(0));
             if (firstPage) {
-                CompatibilityResult pageResult = checkPageCompatibility(firstPage.get());
+                CompatibilityResult pageResult =
+                    checkPageCompatibility(firstPage.get());
                 if (pageResult == CompatibilityResult::Corrupted) {
                     return CompatibilityResult::Corrupted;
                 } else if (pageResult == CompatibilityResult::QtGenerated) {
@@ -279,7 +306,8 @@ SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkCompatibility(Poppler
             std::unique_ptr<Poppler::Page> testPage(document->page(0));
             if (testPage) {
                 QString testText = testPage->text(QRectF());
-                // If we can extract text without crashing, it's probably compatible
+                // If we can extract text without crashing, it's probably
+                // compatible
                 return CompatibilityResult::Compatible;
             }
         }
@@ -297,7 +325,8 @@ SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkCompatibility(Poppler
     return CompatibilityResult::Compatible;
 }
 
-SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkPageCompatibility(Poppler::Page* page) {
+SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkPageCompatibility(
+    Poppler::Page* page) {
     if (!page) {
         return CompatibilityResult::Unknown;
     }
@@ -322,13 +351,15 @@ SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkPageCompatibility(Pop
 
         // Try to extract text as another sanity check
         QString testText = page->text(QRectF());
-        // Empty text might indicate image-only PDF or corruption, but not necessarily Qt-generated
+        // Empty text might indicate image-only PDF or corruption, but not
+        // necessarily Qt-generated
 
         return CompatibilityResult::Compatible;
 
     } catch (const std::exception& e) {
         Logger::instance().warning(
-            "[SafePDFRenderer] Error during page compatibility check: {}", e.what());
+            "[SafePDFRenderer] Error during page compatibility check: {}",
+            e.what());
         return CompatibilityResult::Corrupted;
     } catch (...) {
         Logger::instance().warning(
@@ -337,7 +368,8 @@ SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkPageCompatibility(Pop
     }
 }
 
-QImage SafePDFRenderer::createPlaceholderImage(const QSize& size, const QString& text) {
+QImage SafePDFRenderer::createPlaceholderImage(const QSize& size,
+                                               const QString& text) {
     QImage image(size, QImage::Format_RGB32);
     image.fill(QColor(240, 240, 240));
 
@@ -385,7 +417,9 @@ void SafePDFRenderer::resetStatistics() {
     m_statistics["totalRenderTime"] = 0;
 }
 
-QImage SafePDFRenderer::safeRenderPageInternal(Poppler::Page* page, double dpi, const QRectF& region, RenderInfo* info) {
+QImage SafePDFRenderer::safeRenderPageInternal(Poppler::Page* page, double dpi,
+                                               const QRectF& region,
+                                               RenderInfo* info) {
     QElapsedTimer timer;
     timer.start();
 
@@ -397,29 +431,33 @@ QImage SafePDFRenderer::safeRenderPageInternal(Poppler::Page* page, double dpi, 
             result = page->renderToImage(dpi, dpi);
         } else {
             // Region rendering
-            result = page->renderToImage(dpi, dpi,
-                region.x(), region.y(),
-                region.width(), region.height());
+            result = page->renderToImage(dpi, dpi, region.x(), region.y(),
+                                         region.width(), region.height());
         }
 
         if (result.isNull()) {
-            Logger::instance().warning("[SafePDFRenderer] Poppler renderToImage returned null image");
+            Logger::instance().warning(
+                "[SafePDFRenderer] Poppler renderToImage returned null image");
             return QImage();
         }
 
         Logger::instance().debug(
-            "[SafePDFRenderer] Internal render completed in {}ms", timer.elapsed());
+            "[SafePDFRenderer] Internal render completed in {}ms",
+            timer.elapsed());
         return result;
 
     } catch (const std::exception& e) {
         Logger::instance().error(
-            "[SafePDFRenderer] Exception in safeRenderPageInternal: {}", e.what());
+            "[SafePDFRenderer] Exception in safeRenderPageInternal: {}",
+            e.what());
         if (info) {
-            info->errorMessage = QString("Internal render error: %1").arg(e.what());
+            info->errorMessage =
+                QString("Internal render error: %1").arg(e.what());
         }
         return QImage();
     } catch (...) {
-        Logger::instance().error("[SafePDFRenderer] Unknown exception in safeRenderPageInternal");
+        Logger::instance().error(
+            "[SafePDFRenderer] Unknown exception in safeRenderPageInternal");
         if (info) {
             info->errorMessage = "Unknown internal render error";
         }
@@ -427,8 +465,11 @@ QImage SafePDFRenderer::safeRenderPageInternal(Poppler::Page* page, double dpi, 
     }
 }
 
-QImage SafePDFRenderer::tryLowDpiRender(Poppler::Page* page, const QRectF& region, RenderInfo* info) {
-    Logger::instance().debug("[SafePDFRenderer] Trying low DPI fallback render");
+QImage SafePDFRenderer::tryLowDpiRender(Poppler::Page* page,
+                                        const QRectF& region,
+                                        RenderInfo* info) {
+    Logger::instance().debug(
+        "[SafePDFRenderer] Trying low DPI fallback render");
 
     double lowDpi = m_config.fallbackDPI;
     if (info && info->actualDPI > 72.0) {
@@ -475,10 +516,12 @@ bool SafePDFRenderer::validatePage(Poppler::Page* page) {
         return true;
 
     } catch (const std::exception& e) {
-        Logger::instance().warning("[SafePDFRenderer] Page validation failed: {}", e.what());
+        Logger::instance().warning(
+            "[SafePDFRenderer] Page validation failed: {}", e.what());
         return false;
     } catch (...) {
-        Logger::instance().warning("[SafePDFRenderer] Unknown error during page validation");
+        Logger::instance().warning(
+            "[SafePDFRenderer] Unknown error during page validation");
         return false;
     }
 }
@@ -499,7 +542,8 @@ QString SafePDFRenderer::extractPDFMetadata(Poppler::Document* document) {
         return metadata.toLower();
 
     } catch (const std::exception& e) {
-        Logger::instance().warning("[SafePDFRenderer] Error extracting metadata: {}", e.what());
+        Logger::instance().warning(
+            "[SafePDFRenderer] Error extracting metadata: {}", e.what());
         return QString();
     }
 }
@@ -514,14 +558,14 @@ bool SafePDFRenderer::isQtGeneratedPDF(Poppler::Document* document) {
 
         // Check for Qt-specific signatures in metadata
         QStringList qtSignatures = {
-            "qt", "qpdfwriter", "qprinter", "qpaintengine",
-            "qpaintdevice", "qt company", "the qt company"
-        };
+            "qt",           "qpdfwriter", "qprinter",      "qpaintengine",
+            "qpaintdevice", "qt company", "the qt company"};
 
         for (const QString& signature : qtSignatures) {
             if (metadata.contains(signature, Qt::CaseInsensitive)) {
                 Logger::instance().debug(
-                    "[SafePDFRenderer] Qt signature found in metadata: {}", signature.toStdString());
+                    "[SafePDFRenderer] Qt signature found in metadata: {}",
+                    signature.toStdString());
                 return true;
             }
         }
@@ -531,14 +575,16 @@ bool SafePDFRenderer::isQtGeneratedPDF(Poppler::Document* document) {
         QString producer = document->info("Producer").toLower();
 
         if (creator.contains("qt") || producer.contains("qt")) {
-            Logger::instance().debug("[SafePDFRenderer] Qt PDF detected by creator/producer");
+            Logger::instance().debug(
+                "[SafePDFRenderer] Qt PDF detected by creator/producer");
             return true;
         }
 
         return false;
 
     } catch (const std::exception& e) {
-        Logger::instance().warning("[SafePDFRenderer] Error checking Qt PDF signature: {}", e.what());
+        Logger::instance().warning(
+            "[SafePDFRenderer] Error checking Qt PDF signature: {}", e.what());
         return false;
     }
 }
@@ -552,7 +598,8 @@ bool SafePDFRenderer::hasQtSpecificContent(Poppler::Page* page) {
         // Extract text and check for Qt-specific patterns
         QString pageText = page->text(QRectF()).toLower();
 
-        // Qt-generated PDFs often have specific text patterns or rendering artifacts
+        // Qt-generated PDFs often have specific text patterns or rendering
+        // artifacts
         QStringList qtPatterns = {
             "qpdfwriter", "qprinter", "qpaintengine",
             // Add more patterns as discovered
@@ -570,12 +617,15 @@ bool SafePDFRenderer::hasQtSpecificContent(Poppler::Page* page) {
         return false;
 
     } catch (const std::exception& e) {
-        Logger::instance().warning("[SafePDFRenderer] Error checking Qt-specific content: {}", e.what());
+        Logger::instance().warning(
+            "[SafePDFRenderer] Error checking Qt-specific content: {}",
+            e.what());
         return false;
     }
 }
 
-QImage SafePDFRenderer::threadSafeRender(Poppler::Page* page, double dpi, const QRectF& region) {
+QImage SafePDFRenderer::threadSafeRender(Poppler::Page* page, double dpi,
+                                         const QRectF& region) {
     // This would be used for multi-threaded rendering scenarios
     // For now, just delegate to the internal method
     return safeRenderPageInternal(page, dpi, region, nullptr);

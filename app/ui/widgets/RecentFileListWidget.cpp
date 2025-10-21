@@ -181,25 +181,22 @@ void RecentFileItemWidget::showContextMenu(const QPoint& globalPos) {
     QAction* removeAction = contextMenu.addAction(tr("Remove from Recent"));
     removeAction->setIcon(QIcon(":/icons/remove"));
 
-    QAction* clearAllAction = contextMenu.addAction(tr("Clear All Recent Files"));
+    QAction* clearAllAction =
+        contextMenu.addAction(tr("Clear All Recent Files"));
     clearAllAction->setIcon(QIcon(":/icons/clear-all"));
 
     // Connect actions
-    connect(openAction, &QAction::triggered, [this]() {
-        emit clicked(m_fileInfo.filePath);
-    });
+    connect(openAction, &QAction::triggered,
+            [this]() { emit clicked(m_fileInfo.filePath); });
 
-    connect(openInNewTabAction, &QAction::triggered, [this]() {
-        emit openInNewTabRequested(m_fileInfo.filePath);
-    });
+    connect(openInNewTabAction, &QAction::triggered,
+            [this]() { emit openInNewTabRequested(m_fileInfo.filePath); });
 
-    connect(removeAction, &QAction::triggered, [this]() {
-        emit removeRequested(m_fileInfo.filePath);
-    });
+    connect(removeAction, &QAction::triggered,
+            [this]() { emit removeRequested(m_fileInfo.filePath); });
 
-    connect(clearAllAction, &QAction::triggered, [this]() {
-        emit clearAllRecentRequested();
-    });
+    connect(clearAllAction, &QAction::triggered,
+            [this]() { emit clearAllRecentRequested(); });
 
     // Show the context menu
     contextMenu.exec(globalPos);

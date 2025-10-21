@@ -301,38 +301,37 @@ public:
 
         if (backgroundProcessingEnabled.isSet()) {
             // Asynchronous search
-            backgroundProcessor->executeAsync(
-                [this, query, options, timer]() {
-                    QList<SearchResult> results;
-                    QMetaObject::invokeMethod(
-                        q_ptr,
-                        [this, &results, &query, &options]() {
-                            results = executeFullSearch(query, options);
-                        },
-                        Qt::BlockingQueuedConnection);
+            backgroundProcessor->executeAsync([this, query, options, timer]() {
+                QList<SearchResult> results;
+                QMetaObject::invokeMethod(
+                    q_ptr,
+                    [this, &results, &query, &options]() {
+                        results = executeFullSearch(query, options);
+                    },
+                    Qt::BlockingQueuedConnection);
 
-                    SearchMetrics::Metric metric;
-                    metric.query = query;
-                    metric.duration = timer->elapsed();
-                    metric.resultCount = results.size();
-                    metric.cacheHit = false;
-                    metric.incremental = false;
-                    metric.timestamp = QDateTime::currentDateTime();
+                SearchMetrics::Metric metric;
+                metric.query = query;
+                metric.duration = timer->elapsed();
+                metric.resultCount = results.size();
+                metric.cacheHit = false;
+                metric.incremental = false;
+                metric.timestamp = QDateTime::currentDateTime();
 
-                    QMetaObject::invokeMethod(
-                        q_ptr,
-                        [this, metric, results]() {
-                            SearchMetrics::Metric metricCopy = metric;
-                            metricCopy.pagesSearched =
-                                document ? document->numPages() : 0;
-                            metrics->recordSearch(metricCopy);
+                QMetaObject::invokeMethod(
+                    q_ptr,
+                    [this, metric, results]() {
+                        SearchMetrics::Metric metricCopy = metric;
+                        metricCopy.pagesSearched =
+                            document ? document->numPages() : 0;
+                        metrics->recordSearch(metricCopy);
 
-                            currentResults.set(results);
-                            isSearching.clear();
-                            emit q_ptr->searchFinished(results);
-                        },
-                        Qt::QueuedConnection);
-                });
+                        currentResults.set(results);
+                        isSearching.clear();
+                        emit q_ptr->searchFinished(results);
+                    },
+                    Qt::QueuedConnection);
+            });
         } else {
             // Synchronous search
             QList<SearchResult> results = executeFullSearch(query, options);

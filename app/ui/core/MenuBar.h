@@ -19,7 +19,8 @@
  * - View controls (sidebar, fullscreen, theme, language)
  * - Settings and help menus
  *
- * @note All menu items are properly internationalized and update on language changes
+ * @note All menu items are properly internationalized and update on language
+ * changes
  */
 class MenuBar : public QMenuBar {
     Q_OBJECT

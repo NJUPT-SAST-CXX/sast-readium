@@ -1,23 +1,23 @@
 #pragma once
 
-#include <QWidget>
-#include <QPropertyAnimation>
-#include <QPainter>
 #include <QColor>
+#include <QPainter>
+#include <QPropertyAnimation>
+#include <QWidget>
 
 /**
  * @brief EnhancedFocusIndicator - Animated focus indicator for accessibility
- * 
+ *
  * Provides a highly visible, animated focus indicator that improves keyboard
  * navigation accessibility. The indicator features:
  * - High contrast colors for visibility
  * - Smooth animations when focus changes
  * - Customizable appearance
  * - Automatic positioning around focused widget
- * 
+ *
  * This widget is designed to be used as an overlay that follows the focused
  * widget, providing clear visual feedback for keyboard navigation.
- * 
+ *
  * Usage:
  * @code
  * EnhancedFocusIndicator* indicator = new EnhancedFocusIndicator(parentWidget);
@@ -32,10 +32,10 @@ class EnhancedFocusIndicator : public QWidget {
 
 public:
     enum class Style {
-        Solid,      // Solid border
-        Dashed,     // Dashed border
-        Glow,       // Glowing effect
-        Animated    // Animated border (moving dashes)
+        Solid,    // Solid border
+        Dashed,   // Dashed border
+        Glow,     // Glowing effect
+        Animated  // Animated border (moving dashes)
     };
 
     explicit EnhancedFocusIndicator(QWidget* parent = nullptr);
@@ -102,11 +102,11 @@ private:
 
 /**
  * @brief FocusManager - Global focus indicator manager
- * 
+ *
  * Singleton class that manages a global focus indicator, automatically
  * showing it when widgets receive keyboard focus and hiding it when
  * focus is lost.
- * 
+ *
  * This provides a consistent focus indication across the entire application.
  */
 class FocusManager : public QObject {
@@ -150,4 +150,3 @@ private:
     QColor m_color;
     int m_thickness;
 };
-

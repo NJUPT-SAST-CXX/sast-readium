@@ -1,8 +1,8 @@
 #include "MainWindow.h"
-#include <iostream>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QMessageBox>
+#include <iostream>
 #include "command/InitializationCommand.h"
 #include "controller/ApplicationController.h"
 #include "delegate/ViewDelegate.h"
@@ -25,7 +25,9 @@ MainWindow::MainWindow(QWidget* parent)
     // Set size policy for proper resizing behavior
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    m_logger.debug("Window properties set: title='SAST Readium', size=1280x800, minimum=800x600");
+    m_logger.debug(
+        "Window properties set: title='SAST Readium', size=1280x800, "
+        "minimum=800x600");
 
     try {
         // Create the application controller which manages all subsystems

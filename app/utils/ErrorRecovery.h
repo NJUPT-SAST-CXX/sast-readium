@@ -57,14 +57,17 @@ struct RetryConfig {
     RetryPolicy policy = RetryPolicy::ExponentialBackoff;
     // Backward-compatible fields: both maxAttempts and maxRetries are supported
     int maxAttempts = 3;
-    int maxRetries = 3; // alias for legacy code paths
+    int maxRetries = 3;  // alias for legacy code paths
     std::chrono::milliseconds initialDelay{100};
     std::chrono::milliseconds maxDelay{5000};
     double backoffMultiplier = 2.0;
 
     RetryConfig() = default;
     RetryConfig(RetryPolicy p, int attempts, std::chrono::milliseconds delay)
-        : policy(p), maxAttempts(attempts), maxRetries(attempts), initialDelay(delay) {}
+        : policy(p),
+          maxAttempts(attempts),
+          maxRetries(attempts),
+          initialDelay(delay) {}
 
     // Effective attempts count considering both fields
     int attempts() const { return (maxRetries > 0 ? maxRetries : maxAttempts); }
@@ -355,6 +358,3 @@ private:
 
 #define WITH_STATE_GUARD(state) \
     auto stateGuard = ErrorRecovery::Utils::StateGuard(state)
-
-
-

@@ -1,9 +1,9 @@
 #include "SkeletonWidget.h"
-#include "../../managers/StyleManager.h"
-#include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QPainterPath>
 #include <QLinearGradient>
+#include <QPainterPath>
+#include <QVBoxLayout>
+#include "../../managers/StyleManager.h"
 
 // SkeletonWidget Implementation
 SkeletonWidget::SkeletonWidget(Shape shape, QWidget* parent)
@@ -14,10 +14,9 @@ SkeletonWidget::SkeletonWidget(Shape shape, QWidget* parent)
       m_animationDuration(1500),
       m_cornerRadius(STYLE.radiusMD()),
       m_isAnimating(false) {
-    
     setAttribute(Qt::WA_StyledBackground, true);
     setMinimumSize(50, 20);
-    
+
     setupAnimation();
 }
 
@@ -89,10 +88,10 @@ void SkeletonWidget::setShimmerPosition(qreal position) {
 
 void SkeletonWidget::paintEvent(QPaintEvent* event) {
     Q_UNUSED(event);
-    
+
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    
+
     switch (m_shape) {
         case Shape::Rectangle:
             drawRectangle(painter);
@@ -121,12 +120,12 @@ void SkeletonWidget::hideEvent(QHideEvent* event) {
 
 void SkeletonWidget::drawRectangle(QPainter& painter) {
     QRect rect = this->rect();
-    
+
     // Draw base color
     painter.setBrush(getBaseColor());
     painter.setPen(Qt::NoPen);
     painter.drawRoundedRect(rect, m_cornerRadius, m_cornerRadius);
-    
+
     // Draw shimmer effect
     if (m_isAnimating) {
         drawShimmer(painter, rect);
@@ -136,13 +135,14 @@ void SkeletonWidget::drawRectangle(QPainter& painter) {
 void SkeletonWidget::drawCircle(QPainter& painter) {
     QRect rect = this->rect();
     int size = qMin(rect.width(), rect.height());
-    QRect circleRect((rect.width() - size) / 2, (rect.height() - size) / 2, size, size);
-    
+    QRect circleRect((rect.width() - size) / 2, (rect.height() - size) / 2,
+                     size, size);
+
     // Draw base color
     painter.setBrush(getBaseColor());
     painter.setPen(Qt::NoPen);
     painter.drawEllipse(circleRect);
-    
+
     // Draw shimmer effect
     if (m_isAnimating) {
         QPainterPath clipPath;
@@ -155,14 +155,14 @@ void SkeletonWidget::drawCircle(QPainter& painter) {
 void SkeletonWidget::drawTextLine(QPainter& painter) {
     QRect rect = this->rect();
     int lineHeight = qMin(rect.height(), 16);  // Max 16px height for text lines
-    QRect lineRect(rect.x(), rect.y() + (rect.height() - lineHeight) / 2, 
+    QRect lineRect(rect.x(), rect.y() + (rect.height() - lineHeight) / 2,
                    rect.width(), lineHeight);
-    
+
     // Draw base color
     painter.setBrush(getBaseColor());
     painter.setPen(Qt::NoPen);
     painter.drawRoundedRect(lineRect, STYLE.radiusSM(), STYLE.radiusSM());
-    
+
     // Draw shimmer effect
     if (m_isAnimating) {
         drawShimmer(painter, lineRect);
@@ -174,15 +174,15 @@ void SkeletonWidget::drawShimmer(QPainter& painter, const QRect& rect) {
     QLinearGradient gradient;
     gradient.setStart(rect.left(), rect.center().y());
     gradient.setFinalStop(rect.right(), rect.center().y());
-    
+
     // Calculate shimmer position
     qreal shimmerWidth = 0.3;  // 30% of width
     qreal shimmerStart = m_shimmerPosition - shimmerWidth / 2;
     qreal shimmerEnd = m_shimmerPosition + shimmerWidth / 2;
-    
+
     QColor baseColor = getBaseColor();
     QColor shimmerColor = getShimmerColor();
-    
+
     // Create gradient stops
     if (shimmerStart > 0) {
         gradient.setColorAt(0, Qt::transparent);
@@ -197,11 +197,11 @@ void SkeletonWidget::drawShimmer(QPainter& painter, const QRect& rect) {
     if (shimmerEnd < 1) {
         gradient.setColorAt(1, Qt::transparent);
     }
-    
+
     painter.setBrush(gradient);
     painter.setPen(Qt::NoPen);
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-    
+
     if (m_shape == Shape::Circle) {
         painter.drawEllipse(rect);
     } else {
@@ -232,7 +232,6 @@ DocumentSkeletonWidget::DocumentSkeletonWidget(QWidget* parent)
       m_contentSkeleton1(nullptr),
       m_contentSkeleton2(nullptr),
       m_contentSkeleton3(nullptr) {
-    
     setupLayout();
 }
 
@@ -240,47 +239,55 @@ DocumentSkeletonWidget::~DocumentSkeletonWidget() = default;
 
 void DocumentSkeletonWidget::setupLayout() {
     QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(STYLE.spacingMD(), STYLE.spacingMD(), 
+    layout->setContentsMargins(STYLE.spacingMD(), STYLE.spacingMD(),
                                STYLE.spacingMD(), STYLE.spacingMD());
     layout->setSpacing(STYLE.spacingSM());
-    
+
     // Header skeleton (title area)
     m_headerSkeleton = new SkeletonWidget(SkeletonWidget::Shape::Rectangle);
     m_headerSkeleton->setFixedHeight(40);
     layout->addWidget(m_headerSkeleton);
-    
+
     layout->addSpacing(STYLE.spacingMD());
-    
+
     // Content skeletons (text lines)
     m_contentSkeleton1 = new SkeletonWidget(SkeletonWidget::Shape::TextLine);
     m_contentSkeleton1->setFixedHeight(16);
     layout->addWidget(m_contentSkeleton1);
-    
+
     m_contentSkeleton2 = new SkeletonWidget(SkeletonWidget::Shape::TextLine);
     m_contentSkeleton2->setFixedHeight(16);
     layout->addWidget(m_contentSkeleton2);
-    
+
     m_contentSkeleton3 = new SkeletonWidget(SkeletonWidget::Shape::TextLine);
     m_contentSkeleton3->setFixedHeight(16);
     // Make last line shorter (80% width)
     m_contentSkeleton3->setMaximumWidth(INT_MAX * 0.8);
     layout->addWidget(m_contentSkeleton3);
-    
+
     layout->addStretch();
 }
 
 void DocumentSkeletonWidget::startAnimation() {
-    if (m_headerSkeleton) m_headerSkeleton->startAnimation();
-    if (m_contentSkeleton1) m_contentSkeleton1->startAnimation();
-    if (m_contentSkeleton2) m_contentSkeleton2->startAnimation();
-    if (m_contentSkeleton3) m_contentSkeleton3->startAnimation();
+    if (m_headerSkeleton)
+        m_headerSkeleton->startAnimation();
+    if (m_contentSkeleton1)
+        m_contentSkeleton1->startAnimation();
+    if (m_contentSkeleton2)
+        m_contentSkeleton2->startAnimation();
+    if (m_contentSkeleton3)
+        m_contentSkeleton3->startAnimation();
 }
 
 void DocumentSkeletonWidget::stopAnimation() {
-    if (m_headerSkeleton) m_headerSkeleton->stopAnimation();
-    if (m_contentSkeleton1) m_contentSkeleton1->stopAnimation();
-    if (m_contentSkeleton2) m_contentSkeleton2->stopAnimation();
-    if (m_contentSkeleton3) m_contentSkeleton3->stopAnimation();
+    if (m_headerSkeleton)
+        m_headerSkeleton->stopAnimation();
+    if (m_contentSkeleton1)
+        m_contentSkeleton1->stopAnimation();
+    if (m_contentSkeleton2)
+        m_contentSkeleton2->stopAnimation();
+    if (m_contentSkeleton3)
+        m_contentSkeleton3->stopAnimation();
 }
 
 void DocumentSkeletonWidget::paintEvent(QPaintEvent* event) {
@@ -293,7 +300,6 @@ ThumbnailSkeletonWidget::ThumbnailSkeletonWidget(QWidget* parent)
       m_thumbnailSkeleton(nullptr),
       m_pageNumberSkeleton(nullptr),
       m_thumbnailSize(120, 160) {
-    
     setupLayout();
 }
 
@@ -301,16 +307,16 @@ ThumbnailSkeletonWidget::~ThumbnailSkeletonWidget() = default;
 
 void ThumbnailSkeletonWidget::setupLayout() {
     QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(STYLE.spacingXS(), STYLE.spacingXS(), 
+    layout->setContentsMargins(STYLE.spacingXS(), STYLE.spacingXS(),
                                STYLE.spacingXS(), STYLE.spacingXS());
     layout->setSpacing(STYLE.spacingXS());
-    
+
     // Thumbnail skeleton
     m_thumbnailSkeleton = new SkeletonWidget(SkeletonWidget::Shape::Rectangle);
     m_thumbnailSkeleton->setFixedSize(m_thumbnailSize);
     m_thumbnailSkeleton->setCornerRadius(STYLE.radiusSM());
     layout->addWidget(m_thumbnailSkeleton, 0, Qt::AlignCenter);
-    
+
     // Page number skeleton
     m_pageNumberSkeleton = new SkeletonWidget(SkeletonWidget::Shape::TextLine);
     m_pageNumberSkeleton->setFixedSize(40, 12);
@@ -318,13 +324,17 @@ void ThumbnailSkeletonWidget::setupLayout() {
 }
 
 void ThumbnailSkeletonWidget::startAnimation() {
-    if (m_thumbnailSkeleton) m_thumbnailSkeleton->startAnimation();
-    if (m_pageNumberSkeleton) m_pageNumberSkeleton->startAnimation();
+    if (m_thumbnailSkeleton)
+        m_thumbnailSkeleton->startAnimation();
+    if (m_pageNumberSkeleton)
+        m_pageNumberSkeleton->startAnimation();
 }
 
 void ThumbnailSkeletonWidget::stopAnimation() {
-    if (m_thumbnailSkeleton) m_thumbnailSkeleton->stopAnimation();
-    if (m_pageNumberSkeleton) m_pageNumberSkeleton->stopAnimation();
+    if (m_thumbnailSkeleton)
+        m_thumbnailSkeleton->stopAnimation();
+    if (m_pageNumberSkeleton)
+        m_pageNumberSkeleton->stopAnimation();
 }
 
 void ThumbnailSkeletonWidget::setThumbnailSize(const QSize& size) {
@@ -337,4 +347,3 @@ void ThumbnailSkeletonWidget::setThumbnailSize(const QSize& size) {
 void ThumbnailSkeletonWidget::paintEvent(QPaintEvent* event) {
     QWidget::paintEvent(event);
 }
-

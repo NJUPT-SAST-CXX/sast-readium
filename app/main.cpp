@@ -152,7 +152,8 @@ int main(int argc, char** argv) {
     QApplication app(argc, argv);
 
     // Initialize Qt resources from static library
-    // This is required when resources are compiled into a static library (app_lib)
+    // This is required when resources are compiled into a static library
+    // (app_lib)
     Q_INIT_RESOURCE(app);
 
     // Configure application metadata early
@@ -161,7 +162,8 @@ int main(int argc, char** argv) {
     QApplication::setApplicationDisplayName(APP_NAME);
     QApplication::setStyle("fusion");
 
-    // Print application logo to console (now with proper UTF-8 and ANSI support)
+    // Print application logo to console (now with proper UTF-8 and ANSI
+    // support)
     printLogo();
 
     // Initialize logging system with simplified interface
@@ -175,10 +177,12 @@ int main(int argc, char** argv) {
     // Tier 3: Fall back to temp directory
     QString logDir;
     try {
-        logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        logDir =
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
         if (!logDir.isEmpty()) {
             logDir += "/logs";
-            std::cout << "[INFO] Using AppData log directory: " << logDir.toStdString() << '\n';
+            std::cout << "[INFO] Using AppData log directory: "
+                      << logDir.toStdString() << '\n';
         } else {
             throw std::runtime_error("QStandardPaths returned empty path");
         }
@@ -191,9 +195,11 @@ int main(int argc, char** argv) {
 
     logConfig.console = true;
     logConfig.file = true;
-    logConfig.async = false;  // CRITICAL: Disable async logging to prevent QTimer hang before event loop starts
-    logConfig.maxFileSize = static_cast<size_t>(50) * 1024 * 1024;  // 50MB per file
-    logConfig.maxFiles = 5;                    // Keep 5 rotating files
+    logConfig.async = false;  // CRITICAL: Disable async logging to prevent
+                              // QTimer hang before event loop starts
+    logConfig.maxFileSize =
+        static_cast<size_t>(50) * 1024 * 1024;  // 50MB per file
+    logConfig.maxFiles = 5;                     // Keep 5 rotating files
     logConfig.pattern = "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v";
 
     // Initialize logging with robust error handling
@@ -204,8 +210,11 @@ int main(int argc, char** argv) {
         std::cerr << "[INFO] Falling back to console-only logging" << '\n';
 
         if (!SastLogging::init("", true, SastLogging::Level::Info)) {
-            std::cerr << "[CRITICAL] Failed to initialize even console logging!" << '\n';
-            std::cerr << "[CRITICAL] Application will continue but logging is disabled" << '\n';
+            std::cerr << "[CRITICAL] Failed to initialize even console logging!"
+                      << '\n';
+            std::cerr << "[CRITICAL] Application will continue but logging is "
+                         "disabled"
+                      << '\n';
         }
     }
 
@@ -253,7 +262,8 @@ int main(int argc, char** argv) {
 
         mainLogger.info("========== Creating MainWindow ==========");
         MainWindow w;
-        mainLogger.info("========== MainWindow created successfully ==========");
+        mainLogger.info(
+            "========== MainWindow created successfully ==========");
 
         mainLogger.info("========== Calling w.show() ==========");
         w.show();
