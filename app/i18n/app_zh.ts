@@ -163,6 +163,32 @@
         <source>简体中文(&amp;C)</source>
         <translation>简体中文(&amp;C)</translation>
     </message>
+    <message>
+        <source>&amp;Settings...</source>
+        <translation>设置(&amp;S)...</translation>
+    </message>
+    <message>
+        <source>The file "%1" could not be found.
+
+It may have been moved, renamed, or deleted.
+The file has been removed from the recent files list.</source>
+        <translation>找不到文件"%1"。
+
+它可能已被移动、重命名或删除。
+该文件已从最近文件列表中移除。</translation>
+    </message>
+    <message>
+        <source>Clear Recent Files</source>
+        <translation>清空最近文件</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to clear all recent files?
+
+This action cannot be undone.</source>
+        <translation>您确定要清空所有最近文件吗？
+
+此操作无法撤销。</translation>
+    </message>
 </context>
 <context>
     <name>I18nManager</name>
@@ -611,6 +637,322 @@
     <message>
         <source>Advanced</source>
         <translation>高级</translation>
+    </message>
+</context>
+<context>
+    <name>CommandLine</name>
+    <message>
+        <source>File does not exist: %1</source>
+        <translation>文件不存在：%1</translation>
+    </message>
+    <message>
+        <source>File is not readable: %1</source>
+        <translation>文件不可读：%1</translation>
+    </message>
+    <message>
+        <source>File must have .pdf extension: %1</source>
+        <translation>文件必须是 .pdf 扩展名：%1</translation>
+    </message>
+    <message>
+        <source>Invalid geometry format: %1 (expected WIDTHxHEIGHT or WIDTHxHEIGHT+X+Y)</source>
+        <translation>无效的几何格式：%1（期望格式为 宽度x高度 或 宽度x高度+X+Y）</translation>
+    </message>
+    <message>
+        <source>Invalid window dimensions: width and height must be between 100 and 10000 pixels</source>
+        <translation>无效的窗口尺寸：宽度和高度必须在 100 到 10000 像素之间</translation>
+    </message>
+    <message>
+        <source>Invalid view mode: %1 (must be single, continuous, two-pages, book, or 0-3)</source>
+        <translation>无效的视图模式：%1（必须是 single、continuous、two-pages、book 或 0-3）</translation>
+    </message>
+    <message>
+        <source>Invalid view mode: %1 (must be 0-3)</source>
+        <translation>无效的视图模式：%1（必须是 0-3）</translation>
+    </message>
+    <message>
+        <source>Invalid zoom value: %1 (must be a number or fit-width, fit-height, fit-page)</source>
+        <translation>无效的缩放值：%1（必须是数字或 fit-width、fit-height、fit-page）</translation>
+    </message>
+    <message>
+        <source>Invalid zoom level: %1 (must be 0.1-10.0)</source>
+        <translation>无效的缩放级别：%1（必须在 0.1-10.0 之间）</translation>
+    </message>
+    <message>
+        <source>Invalid page number: %1</source>
+        <translation>无效的页码：%1</translation>
+    </message>
+    <message>
+        <source>Invalid page number: %1 (must be >= 1)</source>
+        <translation>无效的页码：%1（必须 >= 1）</translation>
+    </message>
+    <message>
+        <source>Invalid theme: %1 (must be 'light' or 'dark')</source>
+        <translation>无效的主题：%1（必须是 'light' 或 'dark'）</translation>
+    </message>
+    <message>
+        <source>Invalid language: %1 (must be 'en', 'zh', or 'system')</source>
+        <translation>无效的语言：%1（必须是 'en'、'zh' 或 'system'）</translation>
+    </message>
+    <message>
+        <source>Invalid log level: %1 (must be trace, debug, info, warning, error, critical, or off)</source>
+        <translation>无效的日志级别：%1（必须是 trace、debug、info、warning、error、critical 或 off）</translation>
+    </message>
+    <message>
+        <source>Invalid cache size: %1</source>
+        <translation>无效的缓存大小：%1</translation>
+    </message>
+    <message>
+        <source>Invalid cache size: %1 MB (must be 1-10240 MB)</source>
+        <translation>无效的缓存大小：%1 MB（必须在 1-10240 MB 之间）</translation>
+    </message>
+</context>
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>File Not Found</source>
+        <translation>文件未找到</translation>
+    </message>
+    <message>
+        <source>The specified file does not exist:
+%1</source>
+        <translation>指定的文件不存在：
+%1</translation>
+    </message>
+    <message>
+        <source>File Not Readable</source>
+        <translation>文件不可读</translation>
+    </message>
+    <message>
+        <source>The specified file cannot be read:
+%1</source>
+        <translation>无法读取指定的文件：
+%1</translation>
+    </message>
+    <message>
+        <source>Open Failed</source>
+        <translation>打开失败</translation>
+    </message>
+    <message>
+        <source>Failed to open the specified file:
+%1</source>
+        <translation>无法打开指定的文件：
+%1</translation>
+    </message>
+</context>
+<context>
+    <name>DebugLogPanel</name>
+    <message>
+        <source>Filters</source>
+        <translation>过滤器</translation>
+    </message>
+    <message>
+        <source>Level:</source>
+        <translation>级别:</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>全部</translation>
+    </message>
+    <message>
+        <source>Debug+</source>
+        <translation>调试+</translation>
+    </message>
+    <message>
+        <source>Info+</source>
+        <translation>信息+</translation>
+    </message>
+    <message>
+        <source>Warning+</source>
+        <translation>警告+</translation>
+    </message>
+    <message>
+        <source>Error+</source>
+        <translation>错误+</translation>
+    </message>
+    <message>
+        <source>Critical</source>
+        <translation>严重</translation>
+    </message>
+    <message>
+        <source>Category:</source>
+        <translation>类别:</translation>
+    </message>
+    <message>
+        <source>All Categories</source>
+        <translation>所有类别</translation>
+    </message>
+    <message>
+        <source>Search:</source>
+        <translation>搜索:</translation>
+    </message>
+    <message>
+        <source>Search log messages...</source>
+        <translation>搜索日志消息...</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>下一个</translation>
+    </message>
+    <message>
+        <source>Prev</source>
+        <translation>上一个</translation>
+    </message>
+    <message>
+        <source>Case sensitive</source>
+        <translation>区分大小写</translation>
+    </message>
+    <message>
+        <source>Regex</source>
+        <translation>正则表达式</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>暂停</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>清除</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>导出</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation>设置</translation>
+    </message>
+    <message>
+        <source>Auto-scroll</source>
+        <translation>自动滚动</translation>
+    </message>
+    <message>
+        <source>Statistics</source>
+        <translation>统计信息</translation>
+    </message>
+    <message>
+        <source>Metric</source>
+        <translation>指标</translation>
+    </message>
+    <message>
+        <source>Value</source>
+        <translation>值</translation>
+    </message>
+    <message>
+        <source>Total</source>
+        <translation>总计</translation>
+    </message>
+    <message>
+        <source>Debug</source>
+        <translation>调试</translation>
+    </message>
+    <message>
+        <source>Info</source>
+        <translation>信息</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation>警告</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <source>Messages/sec: 0.0</source>
+        <translation>消息/秒: 0.0</translation>
+    </message>
+    <message>
+        <source>Messages/sec: %1</source>
+        <translation>消息/秒: %1</translation>
+    </message>
+    <message>
+        <source>Memory:</source>
+        <translation>内存:</translation>
+    </message>
+    <message>
+        <source>Copy Selected</source>
+        <translation>复制选中</translation>
+    </message>
+    <message>
+        <source>Copy All</source>
+        <translation>复制全部</translation>
+    </message>
+    <message>
+        <source>Clear Logs</source>
+        <translation>清除日志</translation>
+    </message>
+    <message>
+        <source>Export Logs...</source>
+        <translation>导出日志...</translation>
+    </message>
+    <message>
+        <source>Pause Logging</source>
+        <translation>暂停日志记录</translation>
+    </message>
+    <message>
+        <source>Could not open file for writing: %1</source>
+        <translation>无法打开文件进行写入: %1</translation>
+    </message>
+    <message>
+        <source>Log exported successfully to: %1</source>
+        <translation>日志已成功导出到: %1</translation>
+    </message>
+    <message>
+        <source>Debug Panel Settings</source>
+        <translation>调试面板设置</translation>
+    </message>
+    <message>
+        <source>Max entries:</source>
+        <translation>最大条目数:</translation>
+    </message>
+    <message>
+        <source>Word wrap</source>
+        <translation>自动换行</translation>
+    </message>
+    <message>
+        <source>Timestamp format:</source>
+        <translation>时间戳格式:</translation>
+    </message>
+    <message>
+        <source>Update interval (ms):</source>
+        <translation>更新间隔 (毫秒):</translation>
+    </message>
+    <message>
+        <source>Batch size:</source>
+        <translation>批处理大小:</translation>
+    </message>
+    <message>
+        <source>Settings updated</source>
+        <translation>设置已更新</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <source>Input valid</source>
+        <translation>输入有效</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Form validation successful</source>
+        <translation>表单验证成功</translation>
+    </message>
+    <message>
+        <source>Please correct the following errors:
+• %1</source>
+        <translation>请更正以下错误：
+• %1</translation>
+    </message>
+    <message>
+        <source> (%1)</source>
+        <translation> (%1)</translation>
     </message>
 </context>
 </TS>

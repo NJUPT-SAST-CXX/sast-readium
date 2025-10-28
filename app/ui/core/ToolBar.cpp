@@ -23,18 +23,10 @@ CollapsibleSection::CollapsibleSection(const QString& title, QWidget* parent)
     mainLayout->setSpacing(0);
 
     // Create header with toggle button
-    QFrame* headerFrame = new QFrame(this);
-    headerFrame->setFrameStyle(QFrame::StyledPanel);
-    headerFrame->setStyleSheet(
-        "QFrame {"
-        "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-        "   stop:0 #f8f9fa, stop:1 #e9ecef);"
-        "   border: 1px solid #dee2e6;"
-        "   border-radius: 4px;"
-        "   padding: 2px;"
-        "}");
+    m_headerFrame = new QFrame(this);
+    m_headerFrame->setFrameStyle(QFrame::StyledPanel);
 
-    QHBoxLayout* headerLayout = new QHBoxLayout(headerFrame);
+    QHBoxLayout* headerLayout = new QHBoxLayout(m_headerFrame);
     headerLayout->setContentsMargins(
         styleManager->spacingXS(), styleManager->spacingXS() / 2,
         styleManager->spacingXS(), styleManager->spacingXS() / 2);
@@ -45,17 +37,6 @@ CollapsibleSection::CollapsibleSection(const QString& title, QWidget* parent)
     m_toggleButton->setArrowType(Qt::DownArrow);
     m_toggleButton->setCheckable(true);
     m_toggleButton->setChecked(true);
-    m_toggleButton->setStyleSheet(
-        "QToolButton {"
-        "   border: none;"
-        "   padding: 4px;"
-        "   font-weight: bold;"
-        "   color: #495057;"
-        "}"
-        "QToolButton:hover {"
-        "   background-color: rgba(0, 123, 255, 0.1);"
-        "   border-radius: 4px;"
-        "}");
 
     headerLayout->addWidget(m_toggleButton);
     headerLayout->addStretch();
@@ -63,25 +44,24 @@ CollapsibleSection::CollapsibleSection(const QString& title, QWidget* parent)
     // Create content frame
     m_contentFrame = new QFrame(this);
     m_contentFrame->setFrameStyle(QFrame::NoFrame);
-    m_contentFrame->setStyleSheet(
-        "QFrame {"
-        "   background-color: #ffffff;"
-        "   border: 1px solid #dee2e6;"
-        "   border-top: none;"
-        "   border-radius: 0 0 4px 4px;"
-        "   padding: 8px;"
-        "}");
 
     // Setup animation
     m_animation = new QPropertyAnimation(m_contentFrame, "maximumHeight", this);
     m_animation->setDuration(styleManager->animationNormal());
     m_animation->setEasingCurve(QEasingCurve::InOutQuad);
 
-    mainLayout->addWidget(headerFrame);
+    mainLayout->addWidget(m_headerFrame);
     mainLayout->addWidget(m_contentFrame);
 
     connect(m_toggleButton, &QToolButton::toggled, this,
             [this](bool checked) { setExpanded(checked); });
+
+    // Connect to theme changes
+    connect(&STYLE, &StyleManager::themeChanged, this,
+            &CollapsibleSection::applyTheme);
+
+    // Apply initial theme
+    applyTheme();
 }
 
 void CollapsibleSection::setContentWidget(QWidget* widget) {
@@ -113,6 +93,50 @@ void CollapsibleSection::setExpanded(bool expanded) {
 }
 
 void CollapsibleSection::toggleExpanded() { setExpanded(!m_expanded); }
+
+void CollapsibleSection::applyTheme() {
+    // Apply theme-aware header styling
+    QColor headerGradientStart = STYLE.surfaceAltColor();
+    QColor headerGradientEnd = STYLE.surfaceColor();
+    QColor borderColor = STYLE.borderColor();
+    QColor textColor = STYLE.textColor();
+    QColor hoverBg = STYLE.hoverColor();
+
+    m_headerFrame->setStyleSheet(
+        QString("QFrame {"
+                "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+                "   stop:0 %1, stop:1 %2);"
+                "   border: 1px solid %3;"
+                "   border-radius: 4px;"
+                "   padding: 2px;"
+                "}")
+            .arg(headerGradientStart.name())
+            .arg(headerGradientEnd.name())
+            .arg(borderColor.name()));
+
+    m_toggleButton->setStyleSheet(QString("QToolButton {"
+                                          "   border: none;"
+                                          "   padding: 4px;"
+                                          "   font-weight: bold;"
+                                          "   color: %1;"
+                                          "}"
+                                          "QToolButton:hover {"
+                                          "   background-color: %2;"
+                                          "   border-radius: 4px;"
+                                          "}")
+                                      .arg(textColor.name())
+                                      .arg(hoverBg.name()));
+
+    m_contentFrame->setStyleSheet(QString("QFrame {"
+                                          "   background-color: %1;"
+                                          "   border: 1px solid %2;"
+                                          "   border-top: none;"
+                                          "   border-radius: 0 0 4px 4px;"
+                                          "   padding: 8px;"
+                                          "}")
+                                      .arg(STYLE.backgroundColor().name())
+                                      .arg(borderColor.name()));
+}
 
 // ToolBar Implementation
 ToolBar::ToolBar(QWidget* parent)
@@ -347,6 +371,13 @@ ToolBar::ToolBar(QWidget* parent)
     // is loaded
     setActionsEnabled(false);
 
+    // Connect to theme changes
+    connect(&STYLE, &StyleManager::themeChanged, this,
+            &ToolBar::applyToolbarTheme);
+
+    // Apply initial theme
+    applyToolbarTheme();
+
     LOG_DEBUG("ToolBar created with complete controls");
 }
 
@@ -402,7 +433,7 @@ void ToolBar::setupFileSection() {
     m_emailAction = new QAction(tr("Email"), this);
     m_emailAction->setToolTip(tr("Email Document"));
 
-    // Create tool buttons
+    // Create tool buttons with theme-aware styling
     auto createButton = [](QAction* action) {
         QToolButton* btn = new QToolButton();
         btn->setAccessibleName("Toolbar Button");
@@ -411,19 +442,27 @@ void ToolBar::setupFileSection() {
         btn->setDefaultAction(action);
         btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
         btn->setMinimumSize(60, 60);
-        btn->setStyleSheet(
-            "QToolButton {"
-            "   border: 1px solid transparent;"
-            "   border-radius: 4px;"
-            "   padding: 4px;"
-            "}"
-            "QToolButton:hover {"
-            "   background-color: rgba(0, 123, 255, 0.1);"
-            "   border: 1px solid #007bff;"
-            "}"
-            "QToolButton:pressed {"
-            "   background-color: rgba(0, 123, 255, 0.2);"
-            "}");
+
+        // Apply theme-aware button styling
+        QColor hoverBg = STYLE.hoverColor();
+        QColor primaryColor = STYLE.primaryColor();
+        QColor pressedBg = STYLE.hoverColor().darker(110);
+
+        btn->setStyleSheet(QString("QToolButton {"
+                                   "   border: 1px solid transparent;"
+                                   "   border-radius: 4px;"
+                                   "   padding: 4px;"
+                                   "}"
+                                   "QToolButton:hover {"
+                                   "   background-color: %1;"
+                                   "   border: 1px solid %2;"
+                                   "}"
+                                   "QToolButton:pressed {"
+                                   "   background-color: %3;"
+                                   "}")
+                               .arg(hoverBg.name())
+                               .arg(primaryColor.name())
+                               .arg(pressedBg.name()));
         return btn;
     };
 
@@ -784,14 +823,14 @@ void ToolBar::setupQuickAccessBar() {
     QHBoxLayout* layout = new QHBoxLayout(m_quickAccessBar);
     layout->setContentsMargins(8, 4, 8, 4);
 
-    // Logo or app name
+    // Logo or app name (theme-aware)
     QLabel* appLabel = new QLabel("📖 SAST Readium");
-    appLabel->setStyleSheet(
-        "QLabel {"
-        "   font-size: 16px;"
-        "   font-weight: bold;"
-        "   color: #007bff;"
-        "}");
+    appLabel->setStyleSheet(QString("QLabel {"
+                                    "   font-size: 16px;"
+                                    "   font-weight: bold;"
+                                    "   color: %1;"
+                                    "}")
+                                .arg(STYLE.primaryColor().name()));
     layout->addWidget(appLabel);
 
     layout->addStretch();
@@ -812,15 +851,19 @@ void ToolBar::setupQuickAccessBar() {
         btn->setDefaultAction(action);
         btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
         btn->setMinimumSize(32, 32);
-        btn->setStyleSheet(
-            "QToolButton {"
-            "   border: none;"
-            "   border-radius: 16px;"
-            "   padding: 4px;"
-            "}"
-            "QToolButton:hover {"
-            "   background-color: rgba(0, 0, 0, 0.05);"
-            "}");
+
+        // Apply theme-aware quick button styling
+        QColor hoverBg = STYLE.hoverColor();
+
+        btn->setStyleSheet(QString("QToolButton {"
+                                   "   border: none;"
+                                   "   border-radius: 16px;"
+                                   "   padding: 4px;"
+                                   "}"
+                                   "QToolButton:hover {"
+                                   "   background-color: %1;"
+                                   "}")
+                               .arg(hoverBg.name()));
         return btn;
     };
 
@@ -1343,12 +1386,12 @@ void ToolBar::onViewModeChanged() {
             emit actionTriggered(ActionMap::setContinuousScrollMode);
             break;
         case 2:  // Two Pages
-            // TODO: Add ActionMap entry for two pages mode when implemented
-            LOG_DEBUG("Two Pages mode selected - not yet implemented");
+            emit actionTriggered(ActionMap::setTwoPagesMode);
+            LOG_DEBUG("Two Pages mode selected");
             break;
         case 3:  // Book View
-            // TODO: Add ActionMap entry for book view mode when implemented
-            LOG_DEBUG("Book View mode selected - not yet implemented");
+            emit actionTriggered(ActionMap::setBookViewMode);
+            LOG_DEBUG("Book View mode selected");
             break;
         default:
             LOG_WARNING(
@@ -1363,7 +1406,7 @@ void ToolBar::onViewModeChanged() {
     }
 
     // Emit view mode changed signal for external components
-    // TODO: Fix signal emission - emit viewModeChanged(modeName);
+    emit viewModeChanged(modeName);
     LOG_DEBUG("View mode changed to: {}", modeName.toStdString());
 }
 
@@ -1396,20 +1439,7 @@ void ToolBar::onZoomSliderChanged(int value) {
     // Update zoom value label with visual feedback
     if (m_zoomValueLabel) {
         m_zoomValueLabel->setText(QString("%1%").arg(value));
-
-        // Provide visual feedback for extreme zoom levels
-        if (value <= 50) {
-            m_zoomValueLabel->setStyleSheet(
-                "QLabel { color: #dc3545; font-weight: bold; }");  // Red for
-                                                                   // very small
-        } else if (value >= 300) {
-            m_zoomValueLabel->setStyleSheet(
-                "QLabel { color: #fd7e14; font-weight: bold; }");  // Orange for
-                                                                   // very large
-        } else {
-            m_zoomValueLabel->setStyleSheet(
-                "QLabel { color: #495057; }");  // Normal color
-        }
+        updateZoomValueLabelColor();
     }
 
     // Update zoom presets if they exist
@@ -1623,4 +1653,165 @@ void ToolBar::contextMenuEvent(QContextMenuEvent* event) {
     contextMenuManager->showToolbarMenu(event->globalPos(), context, this);
 
     event->accept();
+}
+
+void ToolBar::applyToolbarTheme() {
+    // Get theme colors
+    QColor primaryColor = STYLE.primaryColor();
+    QColor accentColor = STYLE.accentColor();
+    QColor borderColor = STYLE.borderColor();
+    QColor surfaceColor = STYLE.surfaceColor();
+    QColor surfaceAltColor = STYLE.surfaceAltColor();
+    QColor backgroundColor = STYLE.backgroundColor();
+    QColor textColor = STYLE.textColor();
+
+    // Apply slider styling (page slider and zoom slider)
+    QString sliderStyle =
+        QString(
+            "QSlider::groove:horizontal {"
+            "   border: 1px solid %1;"
+            "   height: 8px;"
+            "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+            "       stop:0 %2, stop:1 %3);"
+            "   margin: 2px 0;"
+            "   border-radius: 4px;"
+            "}"
+            "QSlider::handle:horizontal {"
+            "   background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+            "       stop:0 %4, stop:1 %5);"
+            "   border: 1px solid %1;"
+            "   width: 18px;"
+            "   margin: -2px 0;"
+            "   border-radius: 9px;"
+            "}")
+            .arg(borderColor.name())
+            .arg(surfaceAltColor.name())
+            .arg(surfaceColor.name())
+            .arg(primaryColor.name())
+            .arg(primaryColor.darker(120).name());
+
+    if (m_pageSlider) {
+        m_pageSlider->setStyleSheet(sliderStyle);
+    }
+    if (m_zoomSlider) {
+        m_zoomSlider->setStyleSheet(sliderStyle);
+    }
+
+    // Apply thumbnail preview styling
+    if (m_thumbnailPreview) {
+        m_thumbnailPreview->setStyleSheet(QString("QLabel {"
+                                                  "   background-color: %1;"
+                                                  "   border: 2px solid %2;"
+                                                  "   border-radius: 4px;"
+                                                  "}")
+                                              .arg(surfaceAltColor.name())
+                                              .arg(borderColor.name()));
+    }
+
+    // Apply quick access bar styling
+    if (m_quickAccessBar) {
+        m_quickAccessBar->setStyleSheet(
+            QString("QFrame {"
+                    "   background-color: %1;"
+                    "   border-bottom: 1px solid %2;"
+                    "   padding: 4px;"
+                    "}")
+                .arg(surfaceAltColor.name())
+                .arg(borderColor.name()));
+    }
+
+    // Apply main toolbar styling
+    setStyleSheet(
+        QString("QToolBar {"
+                "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+                "       stop:0 %1, stop:1 %2);"
+                "   border: none;"
+                "   border-bottom: 2px solid %3;"
+                "   padding: 8px;"
+                "}"
+                "QLabel {"
+                "   color: %4;"
+                "   font-size: 12px;"
+                "}"
+                "QComboBox {"
+                "   border: 1px solid %5;"
+                "   border-radius: 4px;"
+                "   padding: 4px;"
+                "   background-color: %1;"
+                "}"
+                "QComboBox:hover {"
+                "   border-color: %6;"
+                "}"
+                "QComboBox:focus {"
+                "   border-color: %7;"
+                "   outline: none;"
+                "}"
+                "QSpinBox {"
+                "   border: 1px solid %5;"
+                "   border-radius: 4px;"
+                "   padding: 4px;"
+                "   background-color: %1;"
+                "}"
+                "QSpinBox:hover {"
+                "   border-color: %6;"
+                "}"
+                "QSpinBox:focus {"
+                "   border-color: %7;"
+                "}")
+            .arg(backgroundColor.name())
+            .arg(surfaceAltColor.name())
+            .arg(borderColor.name())
+            .arg(textColor.name())
+            .arg(borderColor.name())
+            .arg(accentColor.name())
+            .arg(primaryColor.name()));
+
+    // Update shadow effect
+    if (auto* shadow =
+            qobject_cast<QGraphicsDropShadowEffect*>(graphicsEffect())) {
+        QColor shadowColor = (STYLE.currentTheme() == Theme::Dark)
+                                 ? QColor(0, 0, 0, 60)
+                                 : QColor(0, 0, 0, 30);
+        shadow->setColor(shadowColor);
+    }
+
+    // Update zoom value label colors (dynamic based on zoom level)
+    updateZoomValueLabelColor();
+}
+
+void ToolBar::updateZoomValueLabelColor() {
+    if (!m_zoomValueLabel) {
+        return;
+    }
+
+    // Get current zoom value from label text
+    QString text = m_zoomValueLabel->text();
+    text.remove('%');
+    bool ok = false;
+    int value = text.toInt(&ok);
+
+    if (!ok) {
+        return;
+    }
+
+    // Apply theme-aware colors for extreme zoom levels
+    QColor errorColor = STYLE.errorColor();
+    QColor warningColor = STYLE.warningColor();
+    QColor textColor = STYLE.textColor();
+
+    if (value <= 50) {
+        // Red/error color for very small zoom
+        m_zoomValueLabel->setStyleSheet(
+            QString("QLabel { color: %1; font-weight: bold; }")
+                .arg(errorColor.name()));
+    } else if (value >= 300) {
+        // Orange/warning color for very large zoom
+        m_zoomValueLabel->setStyleSheet(
+            QString("QLabel { color: %1; font-weight: bold; }")
+                .arg(warningColor.name()));
+    } else {
+        // Normal text color
+        m_zoomValueLabel->setStyleSheet(
+            QString("QLabel { color: %1; }").arg(textColor.name()));
+    }
 }

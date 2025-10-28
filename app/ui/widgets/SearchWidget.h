@@ -119,6 +119,7 @@ private:
     void setupConnections();
     void setupShortcuts();
     void retranslateUi();
+    void applyTheme();
     void updateNavigationButtons();
     void updateResultsInfo();
     SearchOptions getSearchOptions() const;

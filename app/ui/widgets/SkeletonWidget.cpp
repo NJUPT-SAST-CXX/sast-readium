@@ -18,6 +18,11 @@ SkeletonWidget::SkeletonWidget(Shape shape, QWidget* parent)
     setMinimumSize(50, 20);
 
     setupAnimation();
+
+    // Connect to theme changes to update colors
+    connect(&STYLE, &StyleManager::themeChanged, this, [this]() {
+        update();  // Trigger repaint with new theme colors
+    });
 }
 
 SkeletonWidget::~SkeletonWidget() {
@@ -210,17 +215,27 @@ void SkeletonWidget::drawShimmer(QPainter& painter, const QRect& rect) {
 }
 
 QColor SkeletonWidget::getBaseColor() const {
+    // Use surface color as base for skeleton placeholders
     if (STYLE.currentTheme() == Theme::Light) {
-        return QColor(240, 240, 240);  // Light gray
+        // Slightly darker than surface for visibility
+        return STYLE.surfaceAltColor().darker(105);
     }
-    return QColor(60, 60, 60);  // Dark gray
+    // Slightly lighter than surface for visibility in dark mode
+    return STYLE.surfaceAltColor().lighter(115);
 }
 
 QColor SkeletonWidget::getShimmerColor() const {
+    // Use a lighter/brighter color for the shimmer effect
     if (STYLE.currentTheme() == Theme::Light) {
-        return QColor(255, 255, 255, 180);  // White with transparency
+        // White with transparency for light theme
+        QColor shimmer = STYLE.backgroundColor();
+        shimmer.setAlpha(180);
+        return shimmer;
     }
-    return QColor(100, 100, 100, 180);  // Lighter gray with transparency
+    // Lighter surface color with transparency for dark theme
+    QColor shimmer = STYLE.surfaceColor().lighter(150);
+    shimmer.setAlpha(180);
+    return shimmer;
 }
 
 // DocumentSkeletonWidget Implementation

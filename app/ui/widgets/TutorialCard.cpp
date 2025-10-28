@@ -220,8 +220,7 @@ void TutorialCard::updateCompletedState() {
 }
 
 void TutorialCard::applyTheme() {
-    // Stub implementation - apply basic theme-aware styling
-    // TODO: Integrate with StyleManager for full theme support
+    // Apply theme-aware styling using current palette
 
     // For now, just update the card to use current palette
     QPalette palette = qApp->palette();

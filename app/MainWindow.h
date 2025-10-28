@@ -21,6 +21,12 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow() noexcept;
 
+    // Command-line integration methods
+    void openFileFromCommandLine(const QString& filePath);
+    void setViewModeFromCommandLine(int mode);
+    void setZoomLevelFromCommandLine(double zoom);
+    void goToPageFromCommandLine(int page);
+
 protected:
     // Override for custom close behavior
     void closeEvent(QCloseEvent* event) override;

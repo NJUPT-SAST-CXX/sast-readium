@@ -154,6 +154,12 @@ private:
     QPixmap m_searchHighlightLayer;  // Pre-rendered search highlights
     bool m_searchHighlightsDirty;    // Flag to track if highlights need
                                      // re-rendering
+
+    // Theme-aware color getters
+    QColor getDropShadowColor() const;
+    QColor getNormalHighlightColor() const;
+    QColor getCurrentHighlightColor() const;
+    void applyTheme();
     bool m_searchHighlightsEnabled;  // Flag to enable/disable highlighting
                                      // optimization
 

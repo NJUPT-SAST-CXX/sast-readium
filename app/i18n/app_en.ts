@@ -163,6 +163,32 @@
         <source>简体中文(&amp;C)</source>
         <translation>简体中文(&amp;C)</translation>
     </message>
+    <message>
+        <source>&amp;Settings...</source>
+        <translation>&amp;Settings...</translation>
+    </message>
+    <message>
+        <source>The file "%1" could not be found.
+
+It may have been moved, renamed, or deleted.
+The file has been removed from the recent files list.</source>
+        <translation>The file "%1" could not be found.
+
+It may have been moved, renamed, or deleted.
+The file has been removed from the recent files list.</translation>
+    </message>
+    <message>
+        <source>Clear Recent Files</source>
+        <translation>Clear Recent Files</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to clear all recent files?
+
+This action cannot be undone.</source>
+        <translation>Are you sure you want to clear all recent files?
+
+This action cannot be undone.</translation>
+    </message>
 </context>
 <context>
     <name>I18nManager</name>
@@ -611,6 +637,222 @@
     <message>
         <source>Advanced</source>
         <translation>Advanced</translation>
+    </message>
+</context>
+<context>
+    <name>DebugLogPanel</name>
+    <message>
+        <source>Filters</source>
+        <translation>Filters</translation>
+    </message>
+    <message>
+        <source>Level:</source>
+        <translation>Level:</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>All</translation>
+    </message>
+    <message>
+        <source>Debug+</source>
+        <translation>Debug+</translation>
+    </message>
+    <message>
+        <source>Info+</source>
+        <translation>Info+</translation>
+    </message>
+    <message>
+        <source>Warning+</source>
+        <translation>Warning+</translation>
+    </message>
+    <message>
+        <source>Error+</source>
+        <translation>Error+</translation>
+    </message>
+    <message>
+        <source>Critical</source>
+        <translation>Critical</translation>
+    </message>
+    <message>
+        <source>Category:</source>
+        <translation>Category:</translation>
+    </message>
+    <message>
+        <source>All Categories</source>
+        <translation>All Categories</translation>
+    </message>
+    <message>
+        <source>Search:</source>
+        <translation>Search:</translation>
+    </message>
+    <message>
+        <source>Search log messages...</source>
+        <translation>Search log messages...</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Next</translation>
+    </message>
+    <message>
+        <source>Prev</source>
+        <translation>Prev</translation>
+    </message>
+    <message>
+        <source>Case sensitive</source>
+        <translation>Case sensitive</translation>
+    </message>
+    <message>
+        <source>Regex</source>
+        <translation>Regex</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pause</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>Clear</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Export</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copy</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation>Settings</translation>
+    </message>
+    <message>
+        <source>Auto-scroll</source>
+        <translation>Auto-scroll</translation>
+    </message>
+    <message>
+        <source>Statistics</source>
+        <translation>Statistics</translation>
+    </message>
+    <message>
+        <source>Metric</source>
+        <translation>Metric</translation>
+    </message>
+    <message>
+        <source>Value</source>
+        <translation>Value</translation>
+    </message>
+    <message>
+        <source>Total</source>
+        <translation>Total</translation>
+    </message>
+    <message>
+        <source>Debug</source>
+        <translation>Debug</translation>
+    </message>
+    <message>
+        <source>Info</source>
+        <translation>Info</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation>Warning</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Error</translation>
+    </message>
+    <message>
+        <source>Messages/sec: 0.0</source>
+        <translation>Messages/sec: 0.0</translation>
+    </message>
+    <message>
+        <source>Messages/sec: %1</source>
+        <translation>Messages/sec: %1</translation>
+    </message>
+    <message>
+        <source>Memory:</source>
+        <translation>Memory:</translation>
+    </message>
+    <message>
+        <source>Copy Selected</source>
+        <translation>Copy Selected</translation>
+    </message>
+    <message>
+        <source>Copy All</source>
+        <translation>Copy All</translation>
+    </message>
+    <message>
+        <source>Clear Logs</source>
+        <translation>Clear Logs</translation>
+    </message>
+    <message>
+        <source>Export Logs...</source>
+        <translation>Export Logs...</translation>
+    </message>
+    <message>
+        <source>Pause Logging</source>
+        <translation>Pause Logging</translation>
+    </message>
+    <message>
+        <source>Could not open file for writing: %1</source>
+        <translation>Could not open file for writing: %1</translation>
+    </message>
+    <message>
+        <source>Log exported successfully to: %1</source>
+        <translation>Log exported successfully to: %1</translation>
+    </message>
+    <message>
+        <source>Debug Panel Settings</source>
+        <translation>Debug Panel Settings</translation>
+    </message>
+    <message>
+        <source>Max entries:</source>
+        <translation>Max entries:</translation>
+    </message>
+    <message>
+        <source>Word wrap</source>
+        <translation>Word wrap</translation>
+    </message>
+    <message>
+        <source>Timestamp format:</source>
+        <translation>Timestamp format:</translation>
+    </message>
+    <message>
+        <source>Update interval (ms):</source>
+        <translation>Update interval (ms):</translation>
+    </message>
+    <message>
+        <source>Batch size:</source>
+        <translation>Batch size:</translation>
+    </message>
+    <message>
+        <source>Settings updated</source>
+        <translation>Settings updated</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <source>Input valid</source>
+        <translation>Input valid</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Form validation successful</source>
+        <translation>Form validation successful</translation>
+    </message>
+    <message>
+        <source>Please correct the following errors:
+• %1</source>
+        <translation>Please correct the following errors:
+• %1</translation>
+    </message>
+    <message>
+        <source> (%1)</source>
+        <translation> (%1)</translation>
     </message>
 </context>
 </TS>

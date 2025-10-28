@@ -1,3 +1,4 @@
+#include <QElapsedTimer>
 #include <QJsonObject>
 #include <QMetaObject>
 #include <QSignalSpy>

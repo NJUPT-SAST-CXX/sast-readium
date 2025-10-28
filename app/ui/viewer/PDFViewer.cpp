@@ -89,7 +89,7 @@ PDFPageWidget::PDFPageWidget(QWidget* parent)
     QGraphicsDropShadowEffect* shadowEffect =
         new QGraphicsDropShadowEffect(this);
     shadowEffect->setBlurRadius(15);
-    shadowEffect->setColor(QColor(0, 0, 0, 50));
+    shadowEffect->setColor(getDropShadowColor());
     shadowEffect->setOffset(0, 4);
     setGraphicsEffect(shadowEffect);
 
@@ -100,12 +100,16 @@ PDFPageWidget::PDFPageWidget(QWidget* parent)
     connect(renderDebounceTimer, &QTimer::timeout, this,
             &PDFPageWidget::onRenderDebounceTimeout);
 
-    // 初始化搜索高亮颜色和优化设置
-    m_normalHighlightColor = QColor(255, 255, 0, 100);   // 半透明黄色
-    m_currentHighlightColor = QColor(255, 165, 0, 150);  // 半透明橙色
+    // 初始化搜索高亮颜色和优化设置 (theme-aware)
+    m_normalHighlightColor = getNormalHighlightColor();
+    m_currentHighlightColor = getCurrentHighlightColor();
     m_currentSearchResultIndex = -1;
     m_searchHighlightsDirty = false;
     m_searchHighlightsEnabled = true;
+
+    // Connect to theme changes
+    connect(&STYLE, &StyleManager::themeChanged, this,
+            &PDFPageWidget::applyTheme);
 }
 
 void PDFPageWidget::setPage(Poppler::Page* page, double scaleFactor,
@@ -3528,4 +3532,43 @@ bool PDFViewer::hasBookmarkForCurrentPage() const {
     // 这里需要与BookmarkWidget集成来检查书签状态
     // 目前返回false作为占位符
     return false;
+}
+
+// PDFPageWidget theme-aware color methods
+QColor PDFPageWidget::getDropShadowColor() const {
+    // Shadow color: semi-transparent black/gray based on theme
+    if (STYLE.currentTheme() == Theme::Dark) {
+        return QColor(0, 0, 0, 80);  // Darker shadow for dark theme
+    }
+    return QColor(0, 0, 0, 50);  // Lighter shadow for light theme
+}
+
+QColor PDFPageWidget::getNormalHighlightColor() const {
+    // Normal search highlight: semi-transparent yellow
+    // Could be made configurable via StyleManager in the future
+    return QColor(255, 255, 0, 100);
+}
+
+QColor PDFPageWidget::getCurrentHighlightColor() const {
+    // Current search result highlight: semi-transparent orange
+    // Could be made configurable via StyleManager in the future
+    return QColor(255, 165, 0, 150);
+}
+
+void PDFPageWidget::applyTheme() {
+    // Update shadow effect color
+    if (auto* effect =
+            qobject_cast<QGraphicsDropShadowEffect*>(graphicsEffect())) {
+        effect->setColor(getDropShadowColor());
+    }
+
+    // Update highlight colors
+    m_normalHighlightColor = getNormalHighlightColor();
+    m_currentHighlightColor = getCurrentHighlightColor();
+
+    // Mark highlights as dirty to trigger re-render
+    m_searchHighlightsDirty = true;
+
+    // Trigger repaint
+    update();
 }

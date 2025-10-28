@@ -311,27 +311,11 @@ class QHash;
  * @{
  */
 
-#ifdef qDebug
-#undef qDebug
-#endif
-#ifdef qInfo
-#undef qInfo
-#endif
-#ifdef qWarning
-#undef qWarning
-#endif
-#ifdef qCritical
-#undef qCritical
-#endif
-
-/** @brief Drop-in replacement for qDebug() */
-#define qDebug() spdlogDebug()
-/** @brief Drop-in replacement for qInfo() */
-#define qInfo() spdlogInfo()
-/** @brief Drop-in replacement for qWarning() */
-#define qWarning() spdlogWarning()
-/** @brief Drop-in replacement for qCritical() */
-#define qCritical() spdlogCritical()
+// NOTE: We do NOT undef or redefine Qt's qDebug/qWarning/qCritical macros
+// because it breaks Qt's internal usage in template headers like
+// qrangemodel_impl.h The original Qt logging macros remain available for
+// backward compatibility. For spdlog integration, use the spd_q* alternatives
+// or LOG_* macros below.
 
 /** @brief Alternative debug macro with spdlog prefix */
 #define spd_qDebug() spdlogDebug()

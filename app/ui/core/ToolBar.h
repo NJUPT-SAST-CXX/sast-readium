@@ -35,10 +35,12 @@ private:
     QToolButton* m_toggleButton;
     QWidget* m_contentWidget;
     QFrame* m_contentFrame;
+    QFrame* m_headerFrame;
     QPropertyAnimation* m_animation;
     bool m_expanded;
 
     void toggleExpanded();
+    void applyTheme();
 };
 
 /**
@@ -129,6 +131,8 @@ private:
     void setupToolsSection();
     void setupQuickAccessBar();
     void applyEnhancedStyle();
+    void applyToolbarTheme();
+    void updateZoomValueLabelColor();
     void retranslateUi();
     void createCollapsibleGroup(const QString& title, QWidget* content);
 

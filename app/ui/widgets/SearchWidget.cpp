@@ -331,6 +331,10 @@ void SearchWidget::setupConnections() {
             &SearchWidget::onRealTimeResultsUpdated);
     connect(m_searchModel, &SearchModel::realTimeSearchProgress, this,
             &SearchWidget::onRealTimeSearchProgress);
+
+    // Theme changes
+    connect(&STYLE, &StyleManager::themeChanged, this,
+            &SearchWidget::applyTheme);
 }
 
 void SearchWidget::setupShortcuts() {
@@ -691,7 +695,9 @@ void SearchWidget::onSearchFinished(int resultCount) {
     } else {
         m_statusLabel->setText(tr("No matching results found"));
         m_statusLabel->setStyleSheet(
-            "color: #888888;");  // Gray text for no results
+            QString("color: %1;")
+                .arg(STYLE.textSecondaryColor()
+                         .name()));  // Muted text for no results
 
         // Collapse results view when no results
         m_resultsView->setVisible(false);
@@ -861,6 +867,15 @@ void SearchWidget::retranslateUi() {
     }
 
     updateResultsInfo();
+}
+
+void SearchWidget::applyTheme() {
+    // Update status label color for "no results" state
+    if (m_statusLabel &&
+        m_statusLabel->text() == tr("No matching results found")) {
+        m_statusLabel->setStyleSheet(
+            QString("color: %1;").arg(STYLE.textSecondaryColor().name()));
+    }
 }
 
 void SearchWidget::changeEvent(QEvent* event) {

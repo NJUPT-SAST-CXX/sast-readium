@@ -1190,7 +1190,7 @@ void StatusBar::setWarningMessage(const QString& message, int timeout) {
     showMessage(message, MessagePriority::High, timeout);
     const QColor warningText = (STYLE.currentTheme() == Theme::Dark)
                                    ? STYLE.backgroundColor()
-                                   : QColor(QStringLiteral("#1f2933"));
+                                   : STYLE.textColor();
     displayTransientMessage(message, timeout, STYLE.warningColor(),
                             warningText);
     QStatusBar::showMessage(message, timeout);
@@ -1228,7 +1228,7 @@ void StatusBar::showMessage(const QString& message, MessagePriority priority,
             backgroundColor = STYLE.warningColor();
             textColor = (STYLE.currentTheme() == Theme::Dark)
                             ? STYLE.backgroundColor()
-                            : QColor(QStringLiteral("#1f2933"));
+                            : STYLE.textColor();
             break;
         case MessagePriority::Normal:
             backgroundColor = STYLE.successColor();

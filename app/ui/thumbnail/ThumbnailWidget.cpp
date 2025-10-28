@@ -12,6 +12,7 @@
 #include <QSize>
 #include <QStyleOption>
 #include <cmath>
+#include "../../managers/StyleManager.h"
 
 // 常量定义
 namespace {
@@ -20,18 +21,6 @@ constexpr int HOVER_ANIMATION_DURATION = 200;
 constexpr int SELECTION_ANIMATION_DURATION = 300;
 constexpr int LOADING_TIMER_INTERVAL = 50;  // 20 FPS
 }  // namespace
-
-// 颜色常量定义
-const QColor ThumbnailWidget::BORDER_COLOR_NORMAL = QColor(200, 200, 200);
-const QColor ThumbnailWidget::BORDER_COLOR_HOVERED =
-    QColor(66, 133, 244);  // Google Blue
-const QColor ThumbnailWidget::BORDER_COLOR_SELECTED =
-    QColor(26, 115, 232);  // Darker Google Blue
-const QColor ThumbnailWidget::SHADOW_COLOR = QColor(0, 0, 0, 40);
-const QColor ThumbnailWidget::PAGE_NUMBER_BG_COLOR = QColor(0, 0, 0, 180);
-const QColor ThumbnailWidget::PAGE_NUMBER_TEXT_COLOR = QColor(255, 255, 255);
-const QColor ThumbnailWidget::LOADING_COLOR = QColor(66, 133, 244);
-const QColor ThumbnailWidget::ERROR_COLOR = QColor(234, 67, 53);  // Google Red
 
 ThumbnailWidget::ThumbnailWidget(int pageNumber, QWidget* parent)
     : QWidget(parent),
@@ -66,10 +55,14 @@ void ThumbnailWidget::setupUI() {
     m_shadowEffect = new QGraphicsDropShadowEffect(this);
     m_shadowEffect->setBlurRadius(SHADOW_BLUR_RADIUS);
     m_shadowEffect->setOffset(SHADOW_OFFSET, SHADOW_OFFSET);
-    m_shadowEffect->setColor(SHADOW_COLOR);
+    m_shadowEffect->setColor(getShadowColor());
     setGraphicsEffect(m_shadowEffect);
 
     updateShadowEffect();
+
+    // Connect to theme changes
+    connect(&STYLE, &StyleManager::themeChanged, this,
+            &ThumbnailWidget::applyTheme);
 }
 
 void ThumbnailWidget::setupAnimations() {
@@ -192,7 +185,7 @@ void ThumbnailWidget::setError(const QString& errorMessage) {
 
 void ThumbnailWidget::updateShadowEffect() {
     if (m_shadowEffect) {
-        QColor shadowColor = SHADOW_COLOR;
+        QColor shadowColor = getShadowColor();
         shadowColor.setAlphaF(m_shadowOpacity);
         m_shadowEffect->setColor(shadowColor);
     }
@@ -278,10 +271,10 @@ void ThumbnailWidget::drawThumbnail(QPainter& painter, const QRect& rect) {
         painter.drawPixmap(targetRect, scaledPixmap);
     } else {
         // 绘制占位符
-        painter.fillRect(rect, QColor(245, 245, 245));
+        painter.fillRect(rect, STYLE.surfaceAltColor());
 
         // 绘制占位符图标
-        painter.setPen(QColor(180, 180, 180));
+        painter.setPen(STYLE.textSecondaryColor());
         QFont font = painter.font();
         font.setPixelSize(24);
         painter.setFont(font);
@@ -296,13 +289,13 @@ void ThumbnailWidget::drawBorder(QPainter& painter, const QRect& rect) {
         QColor borderColor;
         switch (m_state) {
             case State::Hovered:
-                borderColor = BORDER_COLOR_HOVERED;
+                borderColor = getBorderColorHovered();
                 break;
             case State::Selected:
-                borderColor = BORDER_COLOR_SELECTED;
+                borderColor = getBorderColorSelected();
                 break;
             default:
-                borderColor = BORDER_COLOR_NORMAL;
+                borderColor = getBorderColorNormal();
                 break;
         }
 
@@ -324,10 +317,10 @@ void ThumbnailWidget::drawPageNumber(QPainter& painter, const QRect& rect) {
     // 绘制页码背景
     QPainterPath bgPath;
     bgPath.addRoundedRect(rect, 4, 4);
-    painter.fillPath(bgPath, PAGE_NUMBER_BG_COLOR);
+    painter.fillPath(bgPath, getPageNumberBgColor());
 
     // 绘制页码文字
-    painter.setPen(PAGE_NUMBER_TEXT_COLOR);
+    painter.setPen(getPageNumberTextColor());
     QFont font = painter.font();
     font.setPixelSize(11);
     font.setBold(true);
@@ -340,7 +333,9 @@ void ThumbnailWidget::drawPageNumber(QPainter& painter, const QRect& rect) {
 void ThumbnailWidget::drawLoadingIndicator(QPainter& painter,
                                            const QRect& rect) {
     // 绘制半透明遮罩
-    painter.fillRect(rect, QColor(255, 255, 255, 200));
+    QColor overlayColor = STYLE.backgroundColor();
+    overlayColor.setAlpha(200);
+    painter.fillRect(rect, overlayColor);
 
     // 绘制旋转的加载指示器
     QRect spinnerRect(rect.center().x() - LOADING_SPINNER_SIZE / 2,
@@ -351,7 +346,7 @@ void ThumbnailWidget::drawLoadingIndicator(QPainter& painter,
     painter.translate(spinnerRect.center());
     painter.rotate(m_loadingAngle);
 
-    painter.setPen(QPen(LOADING_COLOR, 3, Qt::SolidLine, Qt::RoundCap));
+    painter.setPen(QPen(getLoadingColor(), 3, Qt::SolidLine, Qt::RoundCap));
     painter.drawArc(-LOADING_SPINNER_SIZE / 2, -LOADING_SPINNER_SIZE / 2,
                     LOADING_SPINNER_SIZE, LOADING_SPINNER_SIZE, 0,
                     270 * 16);  // 3/4 圆弧
@@ -361,17 +356,19 @@ void ThumbnailWidget::drawLoadingIndicator(QPainter& painter,
 
 void ThumbnailWidget::drawErrorIndicator(QPainter& painter, const QRect& rect) {
     // 绘制半透明遮罩
-    painter.fillRect(rect, QColor(255, 255, 255, 200));
+    QColor overlayColor = STYLE.backgroundColor();
+    overlayColor.setAlpha(200);
+    painter.fillRect(rect, overlayColor);
 
     // 绘制错误图标
-    painter.setPen(QPen(ERROR_COLOR, 2));
+    painter.setPen(QPen(getErrorColor(), 2));
     painter.setBrush(Qt::NoBrush);
 
     QRect iconRect(rect.center().x() - 12, rect.center().y() - 12, 24, 24);
     painter.drawEllipse(iconRect);
 
     // 绘制感叹号
-    painter.setPen(QPen(ERROR_COLOR, 3, Qt::SolidLine, Qt::RoundCap));
+    painter.setPen(QPen(getErrorColor(), 3, Qt::SolidLine, Qt::RoundCap));
     painter.drawLine(iconRect.center().x(), iconRect.top() + 6,
                      iconRect.center().x(), iconRect.center().y() + 2);
     painter.drawPoint(iconRect.center().x(), iconRect.bottom() - 4);
@@ -414,3 +411,48 @@ void ThumbnailWidget::contextMenuEvent(QContextMenuEvent* event) {
     emit rightClicked(m_pageNumber, event->globalPos());
     QWidget::contextMenuEvent(event);
 }
+
+void ThumbnailWidget::applyTheme() {
+    // Update shadow effect with new theme colors
+    updateShadowEffect();
+    // Trigger repaint to update all colors
+    update();
+}
+
+// Theme-aware color getters
+QColor ThumbnailWidget::getBorderColorNormal() const {
+    return STYLE.borderColor();
+}
+
+QColor ThumbnailWidget::getBorderColorHovered() const {
+    return STYLE.accentColor();
+}
+
+QColor ThumbnailWidget::getBorderColorSelected() const {
+    return STYLE.primaryColor();
+}
+
+QColor ThumbnailWidget::getShadowColor() const {
+    // Semi-transparent shadow based on theme
+    if (STYLE.currentTheme() == Theme::Dark) {
+        return QColor(0, 0, 0, 60);  // Darker shadow for dark theme
+    }
+    return QColor(0, 0, 0, 40);  // Lighter shadow for light theme
+}
+
+QColor ThumbnailWidget::getPageNumberBgColor() const {
+    // Semi-transparent overlay
+    if (STYLE.currentTheme() == Theme::Dark) {
+        return QColor(0, 0, 0, 200);
+    }
+    return QColor(0, 0, 0, 180);
+}
+
+QColor ThumbnailWidget::getPageNumberTextColor() const {
+    // Always white for good contrast on dark background
+    return QColor(255, 255, 255);
+}
+
+QColor ThumbnailWidget::getLoadingColor() const { return STYLE.primaryColor(); }
+
+QColor ThumbnailWidget::getErrorColor() const { return STYLE.errorColor(); }

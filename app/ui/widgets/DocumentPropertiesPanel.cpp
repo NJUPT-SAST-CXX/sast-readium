@@ -240,18 +240,15 @@ void DocumentPropertiesPanel::retranslateUi() {
 }
 
 void DocumentPropertiesPanel::applyTheme() {
-    // Apply theme-aware styling
-    QString readOnlyStyle =
-        QString(
-            "QLineEdit[readOnly=\"true\"] {"
-            "   background: transparent;"
-            "   border: none;"
-            "   color: %1;"
-            "   padding: 2px;"
-            "}")
-            .arg(StyleManager::instance().currentTheme() == Theme::Dark
-                     ? "#e0e0e0"
-                     : "#333333");
+    // Apply theme-aware styling using StyleManager colors
+    QString readOnlyStyle = QString(
+                                "QLineEdit[readOnly=\"true\"] {"
+                                "   background: transparent;"
+                                "   border: none;"
+                                "   color: %1;"
+                                "   padding: 2px;"
+                                "}")
+                                .arg(STYLE.textColor().name());
 
     setStyleSheet(readOnlyStyle);
 }

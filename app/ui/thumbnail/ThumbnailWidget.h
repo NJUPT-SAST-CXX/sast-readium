@@ -111,9 +111,20 @@ private:
     void drawErrorIndicator(QPainter& painter, const QRect& rect);
     void drawBorder(QPainter& painter, const QRect& rect);
     void drawShadow(QPainter& painter, const QRect& rect);
+    void applyTheme();
 
     QRect getThumbnailRect() const;
     QRect getPageNumberRect() const;
+
+    // Theme-aware color getters
+    QColor getBorderColorNormal() const;
+    QColor getBorderColorHovered() const;
+    QColor getBorderColorSelected() const;
+    QColor getShadowColor() const;
+    QColor getPageNumberBgColor() const;
+    QColor getPageNumberTextColor() const;
+    QColor getLoadingColor() const;
+    QColor getErrorColor() const;
 
 private:
     // 基础数据
@@ -148,14 +159,4 @@ private:
     static constexpr int BORDER_WIDTH = 2;
     static constexpr int MARGIN = 8;
     static constexpr int LOADING_SPINNER_SIZE = 24;
-
-    // 颜色常量
-    static const QColor BORDER_COLOR_NORMAL;
-    static const QColor BORDER_COLOR_HOVERED;
-    static const QColor BORDER_COLOR_SELECTED;
-    static const QColor SHADOW_COLOR;
-    static const QColor PAGE_NUMBER_BG_COLOR;
-    static const QColor PAGE_NUMBER_TEXT_COLOR;
-    static const QColor LOADING_COLOR;
-    static const QColor ERROR_COLOR;
 };

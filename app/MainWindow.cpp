@@ -1,13 +1,16 @@
 #include "MainWindow.h"
 #include <QApplication>
 #include <QCloseEvent>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <iostream>
 #include "command/InitializationCommand.h"
 #include "controller/ApplicationController.h"
+#include "controller/DocumentController.h"
 #include "delegate/ViewDelegate.h"
 #include "factory/ModelFactory.h"
 #include "managers/SystemTrayManager.h"
+#include "ui/core/ViewWidget.h"
 #include "ui/widgets/NotificationHelper.h"
 
 MainWindow::MainWindow(QWidget* parent)
@@ -90,6 +93,133 @@ MainWindow::MainWindow(QWidget* parent)
 MainWindow::~MainWindow() noexcept {
     m_logger.debug("MainWindow destructor called");
     // Cleanup is handled by unique_ptr destructors
+}
+
+// ============================================================================
+// Command-Line Integration Methods
+// ============================================================================
+
+void MainWindow::openFileFromCommandLine(const QString& filePath) {
+    m_logger.info("Opening file from command line: " + filePath);
+
+    if (!m_applicationController) {
+        m_logger.error("Cannot open file: ApplicationController is null");
+        return;
+    }
+
+    auto* docController = m_applicationController->documentController();
+    if (!docController) {
+        m_logger.error("Cannot open file: DocumentController is null");
+        return;
+    }
+
+    // Validate file path
+    QFileInfo fileInfo(filePath);
+    if (!fileInfo.exists()) {
+        m_logger.error("File does not exist: " + filePath);
+        QMessageBox::warning(
+            this, tr("File Not Found"),
+            tr("The specified file does not exist:\n%1").arg(filePath));
+        return;
+    }
+
+    if (!fileInfo.isReadable()) {
+        m_logger.error("File is not readable: " + filePath);
+        QMessageBox::warning(
+            this, tr("File Not Readable"),
+            tr("The specified file cannot be read:\n%1").arg(filePath));
+        return;
+    }
+
+    // Open the document
+    bool success = docController->openDocument(filePath);
+    if (success) {
+        m_logger.info("File opened successfully: " + filePath);
+    } else {
+        m_logger.error("Failed to open file: " + filePath);
+        QMessageBox::critical(
+            this, tr("Open Failed"),
+            tr("Failed to open the specified file:\n%1").arg(filePath));
+    }
+}
+
+void MainWindow::setViewModeFromCommandLine(int mode) {
+    m_logger.info(QString("Setting view mode from command line: %1").arg(mode));
+
+    if (!m_applicationController) {
+        m_logger.error("Cannot set view mode: ApplicationController is null");
+        return;
+    }
+
+    auto* viewWidget = m_applicationController->viewWidget();
+    if (!viewWidget) {
+        m_logger.error("Cannot set view mode: ViewWidget is null");
+        return;
+    }
+
+    // Map mode integer to ViewWidget's setCurrentViewMode method
+    // ViewWidget expects: 0=SinglePage, 1=Continuous, 2=FacingPages, 3=BookView
+    if (mode < 0 || mode > 3) {
+        m_logger.warning(
+            QString("Invalid view mode: %1, using Single Page (0)").arg(mode));
+        mode = 0;
+    }
+
+    viewWidget->setCurrentViewMode(mode);
+
+    const char* modeNames[] = {"Single Page", "Continuous", "Facing Pages",
+                               "Book View"};
+    m_logger.info(QString("View mode set to: %1").arg(modeNames[mode]));
+}
+
+void MainWindow::setZoomLevelFromCommandLine(double zoom) {
+    m_logger.info(
+        QString("Setting zoom level from command line: %1").arg(zoom));
+
+    if (!m_applicationController) {
+        m_logger.error("Cannot set zoom level: ApplicationController is null");
+        return;
+    }
+
+    auto* viewWidget = m_applicationController->viewWidget();
+    if (!viewWidget) {
+        m_logger.error("Cannot set zoom level: ViewWidget is null");
+        return;
+    }
+
+    // Check if there's an active document before setting zoom
+    if (!viewWidget->hasDocuments()) {
+        m_logger.warning(
+            "Cannot set zoom level: No document is open yet, zoom will be "
+            "applied after document loads");
+        // Note: Zoom will be applied automatically when document is opened
+        return;
+    }
+
+    // Apply zoom to the current document
+    viewWidget->setZoom(zoom);
+    m_logger.info(QString("Zoom level set to: %1").arg(zoom));
+}
+
+void MainWindow::goToPageFromCommandLine(int page) {
+    m_logger.info(
+        QString("Navigating to page from command line: %1").arg(page));
+
+    if (!m_applicationController) {
+        m_logger.error(
+            "Cannot navigate to page: ApplicationController is null");
+        return;
+    }
+
+    auto* viewWidget = m_applicationController->viewWidget();
+    if (!viewWidget) {
+        m_logger.error("Cannot navigate to page: ViewWidget is null");
+        return;
+    }
+
+    // Navigate to the specified page
+    viewWidget->goToPage(page);
+    m_logger.info(QString("Navigated to page: %1").arg(page));
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

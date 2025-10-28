@@ -20,6 +20,8 @@ enum ActionMap {
     // 查看模式相关操作
     setSinglePageMode,
     setContinuousScrollMode,
+    setTwoPagesMode,
+    setBookViewMode,
     // 页面导航操作
     firstPage,
     previousPage,
@@ -58,5 +60,8 @@ enum ActionMap {
     // 文档操作
     exportFile,
     printFile,
-    reloadFile
+    reloadFile,
+    // 应用程序操作
+    quit,
+    showHelp
 };

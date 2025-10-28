@@ -27,8 +27,10 @@
 // that psapi.h needs
 
 // Include Windows headers (windows.h must come before psapi.h)
-#include <psapi.h>
+// clang-format off
 #include <windows.h>
+#include <psapi.h>
+// clang-format on
 
 // Undefine problematic Windows macros that conflict with our code
 #ifdef NEAR
