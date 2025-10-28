@@ -4,6 +4,7 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIntValidator>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QProgressBar>
@@ -99,10 +100,13 @@ public:
     // 状态信息更新接口
     void setDocumentInfo(const QString& fileName, int currentPage,
                          int totalPages, double zoomLevel);
+    void setDocumentInfo(const QString& fileName, int currentPage,
+                         int totalPages, double zoomLevel, qint64 fileSize);
     void setPageInfo(int current, int total);
     void setZoomLevel(int percent);
     void setZoomLevel(double percent);
     void setFileName(const QString& fileName);
+    void setFileName(const QString& fileName, qint64 fileSize);
     void setMessage(const QString& message);
 
     // 扩展的文档元数据
@@ -118,6 +122,13 @@ public:
     void setErrorMessage(const QString& message, int timeout = 5000);
     void setSuccessMessage(const QString& message, int timeout = 3000);
     void setWarningMessage(const QString& message, int timeout = 4000);
+
+    // Enhanced message system with priority
+    enum class MessagePriority { Low = 0, Normal = 1, High = 2, Critical = 3 };
+
+    void showMessage(const QString& message, MessagePriority priority,
+                     int timeout = 3000);
+    void clearMessages(MessagePriority maxPriority = MessagePriority::Normal);
 
     // 搜索结果
     void setSearchResults(int currentMatch, int totalMatches);
@@ -141,9 +152,16 @@ public:
     void setLoadingMessage(const QString& message);
     void hideLoadingProgress();
 
+    // Enhanced progress indication with priority
+    void showProgress(const QString& message, int priority = 0);
+    void updateProgress(int progress, const QString& message = QString());
+    void hideProgress();
+    void setProgressPriority(int priority);
+
 protected:
     void changeEvent(QEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 signals:
     void pageJumpRequested(int pageNumber);
@@ -250,6 +268,14 @@ private:
     bool m_lastEncrypted = false;
     bool m_lastCopyAllowed = true;
     bool m_lastPrintAllowed = true;
+
+    // Progress state management
+    int m_currentProgressPriority = 0;
+    bool m_progressVisible = false;
+
+    // Message state management
+    MessagePriority m_currentMessagePriority = MessagePriority::Low;
+    QTimer* m_messagePriorityTimer = nullptr;
 
     // 保留兼容性的别名
     QLabel*& fileNameLabel = m_fileNameLabel;

@@ -1,4 +1,5 @@
 #include "TutorialCard.h"
+#include <QApplication>
 #include <QEnterEvent>
 #include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
@@ -216,4 +217,76 @@ void TutorialCard::updateCompletedState() {
         m_completedLabel->hide();
         m_startButton->setText("Start Tutorial");
     }
+}
+
+void TutorialCard::applyTheme() {
+    // Stub implementation - apply basic theme-aware styling
+    // TODO: Integrate with StyleManager for full theme support
+
+    // For now, just update the card to use current palette
+    QPalette palette = qApp->palette();
+
+    // Update title label
+    if (m_titleLabel) {
+        QString titleStyle =
+            QString("font-weight: bold; font-size: 14px; color: %1;")
+                .arg(palette.color(QPalette::WindowText).name());
+        m_titleLabel->setStyleSheet(titleStyle);
+    }
+
+    // Update description label
+    if (m_descriptionLabel) {
+        QString descStyle = QString("font-size: 12px; color: %1;")
+                                .arg(palette.color(QPalette::Mid).name());
+        m_descriptionLabel->setStyleSheet(descStyle);
+    }
+
+    // Update metadata labels
+    if (m_durationLabel) {
+        QString metaStyle = QString("font-size: 10px; color: %1;")
+                                .arg(palette.color(QPalette::Dark).name());
+        m_durationLabel->setStyleSheet(metaStyle);
+    }
+
+    if (m_difficultyLabel) {
+        QString metaStyle = QString("font-size: 10px; color: %1;")
+                                .arg(palette.color(QPalette::Dark).name());
+        m_difficultyLabel->setStyleSheet(metaStyle);
+    }
+
+    // Completed label keeps its green color
+    if (m_completedLabel) {
+        m_completedLabel->setStyleSheet(
+            "font-size: 10px; color: #4CAF50; font-weight: bold;");
+    }
+
+    // Update button with theme-aware colors
+    if (m_startButton) {
+        QColor accentColor = palette.color(QPalette::Highlight);
+        QColor accentHover = accentColor.lighter(110);
+        QColor accentPressed = accentColor.darker(110);
+
+        QString buttonStyle = QString(
+                                  "QPushButton {"
+                                  "    background-color: %1;"
+                                  "    color: white;"
+                                  "    border: none;"
+                                  "    border-radius: 4px;"
+                                  "    padding: 6px 12px;"
+                                  "    font-size: 12px;"
+                                  "}"
+                                  "QPushButton:hover {"
+                                  "    background-color: %2;"
+                                  "}"
+                                  "QPushButton:pressed {"
+                                  "    background-color: %3;"
+                                  "}")
+                                  .arg(accentColor.name(), accentHover.name(),
+                                       accentPressed.name());
+
+        m_startButton->setStyleSheet(buttonStyle);
+    }
+
+    // Trigger repaint
+    update();
 }

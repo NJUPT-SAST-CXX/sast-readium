@@ -3,6 +3,7 @@
 #include <QAction>
 #include <QButtonGroup>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QDateTime>
 #include <QFrame>
 #include <QGroupBox>
@@ -16,6 +17,7 @@
 #include <QVBoxLayout>
 #include <memory>
 #include "../../controller/tool.hpp"
+#include "ContextMenuManager.h"
 
 class CollapsibleSection : public QWidget {
     Q_OBJECT
@@ -104,11 +106,13 @@ protected:
     void changeEvent(QEvent* event) override;
     void enterEvent(QEnterEvent* event) override;
     void leaveEvent(QEvent* event) override;
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 signals:
     void actionTriggered(ActionMap action);
     void pageJumpRequested(int pageNumber);
     void zoomLevelChanged(int percentage);
+    void viewModeChanged(const QString& modeName);
     void sectionExpandChanged(const QString& sectionName, bool expanded);
 
 private slots:
@@ -195,6 +199,9 @@ private:
 
     bool m_compactMode;
     bool m_isHovered;
+
+    // Context menu management
+    ContextMenuManager* contextMenuManager;
 
     // 保留兼容性的别名
     QAction*& openAction = m_openAction;

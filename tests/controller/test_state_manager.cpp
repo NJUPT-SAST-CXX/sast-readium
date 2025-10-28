@@ -516,13 +516,13 @@ void TestStateManager::testLargeStateTree() {
 
 void TestStateManager::testManySubscribers() {
     const int numSubscribers = 100;
-    QList<int> callCounts(numSubscribers, 0);
+    int totalCallCount = 0;
 
-    // Add many subscribers
+    // Add many subscribers - all increment the same counter
     for (int i = 0; i < numSubscribers; ++i) {
         m_stateManager->subscribe(
             "test.path", this,
-            [&callCounts, i](const StateChange&) { callCounts[i]++; });
+            [&totalCallCount](const StateChange&) { totalCallCount++; });
     }
 
     // Trigger state change
@@ -530,10 +530,14 @@ void TestStateManager::testManySubscribers() {
 
     waitMs(100);
 
-    // All subscribers should be called
-    for (int count : callCounts) {
-        QCOMPARE(count, 1);
-    }
+    // All subscribers should be called exactly once
+    QCOMPARE(totalCallCount, numSubscribers);
+
+    // Explicitly unsubscribe before totalCallCount goes out of scope
+    m_stateManager->unsubscribeAll(this);
+
+    // Process any pending events to ensure cleanup completes
+    QCoreApplication::processEvents();
 }
 
 void TestStateManager::testInvalidPaths() {

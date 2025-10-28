@@ -4,14 +4,19 @@
 #include <QObject>
 #include <QStandardPaths>
 #include <QString>
+#include <QTimer>
 #include <QWidget>
 #include <functional>
 #include "../managers/RecentFilesManager.h"
 #include "../model/DocumentModel.h"
 #include "tool.hpp"
 
-// 前向声明
+// Forward declarations
 class QWidget;
+class StatusBar;
+
+// Forward declarations
+class StatusBar;
 
 class DocumentController : public QObject {
     Q_OBJECT
@@ -19,6 +24,7 @@ class DocumentController : public QObject {
 private:
     DocumentModel* documentModel;
     RecentFilesManager* recentFilesManager;
+    StatusBar* statusBar = nullptr;
     QHash<ActionMap, std::function<void(QWidget*)>> commandMap;
     void initializeCommandMap();
 
@@ -40,10 +46,17 @@ public:
     bool closeCurrentDocument();
     void switchToDocument(int index);
     void showDocumentMetadata(QWidget* parent);
+    void showSettings(QWidget* parent);
     void saveDocumentCopy(QWidget* parent);
+    void exportDocument(QWidget* parent);
+    void printDocument(QWidget* parent);
+    void reloadDocument(QWidget* parent);
 
     // 文件夹扫描功能
     QStringList scanFolderForPDFs(const QString& folderPath);
+
+    // StatusBar integration
+    void setStatusBar(StatusBar* statusBar) { this->statusBar = statusBar; }
 
     // 最近文件管理
     void setRecentFilesManager(RecentFilesManager* manager);
@@ -64,4 +77,13 @@ signals:
     void viewModeChangeRequested(int mode);  // 0=SinglePage, 1=ContinuousScroll
     void pdfActionRequested(ActionMap action);
     void themeToggleRequested();
+
+    // New signals for missing functionality
+    void tabSwitchRequested();
+    void searchToggleRequested(bool show = true);
+    void searchNavigationRequested(bool forward);
+    void searchClearRequested();
+    void fullScreenToggleRequested();
+    void languageChanged(const QString& languageCode);
+    void settingsChanged();
 };

@@ -16,6 +16,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include "../../model/SearchModel.h"
+#include "../core/ContextMenuManager.h"
 
 class QShortcut;
 
@@ -27,7 +28,7 @@ class SearchWidget : public QWidget {
 
 public:
     explicit SearchWidget(QWidget* parent = nullptr);
-    ~SearchWidget() = default;
+    ~SearchWidget();
 
     // Search operations
     void setDocument(Poppler::Document* document);
@@ -61,8 +62,21 @@ public:
     QColor getNormalHighlightColor() const;
     QColor getCurrentHighlightColor() const;
 
+    // Search history persistence
+    void saveSearchHistoryToSettings();
+    void loadSearchHistoryFromSettings();
+
+    // Search validation and error handling
+    bool validateSearchInput(const QString& query) const;
+    void showSearchError(const QString& error);
+
+    // Performance optimization
+    void cancelCurrentSearch();
+    void optimizeSearchPerformance();
+
 protected:
     void changeEvent(QEvent* event) override;
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 signals:
     void searchRequested(const QString& query, const SearchOptions& options);
@@ -87,27 +101,20 @@ private slots:
     void onSearchError(const QString& error);
     void onCurrentResultChanged(int index);
     void toggleSearchOptions();
-
-    // Real-time search slots
     void onRealTimeSearchStarted();
     void onRealTimeResultsUpdated(const QList<SearchResult>& results);
     void onRealTimeSearchProgress(int currentPage, int totalPages);
-
-    // Navigation helper methods
     void navigateToCurrentResult();
-
-    // Advanced search slots
     void onFuzzySearchToggled(bool enabled);
     void onPageRangeToggled(bool enabled);
     void onPageRangeChanged();
     void onSearchHistorySelected(const QString& query);
     void onClearHistoryClicked();
-
-    // UI enhancement slots
     void onHighlightColorClicked();
     void onCurrentHighlightColorClicked();
 
 private:
+    // Private helper methods
     void setupUI();
     void setupConnections();
     void setupShortcuts();
@@ -180,4 +187,7 @@ private:
     QShortcut* m_findNextShortcut;
     QShortcut* m_findPreviousShortcut;
     QShortcut* m_escapeShortcut;
+
+    // Context menu management
+    ContextMenuManager* contextMenuManager;
 };

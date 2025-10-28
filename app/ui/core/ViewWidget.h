@@ -8,7 +8,7 @@
 #include "../../model/PDFOutlineModel.h"
 #include "../viewer/PDFViewer.h"
 #include "../widgets/DocumentTabWidget.h"
-#include "../widgets/SkeletonWidget.h"
+#include "ContextMenuManager.h"
 
 /**
  * @brief Main document viewing widget with multi-tab PDF viewer support
@@ -92,11 +92,42 @@ public:
     void scrollToTop();
     void scrollToBottom();
 
+    // Enhanced document state management
+    struct DocumentState {
+        int currentPage = 1;
+        double zoomLevel = 1.0;
+        int rotation = 0;
+        QPoint scrollPosition = QPoint(0, 0);
+        int viewMode = 0;  // PDFViewMode
+    };
+
+    // State preservation methods
+    DocumentState getDocumentState(int index) const;
+    void setDocumentState(int index, const DocumentState& state);
+    void preserveCurrentDocumentState();
+    void restoreDocumentState(int index);
+
+    // Enhanced error handling
+    bool validateDocumentIndex(int index, const QString& operation) const;
+    bool validateDocumentController(const QString& operation) const;
+    void handleDocumentError(const QString& operation, const QString& error);
+    void handleFileOperationError(const QString& operation,
+                                  const QString& filePath,
+                                  const QString& error);
+    void showOperationFeedback(const QString& operation, bool success,
+                               const QString& details = QString());
+
+    // Unsaved changes detection
+    bool hasUnsavedChanges(int index) const;
+    bool confirmCloseDocument(int index);
+    void markDocumentModified(int index, bool modified = true);
+
 protected:
     void setupUI();
     void setupConnections();
     void updateCurrentViewer();
     QWidget* createLoadingWidget(const QString& fileName);
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 private slots:
     // 文档模型信号处理
@@ -144,9 +175,23 @@ private:
     QMap<QString, QWidget*> loadingWidgets;     // filePath -> loading widget
     QMap<QString, QProgressBar*> progressBars;  // filePath -> progress bar
 
+    // Enhanced state management
+    QList<DocumentState> documentStates;  // Document state for each viewer
+    QList<bool> documentModified;         // Track unsaved changes per document
+    int lastActiveIndex;  // Track last active document for state preservation
+
+    // Context menu management
+    ContextMenuManager* contextMenuManager;
+
     // 辅助方法
     PDFViewer* createPDFViewer();
     void removePDFViewer(int index);
     void showEmptyState();
     void hideEmptyState();
+
+    // Enhanced helper methods
+    void initializeDocumentState(int index);
+    void cleanupDocumentState(int index);
+    void updateDocumentStates(int removedIndex);
+    QString getDocumentDisplayName(int index) const;
 };

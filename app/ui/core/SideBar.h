@@ -15,6 +15,7 @@
 namespace Poppler {
 class Document;
 }
+class BookmarkWidget;
 
 /**
  * @brief Left sidebar with thumbnails and bookmarks tabs
@@ -71,6 +72,14 @@ public:
     // Tab widget access for delegate
     QTabWidget* getTabWidget() const { return tabWidget; }
 
+    // 书签管理
+    class BookmarkWidget* getBookmarkWidget() const { return bookmarkWidget; }
+    void setCurrentDocumentPath(const QString& documentPath);
+    bool addBookmark(const QString& documentPath, int pageNumber,
+                     const QString& title = QString());
+    bool removeBookmark(const QString& bookmarkId);
+    bool hasBookmarkForPage(const QString& documentPath, int pageNumber) const;
+
 public slots:
     void show(bool animated = true);
     void hide(bool animated = true);
@@ -86,6 +95,8 @@ signals:
     void pageClicked(int pageNumber);
     void pageDoubleClicked(int pageNumber);
     void thumbnailSizeChanged(const QSize& size);
+    void bookmarkNavigationRequested(const QString& documentPath,
+                                     int pageNumber);
 
 private:
     QTabWidget* tabWidget;
@@ -97,6 +108,9 @@ private:
     ThumbnailListView* thumbnailView;
     std::unique_ptr<ThumbnailModel> thumbnailModel;
     std::unique_ptr<ThumbnailDelegate> thumbnailDelegate;
+
+    // 书签组件
+    class BookmarkWidget* bookmarkWidget;
 
     bool isCurrentlyVisible;
     int preferredWidth;

@@ -472,6 +472,13 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_menu_bar_integration.cpp)
     )
 endif()
 
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_mainwindow_ui_improvements.cpp)
+    create_test_target(test_mainwindow_ui_improvements
+        SOURCES ui/test_mainwindow_ui_improvements.cpp
+        TIMEOUT 300
+    )
+endif()
+
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_pdf_animations_integration.cpp)
     create_test_target(test_pdf_animations_integration
         SOURCES ui/test_pdf_animations_integration.cpp

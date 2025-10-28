@@ -1,11 +1,16 @@
 #include "ViewWidget.h"
+#include <QContextMenuEvent>
 #include <QDebug>
 #include <QLabel>
+#include <QMessageBox>
 #include <QProgressBar>
+#include <QTimer>
 #include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
 #include "../viewer/PDFViewer.h"
+#include "../widgets/SkeletonWidget.h"
 #include "../widgets/ToastNotification.h"
+#include "UIErrorHandler.h"
 
 ViewWidget::ViewWidget(QWidget* parent)
     : QWidget(parent),
@@ -15,7 +20,11 @@ ViewWidget::ViewWidget(QWidget* parent)
       emptyWidget(nullptr),
       documentController(nullptr),
       documentModel(nullptr),
-      outlineModel(nullptr) {
+      outlineModel(nullptr),
+      lastActiveIndex(-1) {
+    // Initialize context menu manager
+    contextMenuManager = new ContextMenuManager(this);
+
     setupUI();
 }
 
@@ -129,19 +138,41 @@ void ViewWidget::setOutlineModel(PDFOutlineModel* model) {
 }
 
 void ViewWidget::openDocument(const QString& filePath) {
-    // Input validation
-    if (filePath.isEmpty()) {
-        LOG_ERROR("ViewWidget::openDocument() - Empty file path provided");
+    // Enhanced input validation using UIErrorHandler
+    auto validation = InputValidator::validatePDFFile(filePath);
+    if (validation.result == UIErrorHandler::ValidationResult::Invalid ||
+        validation.result == UIErrorHandler::ValidationResult::Critical) {
+        UIErrorHandler::instance().handleUserInputError(
+            this, "File Path", validation.message, validation.suggestion);
         return;
     }
 
-    if (!documentController) {
-        LOG_ERROR("ViewWidget::openDocument() - Document controller not set");
+    if (validation.result == UIErrorHandler::ValidationResult::Warning) {
+        UIErrorHandler::instance().showFeedback(
+            this, validation.message, UIErrorHandler::FeedbackType::Warning);
+    }
+
+    if (!validateDocumentController("openDocument")) {
         return;
     }
 
-    // Note: Duplicate document detection is handled by DocumentController
-    // which has access to file paths. We just forward the request.
+    // Show progress feedback
+    UIErrorHandler::instance().showProgressFeedback(this,
+                                                    tr("Opening document"));
+
+    // Check for duplicate documents
+    for (int i = 0; i < pdfViewers.size(); ++i) {
+        if (documentModel &&
+            documentModel->getDocumentFilePath(i) == filePath) {
+            // Document already open, switch to it
+            switchToDocument(i);
+            LOG_INFO(
+                "ViewWidget::openDocument() - Document already open, switching "
+                "to index {}",
+                i);
+            return;
+        }
+    }
 
     LOG_DEBUG("ViewWidget::openDocument() - Opening document: {}",
               filePath.toStdString());
@@ -149,18 +180,27 @@ void ViewWidget::openDocument(const QString& filePath) {
 }
 
 void ViewWidget::closeDocument(int index) {
-    // Bounds checking
-    if (index < 0 || index >= pdfViewers.size()) {
-        LOG_WARNING(
-            "ViewWidget::closeDocument() - Invalid index: {} (valid range: "
-            "0-{})",
-            index, pdfViewers.size() - 1);
+    // Enhanced validation
+    if (!validateDocumentIndex(index, "closeDocument")) {
         return;
     }
 
-    if (!documentController) {
-        LOG_ERROR("ViewWidget::closeDocument() - Document controller not set");
+    if (!validateDocumentController("closeDocument")) {
         return;
+    }
+
+    // Check for unsaved changes and confirm close
+    if (!confirmCloseDocument(index)) {
+        LOG_DEBUG(
+            "ViewWidget::closeDocument() - User cancelled close operation for "
+            "index {}",
+            index);
+        return;
+    }
+
+    // Preserve state of current document before closing
+    if (index == getCurrentDocumentIndex()) {
+        preserveCurrentDocumentState();
     }
 
     LOG_DEBUG("ViewWidget::closeDocument() - Closing document at index {}",
@@ -169,25 +209,34 @@ void ViewWidget::closeDocument(int index) {
 }
 
 void ViewWidget::switchToDocument(int index) {
-    // Bounds checking
-    if (index < 0 || index >= pdfViewers.size()) {
-        LOG_WARNING(
-            "ViewWidget::switchToDocument() - Invalid index: {} (valid range: "
-            "0-{})",
-            index, pdfViewers.size() - 1);
+    // Enhanced validation
+    if (!validateDocumentIndex(index, "switchToDocument")) {
         return;
     }
 
-    if (!documentController) {
-        LOG_ERROR(
-            "ViewWidget::switchToDocument() - Document controller not set");
+    if (!validateDocumentController("switchToDocument")) {
         return;
+    }
+
+    // Preserve current document state before switching
+    int currentIndex = getCurrentDocumentIndex();
+    if (currentIndex >= 0 && currentIndex != index) {
+        preserveCurrentDocumentState();
     }
 
     LOG_DEBUG(
-        "ViewWidget::switchToDocument() - Switching to document at index {}",
-        index);
+        "ViewWidget::switchToDocument() - Switching from index {} to index {}",
+        currentIndex, index);
+
+    // Update last active index
+    lastActiveIndex = currentIndex;
+
+    // Switch document through controller
     documentController->switchToDocument(index);
+
+    // Restore state for the new document after a short delay to ensure UI is
+    // ready
+    QTimer::singleShot(50, [this, index]() { restoreDocumentState(index); });
 }
 
 void ViewWidget::goToPage(int pageNumber) {
@@ -224,55 +273,84 @@ int ViewWidget::getCurrentViewMode() const {
 
 void ViewWidget::executePDFAction(ActionMap action) {
     int currentIndex = getCurrentDocumentIndex();
-    if (currentIndex < 0 || currentIndex >= pdfViewers.size()) {
-        return;  // 没有当前文档
+    if (!validateDocumentIndex(currentIndex, "executePDFAction")) {
+        return;
     }
 
     PDFViewer* currentViewer = pdfViewers[currentIndex];
     if (!currentViewer) {
+        handleDocumentError("executePDFAction",
+                            tr("No PDF viewer available for current document"));
         return;
     }
 
-    // 执行相应的PDF操作
-    switch (action) {
-        case ActionMap::firstPage:
-            currentViewer->firstPage();
-            break;
-        case ActionMap::previousPage:
-            currentViewer->previousPage();
-            break;
-        case ActionMap::nextPage:
-            currentViewer->nextPage();
-            break;
-        case ActionMap::lastPage:
-            currentViewer->lastPage();
-            break;
-        case ActionMap::zoomIn:
-            currentViewer->zoomIn();
-            break;
-        case ActionMap::zoomOut:
-            currentViewer->zoomOut();
-            break;
-        case ActionMap::fitToWidth:
-            currentViewer->zoomToWidth();
-            break;
-        case ActionMap::fitToPage:
-            currentViewer->zoomToFit();
-            break;
-        case ActionMap::fitToHeight:
-            currentViewer->zoomToHeight();
-            break;
-        case ActionMap::rotateLeft:
-            currentViewer->rotateLeft();
-            break;
-        case ActionMap::rotateRight:
-            currentViewer->rotateRight();
-            break;
-        default:
-            LOG_WARNING(
-                "ViewWidget::executePDFAction() - Unhandled PDF action: {}",
-                static_cast<int>(action));
-            break;
+    try {
+        // Mark document as potentially modified for certain actions
+        bool modifiesDocument = false;
+
+        // 执行相应的PDF操作
+        switch (action) {
+            case ActionMap::firstPage:
+                currentViewer->firstPage();
+                break;
+            case ActionMap::previousPage:
+                currentViewer->previousPage();
+                break;
+            case ActionMap::nextPage:
+                currentViewer->nextPage();
+                break;
+            case ActionMap::lastPage:
+                currentViewer->lastPage();
+                break;
+            case ActionMap::zoomIn:
+                currentViewer->zoomIn();
+                break;
+            case ActionMap::zoomOut:
+                currentViewer->zoomOut();
+                break;
+            case ActionMap::fitToWidth:
+                currentViewer->zoomToWidth();
+                break;
+            case ActionMap::fitToPage:
+                currentViewer->zoomToFit();
+                break;
+            case ActionMap::fitToHeight:
+                currentViewer->zoomToHeight();
+                break;
+            case ActionMap::rotateLeft:
+                currentViewer->rotateLeft();
+                modifiesDocument = true;
+                break;
+            case ActionMap::rotateRight:
+                currentViewer->rotateRight();
+                modifiesDocument = true;
+                break;
+            default:
+                LOG_WARNING(
+                    "ViewWidget::executePDFAction() - Unhandled PDF action: {}",
+                    static_cast<int>(action));
+                handleDocumentError("executePDFAction",
+                                    tr("Unsupported PDF action: %1")
+                                        .arg(static_cast<int>(action)));
+                return;
+        }
+
+        // Mark document as modified if the action changes the document
+        if (modifiesDocument) {
+            markDocumentModified(currentIndex, true);
+        }
+
+        LOG_DEBUG(
+            "ViewWidget::executePDFAction() - Successfully executed action {} "
+            "on document {}",
+            static_cast<int>(action), currentIndex);
+
+    } catch (const std::exception& e) {
+        handleDocumentError("executePDFAction",
+                            tr("Error executing PDF action: %1").arg(e.what()));
+    } catch (...) {
+        handleDocumentError("executePDFAction",
+                            tr("Unknown error executing PDF action"));
     }
 }
 
@@ -383,17 +461,24 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
     pdfViewers.insert(index, viewer);
     outlineModels.insert(index, docOutlineModel);
 
+    // Initialize document state management
+    initializeDocumentState(index);
+
     // 切换到新文档
     hideEmptyState();
     updateCurrentViewer();
 
-    qDebug() << "Document opened:" << fileName << "at index" << index;
+    LOG_INFO("ViewWidget::onDocumentOpened() - Document opened: {} at index {}",
+             fileName.toStdString(), index);
 }
 
 void ViewWidget::onDocumentClosed(int index) {
-    if (index < 0 || index >= pdfViewers.size()) {
+    if (!validateDocumentIndex(index, "onDocumentClosed")) {
         return;
     }
+
+    // Clean up document state
+    cleanupDocumentState(index);
 
     // 移除PDF查看器和目录模型
     removePDFViewer(index);
@@ -403,17 +488,29 @@ void ViewWidget::onDocumentClosed(int index) {
         model->deleteLater();
     }
 
+    // Update document states for remaining documents
+    updateDocumentStates(index);
+
     // 移除标签页
     tabWidget->removeDocumentTab(index);
+
+    // Update last active index if necessary
+    if (lastActiveIndex >= index && lastActiveIndex > 0) {
+        lastActiveIndex--;
+    } else if (lastActiveIndex == index) {
+        lastActiveIndex = -1;
+    }
 
     // 如果没有文档了，显示空状态
     if (pdfViewers.isEmpty()) {
         showEmptyState();
+        lastActiveIndex = -1;
     } else {
         updateCurrentViewer();
     }
 
-    qDebug() << "Document closed at index" << index;
+    LOG_INFO("ViewWidget::onDocumentClosed() - Document closed at index {}",
+             index);
 }
 
 void ViewWidget::onCurrentDocumentChanged(int index) {
@@ -735,4 +832,352 @@ void ViewWidget::scrollToBottom() {
             currentViewer->scrollToBottom();
         }
     }
+}
+
+// Enhanced document state management methods
+ViewWidget::DocumentState ViewWidget::getDocumentState(int index) const {
+    DocumentState state;
+
+    if (validateDocumentIndex(index, "getDocumentState")) {
+        if (index < documentStates.size()) {
+            state = documentStates[index];
+        }
+
+        // Get current state from viewer if it's the active document
+        if (index == getCurrentDocumentIndex() && index < pdfViewers.size()) {
+            PDFViewer* viewer = pdfViewers[index];
+            if (viewer) {
+                state.currentPage = viewer->getCurrentPage();
+                state.zoomLevel = viewer->getCurrentZoom();
+                state.rotation = viewer->getRotation();
+                state.scrollPosition = viewer->getScrollPosition();
+                state.viewMode = static_cast<int>(viewer->getViewMode());
+            }
+        }
+    }
+
+    return state;
+}
+
+void ViewWidget::setDocumentState(int index, const DocumentState& state) {
+    if (!validateDocumentIndex(index, "setDocumentState")) {
+        return;
+    }
+
+    // Ensure documentStates list is large enough
+    while (documentStates.size() <= index) {
+        documentStates.append(DocumentState());
+    }
+
+    documentStates[index] = state;
+
+    // Apply state to viewer if it's the active document
+    if (index == getCurrentDocumentIndex() && index < pdfViewers.size()) {
+        PDFViewer* viewer = pdfViewers[index];
+        if (viewer) {
+            viewer->goToPage(state.currentPage);
+            viewer->setZoom(state.zoomLevel);
+            viewer->setScrollPosition(state.scrollPosition);
+            viewer->setViewMode(static_cast<PDFViewMode>(state.viewMode));
+            // Note: Rotation is typically not restored as it may affect
+            // document layout
+        }
+    }
+}
+
+void ViewWidget::preserveCurrentDocumentState() {
+    int currentIndex = getCurrentDocumentIndex();
+    if (validateDocumentIndex(currentIndex, "preserveCurrentDocumentState")) {
+        DocumentState state = getDocumentState(currentIndex);
+        setDocumentState(currentIndex, state);
+
+        LOG_DEBUG(
+            "ViewWidget::preserveCurrentDocumentState() - Preserved state for "
+            "document {}: "
+            "page={}, zoom={:.2f}, scroll=({},{})",
+            currentIndex, state.currentPage, state.zoomLevel,
+            state.scrollPosition.x(), state.scrollPosition.y());
+    }
+}
+
+void ViewWidget::restoreDocumentState(int index) {
+    if (!validateDocumentIndex(index, "restoreDocumentState")) {
+        return;
+    }
+
+    if (index < documentStates.size()) {
+        const DocumentState& state = documentStates[index];
+
+        if (index < pdfViewers.size()) {
+            PDFViewer* viewer = pdfViewers[index];
+            if (viewer) {
+                // Restore state with small delays to ensure UI is ready
+                QTimer::singleShot(10, [viewer, state]() {
+                    viewer->setViewMode(
+                        static_cast<PDFViewMode>(state.viewMode));
+                });
+
+                QTimer::singleShot(20, [viewer, state]() {
+                    viewer->setZoom(state.zoomLevel);
+                });
+
+                QTimer::singleShot(30, [viewer, state]() {
+                    viewer->goToPage(state.currentPage);
+                });
+
+                QTimer::singleShot(40, [viewer, state]() {
+                    viewer->setScrollPosition(state.scrollPosition);
+                });
+
+                LOG_DEBUG(
+                    "ViewWidget::restoreDocumentState() - Restored state for "
+                    "document {}: "
+                    "page={}, zoom={:.2f}, scroll=({},{})",
+                    index, state.currentPage, state.zoomLevel,
+                    state.scrollPosition.x(), state.scrollPosition.y());
+            }
+        }
+    }
+}
+
+// Enhanced validation methods
+bool ViewWidget::validateDocumentIndex(int index,
+                                       const QString& operation) const {
+    if (index < 0 || index >= pdfViewers.size()) {
+        if (!operation.isEmpty()) {
+            LOG_WARNING(
+                "ViewWidget::{} - Invalid document index: {} (valid range: "
+                "0-{})",
+                operation.toStdString(), index, pdfViewers.size() - 1);
+        }
+        return false;
+    }
+    return true;
+}
+
+bool ViewWidget::validateDocumentController(const QString& operation) const {
+    if (!documentController) {
+        if (!operation.isEmpty()) {
+            LOG_ERROR("ViewWidget::{} - Document controller not set",
+                      operation.toStdString());
+        }
+        return false;
+    }
+    return true;
+}
+
+void ViewWidget::handleDocumentError(const QString& operation,
+                                     const QString& error) {
+    LOG_ERROR("ViewWidget::handleDocumentError() - Operation: {}, Error: {}",
+              operation.toStdString(), error.toStdString());
+
+    // Use comprehensive error handling system
+    ErrorHandling::ErrorInfo errorInfo =
+        ErrorHandling::createDocumentError(operation, error);
+    UIErrorHandler::instance().handleSystemError(this, errorInfo);
+}
+
+void ViewWidget::handleFileOperationError(const QString& operation,
+                                          const QString& filePath,
+                                          const QString& error) {
+    LOG_ERROR(
+        "ViewWidget::handleFileOperationError() - Operation: {}, File: {}, "
+        "Error: {}",
+        operation.toStdString(), filePath.toStdString(), error.toStdString());
+
+    UIErrorHandler::instance().handleFileOperationError(this, operation,
+                                                        filePath, error);
+}
+
+void ViewWidget::showOperationFeedback(const QString& operation, bool success,
+                                       const QString& details) {
+    UIErrorHandler::FeedbackType type =
+        success ? UIErrorHandler::FeedbackType::Success
+                : UIErrorHandler::FeedbackType::Error;
+
+    QString message = success ? tr("Operation completed: %1").arg(operation)
+                              : tr("Operation failed: %1").arg(operation);
+
+    if (!details.isEmpty()) {
+        message += tr(" - %1").arg(details);
+    }
+
+    UIErrorHandler::instance().showFeedback(this, message, type);
+}
+
+// Unsaved changes detection methods
+bool ViewWidget::hasUnsavedChanges(int index) const {
+    if (validateDocumentIndex(index, "hasUnsavedChanges")) {
+        if (index < documentModified.size()) {
+            return documentModified[index];
+        }
+    }
+    return false;
+}
+
+bool ViewWidget::confirmCloseDocument(int index) {
+    if (!hasUnsavedChanges(index)) {
+        return true;  // No unsaved changes, safe to close
+    }
+
+    QString documentName = getDocumentDisplayName(index);
+
+    QMessageBox msgBox(this);
+    msgBox.setIcon(QMessageBox::Question);
+    msgBox.setWindowTitle(tr("Unsaved Changes"));
+    msgBox.setText(
+        tr("The document '%1' has unsaved changes.").arg(documentName));
+    msgBox.setInformativeText(tr("Do you want to close it anyway?"));
+    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No |
+                              QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::No);
+
+    int result = msgBox.exec();
+
+    switch (result) {
+        case QMessageBox::Yes:
+            return true;  // User confirmed close despite unsaved changes
+        case QMessageBox::No:
+        case QMessageBox::Cancel:
+        default:
+            return false;  // User cancelled close operation
+    }
+}
+
+void ViewWidget::markDocumentModified(int index, bool modified) {
+    if (!validateDocumentIndex(index, "markDocumentModified")) {
+        return;
+    }
+
+    // Ensure documentModified list is large enough
+    while (documentModified.size() <= index) {
+        documentModified.append(false);
+    }
+
+    bool wasModified = documentModified[index];
+    documentModified[index] = modified;
+
+    // Update tab display to show modified state
+    if (wasModified != modified) {
+        QString tabText = tabWidget->tabText(index);
+
+        if (modified && !tabText.endsWith("*")) {
+            tabWidget->setTabText(index, tabText + "*");
+        } else if (!modified && tabText.endsWith("*")) {
+            tabText.chop(1);  // Remove the "*"
+            tabWidget->setTabText(index, tabText);
+        }
+
+        LOG_DEBUG(
+            "ViewWidget::markDocumentModified() - Document {} marked as "
+            "{}modified",
+            index, modified ? "" : "not ");
+    }
+}
+
+// Enhanced helper methods
+void ViewWidget::initializeDocumentState(int index) {
+    // Ensure lists are large enough
+    while (documentStates.size() <= index) {
+        documentStates.append(DocumentState());
+    }
+    while (documentModified.size() <= index) {
+        documentModified.append(false);
+    }
+
+    // Initialize with default state
+    DocumentState& state = documentStates[index];
+    state.currentPage = 1;
+    state.zoomLevel = 1.0;
+    state.rotation = 0;
+    state.scrollPosition = QPoint(0, 0);
+    state.viewMode = 0;  // SinglePage mode
+
+    documentModified[index] = false;
+
+    LOG_DEBUG(
+        "ViewWidget::initializeDocumentState() - Initialized state for "
+        "document {}",
+        index);
+}
+
+void ViewWidget::cleanupDocumentState(int index) {
+    if (validateDocumentIndex(index, "cleanupDocumentState")) {
+        if (index < documentStates.size()) {
+            documentStates.removeAt(index);
+        }
+        if (index < documentModified.size()) {
+            documentModified.removeAt(index);
+        }
+
+        LOG_DEBUG(
+            "ViewWidget::cleanupDocumentState() - Cleaned up state for "
+            "document {}",
+            index);
+    }
+}
+
+void ViewWidget::updateDocumentStates(int removedIndex) {
+    // No need to update the lists as we removed the item at removedIndex
+    // The indices automatically shift down for items after removedIndex
+
+    LOG_DEBUG(
+        "ViewWidget::updateDocumentStates() - Updated states after removing "
+        "document {}",
+        removedIndex);
+}
+
+QString ViewWidget::getDocumentDisplayName(int index) const {
+    if (validateDocumentIndex(index, "getDocumentDisplayName")) {
+        if (documentModel) {
+            QString fileName = documentModel->getDocumentFileName(index);
+            if (!fileName.isEmpty()) {
+                return fileName;
+            }
+        }
+
+        // Fallback to tab text
+        if (index < tabWidget->count()) {
+            QString tabText = tabWidget->tabText(index);
+            // Remove modification marker if present
+            if (tabText.endsWith("*")) {
+                tabText.chop(1);
+            }
+            return tabText;
+        }
+    }
+
+    return tr("Document %1").arg(index + 1);
+}
+void ViewWidget::contextMenuEvent(QContextMenuEvent* event) {
+    if (!contextMenuManager) {
+        QWidget::contextMenuEvent(event);
+        return;
+    }
+
+    // Create document context
+    ContextMenuManager::DocumentContext context;
+    context.hasDocument = hasDocuments();
+
+    if (context.hasDocument) {
+        context.currentPage = getCurrentPage();
+        context.totalPages = getCurrentPageCount();
+        context.zoomLevel = getCurrentZoom();
+        context.canCopy = true;  // Assume text can be copied
+        context.canZoom = true;
+        context.canRotate = true;
+
+        // Get document path if available
+        int currentIndex = getCurrentDocumentIndex();
+        if (currentIndex >= 0 && documentModel) {
+            context.documentPath =
+                documentModel->getDocumentFilePath(currentIndex);
+        }
+    }
+
+    // Show document viewer context menu
+    contextMenuManager->showDocumentViewerMenu(event->globalPos(), context,
+                                               this);
+
+    event->accept();
 }

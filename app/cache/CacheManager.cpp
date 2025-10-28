@@ -9,12 +9,7 @@
 
 using enum CacheType;
 
-#ifdef Q_OS_WIN
-// clang-format off
-#include <windows.h>
-#include <psapi.h>
-// clang-format on
-#elif defined(Q_OS_LINUX)
+#ifdef Q_OS_LINUX
 #include <unistd.h>
 #include <fstream>
 #include <sstream>

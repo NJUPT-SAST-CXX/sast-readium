@@ -341,6 +341,7 @@ SearchPerformance::PerformanceMetrics SearchPerformance::getLastSearchMetrics()
 void SearchPerformance::resetMetrics() {
     QMutexLocker locker(&d->metricsMutex);
     d->lastMetrics = PerformanceMetrics();
+    d->lastMetrics.algorithmUsed = "None";
 }
 
 void SearchPerformance::initializeMemoryPool(int poolSize) {

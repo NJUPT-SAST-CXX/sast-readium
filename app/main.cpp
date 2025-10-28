@@ -1,3 +1,6 @@
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <config.h>
 #include <QApplication>
 #include <QStandardPaths>
@@ -9,10 +12,6 @@
 #include "logging/SimpleLogging.h"
 #include "managers/I18nManager.h"
 #include "ui/widgets/EnhancedFocusIndicator.h"
-
-#ifdef Q_OS_WIN
-#include <windows.h>
-#endif
 
 // Function to enable Windows console UTF-8 and ANSI support
 static void enableWindowsConsoleSupport() {

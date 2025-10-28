@@ -285,6 +285,15 @@ void MenuBar::createThemeMenu() {
     // Add submenus to main menu
     themeMenu->addMenu(themeSubMenu);
     themeMenu->addMenu(languageSubMenu);
+    themeMenu->addSeparator();
+
+    // Add Settings action
+    QAction* settingsAction = new QAction(tr("&Settings..."), this);
+    settingsAction->setShortcut(QKeySequence("Ctrl+,"));
+    themeMenu->addAction(settingsAction);
+
+    connect(settingsAction, &QAction::triggered, this,
+            [this]() { emit onExecuted(ActionMap::showSettings); });
 
     // Connect theme signals
     connect(lightThemeAction, &QAction::triggered, this, [this](bool checked) {

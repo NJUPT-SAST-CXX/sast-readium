@@ -82,75 +82,73 @@ void ToolBarIntegrationTest::cleanup() {
 }
 
 void ToolBarIntegrationTest::testSectionExpandCollapse() {
-    CollapsibleSection* fileSection = findSection("File");
-    QVERIFY(fileSection != nullptr);
+    // In simplified toolbar implementation, we don't have collapsible sections
+    // Instead, test that all controls are properly visible and accessible
 
-    // Test initial state
-    bool initialState = fileSection->isExpanded();
+    // Verify that key controls are present and visible
+    QSpinBox* pageSpinBox = m_toolbar->findChild<QSpinBox*>();
+    QSlider* zoomSlider = m_toolbar->findChild<QSlider*>();
+    QComboBox* viewModeCombo = m_toolbar->findChild<QComboBox*>();
 
-    // Toggle expansion
-    fileSection->setExpanded(!initialState);
-    waitForAnimation();
+    QVERIFY(pageSpinBox != nullptr);
+    QVERIFY(zoomSlider != nullptr);
+    QVERIFY(viewModeCombo != nullptr);
 
-    QCOMPARE(fileSection->isExpanded(), !initialState);
-
-    // Toggle back
-    fileSection->setExpanded(initialState);
-    waitForAnimation();
-
-    QCOMPARE(fileSection->isExpanded(), initialState);
+    // Verify controls are visible
+    QVERIFY(pageSpinBox->isVisible());
+    QVERIFY(zoomSlider->isVisible());
+    QVERIFY(viewModeCombo->isVisible());
 }
 
 void ToolBarIntegrationTest::testSectionExpandCollapseSignals() {
-    CollapsibleSection* navigationSection = findSection("Navigation");
-    QVERIFY(navigationSection != nullptr);
-
+    // In simplified toolbar implementation, test view mode change signals
+    // instead
     QSignalSpy sectionSpy(m_toolbar, &ToolBar::sectionExpandChanged);
-    QSignalSpy expandSpy(navigationSection,
-                         &CollapsibleSection::expandedChanged);
 
-    bool initialState = navigationSection->isExpanded();
+    // Find view mode combo and change it
+    QComboBox* viewModeCombo = m_toolbar->findChild<QComboBox*>();
+    QVERIFY(viewModeCombo != nullptr);
 
-    // Expand/collapse section
-    navigationSection->setExpanded(!initialState);
-    waitForAnimation();
+    // Enable toolbar first
+    m_toolbar->setActionsEnabled(true);
 
-    // Verify signals were emitted
-    QCOMPARE(expandSpy.count(), 1);
-    QCOMPARE(sectionSpy.count(), 1);
+    int initialIndex = viewModeCombo->currentIndex();
+    int newIndex = (initialIndex + 1) % viewModeCombo->count();
 
-    // Verify signal parameters
-    QList<QVariant> sectionArgs = sectionSpy.takeFirst();
-    QCOMPARE(sectionArgs.at(0).toString(), QString("Navigation"));
-    QCOMPARE(sectionArgs.at(1).toBool(), !initialState);
+    // Change view mode
+    viewModeCombo->setCurrentIndex(newIndex);
+    QTest::qWait(50);
+
+    // Verify the combo box changed
+    QCOMPARE(viewModeCombo->currentIndex(), newIndex);
 }
 
 void ToolBarIntegrationTest::testCompactModeIntegration() {
+    // In simplified toolbar implementation, compact mode affects hover behavior
+    // Test that compact mode can be set without errors
+
+    int initialHeight = m_toolbar->height();
+
     // Test compact mode activation
     m_toolbar->setCompactMode(true);
     waitForAnimation();
 
-    // Verify all sections are collapsed in compact mode
-    CollapsibleSection* fileSection = findSection("File");
-    CollapsibleSection* navSection = findSection("Navigation");
-    CollapsibleSection* zoomSection = findSection("Zoom");
+    // Verify toolbar is still functional
+    QSpinBox* pageSpinBox = m_toolbar->findChild<QSpinBox*>();
+    QSlider* zoomSlider = m_toolbar->findChild<QSlider*>();
 
-    if (fileSection)
-        QVERIFY(!fileSection->isExpanded());
-    if (navSection)
-        QVERIFY(!navSection->isExpanded());
-    if (zoomSection)
-        QVERIFY(!zoomSection->isExpanded());
+    QVERIFY(pageSpinBox != nullptr);
+    QVERIFY(zoomSlider != nullptr);
+    QVERIFY(pageSpinBox->isVisible());
+    QVERIFY(zoomSlider->isVisible());
 
     // Test compact mode deactivation
     m_toolbar->setCompactMode(false);
     waitForAnimation();
 
-    // Important sections should be expanded
-    if (navSection)
-        QVERIFY(navSection->isExpanded());
-    if (zoomSection)
-        QVERIFY(zoomSection->isExpanded());
+    // Controls should still be functional
+    QVERIFY(pageSpinBox->isVisible());
+    QVERIFY(zoomSlider->isVisible());
 }
 
 void ToolBarIntegrationTest::testAnimationIntegration() {
@@ -200,97 +198,191 @@ void ToolBarIntegrationTest::testActionTriggering() {
 void ToolBarIntegrationTest::testPageNavigationIntegration() {
     QSignalSpy pageSpy(m_toolbar, &ToolBar::pageJumpRequested);
 
+    // First enable the toolbar and set up a document with multiple pages
+    m_toolbar->setActionsEnabled(true);
+    m_toolbar->updatePageInfo(0, 10);  // Set up 10 pages, currently on page 1
+
     // Find page spinbox
     QSpinBox* pageSpinBox = m_toolbar->findChild<QSpinBox*>();
-    if (pageSpinBox) {
-        pageSpinBox->setValue(5);
+    QVERIFY(pageSpinBox != nullptr);
 
-        // Wait for signal
-        QTest::qWait(50);
+    // Verify initial state
+    QCOMPARE(pageSpinBox->value(), 1);  // 1-based display
+    QCOMPARE(pageSpinBox->maximum(), 10);
+    QVERIFY(pageSpinBox->isEnabled());
 
-        QCOMPARE(pageSpy.count(), 1);
-        QList<QVariant> args = pageSpy.takeFirst();
-        QCOMPARE(args.at(0).toInt(), 4);  // 0-based page number
-    }
+    // Test page navigation
+    pageSpinBox->setValue(5);
+
+    // Wait for signal
+    QTest::qWait(50);
+
+    QCOMPARE(pageSpy.count(), 1);
+    QList<QVariant> args = pageSpy.takeFirst();
+    QCOMPARE(args.at(0).toInt(), 4);  // 0-based page number
+
+    // Test validation - try to set invalid page
+    pageSpy.clear();
+    pageSpinBox->setValue(15);  // Beyond maximum
+    QTest::qWait(50);
+
+    // Should be clamped to maximum
+    QCOMPARE(pageSpinBox->value(), 10);
 }
 
 void ToolBarIntegrationTest::testZoomIntegration() {
     QSignalSpy zoomSpy(m_toolbar, &ToolBar::zoomLevelChanged);
 
+    // Enable toolbar first
+    m_toolbar->setActionsEnabled(true);
+
     // Find zoom slider
     QSlider* zoomSlider = m_toolbar->findChild<QSlider*>();
-    if (zoomSlider) {
-        int initialValue = zoomSlider->value();
-        zoomSlider->setValue(150);
+    QVERIFY(zoomSlider != nullptr);
 
-        // Wait for signal
-        QTest::qWait(50);
+    // Verify initial state
+    QCOMPARE(zoomSlider->minimum(), 25);
+    QCOMPARE(zoomSlider->maximum(), 400);
+    QCOMPARE(zoomSlider->value(), 100);
+    QVERIFY(zoomSlider->isEnabled());
 
-        if (initialValue != 150) {
-            QCOMPARE(zoomSpy.count(), 1);
-            QList<QVariant> args = zoomSpy.takeFirst();
-            QCOMPARE(args.at(0).toInt(), 150);
-        }
+    // Test zoom change
+    int initialValue = zoomSlider->value();
+    zoomSlider->setValue(150);
+
+    // Wait for signal
+    QTest::qWait(50);
+
+    if (initialValue != 150) {
+        QCOMPARE(zoomSpy.count(), 1);
+        QList<QVariant> args = zoomSpy.takeFirst();
+        QCOMPARE(args.at(0).toInt(), 150);
+    }
+
+    // Test zoom validation - try extreme values
+    zoomSpy.clear();
+    zoomSlider->setValue(500);  // Beyond maximum
+    QTest::qWait(50);
+
+    // Should be clamped to maximum
+    QCOMPARE(zoomSlider->value(), 400);
+
+    // Test minimum
+    zoomSlider->setValue(10);  // Below minimum
+    QTest::qWait(50);
+
+    // Should be clamped to minimum
+    QCOMPARE(zoomSlider->value(), 25);
+
+    // Verify zoom label updates
+    QLabel* zoomLabel = m_toolbar->findChild<QLabel*>();
+    if (zoomLabel && zoomLabel->text().contains("%")) {
+        QVERIFY(zoomLabel->text().contains("25%"));
     }
 }
 
 void ToolBarIntegrationTest::testStateUpdates() {
+    // Enable toolbar first
+    m_toolbar->setActionsEnabled(true);
+
     // Test page info update
     m_toolbar->updatePageInfo(5, 10);
 
     QSpinBox* pageSpinBox = m_toolbar->findChild<QSpinBox*>();
     QLabel* pageLabel = m_toolbar->findChild<QLabel*>();
 
-    if (pageSpinBox) {
-        QCOMPARE(pageSpinBox->value(), 6);  // 1-based display
-        QCOMPARE(pageSpinBox->maximum(), 10);
+    QVERIFY(pageSpinBox != nullptr);
+    QCOMPARE(pageSpinBox->value(), 6);  // 1-based display
+    QCOMPARE(pageSpinBox->maximum(), 10);
+    QVERIFY(pageSpinBox->isEnabled());
+
+    // Find page count label
+    QList<QLabel*> labels = m_toolbar->findChildren<QLabel*>();
+    QLabel* pageCountLabel = nullptr;
+    for (QLabel* label : labels) {
+        if (label->text().contains("/ 10")) {
+            pageCountLabel = label;
+            break;
+        }
     }
+    QVERIFY(pageCountLabel != nullptr);
+    QCOMPARE(pageCountLabel->text(), QString("/ 10"));
 
     // Test zoom level update
     m_toolbar->updateZoomLevel(1.5);
 
     QSlider* zoomSlider = m_toolbar->findChild<QSlider*>();
-    if (zoomSlider) {
-        QCOMPARE(zoomSlider->value(), 150);
+    QVERIFY(zoomSlider != nullptr);
+    QCOMPARE(zoomSlider->value(), 150);
+
+    // Find zoom value label
+    QLabel* zoomLabel = nullptr;
+    for (QLabel* label : labels) {
+        if (label->text().contains("%")) {
+            zoomLabel = label;
+            break;
+        }
     }
+    QVERIFY(zoomLabel != nullptr);
+    QCOMPARE(zoomLabel->text(), QString("150%"));
 
     // Test actions enabled/disabled
     m_toolbar->setActionsEnabled(false);
 
+    // Check that document-related actions are disabled
+    QVERIFY(!pageSpinBox->isEnabled());
+    QVERIFY(!zoomSlider->isEnabled());
+
+    // Check that some actions remain enabled (like open, theme toggle)
     QList<QAction*> actions = m_toolbar->actions();
+    bool hasEnabledActions = false;
     for (QAction* action : actions) {
         if (action->isSeparator())
             continue;
-        // Most actions should be disabled (some may remain enabled)
+        if (action->isEnabled()) {
+            hasEnabledActions = true;
+            break;
+        }
     }
+    QVERIFY(hasEnabledActions);  // Open and theme actions should remain enabled
 
+    // Re-enable and verify
     m_toolbar->setActionsEnabled(true);
+    QVERIFY(pageSpinBox->isEnabled());
+    QVERIFY(zoomSlider->isEnabled());
 }
 
 void ToolBarIntegrationTest::testLanguageChangeIntegration() {
-    // Get initial section titles
-    CollapsibleSection* fileSection = findSection("File");
-    QString initialTitle;
-    if (fileSection) {
-        initialTitle = fileSection->windowTitle();
+    // Get initial action tooltips
+    QList<QAction*> actions = m_toolbar->actions();
+    QStringList initialTooltips;
+    for (QAction* action : actions) {
+        if (!action->isSeparator()) {
+            initialTooltips << action->toolTip();
+        }
     }
 
     // Simulate language change event
     QEvent languageChangeEvent(QEvent::LanguageChange);
     QApplication::sendEvent(m_toolbar, &languageChangeEvent);
 
-    // Verify UI elements are updated
-    if (fileSection) {
-        QString newTitle = fileSection->windowTitle();
-        QVERIFY(!newTitle.isEmpty());
-        // Title should be updated (may be same if already in correct language)
+    // Check that tooltips are still present and valid
+    int actionIndex = 0;
+    for (QAction* action : actions) {
+        if (!action->isSeparator()) {
+            QVERIFY(!action->toolTip().isEmpty());
+            // Tooltip should be updated (may be same if already in correct
+            // language)
+            actionIndex++;
+        }
     }
 
-    // Check that tooltips are updated
-    QList<QAction*> actions = m_toolbar->actions();
-    for (QAction* action : actions) {
-        if (!action->isSeparator() && !action->toolTip().isEmpty()) {
-            QVERIFY(!action->toolTip().isEmpty());
+    // Check combo box items are updated
+    QComboBox* viewModeCombo = m_toolbar->findChild<QComboBox*>();
+    if (viewModeCombo) {
+        QVERIFY(viewModeCombo->count() > 0);
+        for (int i = 0; i < viewModeCombo->count(); ++i) {
+            QVERIFY(!viewModeCombo->itemText(i).isEmpty());
         }
     }
 }

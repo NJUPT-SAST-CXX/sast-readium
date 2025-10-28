@@ -8,6 +8,7 @@
 #include <QPropertyAnimation>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSettings>
 #include <QShortcut>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -17,6 +18,7 @@ class RecentFilesManager;
 class RecentFileListWidget;
 class WelcomeScreenManager;
 class OnboardingManager;
+class CommandManager;
 class QGridLayout;
 class QToolButton;
 
@@ -43,6 +45,7 @@ public:
     void setRecentFilesManager(RecentFilesManager* manager);
     void setWelcomeScreenManager(WelcomeScreenManager* manager);
     void setOnboardingManager(OnboardingManager* manager);
+    void setCommandManager(CommandManager* manager);
 
     // 主题支持
     void applyTheme();
@@ -51,6 +54,11 @@ public:
     void refreshContent();
     void refreshTips();
     void refreshShortcuts();
+
+    // 状态管理
+    void saveState();
+    void loadState();
+    void resetState();
 
 public slots:
     void onRecentFilesChanged();
@@ -165,6 +173,7 @@ private:
     RecentFilesManager* m_recentFilesManager;
     WelcomeScreenManager* m_welcomeScreenManager;
     OnboardingManager* m_onboardingManager;
+    CommandManager* m_commandManager;
 
     // 动画效果
     QGraphicsOpacityEffect* m_opacityEffect;
@@ -174,6 +183,9 @@ private:
     // 状态
     bool m_isInitialized;
     bool m_isVisible;
+
+    // 状态持久化
+    QSettings* m_settings;
 
     // Enhanced 样式常量 for improved typography and spacing
     static const int LOGO_SIZE = 80;  // Larger logo for better presence

@@ -127,7 +127,7 @@ void SearchEngineTest::cleanupTestCase() {
 }
 
 void SearchEngineTest::init() {
-    m_searchEngine = new SearchEngine(this);
+    m_searchEngine = new SearchEngine();  // No parent - manually managed
     QVERIFY(m_searchEngine != nullptr);
 
     // Only set document if it was created successfully
@@ -139,9 +139,20 @@ void SearchEngineTest::init() {
 void SearchEngineTest::cleanup() {
     if (m_searchEngine) {
         m_searchEngine->cancelSearch();
+
+        // Wait for any background operations to complete
+        // Increased timeout to ensure all async operations finish
+        QTest::qWait(500);
+
+        // Process any pending events
+        QCoreApplication::processEvents();
+
         m_searchEngine->clearResults();
         delete m_searchEngine;
         m_searchEngine = nullptr;
+
+        // Final wait to ensure cleanup completes
+        QTest::qWait(100);
     }
 }
 

@@ -1,7 +1,10 @@
 #include "WelcomeWidget.h"
 #include <QApplication>
+#include <QDateTime>
 #include <QDebug>
+#include <QDir>
 #include <QEasingCurve>
+#include <QFileInfo>
 #include <QFrame>
 #include <QGraphicsOpacityEffect>
 #include <QGridLayout>
@@ -16,6 +19,7 @@
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QShowEvent>
 #include <QStyle>
 #include <QTimer>
@@ -23,6 +27,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <Qt>
+#include "../../command/CommandManager.h"
 #include "../../logging/LoggingMacros.h"
 #include "../../managers/OnboardingManager.h"
 #include "../../managers/RecentFilesManager.h"
@@ -62,6 +67,9 @@ WelcomeWidget::WelcomeWidget(QWidget* parent)
       m_separatorLine(nullptr),
       m_recentFilesManager(nullptr),
       m_welcomeScreenManager(nullptr),
+      m_onboardingManager(nullptr),
+      m_commandManager(nullptr),
+      m_settings(nullptr),
       m_opacityEffect(nullptr),
       m_fadeAnimation(nullptr),
       m_refreshTimer(nullptr),
@@ -90,13 +98,22 @@ WelcomeWidget::WelcomeWidget(QWidget* parent)
     m_refreshTimer->setSingleShot(true);
     m_refreshTimer->setInterval(100);
 
+    // 初始化设置
+    m_settings = new QSettings("SAST", "Readium", this);
+
     setupConnections();
+
+    // 加载保存的状态
+    loadState();
 
     m_isInitialized = true;
     LOG_DEBUG("WelcomeWidget: Initialization completed");
 }
 
-WelcomeWidget::~WelcomeWidget() { LOG_DEBUG("WelcomeWidget: Destroying..."); }
+WelcomeWidget::~WelcomeWidget() {
+    LOG_DEBUG("WelcomeWidget: Destroying...");
+    saveState();
+}
 
 void WelcomeWidget::setRecentFilesManager(RecentFilesManager* manager) {
     if (m_recentFilesManager == manager) {
@@ -161,6 +178,40 @@ void WelcomeWidget::applyTheme() {
     if (m_openFileButton) {
         m_openFileButton->setStyleSheet("");
     }
+    if (m_openFolderButton) {
+        m_openFolderButton->setStyleSheet("");
+    }
+
+    // Apply theme to tutorial cards
+    if (m_tutorialCardsTitle) {
+        m_tutorialCardsTitle->setStyleSheet("");
+    }
+
+    // Apply theme to tips section
+    if (m_tipsTitle) {
+        m_tipsTitle->setStyleSheet("");
+    }
+    if (m_currentTipLabel) {
+        m_currentTipLabel->setStyleSheet("");
+    }
+    if (m_nextTipButton) {
+        m_nextTipButton->setStyleSheet("");
+    }
+    if (m_previousTipButton) {
+        m_previousTipButton->setStyleSheet("");
+    }
+
+    // Apply theme to shortcuts section
+    if (m_shortcutsTitle) {
+        m_shortcutsTitle->setStyleSheet("");
+    }
+
+    // Apply theme to quick action buttons
+    for (QToolButton* button : m_quickActionButtons) {
+        if (button) {
+            button->setStyleSheet("");
+        }
+    }
 
     // 更新logo（仍需要根据主题选择不同的图标）
     updateLogo();
@@ -168,6 +219,17 @@ void WelcomeWidget::applyTheme() {
     // 应用主题到最近文件列表
     if (m_recentFilesList) {
         m_recentFilesList->applyTheme();
+    }
+
+    // Apply theme to tutorial cards in the container
+    if (m_tutorialCardsContainer) {
+        QList<TutorialCard*> cards =
+            m_tutorialCardsContainer->findChildren<TutorialCard*>();
+        for (TutorialCard* card : cards) {
+            if (card) {
+                card->applyTheme();
+            }
+        }
     }
 
     // 强制样式更新
@@ -181,6 +243,16 @@ void WelcomeWidget::applyTheme() {
         style()->unpolish(m_contentWidget);
         style()->polish(m_contentWidget);
     }
+
+    // Update all child widgets
+    QList<QWidget*> allWidgets = findChildren<QWidget*>();
+    for (QWidget* widget : allWidgets) {
+        if (widget) {
+            style()->unpolish(widget);
+            style()->polish(widget);
+        }
+    }
+
     update();
 
     LOG_DEBUG("WelcomeWidget: Theme applied successfully");
@@ -215,8 +287,30 @@ void WelcomeWidget::refreshContent() {
         }
     }
 
+    // 刷新教程卡片
+    if (m_onboardingManager && m_tutorialCardsWidget) {
+        setupTutorialCards();
+    }
+
+    // 刷新提示内容
+    refreshTips();
+
+    // 刷新快捷键信息
+    refreshShortcuts();
+
+    // 更新当前提示显示
+    if (m_currentTipLabel && !m_tips.isEmpty()) {
+        // Ensure tip index is valid
+        if (m_currentTipIndex < 0 || m_currentTipIndex >= m_tips.size()) {
+            m_currentTipIndex = 0;
+        }
+        m_currentTipLabel->setText(m_tips[m_currentTipIndex]);
+    }
+
     // 更新布局
     updateLayout();
+
+    LOG_DEBUG("WelcomeWidget: Content refresh completed");
 }
 
 void WelcomeWidget::onRecentFilesChanged() {
@@ -269,6 +363,51 @@ void WelcomeWidget::onOpenFolderClicked() {
 
 void WelcomeWidget::onRecentFileClicked(const QString& filePath) {
     LOG_DEBUG("WelcomeWidget: Recent file clicked: {}", filePath.toStdString());
+
+    // Validate file exists before attempting to open
+    QFileInfo fileInfo(filePath);
+    if (!fileInfo.exists()) {
+        LOG_WARNING("WelcomeWidget: File no longer exists: {}",
+                    filePath.toStdString());
+
+        // Remove the invalid file from recent files
+        if (m_recentFilesManager) {
+            m_recentFilesManager->removeRecentFile(filePath);
+        }
+
+        // Refresh the recent files display
+        refreshContent();
+
+        // Emit signal to show error message to user
+        emit showDocumentationRequested();  // This could be enhanced to show
+                                            // specific error
+        return;
+    }
+
+    // Check if file is readable
+    if (!fileInfo.isReadable()) {
+        LOG_WARNING("WelcomeWidget: File is not readable: {}",
+                    filePath.toStdString());
+        // Emit signal to show error message to user
+        emit showDocumentationRequested();  // This could be enhanced to show
+                                            // specific error
+        return;
+    }
+
+    // Additional validation for file size and type
+    if (fileInfo.size() == 0) {
+        LOG_WARNING("WelcomeWidget: File is empty: {}", filePath.toStdString());
+        return;
+    }
+
+    // Check if it's a valid PDF file by extension (basic check)
+    QString suffix = fileInfo.suffix().toLower();
+    if (suffix != "pdf") {
+        LOG_WARNING("WelcomeWidget: File is not a PDF: {}",
+                    filePath.toStdString());
+        // Still allow opening, but log the warning
+    }
+
     emit fileOpenRequested(filePath);
 }
 
@@ -290,13 +429,73 @@ void WelcomeWidget::onQuickActionClicked() {
                   action.toStdString());
 
         if (action == tr("Search")) {
-            // Handle search action
+            // Execute search command through command manager
+            if (m_commandManager &&
+                m_commandManager->hasCommand("search.show")) {
+                bool success = m_commandManager->executeCommand("search.show");
+                if (!success) {
+                    LOG_WARNING(
+                        "WelcomeWidget: Failed to execute search command");
+                    emit tutorialRequested("search");
+                }
+            } else {
+                // Fallback to tutorial if command not available
+                LOG_DEBUG(
+                    "WelcomeWidget: Search command not available, showing "
+                    "tutorial");
+                emit tutorialRequested("search");
+            }
         } else if (action == tr("Bookmarks")) {
-            // Handle bookmarks action
+            // Execute bookmarks command through command manager
+            if (m_commandManager &&
+                m_commandManager->hasCommand("bookmarks.show")) {
+                bool success =
+                    m_commandManager->executeCommand("bookmarks.show");
+                if (!success) {
+                    LOG_WARNING(
+                        "WelcomeWidget: Failed to execute bookmarks command");
+                    emit tutorialRequested("bookmarks");
+                }
+            } else {
+                // Fallback to tutorial if command not available
+                LOG_DEBUG(
+                    "WelcomeWidget: Bookmarks command not available, showing "
+                    "tutorial");
+                emit tutorialRequested("bookmarks");
+            }
         } else if (action == tr("Settings")) {
-            emit showSettingsRequested();
+            // Execute settings command through command manager
+            if (m_commandManager &&
+                m_commandManager->hasCommand("settings.show")) {
+                bool success =
+                    m_commandManager->executeCommand("settings.show");
+                if (!success) {
+                    LOG_WARNING(
+                        "WelcomeWidget: Failed to execute settings command");
+                    emit showSettingsRequested();
+                }
+            } else {
+                // Fallback to signal emission
+                LOG_DEBUG(
+                    "WelcomeWidget: Settings command not available, using "
+                    "signal");
+                emit showSettingsRequested();
+            }
         } else if (action == tr("Help")) {
-            emit showDocumentationRequested();
+            // Execute help command through command manager
+            if (m_commandManager && m_commandManager->hasCommand("help.show")) {
+                bool success = m_commandManager->executeCommand("help.show");
+                if (!success) {
+                    LOG_WARNING(
+                        "WelcomeWidget: Failed to execute help command");
+                    emit showDocumentationRequested();
+                }
+            } else {
+                // Fallback to signal emission
+                LOG_DEBUG(
+                    "WelcomeWidget: Help command not available, using signal");
+                emit showDocumentationRequested();
+            }
         }
     }
 }
@@ -664,10 +863,16 @@ void WelcomeWidget::setupQuickActions() {
         btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
         btn->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
         btn->setCursor(Qt::PointingHandCursor);
+        btn->setObjectName(QString("QuickAction_%1").arg(text));
         if (!icon.isEmpty()) {
             btn->setIcon(QIcon(icon));
             btn->setIconSize(QSize(32, 32));
         }
+
+        // Connect the button to the slot
+        connect(btn, &QToolButton::clicked, this,
+                &WelcomeWidget::onQuickActionClicked);
+
         m_quickActionsLayout->addWidget(btn, row, col);
         m_quickActionButtons.append(btn);
         return btn;
@@ -682,6 +887,16 @@ void WelcomeWidget::setupQuickActions() {
 void WelcomeWidget::setupTutorialCards() {
     if (!m_tutorialCardsWidget) {
         return;
+    }
+
+    // Clear existing layout if it exists
+    if (m_tutorialCardsLayout) {
+        QLayoutItem* item;
+        while ((item = m_tutorialCardsLayout->takeAt(0)) != nullptr) {
+            delete item->widget();
+            delete item;
+        }
+        delete m_tutorialCardsLayout;
     }
 
     m_tutorialCardsLayout = new QVBoxLayout(m_tutorialCardsWidget);
@@ -702,22 +917,76 @@ void WelcomeWidget::setupTutorialCards() {
     // Add tutorial cards using OnboardingManager's data
     if (m_onboardingManager) {
         QJsonArray tutorials = m_onboardingManager->getAvailableTutorials();
+        int cardCount = 0;
+        const int maxCards = 3;  // Limit number of cards shown
+
         for (const auto& tutorialValue : tutorials) {
+            if (cardCount >= maxCards)
+                break;
+
             QJsonObject tutorial = tutorialValue.toObject();
-            createTutorialCard(tutorial["id"].toString(),
-                               tutorial["title"].toString(),
-                               tutorial["description"].toString(),
-                               QString(":/icons/tutorial"));
+            QString tutorialId = tutorial["id"].toString();
+            QString title = tutorial["title"].toString();
+            QString description = tutorial["description"].toString();
+            QString difficulty = tutorial["difficulty"].toString();
+            QString duration = tutorial["duration"].toString();
+
+            if (!tutorialId.isEmpty() && !title.isEmpty()) {
+                createTutorialCard(tutorialId, title, description,
+                                   QString(":/icons/tutorial"));
+                cardCount++;
+            }
         }
+
+        // If no tutorials available from OnboardingManager, create default
+        // tutorials
+        if (cardCount == 0) {
+            // Create default tutorial cards for essential features
+            createTutorialCard("getting-started", tr("Getting Started"),
+                               tr("Learn the basics of using SAST Readium"),
+                               QString(":/icons/tutorial"));
+            createTutorialCard("navigation", tr("Navigation"),
+                               tr("Master document navigation and viewing"),
+                               QString(":/icons/tutorial"));
+            createTutorialCard("search", tr("Search & Find"),
+                               tr("Discover powerful search capabilities"),
+                               QString(":/icons/tutorial"));
+            cardCount = 3;
+        }
+    } else {
+        // OnboardingManager not available - create basic tutorial cards
+        createTutorialCard("basic-usage", tr("Basic Usage"),
+                           tr("Learn how to open and view PDF documents"),
+                           QString(":/icons/tutorial"));
+        createTutorialCard("keyboard-shortcuts", tr("Keyboard Shortcuts"),
+                           tr("Speed up your workflow with shortcuts"),
+                           QString(":/icons/tutorial"));
+
+        QLabel* noManagerLabel =
+            new QLabel(tr("Advanced tutorials require tutorial system"));
+        noManagerLabel->setObjectName("NoManagerLabel");
+        noManagerLabel->setAlignment(Qt::AlignCenter);
+        noManagerLabel->setStyleSheet(
+            "color: #888; font-style: italic; margin-top: 10px;");
+        m_tutorialCardsContainerLayout->addWidget(noManagerLabel);
     }
 
     m_tutorialCardsLayout->addWidget(m_tutorialCardsTitle);
     m_tutorialCardsLayout->addWidget(m_tutorialCardsContainer);
 
     // Start tour button
-    QPushButton* startTourBtn = new QPushButton(tr("Start Tour"));
+    QPushButton* startTourBtn = new QPushButton(tr("Start Interactive Tour"));
     startTourBtn->setObjectName("WelcomeStartTourButton");
     startTourBtn->setCursor(Qt::PointingHandCursor);
+    startTourBtn->setEnabled(m_onboardingManager != nullptr);
+
+    if (m_onboardingManager) {
+        startTourBtn->setToolTip(
+            tr("Begin a guided tour of the application features"));
+    } else {
+        startTourBtn->setToolTip(tr("Tutorial system not available"));
+    }
+
     connect(startTourBtn, &QPushButton::clicked, this,
             &WelcomeWidget::onStartTourClicked);
     m_tutorialCardsLayout->addWidget(startTourBtn, 0, Qt::AlignLeft);
@@ -987,15 +1256,49 @@ void WelcomeWidget::updateLayout() {
 void WelcomeWidget::createTutorialCard(const QString& id, const QString& title,
                                        const QString& description,
                                        const QString& iconPath) {
-    if (!m_tutorialCardsContainerLayout) {
+    if (!m_tutorialCardsContainerLayout || id.isEmpty() || title.isEmpty()) {
+        LOG_DEBUG(
+            "WelcomeWidget: Cannot create tutorial card - invalid parameters");
         return;
     }
 
-    TutorialCard* card =
-        new TutorialCard(id, title, description, QIcon(iconPath));
-    connect(card, &TutorialCard::clicked, this,
-            &WelcomeWidget::onTutorialCardClicked);
-    m_tutorialCardsContainerLayout->addWidget(card);
+    try {
+        TutorialCard* card =
+            new TutorialCard(id, title, description, QIcon(iconPath));
+
+        // Set additional properties if OnboardingManager is available
+        if (m_onboardingManager) {
+            QJsonObject tutorialInfo = m_onboardingManager->getTutorialInfo(id);
+            if (!tutorialInfo.isEmpty()) {
+                card->setDuration(tutorialInfo["duration"].toString());
+                card->setDifficulty(tutorialInfo["difficulty"].toString());
+
+                // Check if tutorial is completed
+                // This would require extending the OnboardingManager to track
+                // tutorial completion For now, we'll leave it as not completed
+                card->setCompleted(false);
+            }
+        }
+
+        // Connect signals
+        connect(card, &TutorialCard::clicked, this,
+                &WelcomeWidget::onTutorialCardClicked);
+        connect(card, &TutorialCard::startRequested, this,
+                &WelcomeWidget::onTutorialCardClicked);
+
+        // Apply theme
+        card->applyTheme();
+
+        m_tutorialCardsContainerLayout->addWidget(card);
+
+        LOG_DEBUG("WelcomeWidget: Created tutorial card for: {}",
+                  id.toStdString());
+    } catch (const std::exception& e) {
+        LOG_ERROR("WelcomeWidget: Failed to create tutorial card: {}",
+                  e.what());
+    } catch (...) {
+        LOG_ERROR("WelcomeWidget: Unknown error creating tutorial card");
+    }
 }
 
 void WelcomeWidget::setOnboardingManager(OnboardingManager* manager) {
@@ -1007,22 +1310,140 @@ void WelcomeWidget::setOnboardingManager(OnboardingManager* manager) {
     }
 }
 
+void WelcomeWidget::setCommandManager(CommandManager* manager) {
+    m_commandManager = manager;
+}
+
 void WelcomeWidget::refreshTips() {
-    // Rotate to next tip
-    if (++m_currentTipIndex >= m_tips.size()) {
+    // Update tips list with dynamic content based on user's usage patterns
+    QStringList updatedTips;
+
+    // Base tips
+    updatedTips
+        << tr("Press Ctrl+F to quickly search within the document")
+        << tr("Use Ctrl+B to add a bookmark to the current page")
+        << tr("Double-click on the page to zoom in, right-click to zoom out")
+        << tr("Press F11 to toggle full-screen mode")
+        << tr("Use Page Up/Down keys for quick navigation")
+        << tr("Drag and drop PDF files directly into the window to open them")
+        << tr("Press Ctrl+Tab to switch between open documents")
+        << tr("Use Ctrl+G to jump to a specific page number");
+
+    // Add contextual tips based on available features
+    if (m_recentFilesManager && m_recentFilesManager->hasRecentFiles()) {
+        updatedTips << tr("Click on recent files to quickly reopen them");
+    }
+
+    if (m_onboardingManager && !m_onboardingManager->isOnboardingCompleted()) {
+        updatedTips << tr(
+            "Try the interactive tutorials to learn advanced features");
+    }
+
+    // Update the tips list
+    m_tips = updatedTips;
+
+    // Ensure current index is valid
+    if (m_currentTipIndex >= m_tips.size()) {
         m_currentTipIndex = 0;
     }
 
+    // Update display
     if (m_currentTipLabel && !m_tips.isEmpty()) {
         m_currentTipLabel->setText(m_tips[m_currentTipIndex]);
     }
+
+    LOG_DEBUG("WelcomeWidget: Tips refreshed with {} tips", m_tips.size());
 }
 
 void WelcomeWidget::refreshShortcuts() {
-    // Refresh keyboard shortcuts if needed
-    if (m_shortcutsWidget) {
-        setupKeyboardShortcuts();
+    // Refresh keyboard shortcuts with dynamic content from CommandManager
+    if (!m_shortcutsWidget || !m_shortcutsListWidget) {
+        return;
     }
+
+    // Clear existing shortcuts display
+    QGridLayout* shortcutsGrid =
+        qobject_cast<QGridLayout*>(m_shortcutsListWidget->layout());
+    if (shortcutsGrid) {
+        QLayoutItem* item;
+        while ((item = shortcutsGrid->takeAt(0)) != nullptr) {
+            delete item->widget();
+            delete item;
+        }
+    } else {
+        shortcutsGrid = new QGridLayout(m_shortcutsListWidget);
+        shortcutsGrid->setSpacing(SPACING_XSMALL);
+    }
+
+    // Get shortcuts from CommandManager if available
+    QList<QPair<QString, QString>> shortcuts;
+
+    if (m_commandManager) {
+        QHash<QString, QString> allShortcuts = m_commandManager->allShortcuts();
+        QHashIterator<QString, QString> it(allShortcuts);
+        while (it.hasNext()) {
+            it.next();
+            QString commandId = it.key();
+            QString shortcut = it.value();
+
+            // Map command IDs to user-friendly descriptions
+            QString description;
+            if (commandId == "file.open") {
+                description = tr("Open file");
+            } else if (commandId == "file.save") {
+                description = tr("Save file");
+            } else if (commandId == "search.show") {
+                description = tr("Search");
+            } else if (commandId == "bookmarks.add") {
+                description = tr("Add bookmark");
+            } else if (commandId == "navigation.goto") {
+                description = tr("Go to page");
+            } else if (commandId == "view.fullscreen") {
+                description = tr("Full screen");
+            } else if (commandId == "view.zoomin") {
+                description = tr("Zoom in");
+            } else if (commandId == "view.zoomout") {
+                description = tr("Zoom out");
+            } else {
+                // Use command ID as fallback
+                description = commandId;
+            }
+
+            shortcuts.append(qMakePair(shortcut, description));
+        }
+    }
+
+    // If no shortcuts from CommandManager, use default ones
+    if (shortcuts.isEmpty()) {
+        shortcuts = {{tr("Ctrl+O"), tr("Open file")},
+                     {tr("Ctrl+S"), tr("Save file")},
+                     {tr("Ctrl+F"), tr("Search")},
+                     {tr("Ctrl+B"), tr("Add bookmark")},
+                     {tr("Ctrl+G"), tr("Go to page")},
+                     {tr("F11"), tr("Full screen")},
+                     {tr("Ctrl++"), tr("Zoom in")},
+                     {tr("Ctrl+-"), tr("Zoom out")}};
+    }
+
+    // Limit to most important shortcuts for display
+    int maxShortcuts = qMin(shortcuts.size(), 8);
+
+    // Add shortcuts to grid
+    for (int i = 0; i < maxShortcuts; ++i) {
+        const auto& shortcut = shortcuts[i];
+
+        QLabel* keysLabel = new QLabel(shortcut.first);
+        QLabel* descLabel = new QLabel(shortcut.second);
+
+        keysLabel->setObjectName("ShortcutKeys");
+        descLabel->setObjectName("ShortcutDescription");
+
+        shortcutsGrid->addWidget(keysLabel, i, 0);
+        shortcutsGrid->addWidget(descLabel, i, 1);
+    }
+
+    LOG_DEBUG("WelcomeWidget: Shortcuts refreshed with {} shortcuts",
+              maxShortcuts);
 }
 
 void WelcomeWidget::startFadeInAnimation() {
@@ -1034,4 +1455,133 @@ void WelcomeWidget::startFadeInAnimation() {
     m_fadeAnimation->setStartValue(0.0);
     m_fadeAnimation->setEndValue(1.0);
     m_fadeAnimation->start();
+}
+
+void WelcomeWidget::saveState() {
+    if (!m_settings) {
+        return;
+    }
+
+    LOG_DEBUG("WelcomeWidget: Saving state...");
+
+    m_settings->beginGroup("WelcomeWidget");
+
+    // Save current tip index
+    m_settings->setValue("currentTipIndex", m_currentTipIndex);
+
+    // Save window state if needed
+    m_settings->setValue("lastShown", QDateTime::currentDateTime());
+
+    // Save widget visibility state
+    m_settings->setValue("isVisible", m_isVisible);
+
+    // Save scroll position if available
+    if (m_scrollArea) {
+        QScrollBar* vScrollBar = m_scrollArea->verticalScrollBar();
+        if (vScrollBar) {
+            m_settings->setValue("scrollPosition", vScrollBar->value());
+        }
+    }
+
+    // Save user preferences
+    if (m_onboardingManager) {
+        m_settings->setValue("showTips", m_onboardingManager->shouldShowTips());
+        m_settings->setValue("showOnStartup",
+                             m_onboardingManager->shouldShowOnStartup());
+
+        // Save onboarding progress
+        m_settings->setValue("onboardingCompleted",
+                             m_onboardingManager->isOnboardingCompleted());
+        m_settings->setValue("onboardingProgress",
+                             m_onboardingManager->getProgressPercentage());
+    }
+
+    // Save usage statistics for analytics
+    m_settings->setValue("totalShownCount",
+                         m_settings->value("totalShownCount", 0).toInt() + 1);
+
+    m_settings->endGroup();
+    m_settings->sync();
+
+    LOG_DEBUG("WelcomeWidget: State saved successfully");
+}
+
+void WelcomeWidget::loadState() {
+    if (!m_settings) {
+        return;
+    }
+
+    LOG_DEBUG("WelcomeWidget: Loading state...");
+
+    m_settings->beginGroup("WelcomeWidget");
+
+    // Load current tip index
+    m_currentTipIndex = m_settings->value("currentTipIndex", 0).toInt();
+
+    // Validate tip index (will be validated again when tips are loaded)
+    if (m_currentTipIndex < 0) {
+        m_currentTipIndex = 0;
+    }
+
+    // Load scroll position
+    if (m_scrollArea) {
+        int scrollPosition = m_settings->value("scrollPosition", 0).toInt();
+        QTimer::singleShot(100, [this, scrollPosition]() {
+            QScrollBar* vScrollBar = m_scrollArea->verticalScrollBar();
+            if (vScrollBar && scrollPosition >= 0 &&
+                scrollPosition <= vScrollBar->maximum()) {
+                vScrollBar->setValue(scrollPosition);
+            }
+        });
+    }
+
+    // Load user preferences
+    if (m_onboardingManager) {
+        bool showTips = m_settings->value("showTips", true).toBool();
+        bool showOnStartup = m_settings->value("showOnStartup", true).toBool();
+
+        m_onboardingManager->setShowTips(showTips);
+        m_onboardingManager->setShowOnStartup(showOnStartup);
+
+        // Load onboarding state for UI updates
+        bool onboardingCompleted =
+            m_settings->value("onboardingCompleted", false).toBool();
+        if (onboardingCompleted) {
+            LOG_DEBUG("WelcomeWidget: User has completed onboarding");
+        }
+    }
+
+    // Load usage statistics
+    int totalShownCount = m_settings->value("totalShownCount", 0).toInt();
+    LOG_DEBUG("WelcomeWidget: Welcome screen has been shown {} times",
+              totalShownCount);
+
+    m_settings->endGroup();
+
+    LOG_DEBUG("WelcomeWidget: State loaded successfully");
+}
+
+void WelcomeWidget::resetState() {
+    if (!m_settings) {
+        return;
+    }
+
+    LOG_DEBUG("WelcomeWidget: Resetting state...");
+
+    m_settings->beginGroup("WelcomeWidget");
+    m_settings->remove("");  // Remove all keys in this group
+    m_settings->endGroup();
+
+    // Reset to defaults
+    m_currentTipIndex = 0;
+
+    if (m_onboardingManager) {
+        m_onboardingManager->resetSettings();
+    }
+
+    // Refresh UI
+    refreshContent();
+    refreshTips();
+
+    LOG_DEBUG("WelcomeWidget: State reset successfully");
 }

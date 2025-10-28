@@ -48,6 +48,7 @@ private:
     void populatePageInfo(Poppler::Document* document);
     void copyToClipboard(const QString& text);
     void copyAllMetadata();
+    void exportMetadata();
 
     static QString formatDateTime(const QString& dateTimeStr);
     static QString formatFileSize(qint64 bytes);

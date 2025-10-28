@@ -3,6 +3,9 @@
 #include <QObject>
 #include <QPointer>
 #include "../logging/SimpleLogging.h"
+#include "../ui/core/UIConsistencyManager.h"
+#include "../ui/core/UIResourceManager.h"
+#include "../ui/core/UIStateManager.h"
 
 // Forward declarations
 class QMainWindow;
@@ -84,6 +87,10 @@ public:
     [[nodiscard]] SideBar* sideBar() const { return m_sideBar; }
     [[nodiscard]] RightSideBar* rightSideBar() const { return m_rightSideBar; }
     [[nodiscard]] StatusBar* statusBar() const { return m_statusBar; }
+
+    // StatusBar integration methods
+    void connectStatusBarSignals();
+    void updateStatusBarFromDocument();
     [[nodiscard]] ViewWidget* viewWidget() const { return m_viewWidget; }
     [[nodiscard]] QSplitter* mainSplitter() const { return m_mainSplitter; }
 
@@ -91,6 +98,19 @@ public:
     void applyTheme(const QString& theme);
     void handleError(const QString& context, const QString& error);
     void shutdown();
+
+    // State management integration
+    void saveApplicationState();
+    void restoreApplicationState();
+    void registerUIComponents();
+
+    // Resource management integration
+    void registerUIResources();
+    void optimizeResources();
+
+    // Visual consistency integration
+    void registerUIConsistency();
+    void enforceVisualConsistency();
 
 signals:
     void initializationCompleted();

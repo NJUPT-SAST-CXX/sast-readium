@@ -46,6 +46,8 @@ enum ActionMap {
     clearSearch,
     // 文档信息操作
     showDocumentMetadata,
+    // 设置操作
+    showSettings,
     // 最近文件操作
     openRecentFile,
     clearRecentFiles,

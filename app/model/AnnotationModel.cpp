@@ -974,3 +974,121 @@ PDFAnnotation PDFAnnotation::fromPopplerAnnotation(
 
     return result;
 }
+
+bool AnnotationModel::editAnnotationContent(const QString& annotationId,
+                                            const QString& newContent) {
+    int index = findAnnotationIndex(annotationId);
+    if (index == -1) {
+        return false;
+    }
+
+    m_annotations[index].content = newContent;
+    m_annotations[index].modifiedTime = QDateTime::currentDateTime();
+
+    QModelIndex modelIndex = createIndex(index, 0);
+    emit dataChanged(modelIndex, modelIndex);
+    emit annotationUpdated(m_annotations[index]);
+
+    return true;
+}
+
+bool AnnotationModel::moveAnnotation(const QString& annotationId,
+                                     const QPointF& newPosition) {
+    int index = findAnnotationIndex(annotationId);
+    if (index == -1) {
+        return false;
+    }
+
+    QRectF currentBoundary = m_annotations[index].boundingRect;
+    QSizeF size = currentBoundary.size();
+    m_annotations[index].boundingRect = QRectF(newPosition, size);
+    m_annotations[index].modifiedTime = QDateTime::currentDateTime();
+
+    QModelIndex modelIndex = createIndex(index, 0);
+    emit dataChanged(modelIndex, modelIndex);
+    emit annotationUpdated(m_annotations[index]);
+
+    return true;
+}
+
+bool AnnotationModel::resizeAnnotation(const QString& annotationId,
+                                       const QRectF& newBoundary) {
+    int index = findAnnotationIndex(annotationId);
+    if (index == -1) {
+        return false;
+    }
+
+    m_annotations[index].boundingRect = newBoundary;
+    m_annotations[index].modifiedTime = QDateTime::currentDateTime();
+
+    QModelIndex modelIndex = createIndex(index, 0);
+    emit dataChanged(modelIndex, modelIndex);
+    emit annotationUpdated(m_annotations[index]);
+
+    return true;
+}
+
+bool AnnotationModel::changeAnnotationColor(const QString& annotationId,
+                                            const QColor& newColor) {
+    int index = findAnnotationIndex(annotationId);
+    if (index == -1) {
+        return false;
+    }
+
+    m_annotations[index].color = newColor;
+    m_annotations[index].modifiedTime = QDateTime::currentDateTime();
+
+    QModelIndex modelIndex = createIndex(index, 0);
+    emit dataChanged(modelIndex, modelIndex);
+    emit annotationUpdated(m_annotations[index]);
+
+    return true;
+}
+
+bool AnnotationModel::changeAnnotationOpacity(const QString& annotationId,
+                                              qreal opacity) {
+    int index = findAnnotationIndex(annotationId);
+    if (index == -1) {
+        return false;
+    }
+
+    m_annotations[index].opacity = qBound(0.0, opacity, 1.0);
+    m_annotations[index].modifiedTime = QDateTime::currentDateTime();
+
+    QModelIndex modelIndex = createIndex(index, 0);
+    emit dataChanged(modelIndex, modelIndex);
+    emit annotationUpdated(m_annotations[index]);
+
+    return true;
+}
+
+bool AnnotationModel::addStickyNote(int pageNumber, const QPointF& position,
+                                    const QString& content,
+                                    const QColor& color) {
+    PDFAnnotation stickyNote;
+    stickyNote.type = AnnotationType::Note;
+    stickyNote.pageNumber = pageNumber;
+    stickyNote.boundingRect =
+        QRectF(position, QSizeF(24, 24));  // Standard sticky note size
+    stickyNote.content = content;
+    stickyNote.color = color;
+    stickyNote.author = "User";  // Should get from settings
+    stickyNote.createdTime = QDateTime::currentDateTime();
+    stickyNote.modifiedTime = stickyNote.createdTime;
+    stickyNote.isVisible = true;
+    stickyNote.opacity = 1.0;
+
+    return addAnnotation(stickyNote);
+}
+
+QList<PDFAnnotation> AnnotationModel::getStickyNotesForPage(
+    int pageNumber) const {
+    QList<PDFAnnotation> result;
+    for (const PDFAnnotation& annotation : m_annotations) {
+        if (annotation.pageNumber == pageNumber &&
+            annotation.type == AnnotationType::Note) {
+            result.append(annotation);
+        }
+    }
+    return result;
+}

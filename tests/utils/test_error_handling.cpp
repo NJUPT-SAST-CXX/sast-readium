@@ -706,7 +706,7 @@ void ErrorHandlingTest::testLongErrorMessage() {
 
 void ErrorHandlingTest::testSpecialCharactersInError() {
     QString specialMessage = "Error with special chars: \n\t\r\"'<>&";
-    QString specialDetails = "Details: 日本�?中文 한국�?العربية";
+    QString specialDetails = "Details: 日本�?中文 한국�?العربية";
 
     ErrorHandling::ErrorInfo error(ErrorHandling::ErrorCategory::FileSystem,
                                    ErrorHandling::ErrorSeverity::Error,

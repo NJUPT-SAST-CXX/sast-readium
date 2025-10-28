@@ -1,6 +1,5 @@
 #pragma once
 
-#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 #include <QObject>
 #include <QString>

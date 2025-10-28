@@ -5,6 +5,19 @@ QMainWindow {
     font-family: "Segoe UI", "Noto Sans", system-ui, -apple-system, sans-serif;
 }
 
+/* Enhanced central widget with subtle depth */
+QMainWindow::separator {
+    background-color: #3c3e44;
+    width: 1px;
+    height: 1px;
+}
+
+/* Stacked widget for smooth transitions */
+QStackedWidget {
+    background-color: #1f1f22;
+    border: none;
+}
+
 /* Enhanced Menu Bar - Modern Design with Refined Visual Hierarchy - Dark Theme */
 QMenuBar {
     background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
@@ -148,10 +161,15 @@ QStatusBar {
     font-size: 10pt;
 }
 
-/* 侧边栏 */
+/* 侧边栏 - Enhanced with subtle depth and modern styling */
 QWidget#SideBar {
-    background-color: #252526;
-    border-right: 1px solid #1b1b1c;
+    background-color: #27282c;
+    border-right: 1px solid #3c3e44;
+}
+
+QWidget#RightSideBar {
+    background-color: #27282c;
+    border-left: 1px solid #3c3e44;
 }
 
 /* 缩略图样式 - Chrome暗色风格 */
@@ -223,6 +241,7 @@ QTabWidget::pane {
     border-radius: 6px;
     background-color: #2d2d30;
     top: -1px;
+    padding: 2px;
 }
 
 QTabBar::tab {
@@ -300,15 +319,7 @@ QHeaderView::section {
     border: none;
 }
 
-/* 分割线 */
-QSplitter::handle {
-    background-color: #1b1b1c;
-    width: 4px;
-}
-
-QSplitter::handle:hover {
-    background-color: #3daee9;
-}
+/* 分割线 - Styling moved to Enhanced Splitter section below */
 
 /* 停靠窗口 */
 QDockWidget {
@@ -692,7 +703,7 @@ QGraphicsView {
 
 /* WelcomeWidget 样式 */
 WelcomeWidget {
-    background-color: #2d2d30;
+    background-color: #1f1f22;
     border: none;
 }
 
@@ -982,19 +993,7 @@ QToolTip {
     opacity: 0.95;
 }
 
-/* Enhanced Splitter with Better Visual Feedback */
-QSplitter::handle {
-    background-color: #3c3c3c;
-    transition: background-color 0.2s ease-in-out;
-}
-
-QSplitter::handle:hover {
-    background-color: #60cdff;
-}
-
-QSplitter::handle:pressed {
-    background-color: #4db8e8;
-}
+/* Note: Enhanced QSplitter styling moved to dedicated section at end of file */
 
 /* Enhanced Group Box with Modern Card Design */
 QGroupBox {
@@ -1072,4 +1071,85 @@ QDockWidget::float-button:hover {
 QDockWidget::close-button:pressed,
 QDockWidget::float-button:pressed {
     background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================
+   Enhanced QSplitter - Modern Visual Feedback (Dark Theme)
+   ======================================== */
+
+/* Main splitter styling with subtle visual presence */
+QSplitter {
+    background-color: transparent;
+}
+
+/* Splitter handle - the draggable divider between panels */
+QSplitter::handle {
+    background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+                                stop: 0 transparent,
+                                stop: 0.4 #404248,
+                                stop: 0.5 #4a4c54,
+                                stop: 0.6 #404248,
+                                stop: 1 transparent);
+    border-radius: 2px;
+    margin: 2px 0px;
+}
+
+/* Horizontal splitter handle (vertical divider) */
+QSplitter::handle:horizontal {
+    width: 6px;
+    background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+                                stop: 0 transparent,
+                                stop: 0.3 #3c3e44,
+                                stop: 0.5 #484a52,
+                                stop: 0.7 #3c3e44,
+                                stop: 1 transparent);
+}
+
+/* Vertical splitter handle (horizontal divider) */
+QSplitter::handle:vertical {
+    height: 6px;
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 transparent,
+                                stop: 0.3 #3c3e44,
+                                stop: 0.5 #484a52,
+                                stop: 0.7 #3c3e44,
+                                stop: 1 transparent);
+}
+
+/* Hover state - enhanced visual feedback with accent color */
+QSplitter::handle:horizontal:hover {
+    background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+                                stop: 0 transparent,
+                                stop: 0.3 #60cdff,
+                                stop: 0.5 #4eb8e6,
+                                stop: 0.7 #60cdff,
+                                stop: 1 transparent);
+}
+
+QSplitter::handle:vertical:hover {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 transparent,
+                                stop: 0.3 #60cdff,
+                                stop: 0.5 #4eb8e6,
+                                stop: 0.7 #60cdff,
+                                stop: 1 transparent);
+}
+
+/* Pressed state - clear interaction feedback */
+QSplitter::handle:horizontal:pressed {
+    background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+                                stop: 0 transparent,
+                                stop: 0.3 #3daee9,
+                                stop: 0.5 #2b9cd0,
+                                stop: 0.7 #3daee9,
+                                stop: 1 transparent);
+}
+
+QSplitter::handle:vertical:pressed {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 transparent,
+                                stop: 0.3 #3daee9,
+                                stop: 0.5 #2b9cd0,
+                                stop: 0.7 #3daee9,
+                                stop: 1 transparent);
 }

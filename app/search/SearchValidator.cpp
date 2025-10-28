@@ -665,12 +665,14 @@ SearchValidator::ValidationResult SearchValidator::validateForSecurityThreats(
     // Check for path traversal patterns (including URL-encoded and Unicode
     // variants)
     QString lowerInput = input.toLower();
-    if (input.contains("..") || input.contains("../") ||
-        input.contains("..\\") || lowerInput.contains("%2e%2e%2f") ||
-        lowerInput.contains("%2e%2e%5c") || lowerInput.contains("..%2f") ||
-        lowerInput.contains("..%5c") ||
+    if (input.contains("../") || input.contains("..\\") ||
+        lowerInput.contains("%2e%2e%2f") || lowerInput.contains("%2e%2e%5c") ||
+        lowerInput.contains("..%2f") || lowerInput.contains("..%5c") ||
+        lowerInput.contains(".%2f..") || lowerInput.contains(".%5c..") ||
+        lowerInput.contains("%2e%2e\\") || lowerInput.contains("%2e%2e/") ||
         lowerInput.contains("%252e%252e%252f") ||
         lowerInput.contains("%252e%252e%252") ||
+        lowerInput.contains("..%252f") || lowerInput.contains("..%255c") ||
         input.contains(R"(\u002e\u002e\u002f)") ||
         input.contains(R"(\u002E\u002E\u002F)") ||
         input.contains(R"(\u002e\u002e\u005c)") ||
@@ -819,6 +821,43 @@ SearchValidator::Implementation::validateRegexPattern(
     }
 
     try {
+        auto flag = [&](const QString& message) {
+            result.addError(SecurityViolation, message);
+        };
+
+        // Check for Unicode categories with wildcards BEFORE validity check
+        // because \p{.*} is invalid syntax but we want to flag it as security
+        // issue
+        static const QRegularExpression unicodeWildcardPreCheck(
+            R"(\\[pP]\{[^}]*[\.\*\+\?][^}]*\})");
+        if (unicodeWildcardPreCheck.match(pattern).hasMatch()) {
+            flag(
+                "Regular expression uses Unicode categories with wildcards and "
+                "quantifiers");
+        }
+
+        // Check for lookaround with quantifiers BEFORE validity check
+        // because some patterns like (?<!.*) are invalid but we want to flag
+        // them
+        static const QRegularExpression lookaroundQuantPreCheck(
+            R"(\(\?(?:[=!]|<[=!])[^)]*\)[*+?{])");
+        if (lookaroundQuantPreCheck.match(pattern).hasMatch()) {
+            flag(
+                "Regular expression applies quantifiers directly to lookaround "
+                "assertions");
+        }
+
+        // Check for dangerous backreferences BEFORE validity check
+        // Patterns like \1** are invalid but we want to flag them as security
+        // issues
+        static const QRegularExpression backrefDangerPreCheck(
+            R"(\\[0-9]+[*+]{2,})");
+        if (backrefDangerPreCheck.match(pattern).hasMatch()) {
+            flag(
+                "Regular expression applies multiple quantifiers to "
+                "backreferences");
+        }
+
         QRegularExpression regex(pattern);
         if (!regex.isValid()) {
             result.addError(InvalidFormat,
@@ -826,10 +865,6 @@ SearchValidator::Implementation::validateRegexPattern(
                                 .arg(regex.errorString()));
             return result;
         }
-
-        auto flag = [&](const QString& message) {
-            result.addError(SecurityViolation, message);
-        };
 
         // Check for repeated greedy quantifiers like (.*){2,} or (.+){2,}
         static const QRegularExpression repeatedGreedy(
@@ -856,15 +891,6 @@ SearchValidator::Implementation::validateRegexPattern(
             flag(
                 "Regular expression contains multiple greedy groups with "
                 "quantifiers");
-        }
-
-        // Check for lookaround with quantifiers
-        static const QRegularExpression lookaroundQuant(
-            R"(\(\?[=!<][^)]*\)[*+?{])");
-        if (lookaroundQuant.match(pattern).hasMatch()) {
-            flag(
-                "Regular expression applies quantifiers directly to lookaround "
-                "assertions");
         }
 
         // Check for broad Unicode categories with heavy quantifiers

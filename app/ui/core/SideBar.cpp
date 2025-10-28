@@ -18,6 +18,7 @@
 #include "../../logging/LoggingMacros.h"
 #include "../../model/ThumbnailModel.h"
 #include "../thumbnail/ThumbnailListView.h"
+#include "../widgets/BookmarkWidget.h"
 
 // Define static constants
 const int SideBar::minimumWidth;
@@ -31,6 +32,7 @@ SideBar::SideBar(QWidget* parent)
       settings(nullptr),
       outlineWidget(nullptr),
       thumbnailView(nullptr),
+      bookmarkWidget(nullptr),
       isCurrentlyVisible(true),
       preferredWidth(defaultWidth),
       lastWidth(defaultWidth) {
@@ -62,6 +64,9 @@ SideBar::~SideBar() {
 }
 
 void SideBar::initWindow() {
+    // Set object name for QSS styling
+    setObjectName("SideBar");
+
     setMinimumWidth(minimumWidth);
     setMaximumWidth(maximumWidth);
     resize(preferredWidth, height());
@@ -117,8 +122,18 @@ QWidget* SideBar::createThumbnailsTab() {
 QWidget* SideBar::createBookmarksTab() {
     QWidget* bookmarksTab = new QWidget();
     QVBoxLayout* bookmarkLayout = new QVBoxLayout(bookmarksTab);
+    bookmarkLayout->setContentsMargins(0, 0, 0, 0);
+    bookmarkLayout->setSpacing(0);
 
-    // Create PDF outline widget
+    // Create bookmark widget
+    bookmarkWidget = new BookmarkWidget(bookmarksTab);
+    bookmarkLayout->addWidget(bookmarkWidget);
+
+    // Connect bookmark navigation signal
+    connect(bookmarkWidget, &BookmarkWidget::navigateToBookmark, this,
+            &SideBar::bookmarkNavigationRequested);
+
+    // Create PDF outline widget (for table of contents)
     outlineWidget = new PDFOutlineWidget();
     bookmarkLayout->addWidget(outlineWidget);
 
@@ -252,6 +267,11 @@ void SideBar::setDocument(std::shared_ptr<Poppler::Document> document) {
     if (thumbnailModel) {
         thumbnailModel->setDocument(document);
     }
+
+    // Update bookmark widget with current document path
+    // Note: This would need to be enhanced to pass the actual document path
+    // For now, we'll need the caller to also call setCurrentDocument on the
+    // bookmark widget
 }
 
 void SideBar::setThumbnailSize(const QSize& size) {
@@ -270,5 +290,34 @@ void SideBar::setThumbnailSize(const QSize& size) {
 void SideBar::refreshThumbnails() {
     if (thumbnailModel) {
         thumbnailModel->refreshAllThumbnails();
+    }
+}
+
+bool SideBar::addBookmark(const QString& documentPath, int pageNumber,
+                          const QString& title) {
+    if (bookmarkWidget) {
+        return bookmarkWidget->addBookmark(documentPath, pageNumber, title);
+    }
+    return false;
+}
+
+bool SideBar::removeBookmark(const QString& bookmarkId) {
+    if (bookmarkWidget) {
+        return bookmarkWidget->removeBookmark(bookmarkId);
+    }
+    return false;
+}
+
+bool SideBar::hasBookmarkForPage(const QString& documentPath,
+                                 int pageNumber) const {
+    if (bookmarkWidget) {
+        return bookmarkWidget->hasBookmarkForPage(documentPath, pageNumber);
+    }
+    return false;
+}
+
+void SideBar::setCurrentDocumentPath(const QString& documentPath) {
+    if (bookmarkWidget) {
+        bookmarkWidget->setCurrentDocument(documentPath);
     }
 }

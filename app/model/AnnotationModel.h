@@ -142,6 +142,23 @@ public:
     QList<PDFAnnotation> getAnnotationsByAuthor(const QString& author) const;
     QList<PDFAnnotation> getRecentAnnotations(int count = 10) const;
 
+    // Editing operations
+    bool editAnnotationContent(const QString& annotationId,
+                               const QString& newContent);
+    bool moveAnnotation(const QString& annotationId,
+                        const QPointF& newPosition);
+    bool resizeAnnotation(const QString& annotationId,
+                          const QRectF& newBoundary);
+    bool changeAnnotationColor(const QString& annotationId,
+                               const QColor& newColor);
+    bool changeAnnotationOpacity(const QString& annotationId, qreal opacity);
+
+    // Sticky notes
+    bool addStickyNote(int pageNumber, const QPointF& position,
+                       const QString& content,
+                       const QColor& color = Qt::yellow);
+    QList<PDFAnnotation> getStickyNotesForPage(int pageNumber) const;
+
     // Statistics
     int getTotalAnnotationCount() const { return m_annotations.size(); }
     QMap<AnnotationType, int> getAnnotationCountByType() const;

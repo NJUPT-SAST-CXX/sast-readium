@@ -1,5 +1,6 @@
 #include "SearchEngine.h"
 #include <poppler-qt6.h>
+#include <QCoreApplication>
 #include <QDebug>
 #include <QElapsedTimer>
 #include <memory>
@@ -539,7 +540,23 @@ SearchEngine::SearchEngine(QObject* parent)
     d->memoryOptimizer->registerTextExtractor(d->textExtractor.get());
 }
 
-SearchEngine::~SearchEngine() = default;
+SearchEngine::~SearchEngine() {
+    // During static destruction, QCoreApplication might already be destroyed
+    // In that case, we can't safely access the CacheManager singleton
+    if (QCoreApplication::instance() == nullptr) {
+        return;
+    }
+
+    // Unregister from memory optimizer to prevent dangling pointers
+    d->memoryOptimizer->unregisterSearchEngine(this);
+    d->memoryOptimizer->unregisterTextExtractor(d->textExtractor.get());
+
+    // Unregister caches from the unified cache manager to prevent dangling
+    // pointers
+    CacheManager& cacheManager = CacheManager::instance();
+    cacheManager.unregisterCache(CacheManager::SEARCH_RESULT_CACHE);
+    cacheManager.unregisterCache(CacheManager::PAGE_TEXT_CACHE);
+}
 
 void SearchEngine::setDocument(Poppler::Document* document) {
     if (d->document != document) {

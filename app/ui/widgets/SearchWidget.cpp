@@ -3,7 +3,9 @@
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QDebug>
+#include <QDir>
 #include <QEvent>
 #include <QGroupBox>
 #include <QKeySequence>
@@ -13,11 +15,14 @@
 #include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QSettings>
 #include <QShortcut>
 #include <QSpinBox>
+#include <QStandardPaths>
 #include <QStyle>
+#include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
-#include "ToastNotification.h"
+#include "../core/UIErrorHandler.h"
 
 SearchWidget::SearchWidget(QWidget* parent)
     : QWidget(parent),
@@ -63,6 +68,12 @@ SearchWidget::SearchWidget(QWidget* parent)
       m_findNextShortcut(nullptr),
       m_findPreviousShortcut(nullptr),
       m_escapeShortcut(nullptr) {
+    // Initialize context menu manager
+    contextMenuManager = new ContextMenuManager(this);
+
+    // Initialize logging
+    LOG_INFO("Initializing SearchWidget");
+
     setupUI();
     setupConnections();
     setupShortcuts();
@@ -73,6 +84,24 @@ SearchWidget::SearchWidget(QWidget* parent)
 
     setSearchInProgress(false);
     showSearchOptions(false);
+
+    // Load persistent search history
+    loadSearchHistoryFromSettings();
+
+    LOG_DEBUG("SearchWidget initialization complete");
+}
+
+SearchWidget::~SearchWidget() {
+    // Cancel any ongoing search
+    cancelCurrentSearch();
+
+    // Save settings before destruction
+    try {
+        saveSearchHistoryToSettings();
+        LOG_DEBUG("SearchWidget destroyed and settings saved");
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to save settings during destruction: {}", e.what());
+    }
 }
 
 void SearchWidget::setupUI() {
@@ -323,15 +352,38 @@ void SearchWidget::setupShortcuts() {
 }
 
 void SearchWidget::setDocument(Poppler::Document* document) {
+    // Cancel any ongoing search before changing document
+    cancelCurrentSearch();
+
     m_document = document;
 
     // Update page range controls based on document
-    if (document) {
+    if (document != nullptr) {
         int pageCount = document->numPages();
+        LOG_INFO("Document loaded with {} pages", pageCount);
+
         m_startPageSpin->setMaximum(pageCount);
         m_endPageSpin->setMaximum(pageCount);
         m_startPageSpin->setValue(1);
         m_endPageSpin->setValue(pageCount);
+
+        // Enable search functionality
+        m_searchInput->setEnabled(true);
+        m_searchButton->setEnabled(true);
+
+        // Optimize search performance based on document size
+        optimizeSearchPerformance();
+
+        m_statusLabel->setText(tr("Ready to search %1 pages").arg(pageCount));
+
+    } else {
+        LOG_INFO("Document cleared");
+
+        // Disable search functionality when no document
+        m_searchInput->setEnabled(false);
+        m_searchButton->setEnabled(false);
+
+        m_statusLabel->setText(tr("No document loaded"));
     }
 
     clearSearch();
@@ -375,77 +427,196 @@ SearchResult SearchWidget::getCurrentResult() const {
 
 void SearchWidget::performSearch() {
     QString query = m_searchInput->text().trimmed();
-    if (query.isEmpty() || !m_document) {
+
+    // Validate input
+    if (!validateSearchInput(query)) {
+        if (query.isEmpty()) {
+            showSearchError(tr("Please enter a search term"));
+        } else if (query.length() > 1000) {
+            showSearchError(
+                tr("Search term is too long (maximum 1000 characters)"));
+        } else if (m_regexCheck->isChecked()) {
+            QRegularExpression regex(query);
+            if (!regex.isValid()) {
+                showSearchError(tr("Invalid regular expression: %1")
+                                    .arg(regex.errorString()));
+            }
+        } else if (m_pageRangeCheck->isChecked() &&
+                   m_startPageSpin->value() > m_endPageSpin->value()) {
+            showSearchError(
+                tr("Invalid page range: start page must be less than or equal "
+                   "to end page"));
+        }
         return;
     }
 
+    if (m_document == nullptr) {
+        showSearchError(tr("No document loaded"));
+        return;
+    }
+
+    LOG_INFO("Starting search for query: '{}'", query.toStdString());
+
+    // Cancel any existing search
+    cancelCurrentSearch();
+
     SearchOptions options = getSearchOptions();
+
+    // Optimize performance based on document size
+    optimizeSearchPerformance();
 
     // Update search history
     updateSearchHistory();
 
-    // Choose appropriate search method based on options
-    if (options.fuzzySearch) {
-        m_searchModel->startFuzzySearch(m_document, query, options);
-    } else if (options.startPage >= 0 && options.endPage >= 0) {
-        m_searchModel->startPageRangeSearch(
-            m_document, query, options.startPage, options.endPage, options);
-    } else {
-        m_searchModel->startSearch(m_document, query, options);
-    }
+    // Save current settings
+    saveSearchHistoryToSettings();
 
-    emit searchRequested(query, options);
+    // Choose appropriate search method based on options
+    try {
+        if (options.fuzzySearch) {
+            LOG_DEBUG("Starting fuzzy search with threshold: {}",
+                      options.fuzzyThreshold);
+            m_searchModel->startFuzzySearch(m_document, query, options);
+        } else if (options.startPage >= 0 && options.endPage >= 0) {
+            LOG_DEBUG("Starting page range search: pages {}-{}",
+                      options.startPage + 1, options.endPage + 1);
+            m_searchModel->startPageRangeSearch(
+                m_document, query, options.startPage, options.endPage, options);
+        } else {
+            LOG_DEBUG("Starting standard search");
+            m_searchModel->startSearch(m_document, query, options);
+        }
+
+        emit searchRequested(query, options);
+
+    } catch (const std::exception& e) {
+        LOG_ERROR("Search failed with exception: {}", e.what());
+        showSearchError(tr("Search failed: %1").arg(e.what()));
+    }
 }
 
 void SearchWidget::performRealTimeSearch() {
     QString query = m_searchInput->text().trimmed();
-    if (query.isEmpty() || !m_document) {
+
+    // Validate input for real-time search
+    if (!validateSearchInput(query)) {
+        if (!query.isEmpty()) {
+            LOG_DEBUG("Real-time search skipped due to invalid input");
+        }
         return;
     }
 
+    if (m_document == nullptr) {
+        LOG_DEBUG("Real-time search skipped - no document loaded");
+        return;
+    }
+
+    LOG_DEBUG("Starting real-time search for query: '{}'", query.toStdString());
+
+    // Cancel any existing search
+    if (m_searchModel->isSearching()) {
+        m_searchModel->cancelSearch();
+    }
+
     SearchOptions options = getSearchOptions();
-    m_searchModel->startRealTimeSearch(m_document, query, options);
-    emit searchRequested(query, options);
+
+    // Limit results for real-time search performance
+    options.maxResults = qMin(options.maxResults, 100);
+
+    try {
+        m_searchModel->startRealTimeSearch(m_document, query, options);
+        emit searchRequested(query, options);
+
+    } catch (const std::exception& e) {
+        LOG_ERROR("Real-time search failed: {}", e.what());
+        // Don't show error for real-time search to avoid UI spam
+    }
 }
 
 void SearchWidget::nextResult() {
-    if (m_searchModel->hasNext()) {
-        SearchResult result = m_searchModel->nextResult();
-
-        // Update UI with current result info
-        updateResultsInfo();
-        updateNavigationButtons();
-
-        // Navigate to result with highlighting
-        emit navigateToResult(result.pageNumber, result.boundingRect);
-        emit resultSelected(result);
-
-        // Update status with current position
-        int currentIndex = m_searchModel->getCurrentResultIndex();
-        int totalResults = static_cast<int>(m_searchModel->getResults().size());
-        m_statusLabel->setText(
-            tr("Result %1 / %2").arg(currentIndex + 1).arg(totalResults));
+    if (!m_searchModel->hasNext()) {
+        LOG_DEBUG("No next result available");
+        m_statusLabel->setText(tr("No more results"));
+        return;
     }
+
+    SearchResult result = m_searchModel->nextResult();
+
+    if (!result.isValid()) {
+        LOG_WARNING("Invalid search result returned");
+        showSearchError(tr("Invalid search result"));
+        return;
+    }
+
+    LOG_DEBUG("Navigating to next result: page {}, position {}",
+              result.pageNumber + 1, result.textPosition);
+
+    // Update UI with current result info
+    updateResultsInfo();
+    updateNavigationButtons();
+
+    // Update results view selection
+    int currentIndex = m_searchModel->getCurrentResultIndex();
+    if (currentIndex >= 0 && currentIndex < m_searchModel->rowCount()) {
+        QModelIndex modelIndex = m_searchModel->index(currentIndex);
+        m_resultsView->setCurrentIndex(modelIndex);
+        m_resultsView->scrollTo(modelIndex, QAbstractItemView::EnsureVisible);
+    }
+
+    // Navigate to result with enhanced highlighting
+    emit navigateToResult(result.pageNumber, result.boundingRect);
+    emit resultSelected(result);
+
+    // Update status with current position and context
+    int totalResults = static_cast<int>(m_searchModel->getResults().size());
+    m_statusLabel->setText(tr("Result %1 / %2: %3")
+                               .arg(currentIndex + 1)
+                               .arg(totalResults)
+                               .arg(result.contextText.left(50)));
+    m_statusLabel->setStyleSheet("");  // Clear any error styling
 }
 
 void SearchWidget::previousResult() {
-    if (m_searchModel->hasPrevious()) {
-        SearchResult result = m_searchModel->previousResult();
-
-        // Update UI with current result info
-        updateResultsInfo();
-        updateNavigationButtons();
-
-        // Navigate to result with highlighting
-        emit navigateToResult(result.pageNumber, result.boundingRect);
-        emit resultSelected(result);
-
-        // Update status with current position
-        int currentIndex = m_searchModel->getCurrentResultIndex();
-        int totalResults = static_cast<int>(m_searchModel->getResults().size());
-        m_statusLabel->setText(
-            tr("Result %1 / %2").arg(currentIndex + 1).arg(totalResults));
+    if (!m_searchModel->hasPrevious()) {
+        LOG_DEBUG("No previous result available");
+        m_statusLabel->setText(tr("No previous results"));
+        return;
     }
+
+    SearchResult result = m_searchModel->previousResult();
+
+    if (!result.isValid()) {
+        LOG_WARNING("Invalid search result returned");
+        showSearchError(tr("Invalid search result"));
+        return;
+    }
+
+    LOG_DEBUG("Navigating to previous result: page {}, position {}",
+              result.pageNumber + 1, result.textPosition);
+
+    // Update UI with current result info
+    updateResultsInfo();
+    updateNavigationButtons();
+
+    // Update results view selection
+    int currentIndex = m_searchModel->getCurrentResultIndex();
+    if (currentIndex >= 0 && currentIndex < m_searchModel->rowCount()) {
+        QModelIndex modelIndex = m_searchModel->index(currentIndex);
+        m_resultsView->setCurrentIndex(modelIndex);
+        m_resultsView->scrollTo(modelIndex, QAbstractItemView::EnsureVisible);
+    }
+
+    // Navigate to result with enhanced highlighting
+    emit navigateToResult(result.pageNumber, result.boundingRect);
+    emit resultSelected(result);
+
+    // Update status with current position and context
+    int totalResults = static_cast<int>(m_searchModel->getResults().size());
+    m_statusLabel->setText(tr("Result %1 / %2: %3")
+                               .arg(currentIndex + 1)
+                               .arg(totalResults)
+                               .arg(result.contextText.left(50)));
+    m_statusLabel->setStyleSheet("");  // Clear any error styling
 }
 
 void SearchWidget::onResultClicked(const QModelIndex& index) {
@@ -462,7 +633,7 @@ void SearchWidget::onSearchTextChanged() {
     m_searchTimer->stop();
 
     QString query = m_searchInput->text().trimmed();
-    if (!query.isEmpty() && m_document) {
+    if (!query.isEmpty() && m_document != nullptr) {
         m_searchTimer->start();
     } else {
         // Clear search results when input is empty
@@ -483,16 +654,59 @@ void SearchWidget::onSearchFinished(int resultCount) {
     updateNavigationButtons();
     updateResultsInfo();
 
+    LOG_INFO("Search completed with {} results", resultCount);
+
     if (resultCount > 0) {
         m_statusLabel->setText(tr("Found %1 results").arg(resultCount));
-        // Auto-navigate to first result
+        m_statusLabel->setStyleSheet("");  // Clear any error styling
+
+        // Auto-navigate to first result with enhanced feedback
         if (m_searchModel->getCurrentResultIndex() >= 0) {
             SearchResult result = m_searchModel->getResult(0);
-            emit navigateToResult(result.pageNumber, result.boundingRect);
-            emit resultSelected(result);
+            if (result.isValid()) {
+                LOG_DEBUG("Auto-navigating to first result on page {}",
+                          result.pageNumber + 1);
+
+                // Update results view selection
+                QModelIndex firstIndex = m_searchModel->index(0);
+                m_resultsView->setCurrentIndex(firstIndex);
+                m_resultsView->scrollTo(firstIndex,
+                                        QAbstractItemView::EnsureVisible);
+
+                emit navigateToResult(result.pageNumber, result.boundingRect);
+                emit resultSelected(result);
+
+                // Show context in status
+                m_statusLabel->setText(tr("Found %1 results - showing: %2")
+                                           .arg(resultCount)
+                                           .arg(result.contextText.left(50)));
+            }
         }
+
+        // Expand results view if it was collapsed
+        if (!m_resultsView->isVisible()) {
+            m_resultsView->setVisible(true);
+        }
+
     } else {
         m_statusLabel->setText(tr("No matching results found"));
+        m_statusLabel->setStyleSheet(
+            "color: #888888;");  // Gray text for no results
+
+        // Collapse results view when no results
+        m_resultsView->setVisible(false);
+
+        LOG_DEBUG("No search results found");
+    }
+
+    // Save successful search to history
+    if (resultCount > 0) {
+        QString query = m_searchInput->text().trimmed();
+        if (!query.isEmpty()) {
+            m_searchModel->addToSearchHistory(query);
+            updateSearchHistory();
+            saveSearchHistoryToSettings();
+        }
     }
 }
 
@@ -630,7 +844,7 @@ void SearchWidget::retranslateUi() {
     m_pageRangeLabel->setText(tr("From Page:"));
     // Find "To Page:" label and update it
     auto* toLabel = m_pageRangeGroup->findChild<QLabel*>("toPageLabel");
-    if (toLabel) {
+    if (toLabel != nullptr) {
         toLabel->setText(tr("To Page:"));
     }
 
@@ -642,7 +856,7 @@ void SearchWidget::retranslateUi() {
 
     // Update highlight color label if it exists
     auto* colorLabel = findChild<QLabel*>("highlightColorsLabel");
-    if (colorLabel) {
+    if (colorLabel != nullptr) {
         colorLabel->setText(tr("Highlight Colors:"));
     }
 
@@ -656,6 +870,32 @@ void SearchWidget::changeEvent(QEvent* event) {
     QWidget::changeEvent(event);
 }
 
+void SearchWidget::contextMenuEvent(QContextMenuEvent* event) {
+    if (!contextMenuManager) {
+        QWidget::contextMenuEvent(event);
+        return;
+    }
+
+    // Create UI element context
+    ContextMenuManager::UIElementContext context;
+    context.targetWidget = this;
+    context.elementIndex = -1;
+    context.isEnabled = isEnabled();
+    context.isVisible = isVisible();
+    context.elementId = "searchWidget";
+
+    // Add search-specific properties
+    context.properties["hasResults"] = hasResults();
+    context.properties["resultCount"] = getResultCount();
+    context.properties["searchText"] =
+        m_searchInput ? m_searchInput->text() : QString();
+
+    // Show search widget context menu
+    contextMenuManager->showSearchMenu(event->globalPos(), context, this);
+
+    event->accept();
+}
+
 // Advanced search feature implementations
 void SearchWidget::onFuzzySearchToggled(bool enabled) {
     m_fuzzyThresholdSpin->setEnabled(enabled);
@@ -667,7 +907,7 @@ void SearchWidget::onPageRangeToggled(bool enabled) {
     m_endPageSpin->setEnabled(enabled);
     m_pageRangeLabel->setEnabled(enabled);
 
-    if (enabled && m_document) {
+    if (enabled && m_document != nullptr) {
         int pageCount = m_document->numPages();
         m_startPageSpin->setMaximum(pageCount);
         m_endPageSpin->setMaximum(pageCount);
@@ -762,50 +1002,62 @@ void SearchWidget::setSearchResultInfo(int currentResult, int totalResults) {
 }
 
 void SearchWidget::onHighlightColorClicked() {
-    auto currentColor = QColor("#FFFF00");  // Default yellow
+    QColor currentColor = getNormalHighlightColor();
 
-    // Parse current color from button style
-    QString style = m_highlightColorButton->styleSheet();
-    QRegularExpression colorRegex("background-color:\\s*([^;]+);");
-    QRegularExpressionMatch match = colorRegex.match(style);
-    if (match.hasMatch()) {
-        currentColor = QColor(match.captured(1));
-    }
-
-    QColor newColor =
-        QColorDialog::getColor(currentColor, this, "选择普通高亮颜色");
+    QColor newColor = QColorDialog::getColor(
+        currentColor, this, tr("Select Normal Highlight Color"));
     if (newColor.isValid()) {
+        LOG_DEBUG("Normal highlight color changed to: {}",
+                  newColor.name().toStdString());
+
         m_highlightColorButton->setStyleSheet(
             QString("background-color: %1; color: %2;")
                 .arg(newColor.name())
                 .arg(newColor.lightness() > 128 ? "black" : "white"));
 
         // Emit signal to update highlighting
-        emit highlightColorsChanged(newColor, this->getCurrentHighlightColor());
+        emit highlightColorsChanged(newColor, getCurrentHighlightColor());
+
+        // Save the new color setting
+        saveSearchHistoryToSettings();
+
+        // If there are current search results, refresh highlighting
+        if (m_searchModel->rowCount() > 0) {
+            SearchResult currentResult = getCurrentResult();
+            if (currentResult.isValid()) {
+                emit resultSelected(currentResult);
+            }
+        }
     }
 }
 
 void SearchWidget::onCurrentHighlightColorClicked() {
-    auto currentColor = QColor("#FF6600");  // Default orange
+    QColor currentColor = getCurrentHighlightColor();
 
-    // Parse current color from button style
-    QString style = m_currentHighlightColorButton->styleSheet();
-    QRegularExpression colorRegex("background-color:\\s*([^;]+);");
-    QRegularExpressionMatch match = colorRegex.match(style);
-    if (match.hasMatch()) {
-        currentColor = QColor(match.captured(1));
-    }
-
-    QColor newColor =
-        QColorDialog::getColor(currentColor, this, "选择当前结果高亮颜色");
+    QColor newColor = QColorDialog::getColor(
+        currentColor, this, tr("Select Current Result Highlight Color"));
     if (newColor.isValid()) {
+        LOG_DEBUG("Current highlight color changed to: {}",
+                  newColor.name().toStdString());
+
         m_currentHighlightColorButton->setStyleSheet(
             QString("background-color: %1; color: %2;")
                 .arg(newColor.name())
                 .arg(newColor.lightness() > 128 ? "black" : "white"));
 
         // Emit signal to update highlighting
-        emit highlightColorsChanged(this->getNormalHighlightColor(), newColor);
+        emit highlightColorsChanged(getNormalHighlightColor(), newColor);
+
+        // Save the new color setting
+        saveSearchHistoryToSettings();
+
+        // If there are current search results, refresh highlighting
+        if (m_searchModel->rowCount() > 0) {
+            SearchResult currentResult = getCurrentResult();
+            if (currentResult.isValid()) {
+                emit resultSelected(currentResult);
+            }
+        }
     }
 }
 
@@ -827,4 +1079,173 @@ QColor SearchWidget::getCurrentHighlightColor() const {
         return QColor(match.captured(1));
     }
     return QColor("#FF6600");  // Default orange
+}
+
+// Search history persistence implementation
+void SearchWidget::saveSearchHistoryToSettings() {
+    try {
+        QSettings settings;
+        settings.beginGroup("SearchWidget");
+
+        QStringList history = m_searchModel->getSearchHistory();
+        settings.setValue("searchHistory", history);
+
+        // Save highlight colors
+        settings.setValue("normalHighlightColor",
+                          getNormalHighlightColor().name());
+        settings.setValue("currentHighlightColor",
+                          getCurrentHighlightColor().name());
+
+        // Save search options
+        settings.setValue("caseSensitive", m_caseSensitiveCheck->isChecked());
+        settings.setValue("wholeWords", m_wholeWordsCheck->isChecked());
+        settings.setValue("useRegex", m_regexCheck->isChecked());
+        settings.setValue("searchBackward", m_searchBackwardCheck->isChecked());
+        settings.setValue("fuzzySearch", m_fuzzySearchCheck->isChecked());
+        settings.setValue("fuzzyThreshold", m_fuzzyThresholdSpin->value());
+
+        settings.endGroup();
+        settings.sync();
+
+        LOG_DEBUG("Search history and settings saved successfully");
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to save search history: {}", e.what());
+        showSearchError(tr("Failed to save search history: %1").arg(e.what()));
+    }
+}
+
+void SearchWidget::loadSearchHistoryFromSettings() {
+    try {
+        QSettings settings;
+        settings.beginGroup("SearchWidget");
+
+        // Load search history
+        QStringList history =
+            settings.value("searchHistory", QStringList()).toStringList();
+        if (!history.isEmpty()) {
+            m_searchHistoryCombo->clear();
+            m_searchHistoryCombo->addItems(history);
+
+            // Update the search model's history
+            for (const QString& query : history) {
+                m_searchModel->addToSearchHistory(query);
+            }
+        }
+
+        // Load highlight colors
+        QString normalColorName =
+            settings.value("normalHighlightColor", "#FFFF00").toString();
+        QString currentColorName =
+            settings.value("currentHighlightColor", "#FF6600").toString();
+        setHighlightColors(QColor(normalColorName), QColor(currentColorName));
+
+        // Load search options
+        m_caseSensitiveCheck->setChecked(
+            settings.value("caseSensitive", false).toBool());
+        m_wholeWordsCheck->setChecked(
+            settings.value("wholeWords", false).toBool());
+        m_regexCheck->setChecked(settings.value("useRegex", false).toBool());
+        m_searchBackwardCheck->setChecked(
+            settings.value("searchBackward", false).toBool());
+        m_fuzzySearchCheck->setChecked(
+            settings.value("fuzzySearch", false).toBool());
+        m_fuzzyThresholdSpin->setValue(
+            settings.value("fuzzyThreshold", 2).toInt());
+
+        settings.endGroup();
+
+        LOG_DEBUG("Search history and settings loaded successfully");
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to load search history: {}", e.what());
+        showSearchError(tr("Failed to load search history: %1").arg(e.what()));
+    }
+}
+
+// Search validation and error handling
+bool SearchWidget::validateSearchInput(const QString& query) const {
+    // Use UIErrorHandler for comprehensive validation
+    auto validation = InputValidator::validateSearchQuery(
+        query, false, m_regexCheck->isChecked());
+
+    if (validation.result != UIErrorHandler::ValidationResult::Valid) {
+        // Don't show feedback here as this is called during typing
+        LOG_DEBUG("Search validation failed: {}",
+                  validation.message.toStdString());
+        return false;
+    }
+
+    // Validate page range if enabled
+    if (m_pageRangeCheck->isChecked()) {
+        int startPage = m_startPageSpin->value();
+        int endPage = m_endPageSpin->value();
+        int totalPages = m_document ? m_document->numPages() : 0;
+
+        auto pageValidation =
+            InputValidator::validatePageRange(startPage, endPage, totalPages);
+        if (pageValidation.result != UIErrorHandler::ValidationResult::Valid) {
+            LOG_DEBUG("Page range validation failed: {}",
+                      pageValidation.message.toStdString());
+            return false;
+        }
+    }
+
+    LOG_DEBUG("Search input validation passed for query: {}",
+              query.toStdString());
+    return true;
+}
+
+void SearchWidget::showSearchError(const QString& error) {
+    LOG_ERROR("Search error: {}", error.toStdString());
+
+    // Use UIErrorHandler for consistent error display
+    ErrorHandling::ErrorInfo errorInfo =
+        ErrorHandling::createSearchError("Search", error);
+    UIErrorHandler::instance().handleSystemError(this, errorInfo);
+
+    // Also update status label for immediate feedback
+    m_statusLabel->setText(tr("Error: %1").arg(error));
+    m_statusLabel->setStyleSheet("color: " + STYLE.errorColor().name() + ";");
+
+    // Reset style after 5 seconds
+    QTimer::singleShot(5000, this,
+                       [this]() { m_statusLabel->setStyleSheet(""); });
+}
+
+// Performance optimization
+void SearchWidget::cancelCurrentSearch() {
+    if (m_searchModel->isSearching()) {
+        LOG_INFO("Cancelling current search operation");
+        m_searchModel->cancelSearch();
+        setSearchInProgress(false);
+        m_statusLabel->setText(tr("Search cancelled"));
+    }
+
+    // Stop any pending real-time search
+    if (m_searchTimer->isActive()) {
+        m_searchTimer->stop();
+        LOG_DEBUG("Stopped pending real-time search");
+    }
+}
+
+void SearchWidget::optimizeSearchPerformance() {
+    // Adjust search parameters based on document size and system performance
+    if (m_document != nullptr) {
+        int pageCount = m_document->numPages();
+
+        // For large documents, increase debounce delay and limit results
+        if (pageCount > 1000) {
+            m_searchTimer->setInterval(500);  // Longer delay for large docs
+            LOG_DEBUG("Optimized search for large document: {} pages",
+                      pageCount);
+        } else if (pageCount > 100) {
+            m_searchTimer->setInterval(400);  // Medium delay
+            LOG_DEBUG("Optimized search for medium document: {} pages",
+                      pageCount);
+        } else {
+            m_searchTimer->setInterval(300);  // Default delay
+            LOG_DEBUG(
+                "Using default search timing for small document: {} pages",
+                pageCount);
+        }
+    }
 }

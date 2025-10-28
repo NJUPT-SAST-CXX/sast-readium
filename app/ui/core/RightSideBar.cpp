@@ -4,6 +4,7 @@
 #include <QEasingCurve>
 #include <QLabel>
 #include <QPropertyAnimation>
+#include <QScrollArea>
 #include <QSettings>
 #include <QSize>
 #include <QTabWidget>
@@ -14,7 +15,11 @@
 #include <QtWidgets>
 #include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
+#include "../dialogs/DocumentMetadataDialog.h"
+#include "../widgets/AnnotationToolbar.h"
 #include "../widgets/DebugLogPanel.h"
+#include "../widgets/DocumentPropertiesPanel.h"
+#include "../widgets/SearchWidget.h"
 
 // 定义静态常量
 const int RightSideBar::minimumWidth;
@@ -27,6 +32,9 @@ RightSideBar::RightSideBar(QWidget* parent)
       animation(nullptr),
       settings(nullptr),
       debugLogPanel(nullptr),
+      m_propertiesPanel(nullptr),
+      m_annotationToolbar(nullptr),
+      m_searchWidget(nullptr),
       isCurrentlyVisible(true),
       preferredWidth(defaultWidth),
       lastWidth(defaultWidth) {
@@ -63,6 +71,9 @@ RightSideBar::~RightSideBar() {
 }
 
 void RightSideBar::initWindow() {
+    // Set object name for QSS styling
+    setObjectName("RightSideBar");
+
     setMinimumWidth(minimumWidth);
     setMaximumWidth(maximumWidth);
     resize(preferredWidth, height());
@@ -77,10 +88,12 @@ void RightSideBar::initContent() {
 
     QWidget* propertiesTab = createPropertiesTab();
     QWidget* toolsTab = createToolsTab();
+    QWidget* searchTab = createSearchTab();
     QWidget* debugTab = createDebugTab();
 
     tabWidget->addTab(propertiesTab, tr("Properties"));
     tabWidget->addTab(toolsTab, tr("Tools"));
+    tabWidget->addTab(searchTab, tr("Search"));
     tabWidget->addTab(debugTab, tr("Debug"));
 
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
@@ -92,45 +105,53 @@ void RightSideBar::initContent() {
 QWidget* RightSideBar::createPropertiesTab() {
     QWidget* propertiesTab = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(propertiesTab);
-    layout->setContentsMargins(8, 8, 8, 8);
-    layout->setSpacing(8);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
 
-    // Document properties title
-    QLabel* titleLabel = new QLabel(tr("Document Properties"), propertiesTab);
-    titleLabel->setStyleSheet("font-weight: bold; font-size: 12px;");
-    layout->addWidget(titleLabel);
+    // Create document properties panel
+    m_propertiesPanel = new DocumentPropertiesPanel(propertiesTab);
+    layout->addWidget(m_propertiesPanel);
 
-    // Placeholder content
-    QLabel* placeholderLabel = new QLabel(
-        tr("Document properties will be displayed here"), propertiesTab);
-    placeholderLabel->setStyleSheet("color: gray; font-size: 10px;");
-    placeholderLabel->setAlignment(Qt::AlignCenter);
-    layout->addWidget(placeholderLabel);
+    // Connect signal to forward to parent
+    connect(m_propertiesPanel,
+            &DocumentPropertiesPanel::viewFullDetailsRequested, this,
+            &RightSideBar::onViewFullDetailsRequested);
 
-    layout->addStretch();
     return propertiesTab;
 }
 
 QWidget* RightSideBar::createToolsTab() {
     QWidget* toolsTab = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(toolsTab);
-    layout->setContentsMargins(8, 8, 8, 8);
-    layout->setSpacing(8);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
 
-    // Tools title
-    QLabel* titleLabel = new QLabel(tr("Tools"), toolsTab);
-    titleLabel->setStyleSheet("font-weight: bold; font-size: 12px;");
-    layout->addWidget(titleLabel);
+    // Create scroll area for annotation toolbar
+    QScrollArea* scrollArea = new QScrollArea(toolsTab);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    // Placeholder content
-    QLabel* placeholderLabel =
-        new QLabel(tr("Tools panel will be displayed here"), toolsTab);
-    placeholderLabel->setStyleSheet("color: gray; font-size: 10px;");
-    placeholderLabel->setAlignment(Qt::AlignCenter);
-    layout->addWidget(placeholderLabel);
+    // Create annotation toolbar
+    m_annotationToolbar = new AnnotationToolbar(scrollArea);
+    scrollArea->setWidget(m_annotationToolbar);
 
-    layout->addStretch();
+    layout->addWidget(scrollArea);
+
     return toolsTab;
+}
+
+QWidget* RightSideBar::createSearchTab() {
+    QWidget* searchTab = new QWidget();
+    QVBoxLayout* layout = new QVBoxLayout(searchTab);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    // Create search widget
+    m_searchWidget = new SearchWidget(searchTab);
+    layout->addWidget(m_searchWidget);
+
+    return searchTab;
 }
 
 QWidget* RightSideBar::createDebugTab() {
@@ -248,6 +269,17 @@ void RightSideBar::onAnimationFinished() {
 }
 
 void RightSideBar::applyTheme() {
+    // Create disabled colors similar to StyleManager's approach
+    QColor disabledBg = STYLE.surfaceAltColor();
+    QColor disabledText = STYLE.textSecondaryColor();
+
+    if (STYLE.currentTheme() == Theme::Dark) {
+        disabledBg = disabledBg.darker(135);
+        disabledText = disabledText.darker(110);
+    } else {
+        disabledBg = disabledBg.lighter(104);
+    }
+
     // Apply consistent styling using StyleManager
     QString tabWidgetStyle = QString(R"(
         QTabWidget::pane {
@@ -262,18 +294,25 @@ void RightSideBar::applyTheme() {
             background-color: %3;
             color: %4;
             border: 1px solid %1;
-            padding: 6px 12px;
+            padding: 8px 14px;
             margin-right: 2px;
             border-top-left-radius: 4px;
             border-top-right-radius: 4px;
+            min-width: 60px;
         }
         QTabBar::tab:selected {
             background-color: %2;
             color: %5;
             border-bottom: 1px solid %2;
+            font-weight: bold;
         }
         QTabBar::tab:hover:!selected {
             background-color: %6;
+            color: %5;
+            transition: background-color 0.2s ease;
+        }
+        QTabBar::tab:pressed {
+            background-color: %7;
         }
     )")
                                  .arg(STYLE.borderColor().name())
@@ -281,13 +320,14 @@ void RightSideBar::applyTheme() {
                                  .arg(STYLE.surfaceColor().name())
                                  .arg(STYLE.textSecondaryColor().name())
                                  .arg(STYLE.textColor().name())
-                                 .arg(STYLE.hoverColor().name());
+                                 .arg(STYLE.hoverColor().name())
+                                 .arg(STYLE.pressedColor().name());
 
     if (tabWidget) {
         tabWidget->setStyleSheet(tabWidgetStyle);
     }
 
-    // Apply general widget styling
+    // Apply general widget styling with enhanced visual feedback
     setStyleSheet(QString(R"(
         RightSideBar {
             background-color: %1;
@@ -296,8 +336,76 @@ void RightSideBar::applyTheme() {
         QLabel {
             color: %3;
         }
+        QPushButton {
+            background-color: %4;
+            color: %3;
+            border: 1px solid %2;
+            border-radius: 4px;
+            padding: 6px 12px;
+            min-height: 20px;
+        }
+        QPushButton:hover {
+            background-color: %5;
+            border-color: %6;
+        }
+        QPushButton:pressed {
+            background-color: %7;
+        }
+        QPushButton:disabled {
+            background-color: %8;
+            color: %9;
+            border-color: %8;
+        }
+        QGroupBox {
+            font-weight: bold;
+            border: 1px solid %2;
+            border-radius: 4px;
+            margin-top: 8px;
+            padding-top: 4px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 8px;
+            padding: 0 4px 0 4px;
+        }
     )")
                       .arg(STYLE.backgroundColor().name())
                       .arg(STYLE.borderColor().name())
-                      .arg(STYLE.textColor().name()));
+                      .arg(STYLE.textColor().name())
+                      .arg(STYLE.surfaceColor().name())
+                      .arg(STYLE.hoverColor().name())
+                      .arg(STYLE.accentColor().name())
+                      .arg(STYLE.pressedColor().name())
+                      .arg(disabledBg.name())
+                      .arg(disabledText.name()));
+}
+
+void RightSideBar::setDocument(Poppler::Document* document,
+                               const QString& filePath) {
+    if (m_propertiesPanel) {
+        m_propertiesPanel->setDocument(document, filePath);
+    }
+
+    if (m_searchWidget) {
+        m_searchWidget->setDocument(document);
+    }
+}
+
+void RightSideBar::clearDocument() {
+    if (m_propertiesPanel) {
+        m_propertiesPanel->clearProperties();
+    }
+
+    if (m_searchWidget) {
+        m_searchWidget->clearSearch();
+    }
+}
+
+void RightSideBar::onViewFullDetailsRequested(Poppler::Document* document,
+                                              const QString& filePath) {
+    // Create and show the full metadata dialog
+    DocumentMetadataDialog* dialog = new DocumentMetadataDialog(this);
+    dialog->setDocument(document, filePath);
+    dialog->exec();
+    dialog->deleteLater();
 }

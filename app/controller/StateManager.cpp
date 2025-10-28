@@ -23,6 +23,11 @@ QJsonObject State::getObject(const QString& path) const {
 }
 
 QJsonValue State::getValue(const QString& path) const {
+    // Handle empty or invalid paths
+    if (path.isEmpty() || path == "." || path == "..") {
+        return QJsonValue();
+    }
+
     QStringList parts = path.split('.', Qt::SkipEmptyParts);
     return getValueByPath(m_data, parts);
 }
@@ -37,6 +42,11 @@ bool State::has(const QString& path) const {
 }
 
 State State::set(const QString& path, const QVariant& value) {
+    // Reject empty or invalid paths
+    if (path.isEmpty() || path == "." || path == "..") {
+        return *this;
+    }
+
     QStringList parts = path.split('.', Qt::SkipEmptyParts);
     QJsonValue jsonValue = QJsonValue::fromVariant(value);
     m_data = setValueByPath(m_data, parts, jsonValue);
@@ -686,7 +696,7 @@ void StateManager::notifyObservers(const StateChange& change) {
     };
 
     for (const Subscription& sub : subs) {
-        if (sub.subscriber == nullptr || sub.observer == nullptr) {
+        if (sub.subscriber == nullptr || !sub.observer) {
             continue;
         }
 

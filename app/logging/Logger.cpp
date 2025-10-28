@@ -1,6 +1,5 @@
 #include "Logger.h"
 #include <fmt/format.h>
-#include <spdlog/fmt/fmt.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/qt_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>

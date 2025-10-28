@@ -36,7 +36,7 @@ public:
 
     // Use the custom model creation API that actually exists
     QObject* createCustomModel(const QString& type) {
-        creationCount++;
+        creationCount.fetchAndAddOrdered(1);  // Thread-safe increment
         lastType = type;
 
         if (shouldFail) {
@@ -44,17 +44,18 @@ public:
         }
 
         auto* model = new MockModel();
-        model->setParent(this);  // Set parent for proper cleanup
+        // Don't set parent in concurrent context - Qt objects have thread
+        // affinity Caller is responsible for cleanup in concurrent scenarios
         return model;
     }
 
     void reset() {
-        creationCount = 0;
+        creationCount.storeRelaxed(0);
         shouldFail = false;
         lastType.clear();
     }
 
-    int creationCount = 0;
+    QAtomicInt creationCount{0};  // Thread-safe counter
     bool shouldFail = false;
     QString lastType;
 };
@@ -106,7 +107,7 @@ void TestModelFactory::cleanup() {
     delete m_factory;
     m_factory = nullptr;
 
-    qDeleteAll(m_factoryRegistry);
+    // Registry only holds references, not ownership - don't delete
     m_factoryRegistry.clear();
 }
 
@@ -146,9 +147,11 @@ void TestModelFactory::testFactoryRegistration() {
     QVERIFY(m_factoryRegistry.contains("mock"));
     QCOMPARE(m_factoryRegistry["mock"], m_factory);
 
-    // Create through registry
+    // Create through registry - need to cast to MockModelFactory to access
+    // override
     auto* factory = m_factoryRegistry["mock"];
-    QObject* model = factory->createCustomModel("mock");
+    auto* mockFactory = static_cast<MockModelFactory*>(factory);
+    QObject* model = mockFactory->createCustomModel("mock");
 
     QVERIFY(model != nullptr);
     // Model will be cleaned up by parent-child relationship
@@ -212,9 +215,11 @@ void TestModelFactory::testConcurrentCreation() {
     }
 
     QCOMPARE(allModels.size(), numThreads * modelsPerThread);
-    QCOMPARE(m_factory->creationCount, numThreads * modelsPerThread);
+    QCOMPARE(m_factory->creationCount.loadRelaxed(),
+             numThreads * modelsPerThread);
 
-    // Models will be cleaned up by parent-child relationship
+    // Clean up models (no parent-child relationship in concurrent context)
+    qDeleteAll(allModels);
 }
 
 void TestModelFactory::testCreationFailure() {

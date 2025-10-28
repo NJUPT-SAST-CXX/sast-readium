@@ -1,5 +1,6 @@
 #pragma once
 
+#include <poppler/qt6/poppler-qt6.h>
 #include <QLabel>
 #include <QPropertyAnimation>
 #include <QSettings>
@@ -8,8 +9,11 @@
 #include <QWidget>
 #include <memory>
 
-// Forward declaration
+// Forward declarations
 class DebugLogPanel;
+class DocumentPropertiesPanel;
+class AnnotationToolbar;
+class SearchWidget;
 
 /**
  * @brief Right sidebar with properties, tools, and debug panels
@@ -37,6 +41,22 @@ public:
      */
     ~RightSideBar();
 
+    // Document management
+    /**
+     * @brief Update the properties panel with document information
+     * @param document Poppler document pointer
+     * @param filePath Full path to the PDF file
+     */
+    void setDocument(Poppler::Document* document, const QString& filePath);
+
+    /**
+     * @brief Clear document properties
+     */
+    void clearDocument();
+
+    // Search widget access
+    SearchWidget* getSearchWidget() const { return m_searchWidget; }
+
     // 显示/隐藏控制
     bool isVisible() const;
     using QWidget::setVisible;  // Bring base class method into scope
@@ -60,15 +80,22 @@ public slots:
 signals:
     void visibilityChanged(bool visible);
     void widthChanged(int width);
+    void viewFullDetailsRequested(Poppler::Document* document,
+                                  const QString& filePath);
 
 private slots:
     void onAnimationFinished();
+    void onViewFullDetailsRequested(Poppler::Document* document,
+                                    const QString& filePath);
 
 private:
     QTabWidget* tabWidget;
     QPropertyAnimation* animation;
     QSettings* settings;
     DebugLogPanel* debugLogPanel;
+    DocumentPropertiesPanel* m_propertiesPanel;
+    AnnotationToolbar* m_annotationToolbar;
+    class SearchWidget* m_searchWidget;
 
     bool isCurrentlyVisible;
     int preferredWidth;
@@ -87,5 +114,6 @@ private:
 
     QWidget* createPropertiesTab();
     QWidget* createToolsTab();
+    QWidget* createSearchTab();
     QWidget* createDebugTab();
 };

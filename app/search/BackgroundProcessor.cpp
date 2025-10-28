@@ -2,6 +2,8 @@
 #include <QDebug>
 #include <QMutexLocker>
 #include <QtConcurrent>
+#include <atomic>
+#include <memory>
 
 class BackgroundProcessor::Implementation {
 public:
@@ -79,7 +81,9 @@ void BackgroundProcessor::setThreadPriority(QThread::Priority priority) {
 void BackgroundProcessor::executeAsync(std::function<void()> task) {
     emit taskStarted();
 
-    auto* watcher = new QFutureWatcher<void>(this);
+    // Create watcher without parent - will be managed manually via
+    // deleteLater()
+    auto* watcher = new QFutureWatcher<void>();
     d->addWatcher(watcher);
 
     QFuture<void> future = QtConcurrent::run(&d->threadPool, task);
@@ -89,13 +93,14 @@ void BackgroundProcessor::executeAsync(std::function<void()> task) {
 void BackgroundProcessor::executeBatch(
     const QList<std::function<void()>>& tasks) {
     int total = tasks.size();
-    int completed = 0;
+    // Use shared_ptr to safely share counter across async tasks
+    auto completed = std::make_shared<std::atomic<int>>(0);
 
     for (const auto& task : tasks) {
-        executeAsync([this, task, &completed, total]() {
+        executeAsync([this, task, completed, total]() {
             task();
-            completed++;
-            emit progressUpdate(completed, total);
+            int current = ++(*completed);
+            emit progressUpdate(current, total);
         });
     }
 }

@@ -6,10 +6,11 @@
 #include <QPixmap>
 #include <QSplitter>
 #include <QStackedWidget>
-#include <iostream>
 #include "../MainWindow.h"
 #include "../factory/WidgetFactory.h"
+#include "../logging/LoggingMacros.h"
 #include "../managers/FileTypeIconManager.h"
+#include "../managers/I18nManager.h"
 #include "../managers/RecentFilesManager.h"
 #include "../managers/StyleManager.h"
 #include "../managers/SystemTrayManager.h"
@@ -21,7 +22,9 @@
 #include "../ui/core/SideBar.h"
 #include "../ui/core/StatusBar.h"
 #include "../ui/core/ToolBar.h"
+#include "../ui/core/UIErrorHandler.h"
 #include "../ui/core/ViewWidget.h"
+#include "../ui/dialogs/SettingsDialog.h"
 #include "../ui/managers/WelcomeScreenManager.h"
 #include "../ui/widgets/WelcomeWidget.h"
 #include "../utils/ErrorHandling.h"
@@ -76,11 +79,29 @@ void ApplicationController::initializeApplication() {
         // Setup error handling
         setupErrorHandling();
 
+        // Register UI components for state management
+        registerUIComponents();
+
+        // Register UI resources for memory management
+        registerUIResources();
+
+        // Register UI components for visual consistency
+        registerUIConsistency();
+
         // Start async operations
         if (m_recentFilesManager) {
             m_recentFilesManager->initializeAsync();
             m_logger.debug("Async initialization started");
         }
+
+        // Restore application state after all components are initialized
+        QTimer::singleShot(100, this, [this]() {
+            restoreApplicationState();
+
+            // Enforce visual consistency after restoration
+            QTimer::singleShot(200, this,
+                               [this]() { enforceVisualConsistency(); });
+        });
 
         m_isInitialized = true;
         m_logger.info("Application initialization completed successfully");
@@ -230,6 +251,16 @@ void ApplicationController::initializeViews() {
         m_mainWindow->addToolBar(m_toolBar);
         m_logger.info("Setting StatusBar...");
         m_mainWindow->setStatusBar(m_statusBar);
+
+        // Connect StatusBar signals for proper integration
+        connectStatusBarSignals();
+
+        // Set StatusBar reference in DocumentController for progress indication
+        if (m_documentController && m_statusBar) {
+            m_documentController->setStatusBar(m_statusBar);
+            m_logger.debug("StatusBar reference set in DocumentController");
+        }
+
         m_logger.info("Main window set up successfully");
 
         // Initialize welcome screen
@@ -313,24 +344,29 @@ void ApplicationController::initializeViews() {
                         }
                     });
 
-            connect(m_systemTrayManager,
-                    &SystemTrayManager::settingsDialogRequested, this,
-                    [this]() {
-                        m_logger.debug(
-                            "Settings dialog requested from system tray");
-                        // Show simple settings information dialog
-                        // TODO: Replace with full settings dialog when
-                        // implemented
-                        QMessageBox::information(
-                            m_mainWindow, tr("Settings"),
-                            tr("Settings dialog will be available in a future "
-                               "version.\n\n"
-                               "Current settings are managed through:\n"
-                               "- Theme menu (View → Theme)\n"
-                               "- Language menu (View → Language)\n"
-                               "- Configuration files in application data "
-                               "directory"));
-                    });
+            connect(
+                m_systemTrayManager,
+                &SystemTrayManager::settingsDialogRequested, this, [this]() {
+                    m_logger.debug(
+                        "Settings dialog requested from system tray");
+                    // Show settings dialog
+                    SettingsDialog* dialog = new SettingsDialog(m_mainWindow);
+
+                    // Connect theme changes
+                    connect(
+                        dialog, &SettingsDialog::themeChanged, this,
+                        [this](const QString& theme) { applyTheme(theme); });
+
+                    // Connect language changes
+                    connect(
+                        dialog, &SettingsDialog::languageChanged, this,
+                        [](const QString& languageCode) {
+                            I18nManager::instance().loadLanguage(languageCode);
+                        });
+
+                    dialog->exec();
+                    dialog->deleteLater();
+                });
 
             connect(
                 m_systemTrayManager, &SystemTrayManager::aboutDialogRequested,
@@ -371,13 +407,32 @@ void ApplicationController::initializeViews() {
         // Create stacked widget for view switching
         m_logger.debug("Creating content stack widget...");
         m_contentStack = new QStackedWidget(m_mainWindow);
+
+        // Set consistent background for better visual hierarchy
+        // No padding on the stack itself - padding is applied to individual
+        // views
+        m_contentStack->setStyleSheet(
+            QString("QStackedWidget { background-color: %1; }")
+                .arg(STYLE.backgroundColor().name()));
+        m_contentStack->setContentsMargins(0, 0, 0, 0);
         m_logger.debug("Content stack widget created");
 
         // Create main viewer area
         m_logger.debug("Creating main viewer area...");
         QWidget* mainViewerWidget = new QWidget();
+        mainViewerWidget->setStyleSheet(
+            QString("QWidget { background-color: %1; }")
+                .arg(STYLE.backgroundColor().name()));
         QHBoxLayout* mainViewerLayout = new QHBoxLayout(mainViewerWidget);
-        mainViewerLayout->setContentsMargins(0, 0, 0, 0);
+
+        // Add subtle margins for visual breathing room
+        // Top margin provides separation from toolbar
+        // Bottom margin provides separation from status bar
+        // Left/right margins kept at 0 to maximize content area
+        mainViewerLayout->setContentsMargins(0, STYLE.spacingXS(), 0,
+                                             STYLE.spacingXS());
+        mainViewerLayout->setSpacing(
+            0);  // No spacing between splitter sections
 
         m_mainSplitter = new QSplitter(Qt::Horizontal, mainViewerWidget);
         m_mainSplitter->addWidget(m_sideBar);
@@ -397,8 +452,17 @@ void ApplicationController::initializeViews() {
         m_mainSplitter->setStretchFactor(
             2, 0);  // Right sidebar maintains preferred width
 
-        // Set handle width for better usability
-        m_mainSplitter->setHandleWidth(1);
+        // Set handle width for better usability and visual feedback
+        // Width of 6px provides good balance between visibility and space
+        // efficiency
+        m_mainSplitter->setHandleWidth(6);
+
+        // Enable child widgets to have proper mouse tracking for splitter
+        // interaction
+        m_mainSplitter->setChildrenCollapsible(true);
+
+        // Set object name for QSS styling
+        m_mainSplitter->setObjectName("MainContentSplitter");
 
         // Calculate optimal initial sizes
         int leftWidth =
@@ -479,9 +543,24 @@ void ApplicationController::connectModelSignals() {
     if (m_documentModel) {
         connect(m_documentModel, &DocumentModel::documentOpened, this,
                 [this](int index, const QString& fileName) {
+                    Q_UNUSED(index)
                     showMainView();
                     m_logger.debug("Document opened: " + fileName +
                                    ", switching to main view");
+
+                    // Update RightSideBar with document properties
+                    if (m_rightSideBar && m_documentModel) {
+                        auto* doc = m_documentModel->getCurrentDocument();
+                        m_rightSideBar->setDocument(doc, fileName);
+                    }
+                });
+
+        connect(m_documentModel, &DocumentModel::documentClosed, this,
+                [this]() {
+                    // Clear RightSideBar properties when document is closed
+                    if (m_rightSideBar) {
+                        m_rightSideBar->clearDocument();
+                    }
                 });
     }
 }
@@ -517,6 +596,13 @@ void ApplicationController::connectViewSignals() {
                         m_documentController->openDocument(filePath);
                     }
                 });
+
+        connect(m_menuBar, &MenuBar::languageChanged, this,
+                [this](const QString& languageCode) {
+                    I18nManager::instance().loadLanguage(languageCode);
+                    // The I18nManager will emit languageChanged signal which
+                    // will trigger UI retranslation through changeEvent
+                });
     }
 
     // Connect toolbar signals
@@ -537,6 +623,87 @@ void ApplicationController::connectViewSignals() {
                         m_documentController->openDocument(filePath);
                     }
                 });
+    }
+
+    // Connect document controller signals
+    if (m_documentController) {
+        // Sidebar control signals
+        connect(m_documentController,
+                &DocumentController::sideBarToggleRequested, this, [this]() {
+                    if (m_sideBar) {
+                        bool isVisible = m_sideBar->isVisible();
+                        m_sideBar->QWidget::setVisible(!isVisible);
+                    }
+                });
+
+        connect(m_documentController, &DocumentController::sideBarShowRequested,
+                this, [this]() {
+                    if (m_sideBar) {
+                        m_sideBar->QWidget::setVisible(true);
+                    }
+                });
+
+        connect(m_documentController, &DocumentController::sideBarHideRequested,
+                this, [this]() {
+                    if (m_sideBar) {
+                        m_sideBar->QWidget::setVisible(false);
+                    }
+                });
+
+        // Search control signals
+        connect(m_documentController,
+                &DocumentController::searchToggleRequested, this,
+                [this](bool show) {
+                    // TODO: Connect to search widget when implemented
+                    QString message = QString("Search toggle requested: %1")
+                                          .arg(show ? "show" : "hide");
+                    m_logger.debug(message);
+                });
+
+        connect(m_documentController,
+                &DocumentController::searchNavigationRequested, this,
+                [this](bool forward) {
+                    // TODO: Connect to search widget navigation
+                    QString message =
+                        QString("Search navigation requested: %1")
+                            .arg(forward ? "forward" : "backward");
+                    m_logger.debug(message);
+                });
+
+        connect(m_documentController, &DocumentController::searchClearRequested,
+                this, [this]() {
+                    // TODO: Connect to search widget clear
+                    m_logger.debug("Search clear requested");
+                });
+
+        // Full screen toggle signal
+        connect(m_documentController,
+                &DocumentController::fullScreenToggleRequested, this, [this]() {
+                    if (m_mainWindow) {
+                        if (m_mainWindow->isFullScreen()) {
+                            m_mainWindow->showNormal();
+                        } else {
+                            m_mainWindow->showFullScreen();
+                        }
+                    }
+                });
+
+        // Tab switch signal
+        connect(m_documentController, &DocumentController::tabSwitchRequested,
+                this, [this]() {
+                    // TODO: Connect to tab widget when implemented
+                    m_logger.debug("Tab switch requested");
+                });
+
+        // Theme toggle signal
+        connect(
+            m_documentController, &DocumentController::themeToggleRequested,
+            this, [this]() {
+                QString currentTheme =
+                    (STYLE.currentTheme() == Theme::Light) ? "light" : "dark";
+                QString newTheme = (currentTheme == "light") ? "dark" : "light";
+                applyTheme(newTheme);
+            });
     }
 }
 
@@ -656,6 +823,9 @@ void ApplicationController::handleError(const QString& context,
         ErrorHandling::ErrorSeverity::Error, error,
         QString("Context: %1").arg(context), context);
 
+    // Use UIErrorHandler for comprehensive error handling
+    UIErrorHandler::instance().handleSystemError(m_mainWindow, errorInfo);
+
     // Attempt error recovery using RecoveryManager
     auto& recoveryManager = ErrorRecovery::RecoveryManager::instance();
     ErrorRecovery::RecoveryResult result = recoveryManager.executeRecovery(
@@ -666,11 +836,17 @@ void ApplicationController::handleError(const QString& context,
         case ErrorRecovery::RecoveryResult::Success:
             m_logger.info(QString("Successfully recovered from error in %1")
                               .arg(context));
+            UIErrorHandler::instance().showFeedback(
+                m_mainWindow, tr("Error recovered: %1").arg(context),
+                UIErrorHandler::FeedbackType::Success);
             return;  // Don't emit error signal if recovered
 
         case ErrorRecovery::RecoveryResult::Retry:
             m_logger.info(
                 QString("Error recovery suggests retry for %1").arg(context));
+            UIErrorHandler::instance().showFeedback(
+                m_mainWindow, tr("Retrying operation: %1").arg(context),
+                UIErrorHandler::FeedbackType::Info);
             break;
 
         case ErrorRecovery::RecoveryResult::Fallback:
@@ -697,6 +873,18 @@ void ApplicationController::shutdown() {
 
     m_isShuttingDown = true;
     m_logger.info("Shutting down application controller...");
+
+    // Save application state before shutdown
+    try {
+        saveApplicationState();
+    } catch (const std::exception& e) {
+        m_logger.error(
+            QString("Error saving application state during shutdown: %1")
+                .arg(e.what()));
+    }
+
+    // Cleanup UI resources
+    UIResourceManager::instance().cleanupAllResources();
 
     // Cleanup in reverse order of initialization
     // Connections are automatically cleaned up by Qt
@@ -733,4 +921,426 @@ void ApplicationController::onAsyncInitializationCompleted() {
 void ApplicationController::onComponentError(const QString& component,
                                              const QString& error) {
     handleError(component, error);
+}
+
+void ApplicationController::connectStatusBarSignals() {
+    if (!m_statusBar || !m_viewWidget) {
+        m_logger.warning(
+            "StatusBar or ViewWidget not available for signal connections");
+        return;
+    }
+
+    m_logger.info("Connecting StatusBar signals...");
+
+    // Connect ViewWidget signals to StatusBar updates
+    connect(m_viewWidget, &ViewWidget::currentViewerPageChanged, m_statusBar,
+            [this](int pageNumber, int totalPages) {
+                m_statusBar->setPageInfo(pageNumber, totalPages);
+                LOG_DEBUG("StatusBar updated: page {}/{}", pageNumber + 1,
+                          totalPages);
+            });
+
+    connect(m_viewWidget, &ViewWidget::currentViewerZoomChanged, m_statusBar,
+            [this](double zoomFactor) {
+                m_statusBar->setZoomLevel(zoomFactor);
+                LOG_DEBUG("StatusBar updated: zoom {:.1f}%", zoomFactor * 100);
+            });
+
+    // Connect StatusBar page jump signal to ViewWidget
+    connect(m_statusBar, &StatusBar::pageJumpRequested, m_viewWidget,
+            [this](int pageNumber) {
+                // Use ViewWidget's public interface to jump to page
+                m_viewWidget->goToPage(pageNumber);
+                LOG_DEBUG("Page jump requested: {}", pageNumber + 1);
+            });
+
+    // Connect StatusBar zoom change signal to ViewWidget
+    connect(m_statusBar, &StatusBar::zoomLevelChangeRequested, m_viewWidget,
+            [this](double zoomLevel) {
+                // Use ViewWidget's public interface to set zoom
+                m_viewWidget->setZoom(zoomLevel);
+                LOG_DEBUG("Zoom change requested: {:.1f}%", zoomLevel * 100);
+            });
+
+    // Connect document model signals for file information updates
+    if (m_documentModel) {
+        connect(m_documentModel, &DocumentModel::documentOpened, this,
+                [this](int index, const QString& fileName) {
+                    Q_UNUSED(index)
+                    updateStatusBarFromDocument();
+                    m_statusBar->setSuccessMessage(
+                        tr("Document opened: %1")
+                            .arg(QFileInfo(fileName).fileName()));
+                });
+
+        connect(m_documentModel, &DocumentModel::documentClosed, this,
+                [this](int index) {
+                    Q_UNUSED(index)
+                    if (m_documentModel->getDocumentCount() == 0) {
+                        m_statusBar->clearDocumentInfo();
+                        m_statusBar->setMessage(tr("No documents open"));
+                    } else {
+                        updateStatusBarFromDocument();
+                    }
+                });
+
+        connect(m_documentModel, &DocumentModel::currentDocumentChanged, this,
+                [this](int index) {
+                    Q_UNUSED(index)
+                    updateStatusBarFromDocument();
+                });
+    }
+
+    m_logger.info("StatusBar signal connections established successfully");
+}
+
+void ApplicationController::updateStatusBarFromDocument() {
+    if (!m_statusBar || !m_documentModel || !m_viewWidget) {
+        return;
+    }
+
+    int currentIndex = m_documentModel->getCurrentDocumentIndex();
+    if (currentIndex < 0) {
+        m_statusBar->clearDocumentInfo();
+        return;
+    }
+
+    QString fileName = m_documentModel->getDocumentFileName(currentIndex);
+    if (fileName.isEmpty()) {
+        m_statusBar->clearDocumentInfo();
+        return;
+    }
+
+    // Get file size
+    QFileInfo fileInfo(fileName);
+    qint64 fileSize = fileInfo.exists() ? fileInfo.size() : 0;
+
+    // Get current page and zoom from ViewWidget
+    int currentPage = m_viewWidget->getCurrentPage();
+    int totalPages = m_viewWidget->getCurrentPageCount();
+    double zoomLevel = m_viewWidget->getCurrentZoom();
+
+    // Update StatusBar with complete document information
+    m_statusBar->setDocumentInfo(fileName, currentPage, totalPages, zoomLevel,
+                                 fileSize);
+
+    // Update document metadata if available
+    if (auto* document = m_documentModel->getDocument(currentIndex)) {
+        // Get metadata from document using Poppler's info() method
+        QString title = document->info("Title");
+        QString author = document->info("Author");
+        QString subject = document->info("Subject");
+        QString keywords = document->info("Keywords");
+
+        QDateTime created, modified;
+        QString createdStr = document->info("CreationDate");
+        QString modifiedStr = document->info("ModDate");
+
+        // Parse PDF date format if available
+        if (!createdStr.isEmpty()) {
+            // Try to parse PDF date format (D:YYYYMMDDHHmmSSOHH'mm')
+            created = QDateTime::fromString(createdStr, Qt::ISODate);
+            if (!created.isValid()) {
+                // Try alternative parsing for PDF date format
+                created = QDateTime::fromString(createdStr.mid(2, 14),
+                                                "yyyyMMddHHmmss");
+            }
+        }
+        if (!modifiedStr.isEmpty()) {
+            modified = QDateTime::fromString(modifiedStr, Qt::ISODate);
+            if (!modified.isValid()) {
+                modified = QDateTime::fromString(modifiedStr.mid(2, 14),
+                                                 "yyyyMMddHHmmss");
+            }
+        }
+
+        // Fallback to file system dates if document dates not available
+        if (!created.isValid()) {
+            created = fileInfo.birthTime();
+        }
+        if (!modified.isValid()) {
+            modified = fileInfo.lastModified();
+        }
+
+        m_statusBar->setDocumentMetadata(title, author, subject, keywords,
+                                         created, modified);
+
+        // Set document statistics (placeholder values - would need actual text
+        // analysis) For now, estimate based on page count
+        int estimatedWords = totalPages * 250;    // Rough estimate
+        int estimatedChars = estimatedWords * 6;  // Rough estimate
+        m_statusBar->setDocumentStatistics(estimatedWords, estimatedChars,
+                                           totalPages);
+
+        // Set security information (placeholder - would need actual PDF
+        // security analysis)
+        m_statusBar->setDocumentSecurity(
+            false, true, true);  // Default: not encrypted, copy/print allowed
+    }
+
+    LOG_DEBUG("StatusBar updated from document: {} ({} pages, {:.1f}% zoom)",
+              fileName.toStdString(), totalPages, zoomLevel * 100);
+}
+
+// State management integration methods
+
+void ApplicationController::saveApplicationState() {
+    m_logger.info("Saving application state...");
+
+    UIStateManager& stateManager = UIStateManager::instance();
+
+    // Save window state
+    if (m_mainWindow) {
+        stateManager.saveWindowState(m_mainWindow);
+    }
+
+    // Save splitter state
+    if (m_mainSplitter) {
+        stateManager.saveSplitterState(m_mainSplitter, "mainSplitter");
+    }
+
+    // Save all registered component states
+    stateManager.saveAllComponentStates();
+
+    // Save application-specific state
+    stateManager.setState(
+        "app/currentTheme",
+        (STYLE.currentTheme() == Theme::Light) ? "light" : "dark");
+
+    // Save document-related state
+    if (m_documentModel) {
+        int currentDoc = m_documentModel->getCurrentDocumentIndex();
+        stateManager.setState("document/currentIndex", currentDoc);
+
+        if (currentDoc >= 0) {
+            QString fileName = m_documentModel->getDocumentFileName(currentDoc);
+            stateManager.setState("document/currentFile", fileName);
+        }
+    }
+
+    // Save view state
+    if (m_viewWidget) {
+        stateManager.setState("view/currentPage",
+                              m_viewWidget->getCurrentPage());
+        stateManager.setState("view/zoomLevel", m_viewWidget->getCurrentZoom());
+    }
+
+    // Force save to ensure persistence
+    stateManager.forceSave();
+
+    m_logger.info("Application state saved successfully");
+}
+
+void ApplicationController::restoreApplicationState() {
+    m_logger.info("Restoring application state...");
+
+    UIStateManager& stateManager = UIStateManager::instance();
+
+    // Restore window state
+    if (m_mainWindow) {
+        stateManager.restoreWindowState(m_mainWindow);
+    }
+
+    // Restore splitter state
+    if (m_mainSplitter) {
+        stateManager.restoreSplitterState(m_mainSplitter, "mainSplitter");
+    }
+
+    // Restore theme
+    QString savedTheme =
+        stateManager.getState("app/currentTheme", "light").toString();
+    applyTheme(savedTheme);
+
+    // Restore all registered component states
+    stateManager.restoreAllComponentStates();
+
+    m_logger.info("Application state restored successfully");
+}
+
+void ApplicationController::registerUIComponents() {
+    m_logger.info("Registering UI components for state management...");
+
+    UIStateManager& stateManager = UIStateManager::instance();
+
+    // Register main UI components
+    if (m_menuBar) {
+        stateManager.registerComponent(m_menuBar, "menuBar");
+    }
+    if (m_toolBar) {
+        stateManager.registerComponent(m_toolBar, "toolBar");
+    }
+    if (m_sideBar) {
+        stateManager.registerComponent(m_sideBar, "sideBar");
+    }
+    if (m_rightSideBar) {
+        stateManager.registerComponent(m_rightSideBar, "rightSideBar");
+    }
+    if (m_statusBar) {
+        stateManager.registerComponent(m_statusBar, "statusBar");
+    }
+    if (m_viewWidget) {
+        stateManager.registerComponent(m_viewWidget, "viewWidget");
+    }
+    if (m_welcomeWidget) {
+        stateManager.registerComponent(m_welcomeWidget, "welcomeWidget");
+    }
+
+    // Enable autosave with 30-second interval
+    stateManager.enableAutosave(true, 30000);
+
+    m_logger.info("UI components registered for state management");
+}
+
+void ApplicationController::registerUIResources() {
+    m_logger.info("Registering UI resources for memory management...");
+
+    UIResourceManager& resourceManager = UIResourceManager::instance();
+
+    // Register main UI components for resource tracking
+    if (m_menuBar) {
+        resourceManager.registerWidget(m_menuBar, "Main MenuBar");
+    }
+    if (m_toolBar) {
+        resourceManager.registerWidget(m_toolBar, "Main ToolBar");
+    }
+    if (m_sideBar) {
+        resourceManager.registerWidget(m_sideBar, "Left SideBar");
+    }
+    if (m_rightSideBar) {
+        resourceManager.registerWidget(m_rightSideBar, "Right SideBar");
+    }
+    if (m_statusBar) {
+        resourceManager.registerWidget(m_statusBar, "Main StatusBar");
+    }
+    if (m_viewWidget) {
+        resourceManager.registerWidget(m_viewWidget, "Document ViewWidget");
+    }
+    if (m_welcomeWidget) {
+        resourceManager.registerWidget(m_welcomeWidget,
+                                       "Welcome Screen Widget");
+    }
+    if (m_contentStack) {
+        resourceManager.registerWidget(m_contentStack, "Content Stack Widget");
+    }
+    if (m_mainSplitter) {
+        resourceManager.registerWidget(m_mainSplitter, "Main Splitter Widget");
+    }
+
+    // Configure resource management
+    resourceManager.setAutoCleanupEnabled(true);
+    resourceManager.setMemoryThreshold(150 * 1024 * 1024);  // 150MB threshold
+    resourceManager.setCleanupInterval(120000);             // 2 minutes
+
+    // Connect memory pressure signal
+    connect(
+        &resourceManager, &UIResourceManager::memoryThresholdExceeded, this,
+        [this](qint64 current, qint64 threshold) {
+            m_logger.warning(QString("Memory threshold exceeded: %1 MB / %2 MB")
+                                 .arg(current / (1024 * 1024))
+                                 .arg(threshold / (1024 * 1024)));
+            optimizeResources();
+        });
+
+    m_logger.info("UI resources registered for memory management");
+}
+
+void ApplicationController::optimizeResources() {
+    m_logger.info("Optimizing application resources...");
+
+    UIResourceManager& resourceManager = UIResourceManager::instance();
+
+    // Optimize memory usage
+    resourceManager.optimizeMemoryUsage();
+
+    // Clear document caches if no documents are open
+    if (m_documentModel && m_documentModel->getDocumentCount() == 0) {
+        // Clear render caches
+        if (m_renderModel) {
+            // Render model should have cache clearing methods
+            m_logger.debug("Clearing render caches");
+        }
+    }
+
+    // Force garbage collection
+    QApplication::processEvents();
+
+    qint64 memoryUsage = resourceManager.getTotalMemoryUsage();
+    m_logger.info(
+        QString("Resource optimization completed. Memory usage: %1 MB")
+            .arg(memoryUsage / (1024 * 1024)));
+}
+
+void ApplicationController::registerUIConsistency() {
+    m_logger.info("Registering UI components for visual consistency...");
+
+    UIConsistencyManager& consistencyManager = UIConsistencyManager::instance();
+
+    // Register main UI components for consistency checking
+    if (m_menuBar) {
+        consistencyManager.registerComponent(m_menuBar, "MenuBar");
+    }
+    if (m_toolBar) {
+        consistencyManager.registerComponent(m_toolBar, "ToolBar");
+    }
+    if (m_sideBar) {
+        consistencyManager.registerComponent(m_sideBar, "SideBar");
+    }
+    if (m_rightSideBar) {
+        consistencyManager.registerComponent(m_rightSideBar, "RightSideBar");
+    }
+    if (m_statusBar) {
+        consistencyManager.registerComponent(m_statusBar, "StatusBar");
+    }
+    if (m_viewWidget) {
+        consistencyManager.registerComponent(m_viewWidget, "ViewWidget");
+    }
+    if (m_welcomeWidget) {
+        consistencyManager.registerComponent(m_welcomeWidget, "WelcomeWidget");
+    }
+
+    // Configure consistency management
+    consistencyManager.setConsistencyLevel(
+        UIConsistencyManager::ConsistencyLevel::Moderate);
+    consistencyManager.enableAutoCorrection(true);
+    consistencyManager.enableContinuousValidation(true,
+                                                  60000);  // Check every minute
+
+    // Connect consistency signals
+    connect(
+        &consistencyManager, &UIConsistencyManager::validationCompleted, this,
+        [this](UIConsistencyManager::ValidationResult result, int issueCount) {
+            if (result != UIConsistencyManager::ValidationResult::Compliant) {
+                m_logger.warning(QString("UI consistency validation found %1 "
+                                         "issues (result: %2)")
+                                     .arg(issueCount)
+                                     .arg(static_cast<int>(result)));
+            } else {
+                m_logger.debug("UI consistency validation passed");
+            }
+        });
+
+    connect(
+        &consistencyManager, &UIConsistencyManager::consistencyIssueFound, this,
+        [this](const UIConsistencyManager::StyleIssue& issue) {
+            m_logger.debug(
+                QString("Consistency issue: %1 - %2 (expected: %3, actual: %4)")
+                    .arg(issue.component, issue.property, issue.expected,
+                         issue.actual));
+        });
+
+    m_logger.info("UI components registered for visual consistency");
+}
+
+void ApplicationController::enforceVisualConsistency() {
+    m_logger.info("Enforcing visual consistency across all components...");
+
+    UIConsistencyManager& consistencyManager = UIConsistencyManager::instance();
+
+    // Validate and enforce consistency
+    auto result = consistencyManager.validateAllComponents();
+    consistencyManager.enforceGlobalConsistency();
+
+    m_logger.info(
+        QString("Visual consistency enforcement completed (result: %1)")
+            .arg(static_cast<int>(result)));
 }

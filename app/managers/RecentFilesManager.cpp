@@ -68,12 +68,17 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
         return;
     }
 
+    // Normalize paths for comparison to handle different path representations
+    QString normalizedNewPath = QFileInfo(filePath).absoluteFilePath();
+
     // 移除已存在的相同文件
-    auto it = std::find_if(m_pImpl->m_recentFiles.begin(),
-                           m_pImpl->m_recentFiles.end(),
-                           [&filePath](const RecentFileInfo& info) {
-                               return info.filePath == filePath;
-                           });
+    auto it = std::find_if(
+        m_pImpl->m_recentFiles.begin(), m_pImpl->m_recentFiles.end(),
+        [&normalizedNewPath](const RecentFileInfo& info) {
+            QString normalizedExistingPath =
+                QFileInfo(info.filePath).absoluteFilePath();
+            return normalizedExistingPath == normalizedNewPath;
+        });
     if (it != m_pImpl->m_recentFiles.end()) {
         m_pImpl->m_recentFiles.erase(it);
     }

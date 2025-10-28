@@ -96,6 +96,11 @@ void BackgroundProcessorTest::cleanup() {
         m_processor->waitForDone(5000);  // Increased timeout
         // Also wait for global thread pool to ensure all tasks complete
         QThreadPool::globalInstance()->waitForDone();
+
+        // Process any pending deleteLater() calls
+        QCoreApplication::processEvents();
+        QTest::qWait(100);
+
         delete m_processor;
         m_processor = nullptr;
     }

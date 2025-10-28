@@ -1,5 +1,6 @@
 #include "ToolBar.h"
 #include <QAction>
+#include <QContextMenuEvent>
 #include <QDateTime>
 #include <QEasingCurve>
 #include <QEvent>
@@ -116,6 +117,8 @@ void CollapsibleSection::toggleExpanded() { setExpanded(!m_expanded); }
 // ToolBar Implementation
 ToolBar::ToolBar(QWidget* parent)
     : QToolBar(parent), m_compactMode(false), m_isHovered(false) {
+    // Initialize context menu manager
+    contextMenuManager = new ContextMenuManager(this);
     StyleManager* styleManager = &StyleManager::instance();
 
     setObjectName("MainToolBar");
@@ -128,7 +131,7 @@ ToolBar::ToolBar(QWidget* parent)
     // Set consistent spacing using StyleManager
     layout()->setSpacing(styleManager->spacingXS());
 
-    // Create simple toolbar actions without CollapsibleSection to avoid hang
+    // Create complete toolbar with all controls
     // File actions
     m_openAction = new QAction(tr("Open"), this);
     m_openAction->setToolTip(tr("Open File (Ctrl+O)"));
@@ -146,72 +149,175 @@ ToolBar::ToolBar(QWidget* parent)
 
     addSeparator();
 
-    // Navigation actions
+    // Navigation actions with complete controls
     m_firstPageAction = new QAction(tr("First"), this);
-    m_firstPageAction->setToolTip(tr("First Page"));
+    m_firstPageAction->setToolTip(tr("First Page (Ctrl+Home)"));
+    m_firstPageAction->setShortcut(QKeySequence("Ctrl+Home"));
     addAction(m_firstPageAction);
     connect(m_firstPageAction, &QAction::triggered,
             [this]() { emit actionTriggered(ActionMap::firstPage); });
 
     m_prevPageAction = new QAction(tr("Prev"), this);
-    m_prevPageAction->setToolTip(tr("Previous Page"));
+    m_prevPageAction->setToolTip(tr("Previous Page (Page Up)"));
+    m_prevPageAction->setShortcut(QKeySequence("Page Up"));
     addAction(m_prevPageAction);
     connect(m_prevPageAction, &QAction::triggered,
             [this]() { emit actionTriggered(ActionMap::previousPage); });
 
+    // Page navigation controls with validation
+    m_pageSpinBox = new QSpinBox(this);
+    m_pageSpinBox->setMinimum(1);
+    m_pageSpinBox->setMaximum(1);
+    m_pageSpinBox->setValue(1);
+    m_pageSpinBox->setMinimumWidth(60);
+    m_pageSpinBox->setMaximumWidth(80);
+    m_pageSpinBox->setToolTip(
+        tr("Current Page - Enter page number to navigate"));
+    m_pageSpinBox->setEnabled(false);
+    addWidget(m_pageSpinBox);
+    connect(m_pageSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this,
+            &ToolBar::onPageSpinBoxChanged);
+
+    m_pageCountLabel = new QLabel("/ 1", this);
+    m_pageCountLabel->setMinimumWidth(40);
+    m_pageCountLabel->setToolTip(tr("Total Pages"));
+    addWidget(m_pageCountLabel);
+
     m_nextPageAction = new QAction(tr("Next"), this);
-    m_nextPageAction->setToolTip(tr("Next Page"));
+    m_nextPageAction->setToolTip(tr("Next Page (Page Down)"));
+    m_nextPageAction->setShortcut(QKeySequence("Page Down"));
     addAction(m_nextPageAction);
     connect(m_nextPageAction, &QAction::triggered,
             [this]() { emit actionTriggered(ActionMap::nextPage); });
 
     m_lastPageAction = new QAction(tr("Last"), this);
-    m_lastPageAction->setToolTip(tr("Last Page"));
+    m_lastPageAction->setToolTip(tr("Last Page (Ctrl+End)"));
+    m_lastPageAction->setShortcut(QKeySequence("Ctrl+End"));
     addAction(m_lastPageAction);
     connect(m_lastPageAction, &QAction::triggered,
             [this]() { emit actionTriggered(ActionMap::lastPage); });
 
     addSeparator();
 
-    // Zoom actions
+    // Zoom controls with validation and feedback
     m_zoomOutAction = new QAction(tr("Zoom Out"), this);
-    m_zoomOutAction->setToolTip(tr("Zoom Out"));
+    m_zoomOutAction->setToolTip(tr("Zoom Out (Ctrl+-)"));
+    m_zoomOutAction->setShortcut(QKeySequence::ZoomOut);
     addAction(m_zoomOutAction);
     connect(m_zoomOutAction, &QAction::triggered,
             [this]() { emit actionTriggered(ActionMap::zoomOut); });
 
+    // Zoom level display and control
+    m_zoomValueLabel = new QLabel("100%", this);
+    m_zoomValueLabel->setMinimumWidth(50);
+    m_zoomValueLabel->setAlignment(Qt::AlignCenter);
+    m_zoomValueLabel->setToolTip(tr("Current Zoom Level"));
+    addWidget(m_zoomValueLabel);
+
+    m_zoomSlider = new QSlider(Qt::Horizontal, this);
+    m_zoomSlider->setMinimum(25);
+    m_zoomSlider->setMaximum(400);
+    m_zoomSlider->setValue(100);
+    m_zoomSlider->setMinimumWidth(100);
+    m_zoomSlider->setMaximumWidth(150);
+    m_zoomSlider->setToolTip(tr("Zoom Level (25% - 400%)"));
+    addWidget(m_zoomSlider);
+    connect(m_zoomSlider, &QSlider::valueChanged, this,
+            &ToolBar::onZoomSliderChanged);
+
     m_zoomInAction = new QAction(tr("Zoom In"), this);
-    m_zoomInAction->setToolTip(tr("Zoom In"));
+    m_zoomInAction->setToolTip(tr("Zoom In (Ctrl++)"));
+    m_zoomInAction->setShortcut(QKeySequence::ZoomIn);
     addAction(m_zoomInAction);
     connect(m_zoomInAction, &QAction::triggered,
             [this]() { emit actionTriggered(ActionMap::zoomIn); });
 
     addSeparator();
 
+    // Fit actions
+    m_fitWidthAction = new QAction(tr("Fit Width"), this);
+    m_fitWidthAction->setToolTip(tr("Fit to Width (Ctrl+1)"));
+    m_fitWidthAction->setShortcut(QKeySequence("Ctrl+1"));
+    addAction(m_fitWidthAction);
+    connect(m_fitWidthAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::fitToWidth); });
+
+    m_fitPageAction = new QAction(tr("Fit Page"), this);
+    m_fitPageAction->setToolTip(tr("Fit to Page (Ctrl+0)"));
+    m_fitPageAction->setShortcut(QKeySequence("Ctrl+0"));
+    addAction(m_fitPageAction);
+    connect(m_fitPageAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::fitToPage); });
+
+    m_fitHeightAction = new QAction(tr("Fit Height"), this);
+    m_fitHeightAction->setToolTip(tr("Fit to Height (Ctrl+2)"));
+    m_fitHeightAction->setShortcut(QKeySequence("Ctrl+2"));
+    addAction(m_fitHeightAction);
+    connect(m_fitHeightAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::fitToHeight); });
+
+    addSeparator();
+
+    // View mode controls with state management
+    m_viewModeCombo = new QComboBox(this);
+    m_viewModeCombo->addItems({tr("Single Page"), tr("Continuous"),
+                               tr("Two Pages"), tr("Book View")});
+    m_viewModeCombo->setCurrentIndex(0);
+    m_viewModeCombo->setMinimumWidth(120);
+    m_viewModeCombo->setToolTip(tr("Select View Mode"));
+    addWidget(m_viewModeCombo);
+    connect(m_viewModeCombo,
+            QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &ToolBar::onViewModeChanged);
+
+    addSeparator();
+
+    // Rotation controls
+    m_rotateLeftAction = new QAction(tr("Rotate Left"), this);
+    m_rotateLeftAction->setToolTip(tr("Rotate Left 90° (Ctrl+L)"));
+    m_rotateLeftAction->setShortcut(QKeySequence("Ctrl+L"));
+    addAction(m_rotateLeftAction);
+    connect(m_rotateLeftAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::rotateLeft); });
+
+    m_rotateRightAction = new QAction(tr("Rotate Right"), this);
+    m_rotateRightAction->setToolTip(tr("Rotate Right 90° (Ctrl+R)"));
+    m_rotateRightAction->setShortcut(QKeySequence("Ctrl+R"));
+    addAction(m_rotateRightAction);
+    connect(m_rotateRightAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::rotateRight); });
+
+    addSeparator();
+
+    // Sidebar toggle
+    m_toggleSidebarAction = new QAction(tr("Sidebar"), this);
+    m_toggleSidebarAction->setToolTip(tr("Toggle Sidebar (F9)"));
+    m_toggleSidebarAction->setShortcut(QKeySequence("F9"));
+    m_toggleSidebarAction->setCheckable(true);
+    m_toggleSidebarAction->setChecked(true);
+    addAction(m_toggleSidebarAction);
+    connect(m_toggleSidebarAction, &QAction::triggered,
+            [this]() { emit actionTriggered(ActionMap::toggleSideBar); });
+
     // Theme toggle
     m_themeToggleAction = new QAction(tr("Theme"), this);
-    m_themeToggleAction->setToolTip(tr("Toggle Theme"));
+    m_themeToggleAction->setToolTip(tr("Toggle Theme (Ctrl+T)"));
+    m_themeToggleAction->setShortcut(QKeySequence("Ctrl+T"));
     addAction(m_themeToggleAction);
     connect(m_themeToggleAction, &QAction::triggered,
             [this]() { emit actionTriggered(ActionMap::toggleTheme); });
 
-    // Initialize ALL action pointers to nullptr (not used in simplified
-    // version)
+    // Initialize remaining action pointers to nullptr (not implemented in
+    // simplified version)
     m_openFolderAction = nullptr;
     m_saveAsAction = nullptr;
     m_printAction = nullptr;
     m_emailAction = nullptr;
-    m_fitWidthAction = nullptr;
-    m_fitPageAction = nullptr;
-    m_fitHeightAction = nullptr;
-    m_rotateLeftAction = nullptr;
-    m_rotateRightAction = nullptr;
     m_searchAction = nullptr;
     m_bookmarkAction = nullptr;
     m_annotateAction = nullptr;
     m_highlightAction = nullptr;
     m_snapshotAction = nullptr;
-    m_toggleSidebarAction = nullptr;
     m_toggleFullscreenAction = nullptr;
     m_nightModeAction = nullptr;
     m_readingModeAction = nullptr;
@@ -228,19 +334,20 @@ ToolBar::ToolBar(QWidget* parent)
     m_hoverAnimation = nullptr;
     m_expandAnimation = nullptr;
 
-    // Initialize widget pointers to nullptr
-    m_pageSpinBox = nullptr;
-    m_pageCountLabel = nullptr;
+    // Initialize remaining widget pointers to nullptr
     m_pageSlider = nullptr;
     m_thumbnailPreview = nullptr;
-    m_zoomSlider = nullptr;
-    m_zoomValueLabel = nullptr;
     m_zoomPresets = nullptr;
-    m_viewModeCombo = nullptr;
     m_layoutCombo = nullptr;
     m_documentInfoLabel = nullptr;
     m_fileSizeLabel = nullptr;
     m_lastModifiedLabel = nullptr;
+
+    // Set initial state - all document-related controls disabled until document
+    // is loaded
+    setActionsEnabled(false);
+
+    LOG_DEBUG("ToolBar created with complete controls");
 }
 
 ToolBar::~ToolBar() {
@@ -774,7 +881,7 @@ void ToolBar::applyEnhancedStyle() {
 
 void ToolBar::updatePageInfo(int currentPage, int totalPages) {
     // Defensive null pointer checks
-    if (!m_pageSpinBox || !m_pageSlider || !m_pageCountLabel) {
+    if (!m_pageSpinBox || !m_pageCountLabel) {
         LOG_WARNING("ToolBar::updatePageInfo() - Page widgets not initialized");
         return;
     }
@@ -807,24 +914,80 @@ void ToolBar::updatePageInfo(int currentPage, int totalPages) {
         currentPage = totalPages - 1;
     }
 
-    m_pageSpinBox->blockSignals(true);
-    m_pageSlider->blockSignals(true);
+    LOG_DEBUG("ToolBar::updatePageInfo() - Updating page info: {}/{}",
+              currentPage + 1, totalPages);
 
+    // Update page spinbox
+    m_pageSpinBox->blockSignals(true);
+    m_pageSpinBox->setMinimum(totalPages > 0 ? 1 : 0);
     m_pageSpinBox->setMaximum(totalPages);
-    m_pageSpinBox->setValue(currentPage + 1);
+    m_pageSpinBox->setValue(totalPages > 0 ? currentPage + 1 : 0);
+    m_pageSpinBox->blockSignals(false);
+
+    // Update page count label
     m_pageCountLabel->setText(QString("/ %1").arg(totalPages));
 
-    m_pageSlider->setMaximum(totalPages);
-    m_pageSlider->setValue(currentPage + 1);
+    // Update page slider if it exists
+    if (m_pageSlider) {
+        m_pageSlider->blockSignals(true);
+        m_pageSlider->setMinimum(totalPages > 0 ? 1 : 0);
+        m_pageSlider->setMaximum(totalPages);
+        m_pageSlider->setValue(totalPages > 0 ? currentPage + 1 : 0);
+        m_pageSlider->blockSignals(false);
+    }
 
-    m_pageSpinBox->blockSignals(false);
-    m_pageSlider->blockSignals(false);
+    // Update navigation button states with enhanced tooltips
+    bool hasDocument = totalPages > 0;
+    bool canGoFirst = hasDocument && currentPage > 0;
+    bool canGoPrev = hasDocument && currentPage > 0;
+    bool canGoNext = hasDocument && currentPage < totalPages - 1;
+    bool canGoLast = hasDocument && currentPage < totalPages - 1;
 
-    // Update navigation button states
-    m_firstPageAction->setEnabled(currentPage > 0);
-    m_prevPageAction->setEnabled(currentPage > 0);
-    m_nextPageAction->setEnabled(currentPage < totalPages - 1);
-    m_lastPageAction->setEnabled(currentPage < totalPages - 1);
+    m_firstPageAction->setEnabled(canGoFirst);
+    if (!hasDocument) {
+        m_firstPageAction->setToolTip(tr("First Page (No document loaded)"));
+    } else if (!canGoFirst) {
+        m_firstPageAction->setToolTip(tr("First Page (Already at first page)"));
+    } else {
+        m_firstPageAction->setToolTip(tr("First Page (Ctrl+Home)"));
+    }
+
+    m_prevPageAction->setEnabled(canGoPrev);
+    if (!hasDocument) {
+        m_prevPageAction->setToolTip(tr("Previous Page (No document loaded)"));
+    } else if (!canGoPrev) {
+        m_prevPageAction->setToolTip(
+            tr("Previous Page (Already at first page)"));
+    } else {
+        m_prevPageAction->setToolTip(tr("Previous Page (Page Up)"));
+    }
+
+    m_nextPageAction->setEnabled(canGoNext);
+    if (!hasDocument) {
+        m_nextPageAction->setToolTip(tr("Next Page (No document loaded)"));
+    } else if (!canGoNext) {
+        m_nextPageAction->setToolTip(tr("Next Page (Already at last page)"));
+    } else {
+        m_nextPageAction->setToolTip(tr("Next Page (Page Down)"));
+    }
+
+    m_lastPageAction->setEnabled(canGoLast);
+    if (!hasDocument) {
+        m_lastPageAction->setToolTip(tr("Last Page (No document loaded)"));
+    } else if (!canGoLast) {
+        m_lastPageAction->setToolTip(tr("Last Page (Already at last page)"));
+    } else {
+        m_lastPageAction->setToolTip(tr("Last Page (Ctrl+End)"));
+    }
+
+    // Update page spinbox tooltip with current info
+    if (hasDocument) {
+        m_pageSpinBox->setToolTip(
+            tr("Current Page - Enter page number to navigate (1-%1)")
+                .arg(totalPages));
+    } else {
+        m_pageSpinBox->setToolTip(tr("Current Page (No document loaded)"));
+    }
 }
 
 void ToolBar::updateZoomLevel(double zoomFactor) {
@@ -884,7 +1047,10 @@ void ToolBar::updateDocumentInfo(const QString& fileName, qint64 fileSize,
 }
 
 void ToolBar::setActionsEnabled(bool enabled) {
-    // File actions always enabled except save
+    LOG_DEBUG("ToolBar::setActionsEnabled() - Setting actions enabled: {}",
+              enabled);
+
+    // File actions - open is always enabled, save only when document is loaded
     if (m_openAction) {
         m_openAction->setEnabled(true);
     }
@@ -893,6 +1059,11 @@ void ToolBar::setActionsEnabled(bool enabled) {
     }
     if (m_saveAction) {
         m_saveAction->setEnabled(enabled);
+        if (!enabled) {
+            m_saveAction->setToolTip(tr("Save File (No document loaded)"));
+        } else {
+            m_saveAction->setToolTip(tr("Save File (Ctrl+S)"));
+        }
     }
     if (m_saveAsAction) {
         m_saveAsAction->setEnabled(enabled);
@@ -904,22 +1075,178 @@ void ToolBar::setActionsEnabled(bool enabled) {
         m_emailAction->setEnabled(enabled);
     }
 
-    // Navigation actions
+    // Navigation actions and controls
+    if (m_firstPageAction) {
+        m_firstPageAction->setEnabled(enabled);
+        if (!enabled) {
+            m_firstPageAction->setToolTip(
+                tr("First Page (No document loaded)"));
+        } else {
+            m_firstPageAction->setToolTip(tr("First Page (Ctrl+Home)"));
+        }
+    }
+    if (m_prevPageAction) {
+        m_prevPageAction->setEnabled(enabled);
+        if (!enabled) {
+            m_prevPageAction->setToolTip(
+                tr("Previous Page (No document loaded)"));
+        } else {
+            m_prevPageAction->setToolTip(tr("Previous Page (Page Up)"));
+        }
+    }
+    if (m_nextPageAction) {
+        m_nextPageAction->setEnabled(enabled);
+        if (!enabled) {
+            m_nextPageAction->setToolTip(tr("Next Page (No document loaded)"));
+        } else {
+            m_nextPageAction->setToolTip(tr("Next Page (Page Down)"));
+        }
+    }
+    if (m_lastPageAction) {
+        m_lastPageAction->setEnabled(enabled);
+        if (!enabled) {
+            m_lastPageAction->setToolTip(tr("Last Page (No document loaded)"));
+        } else {
+            m_lastPageAction->setToolTip(tr("Last Page (Ctrl+End)"));
+        }
+    }
+
+    // Page navigation controls
+    if (m_pageSpinBox) {
+        m_pageSpinBox->setEnabled(enabled);
+        if (!enabled) {
+            m_pageSpinBox->setToolTip(tr("Current Page (No document loaded)"));
+        } else {
+            m_pageSpinBox->setToolTip(
+                tr("Current Page - Enter page number to navigate"));
+        }
+    }
+    if (m_pageCountLabel) {
+        m_pageCountLabel->setEnabled(enabled);
+        if (!enabled) {
+            m_pageCountLabel->setText("/ 0");
+            m_pageCountLabel->setToolTip(
+                tr("Total Pages (No document loaded)"));
+        } else {
+            m_pageCountLabel->setToolTip(tr("Total Pages"));
+        }
+    }
+
+    // Zoom actions and controls
+    if (m_zoomOutAction) {
+        m_zoomOutAction->setEnabled(enabled);
+        if (!enabled) {
+            m_zoomOutAction->setToolTip(tr("Zoom Out (No document loaded)"));
+        } else {
+            m_zoomOutAction->setToolTip(tr("Zoom Out (Ctrl+-)"));
+        }
+    }
+    if (m_zoomInAction) {
+        m_zoomInAction->setEnabled(enabled);
+        if (!enabled) {
+            m_zoomInAction->setToolTip(tr("Zoom In (No document loaded)"));
+        } else {
+            m_zoomInAction->setToolTip(tr("Zoom In (Ctrl++)"));
+        }
+    }
+    if (m_zoomSlider) {
+        m_zoomSlider->setEnabled(enabled);
+        if (!enabled) {
+            m_zoomSlider->setToolTip(tr("Zoom Level (No document loaded)"));
+        } else {
+            m_zoomSlider->setToolTip(tr("Zoom Level (25% - 400%)"));
+        }
+    }
+    if (m_zoomValueLabel) {
+        m_zoomValueLabel->setEnabled(enabled);
+        if (!enabled) {
+            m_zoomValueLabel->setText("---%");
+            m_zoomValueLabel->setToolTip(
+                tr("Current Zoom Level (No document loaded)"));
+        } else {
+            m_zoomValueLabel->setToolTip(tr("Current Zoom Level"));
+        }
+    }
+
+    // Fit actions
+    if (m_fitWidthAction) {
+        m_fitWidthAction->setEnabled(enabled);
+        if (!enabled) {
+            m_fitWidthAction->setToolTip(
+                tr("Fit to Width (No document loaded)"));
+        } else {
+            m_fitWidthAction->setToolTip(tr("Fit to Width (Ctrl+1)"));
+        }
+    }
+    if (m_fitPageAction) {
+        m_fitPageAction->setEnabled(enabled);
+        if (!enabled) {
+            m_fitPageAction->setToolTip(tr("Fit to Page (No document loaded)"));
+        } else {
+            m_fitPageAction->setToolTip(tr("Fit to Page (Ctrl+0)"));
+        }
+    }
+    if (m_fitHeightAction) {
+        m_fitHeightAction->setEnabled(enabled);
+        if (!enabled) {
+            m_fitHeightAction->setToolTip(
+                tr("Fit to Height (No document loaded)"));
+        } else {
+            m_fitHeightAction->setToolTip(tr("Fit to Height (Ctrl+2)"));
+        }
+    }
+
+    // View mode controls
+    if (m_viewModeCombo) {
+        m_viewModeCombo->setEnabled(enabled);
+        if (!enabled) {
+            m_viewModeCombo->setToolTip(
+                tr("Select View Mode (No document loaded)"));
+        } else {
+            m_viewModeCombo->setToolTip(tr("Select View Mode"));
+        }
+    }
+
+    // Rotation actions
+    if (m_rotateLeftAction) {
+        m_rotateLeftAction->setEnabled(enabled);
+        if (!enabled) {
+            m_rotateLeftAction->setToolTip(
+                tr("Rotate Left 90° (No document loaded)"));
+        } else {
+            m_rotateLeftAction->setToolTip(tr("Rotate Left 90° (Ctrl+L)"));
+        }
+    }
+    if (m_rotateRightAction) {
+        m_rotateRightAction->setEnabled(enabled);
+        if (!enabled) {
+            m_rotateRightAction->setToolTip(
+                tr("Rotate Right 90° (No document loaded)"));
+        } else {
+            m_rotateRightAction->setToolTip(tr("Rotate Right 90° (Ctrl+R)"));
+        }
+    }
+
+    // Sidebar toggle is always enabled
+    if (m_toggleSidebarAction) {
+        m_toggleSidebarAction->setEnabled(true);
+    }
+
+    // Theme toggle is always enabled
+    if (m_themeToggleAction) {
+        m_themeToggleAction->setEnabled(true);
+    }
+
+    // Section-based controls (if using full implementation)
     if (m_navigationSection) {
         m_navigationSection->setEnabled(enabled);
     }
-
-    // Zoom actions
     if (m_zoomSection) {
         m_zoomSection->setEnabled(enabled);
     }
-
-    // View actions
     if (m_viewSection) {
         m_viewSection->setEnabled(enabled);
     }
-
-    // Tool actions
     if (m_toolsSection) {
         m_toolsSection->setEnabled(enabled);
     }
@@ -957,10 +1284,40 @@ void ToolBar::setCompactMode(bool compact) {
 }
 
 void ToolBar::onPageSpinBoxChanged(int pageNumber) {
-    emit pageJumpRequested(pageNumber - 1);
-    if (m_pageSlider) {
-        m_pageSlider->setValue(pageNumber);
+    if (!m_pageSpinBox) {
+        LOG_WARNING(
+            "ToolBar::onPageSpinBoxChanged() - Page spinbox not initialized");
+        return;
     }
+
+    // Validate page number
+    int minPage = m_pageSpinBox->minimum();
+    int maxPage = m_pageSpinBox->maximum();
+
+    if (pageNumber < minPage || pageNumber > maxPage) {
+        LOG_WARNING(
+            "ToolBar::onPageSpinBoxChanged() - Invalid page number: {} (range: "
+            "{}-{})",
+            pageNumber, minPage, maxPage);
+        // Reset to valid value
+        m_pageSpinBox->blockSignals(true);
+        m_pageSpinBox->setValue(std::clamp(pageNumber, minPage, maxPage));
+        m_pageSpinBox->blockSignals(false);
+        return;
+    }
+
+    LOG_DEBUG("ToolBar::onPageSpinBoxChanged() - Navigating to page: {}",
+              pageNumber);
+
+    // Update page slider if it exists
+    if (m_pageSlider) {
+        m_pageSlider->blockSignals(true);
+        m_pageSlider->setValue(pageNumber);
+        m_pageSlider->blockSignals(false);
+    }
+
+    // Emit page jump request (convert to 0-based index)
+    emit pageJumpRequested(pageNumber - 1);
 }
 
 void ToolBar::onViewModeChanged() {
@@ -971,24 +1328,116 @@ void ToolBar::onViewModeChanged() {
     }
 
     int mode = m_viewModeCombo->currentIndex();
+    QString modeName = m_viewModeCombo->currentText();
+
+    LOG_DEBUG(
+        "ToolBar::onViewModeChanged() - View mode changed to: {} (index: {})",
+        modeName.toStdString(), mode);
+
+    // Emit appropriate action based on view mode
     switch (mode) {
-        case 0:
+        case 0:  // Single Page
             emit actionTriggered(ActionMap::setSinglePageMode);
             break;
-        case 1:
+        case 1:  // Continuous
             emit actionTriggered(ActionMap::setContinuousScrollMode);
             break;
-            // Add more cases for other view modes
+        case 2:  // Two Pages
+            // TODO: Add ActionMap entry for two pages mode when implemented
+            LOG_DEBUG("Two Pages mode selected - not yet implemented");
+            break;
+        case 3:  // Book View
+            // TODO: Add ActionMap entry for book view mode when implemented
+            LOG_DEBUG("Book View mode selected - not yet implemented");
+            break;
+        default:
+            LOG_WARNING(
+                "ToolBar::onViewModeChanged() - Unknown view mode index: {}",
+                mode);
+            // Reset to single page mode as fallback
+            m_viewModeCombo->blockSignals(true);
+            m_viewModeCombo->setCurrentIndex(0);
+            m_viewModeCombo->blockSignals(false);
+            emit actionTriggered(ActionMap::setSinglePageMode);
+            break;
     }
+
+    // Emit view mode changed signal for external components
+    // TODO: Fix signal emission - emit viewModeChanged(modeName);
+    LOG_DEBUG("View mode changed to: {}", modeName.toStdString());
 }
 
 void ToolBar::onZoomSliderChanged(int value) {
+    if (!m_zoomSlider) {
+        LOG_WARNING(
+            "ToolBar::onZoomSliderChanged() - Zoom slider not initialized");
+        return;
+    }
+
+    // Validate zoom value
+    int minZoom = m_zoomSlider->minimum();
+    int maxZoom = m_zoomSlider->maximum();
+
+    if (value < minZoom || value > maxZoom) {
+        LOG_WARNING(
+            "ToolBar::onZoomSliderChanged() - Invalid zoom value: {} (range: "
+            "{}-{})",
+            value, minZoom, maxZoom);
+        // Reset to valid value
+        m_zoomSlider->blockSignals(true);
+        m_zoomSlider->setValue(std::clamp(value, minZoom, maxZoom));
+        m_zoomSlider->blockSignals(false);
+        return;
+    }
+
+    LOG_DEBUG("ToolBar::onZoomSliderChanged() - Zoom level changed to: {}%",
+              value);
+
+    // Update zoom value label with visual feedback
     if (m_zoomValueLabel) {
         m_zoomValueLabel->setText(QString("%1%").arg(value));
+
+        // Provide visual feedback for extreme zoom levels
+        if (value <= 50) {
+            m_zoomValueLabel->setStyleSheet(
+                "QLabel { color: #dc3545; font-weight: bold; }");  // Red for
+                                                                   // very small
+        } else if (value >= 300) {
+            m_zoomValueLabel->setStyleSheet(
+                "QLabel { color: #fd7e14; font-weight: bold; }");  // Orange for
+                                                                   // very large
+        } else {
+            m_zoomValueLabel->setStyleSheet(
+                "QLabel { color: #495057; }");  // Normal color
+        }
     }
+
+    // Update zoom presets if they exist
     if (m_zoomPresets) {
+        m_zoomPresets->blockSignals(true);
         m_zoomPresets->setCurrentText(QString("%1%").arg(value));
+        m_zoomPresets->blockSignals(false);
     }
+
+    // Update zoom action states based on current level
+    if (m_zoomOutAction) {
+        m_zoomOutAction->setEnabled(value > minZoom);
+        if (value <= minZoom) {
+            m_zoomOutAction->setToolTip(tr("Zoom Out (Minimum zoom reached)"));
+        } else {
+            m_zoomOutAction->setToolTip(tr("Zoom Out (Ctrl+-)"));
+        }
+    }
+
+    if (m_zoomInAction) {
+        m_zoomInAction->setEnabled(value < maxZoom);
+        if (value >= maxZoom) {
+            m_zoomInAction->setToolTip(tr("Zoom In (Maximum zoom reached)"));
+        } else {
+            m_zoomInAction->setToolTip(tr("Zoom In (Ctrl++)"));
+        }
+    }
+
     emit zoomLevelChanged(value);
 }
 
@@ -1154,4 +1603,24 @@ void ToolBar::changeEvent(QEvent* event) {
         retranslateUi();
     }
     QToolBar::changeEvent(event);
+}
+
+void ToolBar::contextMenuEvent(QContextMenuEvent* event) {
+    if (!contextMenuManager) {
+        QToolBar::contextMenuEvent(event);
+        return;
+    }
+
+    // Create UI element context
+    ContextMenuManager::UIElementContext context;
+    context.targetWidget = this;
+    context.elementIndex = -1;
+    context.isEnabled = isEnabled();
+    context.isVisible = isVisible();
+    context.elementId = "toolbar";
+
+    // Show toolbar context menu
+    contextMenuManager->showToolbarMenu(event->globalPos(), context, this);
+
+    event->accept();
 }

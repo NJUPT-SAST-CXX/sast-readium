@@ -1,5 +1,6 @@
 #include "DocumentTabWidget.h"
 #include <QApplication>
+#include <QContextMenuEvent>
 #include <QDebug>
 #include <QDrag>
 #include <QMimeData>
@@ -91,6 +92,9 @@ void DocumentTabBar::dropEvent(QDropEvent* event) {
 // DocumentTabWidget Implementation
 DocumentTabWidget::DocumentTabWidget(QWidget* parent)
     : QTabWidget(parent), customTabBar(nullptr) {
+    // Initialize context menu manager
+    contextMenuManager = new ContextMenuManager(this);
+
     setupTabBar();
     setTabsClosable(true);
     setMovable(true);
@@ -227,4 +231,36 @@ void DocumentTabWidget::onTabCloseRequested(int index) {
 void DocumentTabWidget::onTabMoveRequested(int from, int to) {
     moveTab(from, to);
     emit tabMoved(from, to);
+}
+void DocumentTabWidget::contextMenuEvent(QContextMenuEvent* event) {
+    if (!contextMenuManager) {
+        QTabWidget::contextMenuEvent(event);
+        return;
+    }
+
+    // Find which tab was right-clicked
+    int tabIndex = -1;
+    if (customTabBar) {
+        QPoint tabBarPos = customTabBar->mapFromGlobal(event->globalPos());
+        tabIndex = customTabBar->tabAt(tabBarPos);
+    }
+
+    // Create UI element context
+    ContextMenuManager::UIElementContext context;
+    context.targetWidget = this;
+    context.elementIndex = tabIndex;
+    context.isEnabled = true;
+    context.isVisible = true;
+
+    if (tabIndex >= 0) {
+        context.elementId = QString("tab_%1").arg(tabIndex);
+        context.properties["filePath"] = getTabFilePath(tabIndex);
+        context.properties["tabText"] = tabText(tabIndex);
+    }
+
+    // Show document tab context menu
+    contextMenuManager->showDocumentTabMenu(event->globalPos(), tabIndex,
+                                            context, this);
+
+    event->accept();
 }

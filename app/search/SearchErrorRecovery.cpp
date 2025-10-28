@@ -32,6 +32,17 @@ public:
             10000);  // Check circuit breakers every 10 seconds
     }
 
+    ~Implementation() {
+        // Stop timers before destruction to prevent callbacks on destroyed
+        // object
+        if (recoveryTimer) {
+            recoveryTimer->stop();
+        }
+        if (circuitBreakerTimer) {
+            circuitBreakerTimer->stop();
+        }
+    }
+
     void initializeDefaultConfigs() {
         // Default configuration for each error type
         RecoveryConfig defaultConfig;

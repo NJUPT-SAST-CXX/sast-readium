@@ -16,6 +16,7 @@
 #include <algorithm>
 #include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
+#include "UIErrorHandler.h"
 
 // ExpandableInfoPanel Implementation
 ExpandableInfoPanel::ExpandableInfoPanel(const QString& title, QWidget* parent)
@@ -190,7 +191,7 @@ StatusBar::StatusBar(QWidget* parent, bool minimalMode)
         m_exportBtn = nullptr;
 
         // Set a simple message using QStatusBar's built-in functionality
-        showMessage("StatusBar (Minimal Mode)", 0);
+        QStatusBar::showMessage("StatusBar (Minimal Mode)");
         return;
     }
 
@@ -235,6 +236,14 @@ StatusBar::StatusBar(QWidget* parent, bool minimalMode)
     m_messageTimer->setSingleShot(true);
     connect(m_messageTimer, &QTimer::timeout, this,
             &StatusBar::onMessageTimerTimeout);
+
+    // Setup message priority timer
+    m_messagePriorityTimer = new QTimer(this);
+    m_messagePriorityTimer->setSingleShot(true);
+    connect(m_messagePriorityTimer, &QTimer::timeout, this, [this]() {
+        m_currentMessagePriority = MessagePriority::Low;
+        LOG_DEBUG("StatusBar: Message priority reset to Low");
+    });
 
     // Setup message animation
     // Don't create animation in offscreen mode to avoid crashes
@@ -413,6 +422,11 @@ void StatusBar::setupMainSection() {
             &StatusBar::onZoomInputReturnPressed);
     connect(m_searchInput, &QLineEdit::returnPressed, this,
             &StatusBar::onSearchInputReturnPressed);
+
+    // Enhanced keyboard navigation support
+    m_pageInputEdit->installEventFilter(this);
+    m_zoomInputEdit->installEventFilter(this);
+    m_searchInput->installEventFilter(this);
 
     // Setup input validator
     QIntValidator* validator = new QIntValidator(1, 9999, this);
@@ -789,6 +803,17 @@ void StatusBar::setDocumentInfo(const QString& fileName, int currentPage,
     setZoomLevel(zoomLevel);
 }
 
+void StatusBar::setDocumentInfo(const QString& fileName, int currentPage,
+                                int totalPages, double zoomLevel,
+                                qint64 fileSize) {
+    if (!m_fileNameLabel) {
+        return;  // Skip if in minimal mode
+    }
+    setFileName(fileName, fileSize);
+    setPageInfo(currentPage, totalPages);
+    setZoomLevel(zoomLevel);
+}
+
 void StatusBar::setDocumentMetadata(const QString& title, const QString& author,
                                     const QString& subject,
                                     const QString& keywords,
@@ -797,15 +822,60 @@ void StatusBar::setDocumentMetadata(const QString& title, const QString& author,
     if (!m_titleLabel) {
         return;  // Skip if in minimal mode
     }
-    m_titleLabel->setText(tr("Title: %1").arg(title.isEmpty() ? "-" : title));
+
+    // Enhanced metadata display with proper validation and formatting
+    QString displayTitle = title.trimmed();
+    if (displayTitle.length() > 50) {
+        displayTitle = displayTitle.left(47) + "...";
+    }
+    m_titleLabel->setText(
+        tr("Title: %1").arg(displayTitle.isEmpty() ? "-" : displayTitle));
+    m_titleLabel->setToolTip(title.isEmpty() ? tr("No title available")
+                                             : title);
+
+    QString displayAuthor = author.trimmed();
+    if (displayAuthor.length() > 30) {
+        displayAuthor = displayAuthor.left(27) + "...";
+    }
     m_authorLabel->setText(
-        tr("Author: %1").arg(author.isEmpty() ? "-" : author));
+        tr("Author: %1").arg(displayAuthor.isEmpty() ? "-" : displayAuthor));
+    m_authorLabel->setToolTip(author.isEmpty() ? tr("No author information")
+                                               : author);
+
+    QString displaySubject = subject.trimmed();
+    if (displaySubject.length() > 40) {
+        displaySubject = displaySubject.left(37) + "...";
+    }
     m_subjectLabel->setText(
-        tr("Subject: %1").arg(subject.isEmpty() ? "-" : subject));
+        tr("Subject: %1").arg(displaySubject.isEmpty() ? "-" : displaySubject));
+    m_subjectLabel->setToolTip(subject.isEmpty() ? tr("No subject information")
+                                                 : subject);
+
+    QString displayKeywords = keywords.trimmed();
+    if (displayKeywords.length() > 40) {
+        displayKeywords = displayKeywords.left(37) + "...";
+    }
     m_keywordsLabel->setText(
-        tr("Keywords: %1").arg(keywords.isEmpty() ? "-" : keywords));
-    m_createdLabel->setText(tr("Created: %1").arg(formatDateTime(created)));
-    m_modifiedLabel->setText(tr("Modified: %1").arg(formatDateTime(modified)));
+        tr("Keywords: %1")
+            .arg(displayKeywords.isEmpty() ? "-" : displayKeywords));
+    m_keywordsLabel->setToolTip(keywords.isEmpty() ? tr("No keywords available")
+                                                   : keywords);
+
+    QString createdText = formatDateTime(created);
+    m_createdLabel->setText(tr("Created: %1").arg(createdText));
+    m_createdLabel->setToolTip(created.isValid() ? created.toString()
+                                                 : tr("Creation date unknown"));
+
+    QString modifiedText = formatDateTime(modified);
+    m_modifiedLabel->setText(tr("Modified: %1").arg(modifiedText));
+    m_modifiedLabel->setToolTip(modified.isValid()
+                                    ? modified.toString()
+                                    : tr("Modification date unknown"));
+
+    LOG_DEBUG(
+        "StatusBar::setDocumentMetadata() - Metadata updated: title='{}', "
+        "author='{}'",
+        title.toStdString(), author.toStdString());
 }
 
 void StatusBar::setDocumentStatistics(int wordCount, int charCount,
@@ -813,28 +883,78 @@ void StatusBar::setDocumentStatistics(int wordCount, int charCount,
     if (!m_wordCountLabel) {
         return;  // Skip if in minimal mode
     }
-    m_wordCountLabel->setText(tr("Words: %1").arg(wordCount));
-    m_charCountLabel->setText(tr("Characters: %1").arg(charCount));
-    m_pageCountLabel->setText(tr("Pages: %1").arg(pageCount));
 
-    if (pageCount > 0) {
+    // Enhanced statistics display with proper validation and formatting
+    if (wordCount < 0 || charCount < 0 || pageCount < 0) {
+        LOG_WARNING(
+            "StatusBar::setDocumentStatistics() - Invalid statistics: "
+            "words={}, chars={}, pages={}",
+            wordCount, charCount, pageCount);
+        // Set to safe defaults
+        wordCount = std::max(0, wordCount);
+        charCount = std::max(0, charCount);
+        pageCount = std::max(0, pageCount);
+    }
+
+    // Format numbers with thousands separators for better readability
+    QLocale locale;
+    m_wordCountLabel->setText(tr("Words: %1").arg(locale.toString(wordCount)));
+    m_wordCountLabel->setToolTip(tr("Total word count in document"));
+
+    m_charCountLabel->setText(
+        tr("Characters: %1").arg(locale.toString(charCount)));
+    m_charCountLabel->setToolTip(tr("Total character count including spaces"));
+
+    m_pageCountLabel->setText(tr("Pages: %1").arg(pageCount));
+    m_pageCountLabel->setToolTip(tr("Total number of pages in document"));
+
+    if (pageCount > 0 && wordCount > 0) {
         int avgWords = wordCount / pageCount;
         m_avgWordsPerPageLabel->setText(tr("Avg Words/Page: %1").arg(avgWords));
+        m_avgWordsPerPageLabel->setToolTip(tr("Average words per page"));
 
-        // Estimate reading time (assuming 200 words per minute)
+        // Estimate reading time (assuming 200 words per minute for average
+        // reader)
         int readingMinutes = wordCount / 200;
         if (readingMinutes < 1) {
             m_readingTimeLabel->setText(tr("Est. Reading Time: < 1 min"));
+            m_readingTimeLabel->setToolTip(
+                tr("Estimated reading time for average reader (200 wpm)"));
         } else if (readingMinutes < 60) {
             m_readingTimeLabel->setText(
                 tr("Est. Reading Time: %1 min").arg(readingMinutes));
+            m_readingTimeLabel->setToolTip(
+                tr("Estimated reading time: %1 minutes").arg(readingMinutes));
         } else {
             int hours = readingMinutes / 60;
             int minutes = readingMinutes % 60;
-            m_readingTimeLabel->setText(
-                tr("Est. Reading Time: %1h %2min").arg(hours).arg(minutes));
+            if (minutes > 0) {
+                m_readingTimeLabel->setText(
+                    tr("Est. Reading Time: %1h %2min").arg(hours).arg(minutes));
+                m_readingTimeLabel->setToolTip(
+                    tr("Estimated reading time: %1 hours %2 minutes")
+                        .arg(hours)
+                        .arg(minutes));
+            } else {
+                m_readingTimeLabel->setText(
+                    tr("Est. Reading Time: %1h").arg(hours));
+                m_readingTimeLabel->setToolTip(
+                    tr("Estimated reading time: %1 hours").arg(hours));
+            }
         }
+    } else {
+        m_avgWordsPerPageLabel->setText(tr("Avg Words/Page: -"));
+        m_avgWordsPerPageLabel->setToolTip(
+            tr("Cannot calculate average - insufficient data"));
+        m_readingTimeLabel->setText(tr("Est. Reading Time: -"));
+        m_readingTimeLabel->setToolTip(
+            tr("Cannot estimate reading time - insufficient data"));
     }
+
+    LOG_DEBUG(
+        "StatusBar::setDocumentStatistics() - Statistics updated: {} words, {} "
+        "chars, {} pages",
+        wordCount, charCount, pageCount);
 }
 
 void StatusBar::setDocumentSecurity(bool encrypted, bool copyAllowed,
@@ -885,24 +1005,19 @@ void StatusBar::setPageInfo(int current, int total) {
         return;  // Skip if in minimal mode
     }
 
-    // Input validation
-    if (total < 0) {
-        LOG_WARNING("StatusBar::setPageInfo() - Invalid total pages: {}",
-                    total);
-        total = 0;
-    }
+    // Enhanced input validation using UIErrorHandler
+    auto validation = UIErrorHandler::instance().validatePageNumber(
+        current + 1, total);  // Convert to 1-based
+    if (validation.result != UIErrorHandler::ValidationResult::Valid) {
+        UIErrorHandler::instance().showValidationFeedback(this, validation);
 
-    if (current < 0) {
-        LOG_WARNING("StatusBar::setPageInfo() - Invalid current page: {}",
-                    current);
-        current = 0;
-    }
-
-    if (current >= total && total > 0) {
-        LOG_WARNING(
-            "StatusBar::setPageInfo() - Current page {} exceeds total pages {}",
-            current, total);
-        current = total - 1;
+        // Correct invalid values
+        if (total < 0)
+            total = 0;
+        if (current < 0)
+            current = 0;
+        if (current >= total && total > 0)
+            current = total - 1;
     }
 
     m_currentTotalPages = total;
@@ -916,10 +1031,16 @@ void StatusBar::setPageInfo(int current, int total) {
         m_pageInputEdit->setToolTip(
             tr("Enter page number (1-%1) and press Enter to jump").arg(total));
         setLineEditInvalid(m_pageInputEdit, false);
+
+        // Update validator range
+        if (auto* validator = qobject_cast<const QIntValidator*>(
+                m_pageInputEdit->validator())) {
+            const_cast<QIntValidator*>(validator)->setRange(1, total);
+        }
     } else {
         m_pageInputEdit->setPlaceholderText("0/0");
         m_pageInputEdit->setEnabled(false);
-        m_pageInputEdit->setToolTip("");
+        m_pageInputEdit->setToolTip(tr("No document loaded"));
         setLineEditInvalid(m_pageInputEdit, false);
     }
 }
@@ -929,25 +1050,50 @@ void StatusBar::setZoomLevel(int percent) {
         return;  // Skip if in minimal mode
     }
 
-    // Input validation - reasonable zoom range is 10% to 500%
+    // Enhanced input validation with user feedback
+    bool hasValidationErrors = false;
+    QString validationMessage;
+
     if (percent < 10 || percent > 500) {
         LOG_WARNING(
             "StatusBar::setZoomLevel() - Zoom level {} out of range [10, 500]",
             percent);
+        validationMessage = tr("Zoom level adjusted to valid range (10%-500%)");
+        hasValidationErrors = true;
         percent = std::clamp(percent, 10, 500);
     }
 
+    // Show validation warning if zoom was clamped
+    if (hasValidationErrors) {
+        setWarningMessage(validationMessage, 2000);
+    }
+
     m_zoomInputEdit->setText(QString("%1%").arg(percent));
+
+    // Update tooltip with current zoom info
+    m_zoomInputEdit->setToolTip(
+        tr("Current zoom: %1% (Range: 10%-500%)").arg(percent));
 }
 
 void StatusBar::setZoomLevel(double percent) {
-    // Input validation
+    // Enhanced input validation with user feedback
+    bool hasValidationErrors = false;
+    QString validationMessage;
+
     if (percent < 0.1 || percent > 5.0) {
         LOG_WARNING(
             "StatusBar::setZoomLevel() - Zoom factor {} out of range [0.1, "
             "5.0]",
             percent);
+        validationMessage =
+            tr("Zoom factor adjusted to valid range (10%-500%)");
+        hasValidationErrors = true;
         percent = std::clamp(percent, 0.1, 5.0);
+    }
+
+    // Show validation warning if zoom was clamped
+    if (hasValidationErrors) {
+        setWarningMessage(validationMessage, 2000);
     }
 
     int roundedPercent = static_cast<int>((percent * 100) + 0.5);  // 四舍五入
@@ -963,10 +1109,62 @@ void StatusBar::setFileName(const QString& fileName) {
     if (fileName.isEmpty()) {
         m_fileNameLabel->setText(tr("No Document"));
         m_fileNameLabel->setToolTip("");
+        if (m_fileSizeLabel) {
+            m_fileSizeLabel->setText(tr("Size: -"));
+        }
     } else {
         QString displayName = formatFileName(fileName);
         m_fileNameLabel->setText(displayName);
         m_fileNameLabel->setToolTip(fileName);  // Full path as tooltip
+
+        // Update file size if we have the file path
+        if (m_fileSizeLabel) {
+            QFileInfo fileInfo(fileName);
+            if (fileInfo.exists()) {
+                qint64 size = fileInfo.size();
+                m_fileSizeLabel->setText(
+                    tr("Size: %1").arg(formatFileSize(size)));
+            } else {
+                m_fileSizeLabel->setText(tr("Size: -"));
+            }
+        }
+    }
+}
+
+void StatusBar::setFileName(const QString& fileName, qint64 fileSize) {
+    if (!m_fileNameLabel) {
+        return;  // Skip if in minimal mode
+    }
+
+    m_currentFileName = fileName;
+    if (fileName.isEmpty()) {
+        m_fileNameLabel->setText(tr("No Document"));
+        m_fileNameLabel->setToolTip("");
+        if (m_fileSizeLabel) {
+            m_fileSizeLabel->setText(tr("Size: -"));
+        }
+    } else {
+        QString displayName = formatFileName(fileName);
+        m_fileNameLabel->setText(displayName);
+        m_fileNameLabel->setToolTip(fileName);  // Full path as tooltip
+
+        // Update file size with provided size
+        if (m_fileSizeLabel) {
+            if (fileSize > 0) {
+                m_fileSizeLabel->setText(
+                    tr("Size: %1").arg(formatFileSize(fileSize)));
+            } else {
+                // Fallback to file system check
+                QFileInfo fileInfo(fileName);
+                if (fileInfo.exists()) {
+                    qint64 size = fileInfo.size();
+                    m_fileSizeLabel->setText(
+                        tr("Size: %1").arg(formatFileSize(size)));
+                } else {
+                    m_fileSizeLabel->setText(tr("Size: -"));
+                }
+            }
+        }
     }
 }
 
@@ -977,22 +1175,98 @@ void StatusBar::setMessage(const QString& message) {
 }
 
 void StatusBar::setErrorMessage(const QString& message, int timeout) {
+    showMessage(message, MessagePriority::High, timeout);
     displayTransientMessage(message, timeout, STYLE.errorColor(), Qt::white);
     QStatusBar::showMessage(message, timeout);
 }
 
 void StatusBar::setSuccessMessage(const QString& message, int timeout) {
+    showMessage(message, MessagePriority::Normal, timeout);
     displayTransientMessage(message, timeout, STYLE.successColor(), Qt::white);
     QStatusBar::showMessage(message, timeout);
 }
 
 void StatusBar::setWarningMessage(const QString& message, int timeout) {
+    showMessage(message, MessagePriority::High, timeout);
     const QColor warningText = (STYLE.currentTheme() == Theme::Dark)
                                    ? STYLE.backgroundColor()
                                    : QColor(QStringLiteral("#1f2933"));
     displayTransientMessage(message, timeout, STYLE.warningColor(),
                             warningText);
     QStatusBar::showMessage(message, timeout);
+}
+
+void StatusBar::showMessage(const QString& message, MessagePriority priority,
+                            int timeout) {
+    // Only show if priority is higher or equal to current
+    if (priority < m_currentMessagePriority) {
+        LOG_DEBUG(
+            "StatusBar::showMessage() - Ignoring lower priority message: {} < "
+            "{}",
+            static_cast<int>(priority),
+            static_cast<int>(m_currentMessagePriority));
+        return;
+    }
+
+    m_currentMessagePriority = priority;
+
+    // Set priority timeout - higher priority messages reset the timer
+    if (m_messagePriorityTimer) {
+        m_messagePriorityTimer->stop();
+        int priorityTimeout = timeout + (static_cast<int>(priority) * 1000);
+        m_messagePriorityTimer->start(priorityTimeout);
+    }
+
+    // Display the message
+    QColor backgroundColor, textColor;
+    switch (priority) {
+        case MessagePriority::Critical:
+            backgroundColor = STYLE.errorColor();
+            textColor = Qt::white;
+            break;
+        case MessagePriority::High:
+            backgroundColor = STYLE.warningColor();
+            textColor = (STYLE.currentTheme() == Theme::Dark)
+                            ? STYLE.backgroundColor()
+                            : QColor(QStringLiteral("#1f2933"));
+            break;
+        case MessagePriority::Normal:
+            backgroundColor = STYLE.successColor();
+            textColor = Qt::white;
+            break;
+        case MessagePriority::Low:
+        default:
+            backgroundColor = STYLE.overlayColor();
+            textColor = STYLE.textColor();
+            break;
+    }
+
+    displayTransientMessage(message, timeout, backgroundColor, textColor);
+    QStatusBar::showMessage(message, timeout);
+
+    LOG_DEBUG("StatusBar::showMessage() - Showing message with priority {}: {}",
+              static_cast<int>(priority), message.toStdString());
+}
+
+void StatusBar::clearMessages(MessagePriority maxPriority) {
+    if (m_currentMessagePriority <= maxPriority) {
+        if (m_messageTimer) {
+            m_messageTimer->stop();
+        }
+        if (m_messageAnimation) {
+            m_messageAnimation->stop();
+        }
+        if (m_messageLabel) {
+            m_messageLabel->hide();
+            m_messageLabel->clear();
+        }
+        QStatusBar::clearMessage();
+        m_currentMessagePriority = MessagePriority::Low;
+
+        LOG_DEBUG(
+            "StatusBar::clearMessages() - Messages cleared up to priority {}",
+            static_cast<int>(maxPriority));
+    }
 }
 
 void StatusBar::setSearchResults(int currentMatch, int totalMatches) {
@@ -1186,10 +1460,32 @@ void StatusBar::onZoomInputReturnPressed() {
 }
 
 void StatusBar::onSearchInputReturnPressed() {
-    QString searchText = m_searchInput->text().trimmed();
-    if (!searchText.isEmpty()) {
-        emit searchRequested(searchText);
+    if (!m_searchInput) {
+        return;  // Skip if in minimal mode
     }
+
+    QString searchText = m_searchInput->text().trimmed();
+    if (searchText.isEmpty()) {
+        setWarningMessage(tr("Please enter search text"), 2000);
+        return;
+    }
+
+    if (searchText.length() < 2) {
+        setWarningMessage(tr("Search text must be at least 2 characters"),
+                          2000);
+        return;
+    }
+
+    // Show search progress
+    showProgress(tr("Searching for: %1").arg(searchText), 5);
+
+    // Clear previous search results
+    clearSearchResults();
+
+    emit searchRequested(searchText);
+
+    LOG_DEBUG("StatusBar::onSearchInputReturnPressed() - Search requested: {}",
+              searchText.toStdString());
 }
 
 void StatusBar::updateClock() {
@@ -1287,12 +1583,105 @@ void StatusBar::setLoadingMessage(const QString& message) {
 }
 
 void StatusBar::hideLoadingProgress() {
+    if (!loadingProgressBar || !loadingMessageLabel) {
+        return;  // Skip if in minimal mode
+    }
+
     loadingProgressBar->setVisible(false);
     loadingMessageLabel->setVisible(false);
 
     // 恢复其他控件显示
     fileNameLabel->setVisible(true);
     separatorLabel1->setVisible(true);
+
+    m_progressVisible = false;
+    m_currentProgressPriority = 0;
+}
+
+void StatusBar::showProgress(const QString& message, int priority) {
+    if (!m_loadingProgressBar || !m_loadingMessageLabel) {
+        return;  // Skip if in minimal mode
+    }
+
+    // Only show if priority is higher or equal to current
+    if (m_progressVisible && priority < m_currentProgressPriority) {
+        LOG_DEBUG(
+            "StatusBar::showProgress() - Ignoring lower priority progress: {} "
+            "< {}",
+            priority, m_currentProgressPriority);
+        return;
+    }
+
+    m_currentProgressPriority = priority;
+    m_progressVisible = true;
+
+    QString displayMessage = message.isEmpty() ? tr("Processing...") : message;
+    m_loadingMessageLabel->setText(displayMessage);
+    m_loadingMessageLabel->setVisible(true);
+    m_loadingProgressBar->setValue(0);
+    m_loadingProgressBar->setVisible(true);
+
+    // Hide other controls to save space for high priority operations
+    if (priority > 5) {
+        m_fileNameLabel->setVisible(false);
+        separatorLabel1->setVisible(false);
+    }
+
+    LOG_DEBUG(
+        "StatusBar::showProgress() - Showing progress with priority {}: {}",
+        priority, displayMessage.toStdString());
+}
+
+void StatusBar::updateProgress(int progress, const QString& message) {
+    if (!m_loadingProgressBar || !m_progressVisible) {
+        return;  // Skip if in minimal mode or no progress shown
+    }
+
+    progress = qBound(0, progress, 100);
+
+    // Use animation for smooth progress updates
+    if (m_progressAnimation) {
+        m_progressAnimation->stop();
+        m_progressAnimation->setStartValue(m_loadingProgressBar->value());
+        m_progressAnimation->setEndValue(progress);
+        m_progressAnimation->start();
+    } else {
+        // Fallback for minimal mode
+        m_loadingProgressBar->setValue(progress);
+    }
+
+    if (!message.isEmpty() && m_loadingMessageLabel) {
+        m_loadingMessageLabel->setText(message);
+    }
+
+    LOG_DEBUG("StatusBar::updateProgress() - Progress updated to {}%",
+              progress);
+}
+
+void StatusBar::hideProgress() {
+    if (!m_loadingProgressBar || !m_loadingMessageLabel) {
+        return;  // Skip if in minimal mode
+    }
+
+    m_loadingProgressBar->setVisible(false);
+    m_loadingMessageLabel->setVisible(false);
+
+    // Restore other controls
+    if (m_fileNameLabel) {
+        m_fileNameLabel->setVisible(true);
+    }
+    if (separatorLabel1) {
+        separatorLabel1->setVisible(true);
+    }
+
+    m_progressVisible = false;
+    m_currentProgressPriority = 0;
+
+    LOG_DEBUG("StatusBar::hideProgress() - Progress hidden");
+}
+
+void StatusBar::setProgressPriority(int priority) {
+    m_currentProgressPriority = priority;
 }
 
 void StatusBar::retranslateUi() {
@@ -1340,4 +1729,77 @@ void StatusBar::resizeEvent(QResizeEvent* event) {
         const int y = height() - m_messageLabel->height() - STYLE.spacingMD();
         m_messageLabel->move(std::max(0, x), std::max(0, y));
     }
+}
+
+bool StatusBar::eventFilter(QObject* watched, QEvent* event) {
+    if (event->type() == QEvent::KeyPress) {
+        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+
+        // Enhanced keyboard navigation for input fields
+        if (watched == m_pageInputEdit) {
+            if (keyEvent->key() == Qt::Key_Up && m_currentTotalPages > 0) {
+                // Navigate to next page
+                int currentPage = m_currentPageNumber + 1;
+                if (currentPage < m_currentTotalPages) {
+                    emit pageJumpRequested(currentPage);
+                    return true;
+                }
+            } else if (keyEvent->key() == Qt::Key_Down &&
+                       m_currentTotalPages > 0) {
+                // Navigate to previous page
+                int currentPage = m_currentPageNumber - 1;
+                if (currentPage >= 0) {
+                    emit pageJumpRequested(currentPage);
+                    return true;
+                }
+            }
+        } else if (watched == m_zoomInputEdit) {
+            if (keyEvent->key() == Qt::Key_Up) {
+                // Increase zoom by 10%
+                QString currentText = m_zoomInputEdit->text();
+                currentText.remove('%');
+                bool ok;
+                double currentZoom = currentText.toDouble(&ok);
+                if (ok && currentZoom < 400) {
+                    double newZoom = std::min(400.0, currentZoom + 10.0);
+                    emit zoomLevelChangeRequested(newZoom / 100.0);
+                    return true;
+                }
+            } else if (keyEvent->key() == Qt::Key_Down) {
+                // Decrease zoom by 10%
+                QString currentText = m_zoomInputEdit->text();
+                currentText.remove('%');
+                bool ok;
+                double currentZoom = currentText.toDouble(&ok);
+                if (ok && currentZoom > 25) {
+                    double newZoom = std::max(25.0, currentZoom - 10.0);
+                    emit zoomLevelChangeRequested(newZoom / 100.0);
+                    return true;
+                }
+            }
+        } else if (watched == m_searchInput) {
+            if (keyEvent->key() == Qt::Key_Escape) {
+                // Clear search and hide results
+                clearSearchResults();
+                m_searchInput->clear();
+                return true;
+            }
+        }
+
+        // Tab navigation between input fields
+        if (keyEvent->key() == Qt::Key_Tab) {
+            if (watched == m_pageInputEdit) {
+                m_zoomInputEdit->setFocus();
+                return true;
+            } else if (watched == m_zoomInputEdit) {
+                m_searchInput->setFocus();
+                return true;
+            } else if (watched == m_searchInput) {
+                m_pageInputEdit->setFocus();
+                return true;
+            }
+        }
+    }
+
+    return QStatusBar::eventFilter(watched, event);
 }

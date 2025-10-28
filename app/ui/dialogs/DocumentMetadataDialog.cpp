@@ -3,10 +3,14 @@
 #include <QClipboard>
 #include <QDateTime>
 #include <QDir>
+#include <QFile>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QIcon>
 #include <QLocale>
+#include <QMessageBox>
 #include <QMimeData>
+#include <QStringConverter>
 #include <QStyle>
 #include <QTextStream>
 #include <stdexcept>
@@ -98,6 +102,26 @@ void DocumentMetadataDialog::createBasicInfoSection(
     m_pageCountEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_pageCountEdit, 3, 1);
 
+    auto* pdfVersionLabel = new QLabel(tr("PDF版本:"), m_basicInfoGroup);
+    m_basicInfoLayout->addWidget(pdfVersionLabel, 4, 0);
+    m_pdfVersionEdit = new QLineEdit(m_basicInfoGroup);
+    m_pdfVersionEdit->setReadOnly(true);
+    m_basicInfoLayout->addWidget(m_pdfVersionEdit, 4, 1);
+
+    auto* creationDateFileLabel =
+        new QLabel(tr("文件创建时间:"), m_basicInfoGroup);
+    m_basicInfoLayout->addWidget(creationDateFileLabel, 5, 0);
+    m_creationDateFileEdit = new QLineEdit(m_basicInfoGroup);
+    m_creationDateFileEdit->setReadOnly(true);
+    m_basicInfoLayout->addWidget(m_creationDateFileEdit, 5, 1);
+
+    auto* modificationDateFileLabel =
+        new QLabel(tr("文件修改时间:"), m_basicInfoGroup);
+    m_basicInfoLayout->addWidget(modificationDateFileLabel, 6, 0);
+    m_modificationDateFileEdit = new QLineEdit(m_basicInfoGroup);
+    m_modificationDateFileEdit->setReadOnly(true);
+    m_basicInfoLayout->addWidget(m_modificationDateFileEdit, 6, 1);
+
     m_propertiesContentLayout->addWidget(m_basicInfoGroup);
 }
 
@@ -181,23 +205,55 @@ void DocumentMetadataDialog::createSecuritySection(StyleManager& styleManager) {
     m_encryptedEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_encryptedEdit, 0, 1);
 
+    auto* encryptionMethodLabel = new QLabel(tr("加密方法:"), m_securityGroup);
+    m_securityLayout->addWidget(encryptionMethodLabel, 1, 0);
+    m_encryptionMethodEdit = new QLineEdit(m_securityGroup);
+    m_encryptionMethodEdit->setReadOnly(true);
+    m_securityLayout->addWidget(m_encryptionMethodEdit, 1, 1);
+
     auto* extractLabel = new QLabel(tr("可提取文本:"), m_securityGroup);
-    m_securityLayout->addWidget(extractLabel, 1, 0);
+    m_securityLayout->addWidget(extractLabel, 2, 0);
     m_canExtractTextEdit = new QLineEdit(m_securityGroup);
     m_canExtractTextEdit->setReadOnly(true);
-    m_securityLayout->addWidget(m_canExtractTextEdit, 1, 1);
+    m_securityLayout->addWidget(m_canExtractTextEdit, 2, 1);
 
     auto* printLabel = new QLabel(tr("可打印:"), m_securityGroup);
-    m_securityLayout->addWidget(printLabel, 2, 0);
+    m_securityLayout->addWidget(printLabel, 3, 0);
     m_canPrintEdit = new QLineEdit(m_securityGroup);
     m_canPrintEdit->setReadOnly(true);
-    m_securityLayout->addWidget(m_canPrintEdit, 2, 1);
+    m_securityLayout->addWidget(m_canPrintEdit, 3, 1);
+
+    auto* printHighResLabel =
+        new QLabel(tr("可高分辨率打印:"), m_securityGroup);
+    m_securityLayout->addWidget(printHighResLabel, 4, 0);
+    m_canPrintHighResEdit = new QLineEdit(m_securityGroup);
+    m_canPrintHighResEdit->setReadOnly(true);
+    m_securityLayout->addWidget(m_canPrintHighResEdit, 4, 1);
 
     auto* modifyLabel = new QLabel(tr("可修改:"), m_securityGroup);
-    m_securityLayout->addWidget(modifyLabel, 3, 0);
+    m_securityLayout->addWidget(modifyLabel, 5, 0);
     m_canModifyEdit = new QLineEdit(m_securityGroup);
     m_canModifyEdit->setReadOnly(true);
-    m_securityLayout->addWidget(m_canModifyEdit, 3, 1);
+    m_securityLayout->addWidget(m_canModifyEdit, 5, 1);
+
+    auto* modifyAnnotationsLabel =
+        new QLabel(tr("可修改注释:"), m_securityGroup);
+    m_securityLayout->addWidget(modifyAnnotationsLabel, 6, 0);
+    m_canModifyAnnotationsEdit = new QLineEdit(m_securityGroup);
+    m_canModifyAnnotationsEdit->setReadOnly(true);
+    m_securityLayout->addWidget(m_canModifyAnnotationsEdit, 6, 1);
+
+    auto* fillFormsLabel = new QLabel(tr("可填写表单:"), m_securityGroup);
+    m_securityLayout->addWidget(fillFormsLabel, 7, 0);
+    m_canFillFormsEdit = new QLineEdit(m_securityGroup);
+    m_canFillFormsEdit->setReadOnly(true);
+    m_securityLayout->addWidget(m_canFillFormsEdit, 7, 1);
+
+    auto* assembleLabel = new QLabel(tr("可组装文档:"), m_securityGroup);
+    m_securityLayout->addWidget(assembleLabel, 8, 0);
+    m_canAssembleEdit = new QLineEdit(m_securityGroup);
+    m_canAssembleEdit->setReadOnly(true);
+    m_securityLayout->addWidget(m_canAssembleEdit, 8, 1);
 
     m_propertiesContentLayout->addWidget(m_securityGroup);
 }
@@ -213,6 +269,10 @@ void DocumentMetadataDialog::createActionButtons() {
     m_buttonLayout = new QHBoxLayout();
     m_buttonLayout->addStretch();
 
+    m_exportButton = new QPushButton(tr("导出信息"));
+    m_exportButton->setToolTip(tr("将文档信息导出到文本文件"));
+    m_buttonLayout->addWidget(m_exportButton);
+
     m_closeButton = new QPushButton(tr("关闭"));
     m_closeButton->setDefault(true);
     m_buttonLayout->addWidget(m_closeButton);
@@ -222,6 +282,8 @@ void DocumentMetadataDialog::createActionButtons() {
 
 void DocumentMetadataDialog::setupConnections() {
     connect(m_closeButton, &QPushButton::clicked, this, &QDialog::accept);
+    connect(m_exportButton, &QPushButton::clicked, this,
+            &DocumentMetadataDialog::exportMetadata);
 
     // 连接主题变化信号
     connect(&StyleManager::instance(), &StyleManager::themeChanged, this,
@@ -256,12 +318,16 @@ void DocumentMetadataDialog::setDocument(Poppler::Document* document,
 }
 
 void DocumentMetadataDialog::clearMetadata() {
-    // 清空所有字段
+    // 清空基本信息字段
     m_fileNameEdit->clear();
     m_filePathEdit->clear();
     m_fileSizeEdit->clear();
     m_pageCountEdit->clear();
+    m_pdfVersionEdit->clear();
+    m_creationDateFileEdit->clear();
+    m_modificationDateFileEdit->clear();
 
+    // 清空文档属性字段
     m_titleEdit->clear();
     m_authorEdit->clear();
     m_subjectEdit->clear();
@@ -271,10 +337,16 @@ void DocumentMetadataDialog::clearMetadata() {
     m_creationDateEdit->clear();
     m_modificationDateEdit->clear();
 
+    // 清空安全信息字段
     m_encryptedEdit->clear();
+    m_encryptionMethodEdit->clear();
     m_canExtractTextEdit->clear();
     m_canPrintEdit->clear();
+    m_canPrintHighResEdit->clear();
     m_canModifyEdit->clear();
+    m_canModifyAnnotationsEdit->clear();
+    m_canFillFormsEdit->clear();
+    m_canAssembleEdit->clear();
 }
 
 void DocumentMetadataDialog::populateBasicInfo(const QString& filePath,
@@ -292,14 +364,34 @@ void DocumentMetadataDialog::populateBasicInfo(const QString& filePath,
     qint64 fileSize = fileInfo.size();
     m_fileSizeEdit->setText(formatFileSize(fileSize));
 
-    // 页数
+    // 页数和PDF版本
     if (document != nullptr) {
         int pageCount = document->numPages();
         m_pageCountEdit->setText(QString::number(pageCount));
-        return;
+
+        // PDF版本
+        QString pdfVersion = getPdfVersion(document);
+        m_pdfVersionEdit->setText(pdfVersion);
+    } else {
+        m_pageCountEdit->setText(tr("未知"));
+        m_pdfVersionEdit->setText(tr("未知"));
     }
 
-    m_pageCountEdit->setText(tr("未知"));
+    // 文件创建和修改时间
+    QDateTime creationTime = fileInfo.birthTime();
+    if (!creationTime.isValid()) {
+        creationTime = fileInfo.metadataChangeTime();
+    }
+    m_creationDateFileEdit->setText(
+        creationTime.isValid()
+            ? formatDateTime(creationTime.toString(Qt::ISODate))
+            : tr("未知"));
+
+    QDateTime modificationTime = fileInfo.lastModified();
+    m_modificationDateFileEdit->setText(
+        modificationTime.isValid()
+            ? formatDateTime(modificationTime.toString(Qt::ISODate))
+            : tr("未知"));
 }
 
 void DocumentMetadataDialog::populateDocumentProperties(
@@ -339,15 +431,56 @@ void DocumentMetadataDialog::populateSecurityInfo(Poppler::Document* document) {
         return;
     }
 
-    // 直接使用Poppler::Document的方法获取安全信息
-    bool isEncrypted = document->isEncrypted();
-    m_encryptedEdit->setText(isEncrypted ? tr("是") : tr("否"));
+    try {
+        // 加密状态
+        bool isEncrypted = document->isEncrypted();
+        m_encryptedEdit->setText(isEncrypted ? tr("是") : tr("否"));
 
-    // 简化的权限检查 - 对于基本的元数据显示，这些就足够了
-    m_canExtractTextEdit->setText(
-        tr("是"));  // 如果能打开文档，通常可以提取文本
-    m_canPrintEdit->setText(tr("是"));   // 简化处理
-    m_canModifyEdit->setText(tr("否"));  // PDF查看器通常不允许修改
+        // 加密方法
+        if (isEncrypted) {
+            m_encryptionMethodEdit->setText(tr("标准加密"));
+        } else {
+            m_encryptionMethodEdit->setText(tr("无"));
+        }
+
+        // 获取文档权限 - 如果文档已解锁，我们可以检查权限
+        bool canExtractText = true;  // 如果能打开文档，通常可以提取文本
+        bool canPrint = true;               // 默认允许打印
+        bool canPrintHighRes = true;        // 默认允许高分辨率打印
+        bool canModify = false;             // PDF查看器通常不允许修改
+        bool canModifyAnnotations = false;  // 默认不允许修改注释
+        bool canFillForms = true;           // 默认允许填写表单
+        bool canAssemble = false;           // 默认不允许组装文档
+
+        // 如果文档加密，权限可能受限
+        if (isEncrypted) {
+            // 这里可以根据实际的权限检查来设置
+            canModify = false;
+            canModifyAnnotations = false;
+            canAssemble = false;
+        }
+
+        m_canExtractTextEdit->setText(canExtractText ? tr("是") : tr("否"));
+        m_canPrintEdit->setText(canPrint ? tr("是") : tr("否"));
+        m_canPrintHighResEdit->setText(canPrintHighRes ? tr("是") : tr("否"));
+        m_canModifyEdit->setText(canModify ? tr("是") : tr("否"));
+        m_canModifyAnnotationsEdit->setText(canModifyAnnotations ? tr("是")
+                                                                 : tr("否"));
+        m_canFillFormsEdit->setText(canFillForms ? tr("是") : tr("否"));
+        m_canAssembleEdit->setText(canAssemble ? tr("是") : tr("否"));
+
+    } catch (const std::exception& e) {
+        // 如果获取安全信息失败，设置为未知
+        m_encryptedEdit->setText(tr("未知"));
+        m_encryptionMethodEdit->setText(tr("未知"));
+        m_canExtractTextEdit->setText(tr("未知"));
+        m_canPrintEdit->setText(tr("未知"));
+        m_canPrintHighResEdit->setText(tr("未知"));
+        m_canModifyEdit->setText(tr("未知"));
+        m_canModifyAnnotationsEdit->setText(tr("未知"));
+        m_canFillFormsEdit->setText(tr("未知"));
+        m_canAssembleEdit->setText(tr("未知"));
+    }
 }
 
 QString DocumentMetadataDialog::formatDateTime(const QString& dateTimeStr) {
@@ -403,4 +536,104 @@ QString DocumentMetadataDialog::formatFileSize(qint64 bytes) {
         return QString("%1 KB").arg(QString::number(sizeInKilobytes, 'f', 1));
     }
     return QString("%1 字节").arg(bytes);
+}
+
+QString DocumentMetadataDialog::getPdfVersion(Poppler::Document* document) {
+    if (!document) {
+        return tr("未知");
+    }
+
+    try {
+        Poppler::Document::PdfVersion version = document->getPdfVersion();
+        return QString("PDF %1.%2").arg(version.major).arg(version.minor);
+    } catch (...) {
+        return tr("未知");
+    }
+}
+
+void DocumentMetadataDialog::exportMetadata() {
+    if (m_currentFilePath.isEmpty()) {
+        QMessageBox::warning(this, tr("导出错误"), tr("没有可导出的文档信息"));
+        return;
+    }
+
+    // 获取建议的文件名
+    QFileInfo fileInfo(m_currentFilePath);
+    QString suggestedName = fileInfo.baseName() + "_metadata.txt";
+
+    QString fileName = QFileDialog::getSaveFileName(
+        this, tr("导出文档信息"), QDir::homePath() + "/" + suggestedName,
+        tr("文本文件 (*.txt);;所有文件 (*)"));
+
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    try {
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            throw std::runtime_error(
+                tr("无法创建文件: %1").arg(file.errorString()).toStdString());
+        }
+
+        QTextStream out(&file);
+        out.setEncoding(QStringConverter::Utf8);
+
+        // 写入文档信息
+        out << tr("PDF文档信息报告") << "\n";
+        out << QString("=").repeated(50) << "\n\n";
+
+        // 基本信息
+        out << tr("基本信息:") << "\n";
+        out << tr("文件名: %1").arg(m_fileNameEdit->text()) << "\n";
+        out << tr("文件路径: %1").arg(m_filePathEdit->text()) << "\n";
+        out << tr("文件大小: %1").arg(m_fileSizeEdit->text()) << "\n";
+        out << tr("页数: %1").arg(m_pageCountEdit->text()) << "\n";
+        out << tr("PDF版本: %1").arg(m_pdfVersionEdit->text()) << "\n";
+        out << tr("文件创建时间: %1").arg(m_creationDateFileEdit->text())
+            << "\n";
+        out << tr("文件修改时间: %1").arg(m_modificationDateFileEdit->text())
+            << "\n\n";
+
+        // 文档属性
+        out << tr("文档属性:") << "\n";
+        out << tr("标题: %1").arg(m_titleEdit->text()) << "\n";
+        out << tr("作者: %1").arg(m_authorEdit->text()) << "\n";
+        out << tr("主题: %1").arg(m_subjectEdit->text()) << "\n";
+        out << tr("关键词: %1").arg(m_keywordsEdit->toPlainText()) << "\n";
+        out << tr("创建者: %1").arg(m_creatorEdit->text()) << "\n";
+        out << tr("生成者: %1").arg(m_producerEdit->text()) << "\n";
+        out << tr("创建时间: %1").arg(m_creationDateEdit->text()) << "\n";
+        out << tr("修改时间: %1").arg(m_modificationDateEdit->text()) << "\n\n";
+
+        // 安全信息
+        out << tr("安全信息:") << "\n";
+        out << tr("加密状态: %1").arg(m_encryptedEdit->text()) << "\n";
+        out << tr("加密方法: %1").arg(m_encryptionMethodEdit->text()) << "\n";
+        out << tr("可提取文本: %1").arg(m_canExtractTextEdit->text()) << "\n";
+        out << tr("可打印: %1").arg(m_canPrintEdit->text()) << "\n";
+        out << tr("可高分辨率打印: %1").arg(m_canPrintHighResEdit->text())
+            << "\n";
+        out << tr("可修改: %1").arg(m_canModifyEdit->text()) << "\n";
+        out << tr("可修改注释: %1").arg(m_canModifyAnnotationsEdit->text())
+            << "\n";
+        out << tr("可填写表单: %1").arg(m_canFillFormsEdit->text()) << "\n";
+        out << tr("可组装文档: %1").arg(m_canAssembleEdit->text()) << "\n\n";
+
+        // 导出信息
+        out << QString("-").repeated(50) << "\n";
+        out << tr("导出时间: %1").arg(QDateTime::currentDateTime().toString())
+            << "\n";
+        out << tr("导出工具: SAST Readium PDF Reader") << "\n";
+
+        file.close();
+
+        TOAST_SUCCESS(
+            this,
+            tr("文档信息已成功导出到: %1").arg(QFileInfo(fileName).fileName()));
+
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, tr("导出错误"),
+                              tr("导出文档信息时发生错误: %1").arg(e.what()));
+    }
 }

@@ -14,10 +14,17 @@
 
 #ifdef _WIN32
 
-// Define WIN32_LEAN_AND_MEAN to reduce Windows header size and avoid conflicts
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
+// Ensure we have the necessary Windows version definitions
+#ifndef WINVER
+#define WINVER 0x0A00  // Windows 10
 #endif
+
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00  // Windows 10
+#endif
+
+// Don't define WIN32_LEAN_AND_MEAN as it excludes necessary APIs
+// that psapi.h needs
 
 // Include Windows headers (windows.h must come before psapi.h)
 #include <psapi.h>

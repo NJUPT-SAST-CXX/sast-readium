@@ -7,7 +7,6 @@
  */
 
 #include "SimpleLogging.h"
-#include <spdlog/fmt/fmt.h>
 #include <QDateTime>
 #include <QDir>
 #include <QStandardPaths>

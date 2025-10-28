@@ -1,5 +1,4 @@
 #include "LoggingMacros.h"
-#include <spdlog/fmt/fmt.h>
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>

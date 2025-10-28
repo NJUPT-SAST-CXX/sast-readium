@@ -87,7 +87,11 @@ void IncrementalSearchManagerTest::cleanup() {
     if (m_manager) {
         m_manager->cancelScheduledSearch();
         // Wait for any pending timers to complete
-        QTest::qWait(100);
+        QTest::qWait(200);
+
+        // Process any pending events
+        QCoreApplication::processEvents();
+
         delete m_manager;
         m_manager = nullptr;
     }

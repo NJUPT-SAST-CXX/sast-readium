@@ -13,6 +13,7 @@
 #include <QTabBar>
 #include <QTabWidget>
 #include "../../model/DocumentModel.h"
+#include "../core/ContextMenuManager.h"
 
 class DocumentTabBar : public QTabBar {
     Q_OBJECT
@@ -58,6 +59,7 @@ public:
 protected:
     QWidget* createTabWidget(const QString& fileName, const QString& filePath);
     void setupTabBar();
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 private slots:
     void onTabCloseRequested(int index);
@@ -66,6 +68,7 @@ private slots:
 private:
     DocumentTabBar* customTabBar;
     QHash<int, QString> tabFilePaths;  // 存储每个标签页对应的文件路径
+    ContextMenuManager* contextMenuManager;
 
 signals:
     void tabCloseRequested(int index);
