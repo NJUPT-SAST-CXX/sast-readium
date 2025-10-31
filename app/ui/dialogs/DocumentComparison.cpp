@@ -15,6 +15,7 @@
 // // #include <QtConcurrent> // Not available in this MSYS2 setup // Not
 // available in this MSYS2 setup
 #include <QDebug>
+#include <QElapsedTimer>
 
 DocumentComparison::DocumentComparison(QWidget* parent)
     : QWidget(parent),
