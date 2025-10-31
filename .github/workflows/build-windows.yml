@@ -128,9 +128,21 @@ jobs:
 
       - name: Generate build summary
         shell: pwsh
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          BUILD_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          $buildResult = $env:BUILD_RESULT
+          $shortSha = if ($env:GITHUB_SHA) { $env:GITHUB_SHA.Substring(0,7) } else { "" }
+
           $summary = @"
           # Windows Build Summary
+
+          ## Result
+          - Build job: $buildResult
+          - Ref: $env:GITHUB_REF_NAME
+          - Commit: $shortSha
+          - Run: $env:GITHUB_RUN_NUMBER
 
           ## Build Strategy
           - MSYS2 with system packages (preferred)
@@ -144,27 +156,24 @@ jobs:
               $artifactName = $_.Name
               $fileCount = (Get-ChildItem -Path $_.FullName -Recurse -File).Count
               $totalSize = [math]::Round((Get-ChildItem -Path $_.FullName -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
-              $summary += "- **$artifactName**: $fileCount files, $totalSize MB`n"
+              $summary += "- **$artifactName**: $fileCount files, $totalSize MB
+              "
             }
           } else {
-            $summary += "(No artifacts directory found)\n"
+            $summary += "(No artifacts directory found)
+            "
           }
 
           $summary += @"
-
-          ## Platform Coverage
-          ✅ Windows x64 UCRT64 (recommended, modern UCRT runtime)
-          ✅ Windows x64 CLANG64 (LLVM/Clang toolchain with UCRT)
-          ✅ Windows ARM64 CLANGARM64 (native ARM64 with LLVM/Clang)
-          ⚠️ Windows x64 MINGW64 (legacy MSVCRT runtime)
-          ⚠️ Windows x86 MINGW32 (legacy 32-bit, on request only)
 
           ## Performance Optimizations
           - System packages prioritized (MSYS2)
           - Caching of MSYS2 package repositories
           - Parallel builds with optimal job count
           - Shallow git clones for faster checkout
-          - Conditional builds (legacy/ARM64 only on request)
+
+          ## Run
+          - $env:BUILD_JOB_URL
 
           "@
 
