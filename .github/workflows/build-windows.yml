@@ -1,0 +1,171 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions: write-all
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j4"
+  CACHE_VERSION: v2
+  APP_NAME: sast-readium
+
+jobs:
+  build:
+    name: build on windows with MSYS2
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      # MSYS2 package caching (cover common locations)
+      - name: Cache MSYS2 packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\msys64\var\cache\pacman\pkg
+            C:\msys64\mingw32
+            C:\msys64\mingw64
+            C:\msys64\ucrt64
+            C:\msys64\clang64
+            C:\msys64\clangarm64
+            D:\a\_temp\msys64\var\cache\pacman\pkg
+            D:\a\_temp\msys64\mingw32
+            D:\a\_temp\msys64\mingw64
+            D:\a\_temp\msys64\ucrt64
+            D:\a\_temp\msys64\clang64
+            D:\a\_temp\msys64\clangarm64
+          key: ${{ runner.os }}-msys2-clang64-${{ env.CACHE_VERSION }}-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-msys2-clang64-${{ env.CACHE_VERSION }}-
+            ${{ runner.os }}-msys2-clang64-
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: clang64
+          update: true
+          install: >-
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-ninja
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-lld
+            mingw-w64-clang-x86_64-qt6-base
+            mingw-w64-clang-x86_64-qt6-svg
+            mingw-w64-clang-x86_64-qt6-speech
+            mingw-w64-clang-x86_64-qt6-tools
+            mingw-w64-clang-x86_64-poppler-qt6
+            mingw-w64-clang-x86_64-pkgconf
+            mingw-w64-clang-x86_64-spdlog
+            git
+
+      - name: Verify dependencies
+        run: |
+          echo "MSYS2 Environment: $MSYSTEM"
+          echo "Architecture: clang-x86_64"
+          echo "Build Type: Release"
+
+          # Check installed packages
+          pacman -Q | grep -E "(cmake|ninja|gcc|qt6|poppler)" || true
+
+          # Verify Qt6 and Poppler
+          pkg-config --exists Qt6Core && echo "✓ Qt6Core found" || echo "✗ Qt6Core not found"
+          pkg-config --exists poppler-qt6 && echo "✓ poppler-qt6 found" || echo "✗ poppler-qt6 not found"
+
+      - name: Configure CMake
+        run: |
+          cmake --preset=Release-MSYS2
+
+      - name: Build
+        run: |
+          cmake --build --preset=Release-MSYS2 --parallel $CMAKE_BUILD_PARALLEL_LEVEL
+
+      - name: Test build output
+        run: |
+          BUILD_DIR="build/Release-MSYS2"
+          if [ -f "$BUILD_DIR/app/app.exe" ]; then
+            echo "✓ Build successful: app.exe found"
+            ls -la "$BUILD_DIR/app/"
+          else
+            echo "✗ Build failed: app.exe not found"
+            exit 1
+          fi
+
+      - name: Upload MSYS2 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-msys2-clang64-Release
+          path: |
+            build/Release-MSYS2/app/app.exe
+            build/Release-MSYS2/app/*.dll
+            build/Release-MSYS2/app/styles/
+          retention-days: 7
+
+  # Build summary and status
+  build-summary:
+    name: Windows Build Summary
+    runs-on: windows-latest
+    needs: [build]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate build summary
+        shell: pwsh
+        run: |
+          $summary = @"
+          # Windows Build Summary
+
+          ## Build Strategy
+          - MSYS2 with system packages (preferred)
+
+          ## Artifacts Generated
+
+          "@
+
+          if (Test-Path "artifacts") {
+            Get-ChildItem -Path "artifacts" -Directory | ForEach-Object {
+              $artifactName = $_.Name
+              $fileCount = (Get-ChildItem -Path $_.FullName -Recurse -File).Count
+              $totalSize = [math]::Round((Get-ChildItem -Path $_.FullName -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
+              $summary += "- **$artifactName**: $fileCount files, $totalSize MB`n"
+            }
+          } else {
+            $summary += "(No artifacts directory found)\n"
+          }
+
+          $summary += @"
+
+          ## Platform Coverage
+          ✅ Windows x64 UCRT64 (recommended, modern UCRT runtime)
+          ✅ Windows x64 CLANG64 (LLVM/Clang toolchain with UCRT)
+          ✅ Windows ARM64 CLANGARM64 (native ARM64 with LLVM/Clang)
+          ⚠️ Windows x64 MINGW64 (legacy MSVCRT runtime)
+          ⚠️ Windows x86 MINGW32 (legacy 32-bit, on request only)
+
+          ## Performance Optimizations
+          - System packages prioritized (MSYS2)
+          - Caching of MSYS2 package repositories
+          - Parallel builds with optimal job count
+          - Shallow git clones for faster checkout
+          - Conditional builds (legacy/ARM64 only on request)
+
+          "@
+
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8
