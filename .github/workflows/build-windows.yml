@@ -71,11 +71,52 @@ jobs:
             exit 1
           fi
 
+      - name: Deploy runtime (windeployqt)
+        run: |
+          BUILD_DIR="build/Release-MSYS2"
+          APP_EXE="$BUILD_DIR/app/app.exe"
+          PUBLISH_DIR="$BUILD_DIR/publish"
+
+          # Clean and prepare publish directory
+          rm -rf "$PUBLISH_DIR"
+          mkdir -p "$PUBLISH_DIR"
+
+          # Detect windeployqt tool name for Qt6 on MSYS2
+          if command -v windeployqt6 >/dev/null 2>&1; then
+            WINDEPLOY=windeployqt6
+          elif command -v windeployqt >/dev/null 2>&1; then
+            WINDEPLOY=windeployqt
+          else
+            echo "✗ windeployqt not found (qt6-tools missing?)"
+            exit 1
+          fi
+
+          echo "Using $WINDEPLOY to deploy runtime dependencies..."
+          "$WINDEPLOY" --release --dir "$PUBLISH_DIR" "$APP_EXE"
+
+          # Copy main executable
+          cp "$APP_EXE" "$PUBLISH_DIR"/
+
+          # Copy project assets (e.g., styles) if present
+          if [ -d "$BUILD_DIR/app/styles" ]; then
+            cp -r "$BUILD_DIR/app/styles" "$PUBLISH_DIR/"
+          fi
+
+          # Try to include Poppler DLLs if needed (windeployqt won't handle them)
+          for f in libpoppler-qt6-*.dll libpoppler-*.dll; do
+            if [ -f "/clang64/bin/$f" ]; then
+              cp "/clang64/bin/$f" "$PUBLISH_DIR/"
+            fi
+          done
+
+          echo "\nPublish directory contents:"
+          find "$PUBLISH_DIR" -maxdepth 2 -type f | sed 's/^/ - /'
+
       - name: Upload MSYS2 artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-msys2-clang64-Release
-          path: build/Release-MSYS2/app/**
+          path: build/Release-MSYS2/publish/**
           if-no-files-found: error
           compression-level: 9
           retention-days: 7
