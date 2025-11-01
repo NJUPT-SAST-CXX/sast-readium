@@ -43,10 +43,12 @@ jobs:
             mingw-w64-clang-x86_64-ninja
             mingw-w64-clang-x86_64-clang
             mingw-w64-clang-x86_64-lld
+            mingw-w64-clang-x86_64-ntldd
             mingw-w64-clang-x86_64-qt6-base
             mingw-w64-clang-x86_64-qt6-svg
             mingw-w64-clang-x86_64-qt6-speech
             mingw-w64-clang-x86_64-qt6-tools
+            mingw-w64-clang-x86_64-qt6-translations
             mingw-w64-clang-x86_64-poppler-qt6
             mingw-w64-clang-x86_64-pkgconf
             mingw-w64-clang-x86_64-spdlog
@@ -60,63 +62,42 @@ jobs:
         run: |
           cmake --build --preset=Release-MSYS2 --parallel $CMAKE_BUILD_PARALLEL_LEVEL
 
-      - name: Test build output
-        run: |
-          BUILD_DIR="build/Release-MSYS2"
-          if [ -f "$BUILD_DIR/app/app.exe" ]; then
-            echo "✓ Build successful: app.exe found"
-            ls -la "$BUILD_DIR/app/"
-          else
-            echo "✗ Build failed: app.exe not found"
-            exit 1
-          fi
-
       - name: Deploy runtime (windeployqt)
         run: |
           BUILD_DIR="build/Release-MSYS2"
           APP_EXE="$BUILD_DIR/app/app.exe"
-          PUBLISH_DIR="$BUILD_DIR/publish"
+          PUBLISH_DIR="build/publish"
 
           # Clean and prepare publish directory
           rm -rf "$PUBLISH_DIR"
           mkdir -p "$PUBLISH_DIR"
 
-          # Detect windeployqt tool name for Qt6 on MSYS2
-          if command -v windeployqt6 >/dev/null 2>&1; then
-            WINDEPLOY=windeployqt6
-          elif command -v windeployqt >/dev/null 2>&1; then
-            WINDEPLOY=windeployqt
-          else
-            echo "✗ windeployqt not found (qt6-tools missing?)"
-            exit 1
-          fi
+          # Copy built app directory to publish
+          echo "====Copying built app directory to publish===="
+          cp -r "$BUILD_DIR/app/"** "$PUBLISH_DIR/"
 
-          echo "Using $WINDEPLOY to deploy runtime dependencies..."
-          "$WINDEPLOY" --release --dir "$PUBLISH_DIR" "$APP_EXE"
+          # Run windeployqt to deploy Qt dependencies
+          echo "====Running windeployqt6===="
+          windeployqt6.exe "$PUBLISH_DIR/"app.exe
+          echo "====Deployment completed===="
 
-          # Copy main executable
-          cp "$APP_EXE" "$PUBLISH_DIR"/
-
-          # Copy project assets (e.g., styles) if present
-          if [ -d "$BUILD_DIR/app/styles" ]; then
-            cp -r "$BUILD_DIR/app/styles" "$PUBLISH_DIR/"
-          fi
-
-          # Try to include Poppler DLLs if needed (windeployqt won't handle them)
-          for f in libpoppler-qt6-*.dll libpoppler-*.dll; do
-            if [ -f "/clang64/bin/$f" ]; then
-              cp "/clang64/bin/$f" "$PUBLISH_DIR/"
-            fi
+          # Copy missing DLLs from /clang64/bin
+          echo "====Copying missing DLLs from /clang64/bin===="
+          /clang64/bin/ntldd.exe -R "$PUBLISH_DIR/"app.exe | grep "clang64" | awk '{print $1}' | while read dll; do
+              if [ -f "/clang64/bin/$dll" ]; then
+                  cp "/clang64/bin/$dll" "$PUBLISH_DIR/"
+                  echo "Copied: $dll"
+              else
+                  echo "Not found in /clang64/bin: $dll"
+              fi
           done
-
-          echo "\nPublish directory contents:"
-          find "$PUBLISH_DIR" -maxdepth 2 -type f | sed 's/^/ - /'
+          echo "====All missing DLLs processed.===="
 
       - name: Upload MSYS2 artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-msys2-clang64-Release
-          path: build/Release-MSYS2/publish/**
+          path: build/publish/**
           if-no-files-found: error
           compression-level: 9
           retention-days: 7
