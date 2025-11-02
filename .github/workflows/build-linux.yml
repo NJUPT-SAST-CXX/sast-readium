@@ -37,10 +37,7 @@ jobs:
           path: |
             /var/cache/apt/archives
             /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-${{ env.CACHE_VERSION }}-${{ hashFiles('**/CMakeLists.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-${{ env.CACHE_VERSION }}-
-            ${{ runner.os }}-apt-
+          key: ${{ runner.os }}-apt-${{ env.CACHE_VERSION }}-${{ hashFiles('**/build-linux.yml') }}
 
       - name: Install system dependencies
         run: |
@@ -60,8 +57,14 @@ jobs:
         run: |
           # Copy missing libs
           echo "====Copying missing libs===="
-          ldd build/Release/app/app | grep "=>" | cut -d " " -f 3 | xargs -I {} cp {} build/Release/app/
+          mkdir -p build/Release/app/libs/
+          ldd build/Release/app/app | grep "=>" | cut -d " " -f 3 | xargs -I {} cp {} build/Release/app/libs/
           echo "====All missing libs processed.===="
+
+          # Set rpath to look for libs in ./libs
+          echo "====Setting rpath===="
+          patchelf --set-rpath '$ORIGIN/libs' build/Release/app/app
+          echo "====Rpath set completed.===="
 
       - name: Upload system build artifacts
         uses: actions/upload-artifact@v4
