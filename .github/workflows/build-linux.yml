@@ -56,6 +56,13 @@ jobs:
         run: |
           cmake --build --preset=Release-Unix --parallel $CMAKE_BUILD_PARALLEL_LEVEL
 
+      - name: Deploy runtime
+        run: |
+          # Copy missing libs
+          echo "====Copying missing libs===="
+          ldd build/Release/app/app | grep "=>" | cut -d " " -f 3 | xargs -I {} cp {} build/Release/app/
+          echo "====All missing libs processed.===="
+
       - name: Upload system build artifacts
         uses: actions/upload-artifact@v4
         with:
