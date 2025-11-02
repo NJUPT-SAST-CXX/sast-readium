@@ -20,7 +20,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMutexLocker>
-#include <QOverload>
+// #include <QOverload>      // No longer used in Qt 6
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRegularExpression>
