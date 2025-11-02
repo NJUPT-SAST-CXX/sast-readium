@@ -30,15 +30,6 @@ jobs:
       - name: Setup CMake
         uses: lukka/get-cmake@latest
 
-      # System package caching
-      - name: Cache system packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-${{ env.CACHE_VERSION }}-${{ hashFiles('**/build-linux.yml') }}
-
       - name: Install system dependencies
         run: |
           # Use cached package lists if available
