@@ -66,14 +66,14 @@ jobs:
         run: |
           # Run windeployqt to deploy Qt dependencies
           echo "====Running windeployqt6===="
-          windeployqt6.exe build/Release-MSYS2/app.exe
+          windeployqt6.exe build/Release-MSYS2/app/app.exe
           echo "====Deployment completed===="
 
           # Copy missing DLLs from /clang64/bin
           echo "====Copying missing DLLs from /clang64/bin===="
-          /clang64/bin/ntldd.exe -R build/Release-MSYS2/app.exe | grep "clang64" | awk '{print $1}' | while read dll; do
+          /clang64/bin/ntldd.exe -R build/Release-MSYS2/app/app.exe | grep "clang64" | awk '{print $1}' | while read dll; do
               if [ -f "/clang64/bin/$dll" ]; then
-                  cp "/clang64/bin/$dll" build/Release-MSYS2/
+                  cp "/clang64/bin/$dll" build/Release-MSYS2/app/
                   echo "Copied: $dll"
               else
                   echo "Not found in /clang64/bin: $dll"
@@ -85,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-msys2-clang64-Release
-          path: build/Release-MSYS2/**
+          path: build/Release-MSYS2/app/**
           if-no-files-found: error
           compression-level: 9
           retention-days: 7
