@@ -9,7 +9,6 @@
 #include <QGuiApplication>
 #include <QKeyEvent>
 #include <QListView>
-#include <QMenu>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
@@ -25,13 +24,14 @@
 #include <cmath>
 #include "../../delegate/ThumbnailDelegate.h"
 #include "../../model/ThumbnailModel.h"
+#include "ElaMenu.h"
 
 namespace {
 constexpr int DEFAULT_MARGIN = 8;
 }
 
 ThumbnailListView::ThumbnailListView(QWidget* parent)
-    : QListView(parent),
+    : ElaListView(parent),
       m_thumbnailModel(nullptr),
       m_thumbnailDelegate(nullptr),
       m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT),
@@ -168,7 +168,7 @@ void ThumbnailListView::setupAnimations() {
 }
 
 void ThumbnailListView::setupContextMenu() {
-    m_contextMenu = new QMenu(this);
+    m_contextMenu = new ElaMenu(this);
     m_contextMenu->setObjectName("ThumbnailContextMenu");
 
     // 添加默认动作

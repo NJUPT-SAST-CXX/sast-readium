@@ -156,6 +156,12 @@ macro(_find_qt_dependencies)
     endif()
 
     if(USE_VCPKG_INTERNAL)
+            if(TARGET spdlog::spdlog)
+                get_target_property(_spdlog_includes spdlog::spdlog INTERFACE_INCLUDE_DIRECTORIES)
+                if(_spdlog_includes)
+                    message(STATUS "spdlog::spdlog include dirs: ${_spdlog_includes}")
+                endif()
+            endif()
         # vcpkg mode - use CONFIG mode for all packages
         find_package(Qt6 COMPONENTS ${QT_COMPONENTS} CONFIG REQUIRED)
     else()
@@ -177,6 +183,35 @@ function(_find_logging_dependencies)
         find_package(spdlog CONFIG REQUIRED)
     else()
         find_package(spdlog REQUIRED)
+    endif()
+
+    # Capture the include directory to help tooling such as clang-tidy resolve spdlog headers.
+    if(NOT SAST_SPDLOG_INCLUDE_DIR)
+        find_path(_spdlog_header_dir
+            NAMES spdlog/spdlog.h
+            HINTS
+                "$ENV{MSYSTEM_PREFIX}/include"
+                "$ENV{MSYSTEM_PREFIX}"  # Some environments set prefix directly to include dir
+            PATHS
+                "$ENV{VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/include"
+                "$ENV{VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/include/spdlog"
+        )
+        if(_spdlog_header_dir)
+            set(SAST_SPDLOG_INCLUDE_DIR "${_spdlog_header_dir}" PARENT_SCOPE)
+            set(SAST_SPDLOG_INCLUDE_DIR "${_spdlog_header_dir}")
+            message(STATUS "spdlog headers located at: ${_spdlog_header_dir}")
+        endif()
+    endif()
+
+    if(NOT SAST_SPDLOG_INCLUDE_DIR)
+        foreach(_spdlog_candidate "C:/msys64/mingw64/include" "D:/msys64/mingw64/include")
+            if(EXISTS "${_spdlog_candidate}/spdlog/spdlog.h")
+                set(SAST_SPDLOG_INCLUDE_DIR "${_spdlog_candidate}" PARENT_SCOPE)
+                set(SAST_SPDLOG_INCLUDE_DIR "${_spdlog_candidate}")
+                message(STATUS "spdlog headers located at: ${_spdlog_candidate}")
+                break()
+            endif()
+        endforeach()
     endif()
 
     message(STATUS "spdlog found")
@@ -226,6 +261,42 @@ function(get_common_libraries output_var)
         PkgConfig::POPPLER_QT6
         spdlog::spdlog
     )
+
+    # Ensure clang-tidy and other tooling can locate MSYS2 system headers such as spdlog.
+    set(_spdlog_include_dir "${SAST_SPDLOG_INCLUDE_DIR}")
+    if(NOT _spdlog_include_dir AND DEFINED ENV{MSYSTEM_PREFIX})
+        set(_spdlog_include_dir "$ENV{MSYSTEM_PREFIX}/include")
+    endif()
+    if(NOT _spdlog_include_dir)
+        # Fallback: attempt to infer from standard MSYS2 installation if path exists.
+        if(EXISTS "C:/msys64/mingw64/include")
+            set(_spdlog_include_dir "C:/msys64/mingw64/include")
+        elseif(EXISTS "D:/msys64/mingw64/include")
+            set(_spdlog_include_dir "D:/msys64/mingw64/include")
+        endif()
+    endif()
+
+    if(_spdlog_include_dir AND EXISTS "${_spdlog_include_dir}/spdlog/spdlog.h")
+        if(NOT TARGET spdlog_system_includes)
+            add_library(spdlog_system_includes INTERFACE)
+            # Use SYSTEM to suppress warnings from the vendor headers.
+            target_include_directories(spdlog_system_includes SYSTEM INTERFACE
+                "${_spdlog_include_dir}"
+            )
+        endif()
+        list(APPEND common_libs spdlog_system_includes)
+    endif()
+
+    # Add platform-specific libraries for crash handling
+    if(WIN32)
+        # Windows: DbgHelp and Psapi for stack trace functionality
+        # Note: #pragma comment(lib, ...) in StackTrace.cpp only works with MSVC
+        # For MinGW/GCC, we need to link explicitly
+        list(APPEND common_libs dbghelp psapi)
+    elseif(UNIX)
+        # Unix-like systems: dl library for dladdr() in stack trace
+        list(APPEND common_libs ${CMAKE_DL_LIBS})
+    endif()
 
     set(${output_var} ${common_libs} PARENT_SCOPE)
 endfunction()

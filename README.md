@@ -308,6 +308,56 @@ make clangd-auto    # Update clangd configuration
 make dev            # Setup development environment
 ```
 
+## Packaging and Distribution
+
+SAST Readium includes a comprehensive packaging system for creating production-ready installers:
+
+### Windows Packaging
+
+Create Windows installers using the integrated CMake CPack system:
+
+```powershell
+# Quick start - create MSI installer (MSVC build)
+.\scripts\package.ps1
+
+# Create NSIS installer (MSYS2 build)
+.\scripts\package.ps1 -PackageType nsis
+
+# Create portable ZIP
+.\scripts\package.ps1 -PackageType zip
+
+# Create and verify package
+.\scripts\package.ps1 -Verify
+```
+
+**Supported Package Types:**
+
+- **MSI Installer** (MSVC builds) - Windows Installer package using WiX Toolset
+- **NSIS Installer** (MSYS2 builds) - Executable installer using NSIS
+- **Portable ZIP** (both builds) - No-installation-required archive
+
+**Features:**
+
+- Optimized dependency deployment with minimal package size
+- Automatic Qt plugin deployment with windeployqt
+- Start Menu and Desktop shortcuts
+- Uninstaller registration
+- Comprehensive verification tools
+
+See the [Windows Packaging Guide](docs/packaging/windows-packaging.md) for detailed instructions.
+
+### Package Verification
+
+```powershell
+# Verify package integrity
+.\scripts\verify-package.ps1 -InstallPath "C:\Program Files\SAST Readium"
+
+# Analyze DLL dependencies
+.\scripts\analyze-dependencies.ps1 -ExePath ".\build\Release-Windows\app\Release\app.exe" -CheckMissing
+```
+
+See the [Feature Testing Checklist](docs/packaging/feature-testing-checklist.md) for comprehensive testing procedures.
+
 ## Documentation
 
 ### Getting Started
@@ -323,6 +373,11 @@ make dev            # Setup development environment
 - [CMake Modules Documentation](cmake/README.md) - Detailed CMake module documentation
 - [Migration Guide](docs/MIGRATION-GUIDE.md) - Guide for migrating to the new build system
 - [clangd Setup Guide](docs/setup/clangd-setup.md) - IDE integration and clangd configuration
+
+### Packaging Documentation
+
+- [Windows Packaging Guide](docs/packaging/windows-packaging.md) - Comprehensive Windows packaging instructions
+- [Feature Testing Checklist](docs/packaging/feature-testing-checklist.md) - Post-packaging verification checklist
 
 ### Architecture & Features
 

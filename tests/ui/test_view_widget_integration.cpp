@@ -83,8 +83,23 @@ void ViewWidgetIntegrationTest::initTestCase() {
 }
 
 void ViewWidgetIntegrationTest::cleanupTestCase() {
+    // Ensure controlled teardown order to avoid late events during
+    // QCoreApplication shutdown 1) Destroy controllers/models to stop any async
+    // work and disconnect signals
+    if (m_documentController) {
+        delete m_documentController;
+        m_documentController = nullptr;
+    }
+    if (m_documentModel) {
+        delete m_documentModel;
+        m_documentModel = nullptr;
+    }
+
+    // 2) Destroy UI parent last
     delete m_testPdfFile;
+    m_testPdfFile = nullptr;
     delete m_parentWidget;
+    m_parentWidget = nullptr;
 }
 
 void ViewWidgetIntegrationTest::init() {

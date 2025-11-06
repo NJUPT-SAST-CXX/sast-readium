@@ -5,7 +5,8 @@
 #include <memory>
 
 class QLabel;
-class QPushButton;
+class ElaText;
+class ElaPushButton;
 class QPropertyAnimation;
 class QGraphicsOpacityEffect;
 class QTimer;
@@ -113,13 +114,13 @@ private:
 
     // UI Components
     QWidget* m_tooltipWidget;
-    QLabel* m_titleLabel;
-    QLabel* m_descriptionLabel;
-    QLabel* m_stepIndicator;
-    QPushButton* m_nextButton;
-    QPushButton* m_previousButton;
-    QPushButton* m_skipButton;
-    QPushButton* m_closeButton;
+    ElaText* m_titleLabel;
+    ElaText* m_descriptionLabel;
+    ElaText* m_stepIndicator;
+    ElaPushButton* m_nextButton;
+    ElaPushButton* m_previousButton;
+    ElaPushButton* m_skipButton;
+    ElaPushButton* m_closeButton;
 
     // Highlight
     QPointer<QWidget> m_highlightedWidget;

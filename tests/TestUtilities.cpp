@@ -1,6 +1,13 @@
 #include "TestUtilities.h"
 #include <QApplication>
 #include <QDebug>
+#include <QtGlobal>
+
+// Ensure Qt resources from app.qrc and ela_ui.qrc are registered in every
+// test process, even for tests that do not inherit from TestBase.
+// We rely on TestUtilities being linked to all tests.
+static void qt_resource_autoinit() { SastResources::ensureInitialized(); }
+Q_CONSTRUCTOR_FUNCTION(qt_resource_autoinit)
 
 // TestBase implementation
 // The TestBase class provides common functionality for all test cases

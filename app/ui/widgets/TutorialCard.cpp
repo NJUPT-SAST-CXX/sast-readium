@@ -11,6 +11,10 @@
 #include <QStyleOption>
 #include <QVBoxLayout>
 
+// ElaWidgetTools
+#include "ElaPushButton.h"
+#include "ElaText.h"
+
 TutorialCard::TutorialCard(const QString& id, const QString& title,
                            const QString& description, const QIcon& icon,
                            QWidget* parent)
@@ -119,12 +123,12 @@ void TutorialCard::paintEvent(QPaintEvent* event) {
 void TutorialCard::initializeUI() {
     // Create UI components
     m_iconLabel = new QLabel(this);
-    m_titleLabel = new QLabel(m_title, this);
-    m_descriptionLabel = new QLabel(m_description, this);
-    m_durationLabel = new QLabel(m_duration, this);
-    m_difficultyLabel = new QLabel(m_difficulty, this);
-    m_completedLabel = new QLabel(this);
-    m_startButton = new QPushButton("Start Tutorial", this);
+    m_titleLabel = new ElaText(m_title, this);
+    m_descriptionLabel = new ElaText(m_description, this);
+    m_durationLabel = new ElaText(m_duration, this);
+    m_difficultyLabel = new ElaText(m_difficulty, this);
+    m_completedLabel = new ElaText(this);
+    m_startButton = new ElaPushButton("Start Tutorial", this);
 
     // Configure icon
     if (!m_icon.isNull()) {

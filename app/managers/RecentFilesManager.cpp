@@ -337,6 +337,8 @@ QVariantMap RecentFilesManagerImpl::fileInfoToVariant(
     data["fileName"] = info.fileName;
     data["lastOpened"] = info.lastOpened;
     data["fileSize"] = static_cast<qint64>(info.fileSize);
+    data["pageCount"] = info.pageCount;
+    data["isPinned"] = info.isPinned;
     return data;
 }
 
@@ -347,6 +349,8 @@ RecentFileInfo RecentFilesManagerImpl::variantToFileInfo(
     info.fileName = variant["fileName"].toString();
     info.lastOpened = variant["lastOpened"].toDateTime();
     info.fileSize = variant["fileSize"].toLongLong();
+    info.pageCount = variant.value("pageCount", -1).toInt();
+    info.isPinned = variant.value("isPinned", false).toBool();
 
     // Validate and fix corrupted data
     if (info.filePath.isEmpty() || info.fileName.isEmpty()) {
@@ -367,4 +371,135 @@ RecentFileInfo RecentFilesManagerImpl::variantToFileInfo(
     }
 
     return info;
+}
+
+// Pin/Unpin operations
+void RecentFilesManager::pinFile(const QString& filePath) {
+    QMutexLocker locker(&m_pImpl->m_mutex);
+
+    auto it = std::find_if(m_pImpl->m_recentFiles.begin(),
+                           m_pImpl->m_recentFiles.end(),
+                           [&filePath](const RecentFileInfo& info) {
+                               return info.filePath == filePath;
+                           });
+
+    if (it != m_pImpl->m_recentFiles.end()) {
+        it->isPinned = true;
+        saveSettings();
+        emit recentFilesChanged();
+        Logger::instance().info("[managers] Pinned file: {}",
+                                filePath.toStdString());
+    }
+}
+
+void RecentFilesManager::unpinFile(const QString& filePath) {
+    QMutexLocker locker(&m_pImpl->m_mutex);
+
+    auto it = std::find_if(m_pImpl->m_recentFiles.begin(),
+                           m_pImpl->m_recentFiles.end(),
+                           [&filePath](const RecentFileInfo& info) {
+                               return info.filePath == filePath;
+                           });
+
+    if (it != m_pImpl->m_recentFiles.end()) {
+        it->isPinned = false;
+        saveSettings();
+        emit recentFilesChanged();
+        Logger::instance().info("[managers] Unpinned file: {}",
+                                filePath.toStdString());
+    }
+}
+
+void RecentFilesManager::togglePinFile(const QString& filePath) {
+    if (isFilePinned(filePath)) {
+        unpinFile(filePath);
+    } else {
+        pinFile(filePath);
+    }
+}
+
+bool RecentFilesManager::isFilePinned(const QString& filePath) const {
+    QMutexLocker locker(&m_pImpl->m_mutex);
+
+    auto it = std::find_if(m_pImpl->m_recentFiles.begin(),
+                           m_pImpl->m_recentFiles.end(),
+                           [&filePath](const RecentFileInfo& info) {
+                               return info.filePath == filePath;
+                           });
+
+    return it != m_pImpl->m_recentFiles.end() && it->isPinned;
+}
+
+// Sorting operations
+QList<RecentFileInfo> RecentFilesManager::getSortedRecentFiles(
+    SortOrder order) const {
+    QMutexLocker locker(&m_pImpl->m_mutex);
+
+    QList<RecentFileInfo> sorted = m_pImpl->m_recentFiles;
+
+    // Separate pinned and unpinned files
+    QList<RecentFileInfo> pinned;
+    QList<RecentFileInfo> unpinned;
+
+    for (const auto& info : sorted) {
+        if (info.isPinned) {
+            pinned.append(info);
+        } else {
+            unpinned.append(info);
+        }
+    }
+
+    // Sort function based on order
+    auto sortFunc = [order](const RecentFileInfo& a, const RecentFileInfo& b) {
+        switch (order) {
+            case SortOrder::ByDate:
+                return a.lastOpened > b.lastOpened;
+            case SortOrder::ByName:
+                return a.fileName.toLower() < b.fileName.toLower();
+            case SortOrder::ByFileType: {
+                QFileInfo aInfo(a.filePath);
+                QFileInfo bInfo(b.filePath);
+                QString aExt = aInfo.suffix().toLower();
+                QString bExt = bInfo.suffix().toLower();
+                if (aExt == bExt) {
+                    return a.fileName.toLower() < b.fileName.toLower();
+                }
+                return aExt < bExt;
+            }
+            case SortOrder::BySize:
+                return a.fileSize > b.fileSize;
+            default:
+                return a.lastOpened > b.lastOpened;
+        }
+    };
+
+    // Sort both lists
+    std::sort(pinned.begin(), pinned.end(), sortFunc);
+    std::sort(unpinned.begin(), unpinned.end(), sortFunc);
+
+    // Combine: pinned files first, then unpinned
+    QList<RecentFileInfo> result;
+    result.append(pinned);
+    result.append(unpinned);
+
+    return result;
+}
+
+// Page count management
+void RecentFilesManager::updatePageCount(const QString& filePath,
+                                         int pageCount) {
+    QMutexLocker locker(&m_pImpl->m_mutex);
+
+    auto it = std::find_if(m_pImpl->m_recentFiles.begin(),
+                           m_pImpl->m_recentFiles.end(),
+                           [&filePath](const RecentFileInfo& info) {
+                               return info.filePath == filePath;
+                           });
+
+    if (it != m_pImpl->m_recentFiles.end()) {
+        it->pageCount = pageCount;
+        saveSettings();
+        Logger::instance().debug("[managers] Updated page count for {}: {}",
+                                 filePath.toStdString(), pageCount);
+    }
 }

@@ -4,12 +4,13 @@
 #include <QFormLayout>
 #include <QFrame>
 #include <QGroupBox>
-#include <QLabel>
-#include <QLineEdit>
-#include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QWidget>
+
+// Forward declarations for Ela widgets
+class ElaLineEdit;
+class ElaPushButton;
 
 /**
  * @brief Compact document properties panel for sidebar display
@@ -64,7 +65,7 @@ private:
     void setupConnections();
     void retranslateUi();
     void applyTheme();
-    void updatePropertyField(QLineEdit* field, const QString& value);
+    void updatePropertyField(ElaLineEdit* field, const QString& value);
 
     // Helper methods
     static QString formatFileSize(qint64 bytes);
@@ -80,25 +81,25 @@ private:
     // Property sections
     QGroupBox* m_fileInfoGroup;
     QFormLayout* m_fileInfoLayout;
-    QLineEdit* m_fileNameField;
-    QLineEdit* m_fileSizeField;
-    QLineEdit* m_pageCountField;
-    QLineEdit* m_pdfVersionField;
+    ElaLineEdit* m_fileNameField;
+    ElaLineEdit* m_fileSizeField;
+    ElaLineEdit* m_pageCountField;
+    ElaLineEdit* m_pdfVersionField;
 
     QGroupBox* m_documentInfoGroup;
     QFormLayout* m_documentInfoLayout;
-    QLineEdit* m_titleField;
-    QLineEdit* m_authorField;
-    QLineEdit* m_subjectField;
-    QLineEdit* m_creatorField;
+    ElaLineEdit* m_titleField;
+    ElaLineEdit* m_authorField;
+    ElaLineEdit* m_subjectField;
+    ElaLineEdit* m_creatorField;
 
     QGroupBox* m_datesGroup;
     QFormLayout* m_datesLayout;
-    QLineEdit* m_creationDateField;
-    QLineEdit* m_modificationDateField;
+    ElaLineEdit* m_creationDateField;
+    ElaLineEdit* m_modificationDateField;
 
     // Actions
-    QPushButton* m_viewFullDetailsButton;
+    ElaPushButton* m_viewFullDetailsButton;
     QFrame* m_separatorLine;
 
     // Current document info

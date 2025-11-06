@@ -20,6 +20,9 @@
 #include <QPdfWriter>
 #include <QStandardPaths>
 
+// Ensure app resources are available in test processes
+#include "../app/utils/ResourcesInit.h"
+
 /**
  * @brief TestBase - Base class for all test cases
  *
@@ -32,6 +35,8 @@ protected:
     // Setup and teardown
     virtual void initTestCase() {
         qDebug() << "TestBase::initTestCase() called";
+        // Explicitly initialize Qt resources used by UI and menu tests
+        SastResources::ensureInitialized();
     }
     virtual void cleanupTestCase() {}
     virtual void init() {}

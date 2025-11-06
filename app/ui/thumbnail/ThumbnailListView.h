@@ -2,8 +2,8 @@
 
 #include <QAction>
 #include <QGraphicsOpacityEffect>
-#include <QListView>
-#include <QMenu>
+#include "ElaListView.h"
+
 #include <QPropertyAnimation>
 #include <QScrollBar>
 #include <QTimer>
@@ -14,6 +14,7 @@
 
 class ThumbnailModel;
 class ThumbnailDelegate;
+class ElaMenu;
 
 /**
  * @brief Chrome风格的PDF缩略图列表视图
@@ -27,7 +28,7 @@ class ThumbnailDelegate;
  * - 键盘导航
  * - 拖拽支持（可选）
  */
-class ThumbnailListView : public QListView {
+class ThumbnailListView : public ElaListView {
     Q_OBJECT
 
 public:
@@ -195,7 +196,7 @@ private:
 
     // 右键菜单
     bool m_contextMenuEnabled;
-    QMenu* m_contextMenu;
+    ElaMenu* m_contextMenu;
     QList<QAction*> m_contextMenuActions;
     int m_contextMenuPage;
 

@@ -1,23 +1,27 @@
 #pragma once
 
 #include <QAction>
-#include <QComboBox>
+
 #include <QContextMenuEvent>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QItemSelectionModel>
 #include <QLabel>
-#include <QLineEdit>
+
 #include <QListView>
-#include <QMenu>
-#include <QPushButton>
+
 #include <QSplitter>
-#include <QTreeView>
 #include <QVBoxLayout>
 #include <QWidget>
 #include "../../model/BookmarkModel.h"
+#include "ElaTreeView.h"
 
 class QSortFilterProxyModel;
+class ElaPushButton;
+class ElaLineEdit;
+class ElaComboBox;
+class ElaText;
+class ElaMenu;
 
 /**
  * Comprehensive bookmark management widget
@@ -84,23 +88,23 @@ private:
     QHBoxLayout* m_filterLayout;
 
     // Toolbar
-    QPushButton* m_addButton;
-    QPushButton* m_removeButton;
-    QPushButton* m_editButton;
-    QPushButton* m_refreshButton;
+    ElaPushButton* m_addButton;
+    ElaPushButton* m_removeButton;
+    ElaPushButton* m_editButton;
+    ElaPushButton* m_refreshButton;
 
     // Filter controls
-    QLineEdit* m_searchEdit;
-    QComboBox* m_categoryFilter;
-    QComboBox* m_sortOrder;
-    QLabel* m_countLabel;
+    ElaLineEdit* m_searchEdit;
+    ElaComboBox* m_categoryFilter;
+    ElaComboBox* m_sortOrder;
+    ElaText* m_countLabel;
 
     // Main view
-    QTreeView* m_bookmarkView;
+    ElaTreeView* m_bookmarkView;
     QSortFilterProxyModel* m_proxyModel;
 
     // Context menu
-    QMenu* m_contextMenu;
+    ElaMenu* m_contextMenu;
     QAction* m_navigateAction;
     QAction* m_editAction;
     QAction* m_deleteAction;

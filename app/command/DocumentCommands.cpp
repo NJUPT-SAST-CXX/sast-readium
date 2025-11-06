@@ -1223,10 +1223,6 @@ bool ReloadDocumentCommand::execute() {
     }
 
     try {
-        // Store current state
-        m_previousPage = 0;    // Would need to get from PageController
-        m_previousZoom = 1.0;  // Would need to get from ViewWidget
-
         QString currentPath = model->getCurrentFilePath();
         if (currentPath.isEmpty()) {
             setErrorMessage("Current document has no file path");
@@ -1235,33 +1231,18 @@ bool ReloadDocumentCommand::execute() {
             return false;
         }
 
-        // Close and reopen the document
-        int currentIndex = model->getCurrentDocumentIndex();
-        bool closeSuccess = controller()->closeDocument(currentIndex);
+        // Emit the documentReloadRequested signal which will be handled by
+        // ApplicationController ApplicationController will preserve the current
+        // page and zoom state from ViewWidget, close the document, reopen it,
+        // and restore the state
+        emit controller() -> documentReloadRequested(currentPath, 0, 1.0);
 
-        if (!closeSuccess) {
-            setErrorMessage("Failed to close document for reload");
-            m_logger.error("Failed to close document for reload");
-            emit executed(false);
-            return false;
-        }
-
-        bool openSuccess = controller()->openDocument(currentPath);
-
-        if (openSuccess) {
-            m_logger.info(
-                QString("Successfully reloaded document: %1").arg(currentPath));
-            emit statusMessage(
-                QString("Reloaded: %1").arg(QFileInfo(currentPath).fileName()));
-            emit executed(true);
-            return true;
-        }
-        setErrorMessage(
-            QString("Failed to reopen document: %1").arg(currentPath));
-        m_logger.error(
-            QString("Failed to reopen document: %1").arg(currentPath));
-        emit executed(false);
-        return false;
+        m_logger.info(
+            QString("Document reload requested: %1").arg(currentPath));
+        emit statusMessage(
+            QString("Reloading: %1").arg(QFileInfo(currentPath).fileName()));
+        emit executed(true);
+        return true;
 
     } catch (const std::exception& e) {
         setErrorMessage(

@@ -1,5 +1,9 @@
 #include <QApplication>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QGuiApplication>
+#include <QLineEdit>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QTextCursor>
 #include <QTimer>

@@ -1,5 +1,4 @@
 #include "SearchModel.h"
-#include <QDebug>
 #include "../logging/LoggingMacros.h"
 // #include <QtConcurrent> // Not available in this setup
 #include <QApplication>
@@ -83,13 +82,24 @@ QHash<int, QByteArray> SearchModel::roleNames() const {
 void SearchModel::startSearch(Poppler::Document* document, const QString& query,
                               const SearchOptions& options) {
     if (m_isSearching) {
+        LOG_DEBUG(
+            "SearchModel::startSearch invoked while a search is active; "
+            "cancelling current search");
         cancelSearch();
     }
 
     if (!document || query.isEmpty()) {
+        LOG_WARNING(
+            "SearchModel::startSearch received invalid input: "
+            "documentValid={}, queryEmpty={}",
+            document != nullptr, query.isEmpty());
         emit searchError("Invalid document or empty query");
         return;
     }
+
+    LOG_INFO(
+        "SearchModel::startSearch triggered for query '{}' (maxResults={})",
+        query.toStdString(), options.maxResults);
 
     m_document = document;
     m_currentQuery = query;
@@ -103,12 +113,19 @@ void SearchModel::startSearch(Poppler::Document* document, const QString& query,
     emit searchStarted();
     performSearch();
     emit searchFinished(m_searchResults.size());
+
+    LOG_INFO("SearchModel::startSearch completed with {} results",
+             m_searchResults.size());
 }
 
 void SearchModel::startRealTimeSearch(Poppler::Document* document,
                                       const QString& query,
                                       const SearchOptions& options) {
     if (!m_isRealTimeSearchEnabled || query.isEmpty()) {
+        LOG_DEBUG(
+            "SearchModel::startRealTimeSearch skipped: enabled={}, "
+            "queryEmpty={}",
+            m_isRealTimeSearchEnabled, query.isEmpty());
         return;
     }
 
@@ -122,6 +139,9 @@ void SearchModel::startRealTimeSearch(Poppler::Document* document,
 
     // Start debounced search
     m_realTimeSearchTimer->start(m_realTimeSearchDelay);
+    LOG_DEBUG(
+        "SearchModel::startRealTimeSearch scheduled in {} ms for query '{}'",
+        m_realTimeSearchDelay, query.toStdString());
 }
 
 void SearchModel::clearResults() {
@@ -137,6 +157,7 @@ void SearchModel::cancelSearch() {
         m_searchFuture.cancel();
         m_isSearching = false;
         emit searchCancelled();
+        LOG_INFO("SearchModel::cancelSearch cancelled active search");
     }
 }
 
@@ -181,6 +202,7 @@ void SearchModel::onSearchFinished() {
     if (m_searchFuture.isCanceled()) {
         m_isSearching = false;
         emit searchCancelled();
+        LOG_DEBUG("SearchModel::onSearchFinished invoked after cancellation");
         return;
     }
 
@@ -198,9 +220,14 @@ void SearchModel::onSearchFinished() {
         m_isSearching = false;
         emit searchFinished(m_results.size());
 
+        LOG_INFO("SearchModel::onSearchFinished completed with {} results",
+                 m_results.size());
+
     } catch (const std::exception& e) {
         m_isSearching = false;
         emit searchError(QString("Search failed: %1").arg(e.what()));
+        LOG_ERROR("SearchModel::onSearchFinished caught exception: {}",
+                  e.what());
     }
 }
 
@@ -209,12 +236,15 @@ void SearchModel::performSearch() {
 
     if (!m_document) {
         emit searchError("Document is null");
+        LOG_ERROR("SearchModel::performSearch aborted: document is null");
         return;
     }
 
     const int pageCount = m_document->numPages();
     if (pageCount <= 0) {
         emit searchError("Document has no pages");
+        LOG_WARNING("SearchModel::performSearch aborted: document has {} pages",
+                    pageCount);
         return;
     }
 
@@ -222,6 +252,8 @@ void SearchModel::performSearch() {
     for (int i = 0; i < pageCount; ++i) {
         std::unique_ptr<Poppler::Page> page(m_document->page(i));
         if (!page) {
+            LOG_WARNING(
+                "SearchModel::performSearch skipping invalid page index {}", i);
             continue;  // Skip invalid pages but continue search
         }
 
@@ -230,6 +262,8 @@ void SearchModel::performSearch() {
         allResults.append(pageResults);
 
         if (allResults.size() >= m_currentOptions.maxResults) {
+            LOG_DEBUG("SearchModel::performSearch reached maxResults={} early",
+                      m_currentOptions.maxResults);
             break;
         }
     }
@@ -253,8 +287,25 @@ QList<SearchResult> SearchModel::searchInPage(Poppler::Page* page,
     }
 
     QString pageText = page->text(QRectF());
+    // Fallback: on some platforms (notably Windows CI), Poppler may return
+    // an empty string for page->text(). In that case, attempt to reconstruct
+    // the text content by concatenating individual text boxes.
     if (pageText.isEmpty()) {
-        return results;
+        const auto boxes = page->textList();
+        if (!boxes.empty()) {
+            QStringList pieces;
+            pieces.reserve(static_cast<int>(boxes.size()));
+            for (const auto& boxPtr : boxes) {
+                if (boxPtr) {
+                    pieces.append(boxPtr->text());
+                }
+            }
+            pageText = pieces.join(" ").simplified();
+        }
+        // If still empty after attempting textList(), give up for this page
+        if (pageText.isEmpty()) {
+            return results;
+        }
     }
 
     QRegularExpression regex = createSearchRegex(query, options);
@@ -331,6 +382,8 @@ void SearchModel::performRealTimeSearch() {
     }
 
     emit realTimeSearchStarted();
+    LOG_DEBUG("SearchModel::performRealTimeSearch started for query '{}'",
+              m_currentQuery.toStdString());
 
     QList<SearchResult> allResults;
     const int pageCount = m_document->numPages();
@@ -346,10 +399,18 @@ void SearchModel::performRealTimeSearch() {
             emit realTimeSearchProgress(i + 1, pageCount);
             if (!allResults.isEmpty()) {
                 emit realTimeResultsUpdated(allResults);
+                LOG_TRACE_ONLY(
+                    "SearchModel::performRealTimeSearch emitted {} interim "
+                    "results",
+                    allResults.size());
             }
 
             // Limit results for performance
             if (allResults.size() >= m_currentOptions.maxResults) {
+                LOG_DEBUG(
+                    "SearchModel::performRealTimeSearch reached maxResults={} "
+                    "early",
+                    m_currentOptions.maxResults);
                 break;
             }
         }
@@ -362,6 +423,8 @@ void SearchModel::performRealTimeSearch() {
     endResetModel();
 
     emit searchFinished(allResults.size());
+    LOG_INFO("SearchModel::performRealTimeSearch finished with {} results",
+             allResults.size());
 }
 
 // SearchResult coordinate transformation now implemented in
@@ -393,13 +456,25 @@ void SearchModel::startFuzzySearch(Poppler::Document* document,
                                    const QString& query,
                                    const SearchOptions& options) {
     if (m_isSearching) {
+        LOG_DEBUG(
+            "SearchModel::startFuzzySearch invoked while search active; "
+            "cancelling current search");
         cancelSearch();
     }
 
     if (!document || query.isEmpty()) {
+        LOG_WARNING(
+            "SearchModel::startFuzzySearch received invalid input: "
+            "documentValid={}, queryEmpty={}",
+            document != nullptr, query.isEmpty());
         emit searchError("Invalid document or empty query");
         return;
     }
+
+    LOG_INFO(
+        "SearchModel::startFuzzySearch triggered for query '{}' "
+        "(maxResults={})",
+        query.toStdString(), options.maxResults);
 
     m_document = document;
     m_currentQuery = query;
@@ -422,6 +497,8 @@ void SearchModel::startFuzzySearch(Poppler::Document* document,
     endResetModel();
 
     emit searchFinished(results.size());
+    LOG_INFO("SearchModel::startFuzzySearch finished with {} results",
+             results.size());
 }
 
 void SearchModel::startPageRangeSearch(Poppler::Document* document,
@@ -429,10 +506,17 @@ void SearchModel::startPageRangeSearch(Poppler::Document* document,
                                        int endPage,
                                        const SearchOptions& options) {
     if (m_isSearching) {
+        LOG_DEBUG(
+            "SearchModel::startPageRangeSearch invoked while search active; "
+            "cancelling current search");
         cancelSearch();
     }
 
     if (!document || query.isEmpty()) {
+        LOG_WARNING(
+            "SearchModel::startPageRangeSearch received invalid input: "
+            "documentValid={}, queryEmpty={}",
+            document != nullptr, query.isEmpty());
         emit searchError("Invalid document or empty query");
         return;
     }
@@ -459,6 +543,8 @@ void SearchModel::startPageRangeSearch(Poppler::Document* document,
     endResetModel();
 
     emit searchFinished(results.size());
+    LOG_INFO("SearchModel::startPageRangeSearch finished with {} results",
+             results.size());
 }
 
 // Search history management
@@ -487,6 +573,7 @@ QList<SearchResult> SearchModel::performFuzzySearch(
     QList<SearchResult> allResults;
 
     if (!m_document) {
+        LOG_ERROR("SearchModel::performFuzzySearch aborted: document is null");
         return allResults;
     }
 
@@ -550,6 +637,8 @@ QList<SearchResult> SearchModel::performPageRangeSearch(
     QList<SearchResult> allResults;
 
     if (!m_document) {
+        LOG_ERROR(
+            "SearchModel::performPageRangeSearch aborted: document is null");
         return allResults;
     }
 
@@ -558,6 +647,10 @@ QList<SearchResult> SearchModel::performPageRangeSearch(
     int actualEndPage = qMin(pageCount - 1, endPage);
 
     if (actualStartPage > actualEndPage) {
+        LOG_WARNING(
+            "SearchModel::performPageRangeSearch invalid range: start={}, "
+            "end={}",
+            startPage, endPage);
         return allResults;
     }
 
@@ -569,6 +662,10 @@ QList<SearchResult> SearchModel::performPageRangeSearch(
             allResults.append(pageResults);
 
             if (allResults.size() >= options.maxResults) {
+                LOG_DEBUG(
+                    "SearchModel::performPageRangeSearch reached maxResults={} "
+                    "early",
+                    options.maxResults);
                 break;
             }
         }

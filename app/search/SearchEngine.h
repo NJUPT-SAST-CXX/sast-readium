@@ -24,6 +24,7 @@ public:
 
     // Document management
     void setDocument(Poppler::Document* document);
+    // Safe accessors
     Poppler::Document* document() const;
 
     // Search operations

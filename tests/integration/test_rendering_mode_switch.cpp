@@ -9,6 +9,8 @@
 #include <QStandardPaths>
 #include <QTest>
 #include <QTimer>
+#include <memory>
+
 #include "../../app/controller/ApplicationController.h"
 #include "../../app/controller/EventBus.h"
 #include "../../app/controller/ServiceLocator.h"
@@ -85,9 +87,11 @@ void TestRenderingModeSwitch::cleanupTestCase() {
 
 void TestRenderingModeSwitch::init() {
     // Create viewer for each test (no parent to avoid double-delete)
-    m_viewer = new PDFViewer(nullptr, false);
+    m_viewer = new PDFViewer(nullptr);
     QVERIFY(m_viewer != nullptr);
-    m_viewer->setDocument(m_testDocument);
+    auto docPtr = std::shared_ptr<Poppler::Document>(m_testDocument,
+                                                     [](Poppler::Document*) {});
+    m_viewer->setDocument(docPtr);
 }
 
 void TestRenderingModeSwitch::cleanup() {
@@ -151,8 +155,8 @@ void TestRenderingModeSwitch::verifyViewerState(PDFViewer* viewer,
                                                 int expectedPage,
                                                 double expectedZoom,
                                                 int expectedRotation) {
-    QCOMPARE(viewer->getCurrentPage(), expectedPage);
-    QCOMPARE(viewer->getCurrentZoom(), expectedZoom);
+    QCOMPARE(viewer->currentPage(), expectedPage);
+    QCOMPARE(viewer->zoom(), expectedZoom);
     // Note: Rotation comparison might need tolerance due to floating point
     // precision
 }
@@ -165,7 +169,7 @@ void TestRenderingModeSwitch::performStandardOperations(PDFViewer* viewer) {
     QCoreApplication::processEvents();
     viewer->rotateRight();
     QCoreApplication::processEvents();
-    viewer->nextPage();
+    viewer->goToNextPage();
     QCoreApplication::processEvents();
     viewer->zoomIn();
     QCoreApplication::processEvents();
@@ -205,31 +209,31 @@ void TestRenderingModeSwitch::testStatePreservation() {
     // Set initial state
     m_viewer->goToPage(1);
     m_viewer->setZoom(2.0);
-    m_viewer->setRotation(90);
+    m_viewer->rotateRight();
 
-    int initialPage = m_viewer->getCurrentPage();
-    double initialZoom = m_viewer->getCurrentZoom();
+    int initialPage = m_viewer->currentPage();
+    double initialZoom = m_viewer->zoom();
 
     // Switch to QGraphics mode
     m_viewer->setQGraphicsRenderingEnabled(true);
 
     // Verify state is preserved
-    QCOMPARE(m_viewer->getCurrentPage(), initialPage);
-    QCOMPARE(m_viewer->getCurrentZoom(), initialZoom);
+    QCOMPARE(m_viewer->currentPage(), initialPage);
+    QCOMPARE(m_viewer->zoom(), initialZoom);
 
     // Modify state in QGraphics mode
     m_viewer->goToPage(2);
     m_viewer->setZoom(1.5);
 
-    int qgraphicsPage = m_viewer->getCurrentPage();
-    double qgraphicsZoom = m_viewer->getCurrentZoom();
+    int qgraphicsPage = m_viewer->currentPage();
+    double qgraphicsZoom = m_viewer->zoom();
 
     // Switch back to traditional mode
     m_viewer->setQGraphicsRenderingEnabled(false);
 
     // Verify state is still preserved
-    QCOMPARE(m_viewer->getCurrentPage(), qgraphicsPage);
-    QCOMPARE(m_viewer->getCurrentZoom(), qgraphicsZoom);
+    QCOMPARE(m_viewer->currentPage(), qgraphicsPage);
+    QCOMPARE(m_viewer->zoom(), qgraphicsZoom);
 
     qDebug() << "State preservation test passed";
 #else
@@ -386,7 +390,7 @@ void TestRenderingModeSwitch::testMemoryManagement() {
 
     // Verify viewer is still functional after multiple switches
     QVERIFY(m_viewer->hasDocument());
-    QVERIFY(m_viewer->getPageCount() > 0);
+    QVERIFY(m_viewer->pageCount() > 0);
 
     qDebug() << "Memory management test passed";
 #else
@@ -405,11 +409,11 @@ void TestRenderingModeSwitch::testConcurrentOperations() {
     connect(operationTimer, &QTimer::timeout, [this, &operationCount]() {
         // Perform operations while mode switching might be happening
         if (operationCount % 4 == 0)
-            m_viewer->nextPage();
+            m_viewer->goToNextPage();
         else if (operationCount % 4 == 1)
             m_viewer->zoomIn();
         else if (operationCount % 4 == 2)
-            m_viewer->previousPage();
+            m_viewer->goToPreviousPage();
         else
             m_viewer->zoomOut();
 

@@ -20,9 +20,20 @@ public:
 };
 
 IncrementalSearchManager::IncrementalSearchManager(QObject* parent)
-    : QObject(parent), d(std::make_unique<Implementation>(this)) {}
+    : QObject(parent), d(std::make_unique<Implementation>(this)) {
+    // Ensure custom types used in signals are registered for Qt meta-type
+    // system
+    qRegisterMetaType<SearchOptions>("SearchOptions");
+}
 
-IncrementalSearchManager::~IncrementalSearchManager() = default;
+IncrementalSearchManager::~IncrementalSearchManager() {
+    // Ensure timer won't fire during or after destruction
+    if (d && d->timer) {
+        d->timer->stop();
+        d->timer->disconnect(this);
+    }
+    d->pendingQuery.clear();
+}
 
 void IncrementalSearchManager::setDelay(int milliseconds) {
     d->searchDelay = milliseconds;

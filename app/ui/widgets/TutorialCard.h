@@ -4,7 +4,8 @@
 #include <QWidget>
 
 class QLabel;
-class QPushButton;
+class ElaText;
+class ElaPushButton;
 class QPropertyAnimation;
 
 /**
@@ -73,12 +74,12 @@ private:
 
     // UI Components
     QLabel* m_iconLabel;
-    QLabel* m_titleLabel;
-    QLabel* m_descriptionLabel;
-    QLabel* m_durationLabel;
-    QLabel* m_difficultyLabel;
-    QLabel* m_completedLabel;
-    QPushButton* m_startButton;
+    ElaText* m_titleLabel;
+    ElaText* m_descriptionLabel;
+    ElaText* m_durationLabel;
+    ElaText* m_difficultyLabel;
+    ElaText* m_completedLabel;
+    ElaPushButton* m_startButton;
 
     // Animation
     QPropertyAnimation* m_hoverAnimation;

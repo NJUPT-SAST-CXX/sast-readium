@@ -9,12 +9,11 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QLineEdit>
+
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
 #include <QSpinBox>
-#include <QTabWidget>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -27,6 +26,14 @@
  * - Behavior (default zoom, page mode, recent files)
  * - Advanced (logging, debug options)
  */
+class ElaComboBox;
+class ElaCheckBox;
+class ElaRadioButton;
+class ElaSpinBox;
+class ElaPushButton;
+class ElaTabWidget;
+class ElaLineEdit;
+
 class SettingsDialog : public QDialog {
     Q_OBJECT
 
@@ -83,40 +90,40 @@ private:
 
     // UI Components
     QVBoxLayout* m_mainLayout;
-    QTabWidget* m_tabWidget;
+    ElaTabWidget* m_tabWidget;
     QDialogButtonBox* m_buttonBox;
     QPushButton* m_applyButton;
-    QPushButton* m_restoreDefaultsButton;
+    ElaPushButton* m_restoreDefaultsButton;
 
     // Appearance tab
     QWidget* m_appearanceTab;
     QButtonGroup* m_themeGroup;
-    QRadioButton* m_lightThemeRadio;
-    QRadioButton* m_darkThemeRadio;
-    QComboBox* m_languageCombo;
+    ElaRadioButton* m_lightThemeRadio;
+    ElaRadioButton* m_darkThemeRadio;
+    ElaComboBox* m_languageCombo;
 
     // Performance tab
     QWidget* m_performanceTab;
-    QSpinBox* m_cacheSizeSpinBox;
-    QCheckBox* m_enableCacheCheckBox;
-    QCheckBox* m_preloadPagesCheckBox;
-    QSpinBox* m_preloadCountSpinBox;
-    QComboBox* m_renderQualityCombo;
+    ElaSpinBox* m_cacheSizeSpinBox;
+    ElaCheckBox* m_enableCacheCheckBox;
+    ElaCheckBox* m_preloadPagesCheckBox;
+    ElaSpinBox* m_preloadCountSpinBox;
+    ElaComboBox* m_renderQualityCombo;
 
     // Behavior tab
     QWidget* m_behaviorTab;
-    QComboBox* m_defaultZoomCombo;
-    QComboBox* m_defaultPageModeCombo;
-    QSpinBox* m_recentFilesCountSpinBox;
-    QCheckBox* m_rememberWindowStateCheckBox;
-    QCheckBox* m_openLastFileCheckBox;
+    ElaComboBox* m_defaultZoomCombo;
+    ElaComboBox* m_defaultPageModeCombo;
+    ElaSpinBox* m_recentFilesCountSpinBox;
+    ElaCheckBox* m_rememberWindowStateCheckBox;
+    ElaCheckBox* m_openLastFileCheckBox;
 
     // Advanced tab
     QWidget* m_advancedTab;
-    QComboBox* m_logLevelCombo;
-    QCheckBox* m_enableDebugPanelCheckBox;
-    QCheckBox* m_showWelcomeScreenCheckBox;
-    QLineEdit* m_customCachePathEdit;
-    QPushButton* m_browseCachePathButton;
-    QPushButton* m_clearCacheButton;
+    ElaComboBox* m_logLevelCombo;
+    ElaCheckBox* m_enableDebugPanelCheckBox;
+    ElaCheckBox* m_showWelcomeScreenCheckBox;
+    ElaLineEdit* m_customCachePathEdit;
+    ElaPushButton* m_browseCachePathButton;
+    ElaPushButton* m_clearCacheButton;
 };

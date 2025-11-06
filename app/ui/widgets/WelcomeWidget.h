@@ -6,7 +6,7 @@
 #include <QLabel>
 #include <QPixmap>
 #include <QPropertyAnimation>
-#include <QPushButton>
+
 #include <QScrollArea>
 #include <QSettings>
 #include <QShortcut>
@@ -21,6 +21,8 @@ class OnboardingManager;
 class CommandManager;
 class QGridLayout;
 class QToolButton;
+class ElaText;
+class ElaPushButton;
 
 /**
  * Enhanced Welcome Screen Widget
@@ -119,22 +121,22 @@ private:
     QWidget* m_logoWidget;
     QVBoxLayout* m_logoLayout;
     QLabel* m_logoLabel;
-    QLabel* m_titleLabel;
-    QLabel* m_versionLabel;
+    ElaText* m_titleLabel;
+    ElaText* m_versionLabel;
 
     // 操作区域
     QWidget* m_actionsWidget;
     QHBoxLayout* m_actionsLayout;
-    QPushButton* m_newFileButton;
-    QPushButton* m_openFileButton;
-    QPushButton* m_openFolderButton;
+    ElaPushButton* m_newFileButton;
+    ElaPushButton* m_openFileButton;
+    ElaPushButton* m_openFolderButton;
 
     // 最近文件区域
     QWidget* m_recentFilesWidget;
     QVBoxLayout* m_recentFilesLayout;
-    QLabel* m_recentFilesTitle;
+    ElaText* m_recentFilesTitle;
     RecentFileListWidget* m_recentFilesList;
-    QLabel* m_noRecentFilesLabel;
+    ElaText* m_noRecentFilesLabel;
 
     // Quick Actions区域
     QWidget* m_quickActionsWidget;
@@ -144,24 +146,24 @@ private:
     // Tutorial Cards区域
     QWidget* m_tutorialCardsWidget;
     QVBoxLayout* m_tutorialCardsLayout;
-    QLabel* m_tutorialCardsTitle;
+    ElaText* m_tutorialCardsTitle;
     QWidget* m_tutorialCardsContainer;
     QHBoxLayout* m_tutorialCardsContainerLayout;
 
     // Tips区域
     QWidget* m_tipsWidget;
     QVBoxLayout* m_tipsLayout;
-    QLabel* m_tipsTitle;
-    QLabel* m_currentTipLabel;
-    QPushButton* m_nextTipButton;
-    QPushButton* m_previousTipButton;
+    ElaText* m_tipsTitle;
+    ElaText* m_currentTipLabel;
+    ElaPushButton* m_nextTipButton;
+    ElaPushButton* m_previousTipButton;
     int m_currentTipIndex;
     QStringList m_tips;
 
     // Keyboard Shortcuts区域
     QWidget* m_shortcutsWidget;
     QVBoxLayout* m_shortcutsLayout;
-    QLabel* m_shortcutsTitle;
+    ElaText* m_shortcutsTitle;
     QWidget* m_shortcutsListWidget;
 
     // 分隔线

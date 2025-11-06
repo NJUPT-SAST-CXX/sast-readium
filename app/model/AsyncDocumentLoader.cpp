@@ -26,17 +26,24 @@ AsyncDocumentLoader::AsyncDocumentLoader(QObject* parent)
 AsyncDocumentLoader::~AsyncDocumentLoader() { cancelLoading(); }
 
 void AsyncDocumentLoader::loadDocument(const QString& filePath) {
-    QMutexLocker locker(&m_stateMutex);
+    // Validate file path before acquiring mutex
+    if (filePath.isEmpty()) {
+        emit loadingFailed("文件路径为空", filePath);
+        return;
+    }
 
-    // 检查文件是否存在
     if (!QFile::exists(filePath)) {
         emit loadingFailed("文件不存在", filePath);
         return;
     }
 
-    // 如果正在加载，先取消
+    QMutexLocker locker(&m_stateMutex);
+
+    // 如果正在加载，先取消 (unlock mutex before calling cancelLoading)
     if (m_state == LoadingState::Loading) {
+        locker.unlock();
         cancelLoading();
+        locker.relock();
     }
 
     // 重置状态
@@ -93,14 +100,32 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath) {
                 emit loadingMessageChanged("加载完成");
                 emit documentLoaded(document, filePath);
 
-                // DEADLOCK FIX: Cleanup thread outside of mutex
+                // Cleanup worker and thread synchronously to avoid deleteLater
+                // at shutdown
                 if (threadToCleanup) {
                     threadToCleanup->quit();
-                    threadToCleanup->wait(3000);  // Add timeout
-                    threadToCleanup->deleteLater();
+                    if (!threadToCleanup->wait(3000)) {
+                        qWarning()
+                            << "AsyncDocumentLoader: Thread cleanup timeout "
+                               "after success, terminating";
+                        threadToCleanup->terminate();
+                        threadToCleanup->wait(1000);
+                    }
                 }
                 if (workerToCleanup) {
-                    workerToCleanup->deleteLater();
+                    // Move worker to current thread after its thread stopped,
+                    // then delete
+                    if (workerToCleanup->thread() &&
+                        workerToCleanup->thread()->isRunning()) {
+                        // Should not happen because we waited, but guard anyway
+                        workerToCleanup->thread()->quit();
+                        workerToCleanup->thread()->wait(1000);
+                    }
+
+                    delete workerToCleanup;
+                }
+                if (threadToCleanup) {
+                    delete threadToCleanup;
                 }
 
                 // 检查队列中是否还有待加载的文档
@@ -108,13 +133,57 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath) {
             });
     connect(m_worker, &AsyncDocumentLoaderWorker::loadFailed, this,
             [this](const QString& error) {
-                QMutexLocker locker(&m_stateMutex);
-                if (m_state == LoadingState::Loading) {
-                    m_state = LoadingState::Failed;
-                    locker.unlock();
-                    stopProgressSimulation();
-                    emit loadingFailed(error, m_currentFilePath);
+                QString filePath;
+                QThread* threadToCleanup = nullptr;
+                AsyncDocumentLoaderWorker* workerToCleanup = nullptr;
+
+                // DEADLOCK FIX: Minimize mutex scope for thread cleanup
+                {
+                    QMutexLocker locker(&m_stateMutex);
+                    if (m_state == LoadingState::Loading) {
+                        m_state = LoadingState::Failed;
+                        filePath = m_currentFilePath;
+
+                        // Take ownership for cleanup outside mutex
+                        threadToCleanup = m_workerThread;
+                        workerToCleanup = m_worker;
+                        m_workerThread = nullptr;
+                        m_worker = nullptr;
+                    } else {
+                        return;
+                    }
                 }
+
+                stopProgressSimulation();
+                emit loadingFailed(error, filePath);
+
+                // Cleanup worker and thread synchronously to avoid deleteLater
+                // at shutdown
+                if (threadToCleanup) {
+                    threadToCleanup->quit();
+                    if (!threadToCleanup->wait(3000)) {
+                        qWarning()
+                            << "AsyncDocumentLoader: Thread cleanup timeout "
+                               "after failure, terminating";
+                        threadToCleanup->terminate();
+                        threadToCleanup->wait(1000);
+                    }
+                }
+                if (workerToCleanup) {
+                    if (workerToCleanup->thread() &&
+                        workerToCleanup->thread()->isRunning()) {
+                        workerToCleanup->thread()->quit();
+                        workerToCleanup->thread()->wait(1000);
+                    }
+
+                    delete workerToCleanup;
+                }
+                if (threadToCleanup) {
+                    delete threadToCleanup;
+                }
+
+                // Process next document in queue after failure
+                processNextInQueue();
             });
 
     // 开始进度模拟和加载
@@ -126,24 +195,27 @@ void AsyncDocumentLoader::cancelLoading() {
     QString filePath;
     QThread* threadToCleanup = nullptr;
     AsyncDocumentLoaderWorker* workerToCleanup = nullptr;
+    bool emitCancelled = false;
 
     // DEADLOCK FIX: Minimize mutex scope and avoid holding mutex during thread
     // operations
     {
         QMutexLocker locker(&m_stateMutex);
 
-        if (m_state != LoadingState::Loading) {
+        if (m_workerThread || m_worker) {
+            if (m_state == LoadingState::Loading) {
+                m_state = LoadingState::Cancelled;
+                filePath = m_currentFilePath;
+                emitCancelled = true;
+            }
+            // Take ownership of thread and worker for cleanup outside mutex
+            threadToCleanup = m_workerThread;
+            workerToCleanup = m_worker;
+            m_workerThread = nullptr;
+            m_worker = nullptr;
+        } else {
             return;
         }
-
-        m_state = LoadingState::Cancelled;
-        filePath = m_currentFilePath;
-
-        // Take ownership of thread and worker for cleanup outside mutex
-        threadToCleanup = m_workerThread;
-        workerToCleanup = m_worker;
-        m_workerThread = nullptr;
-        m_worker = nullptr;
     }
 
     stopProgressSimulation();
@@ -158,14 +230,25 @@ void AsyncDocumentLoader::cancelLoading() {
             threadToCleanup->terminate();
             threadToCleanup->wait(1000);
         }
-        threadToCleanup->deleteLater();
     }
 
     if (workerToCleanup) {
-        workerToCleanup->deleteLater();
+        // Ensure worker is in current thread for deletion after its thread
+        // stops
+        if (workerToCleanup->thread() &&
+            workerToCleanup->thread()->isRunning()) {
+            workerToCleanup->thread()->quit();
+            workerToCleanup->thread()->wait(1000);
+        }
+
+        delete workerToCleanup;
+    }
+    if (threadToCleanup) {
+        delete threadToCleanup;
     }
 
-    emit loadingCancelled(filePath);
+    if (emitCancelled)
+        emit loadingCancelled(filePath);
 }
 
 AsyncDocumentLoader::LoadingState AsyncDocumentLoader::currentState() const {
@@ -179,18 +262,30 @@ QString AsyncDocumentLoader::currentFilePath() const {
 }
 
 void AsyncDocumentLoader::queueDocuments(const QStringList& filePaths) {
-    QMutexLocker locker(&m_queueMutex);
+    bool shouldStartLoading = false;
 
-    // 将文档添加到队列中
-    for (const QString& filePath : filePaths) {
-        if (!filePath.isEmpty() && QFile::exists(filePath) &&
-            !m_documentQueue.contains(filePath)) {
-            m_documentQueue.append(filePath);
+    {
+        QMutexLocker locker(&m_queueMutex);
+
+        // 将文档添加到队列中
+        for (const QString& filePath : filePaths) {
+            if (!filePath.isEmpty() && QFile::exists(filePath) &&
+                !m_documentQueue.contains(filePath)) {
+                m_documentQueue.append(filePath);
+            }
         }
+
+        qDebug() << "Added" << filePaths.size()
+                 << "documents to queue. Queue size:" << m_documentQueue.size();
+
+        // Check if we should start loading
+        shouldStartLoading = !m_documentQueue.isEmpty();
     }
 
-    qDebug() << "Added" << filePaths.size()
-             << "documents to queue. Queue size:" << m_documentQueue.size();
+    // Start loading first document if idle
+    if (shouldStartLoading && currentState() == LoadingState::Idle) {
+        processNextInQueue();
+    }
 }
 
 int AsyncDocumentLoader::queueSize() const {
@@ -199,14 +294,27 @@ int AsyncDocumentLoader::queueSize() const {
 }
 
 void AsyncDocumentLoader::processNextInQueue() {
-    QMutexLocker queueLocker(&m_queueMutex);
-
-    if (m_documentQueue.isEmpty()) {
-        return;  // 队列为空，无需处理
+    // Check if we can start loading (must be idle or
+    // completed/failed/cancelled)
+    {
+        QMutexLocker locker(&m_stateMutex);
+        if (m_state == LoadingState::Loading) {
+            qDebug()
+                << "AsyncDocumentLoader: Cannot process queue while loading";
+            return;  // Already loading, don't start another
+        }
     }
 
-    QString nextFilePath = m_documentQueue.takeFirst();
-    queueLocker.unlock();
+    QString nextFilePath;
+    {
+        QMutexLocker queueLocker(&m_queueMutex);
+
+        if (m_documentQueue.isEmpty()) {
+            return;  // 队列为空，无需处理
+        }
+
+        nextFilePath = m_documentQueue.takeFirst();
+    }
 
     // 加载下一个文档
     qDebug() << "Loading next document from queue:" << nextFilePath;
@@ -533,9 +641,14 @@ void AsyncDocumentLoaderWorker::cleanup() {
 
     if (m_timeoutTimer) {
         m_timeoutTimer->stop();
-        // Timer will be automatically deleted when worker is destroyed
-        // since it's created without parent in the worker thread
-        m_timeoutTimer->deleteLater();
+        // Prefer direct delete when target thread has no event loop
+        QThread* timerThread = m_timeoutTimer->thread();
+        if (timerThread == QThread::currentThread() ||
+            (timerThread && !timerThread->isRunning())) {
+            delete m_timeoutTimer;
+        } else {
+            m_timeoutTimer->deleteLater();
+        }
         m_timeoutTimer = nullptr;
     }
 

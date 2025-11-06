@@ -436,20 +436,139 @@ void MultiSearchEngineTest::verifySuggestionQuality(
     }
 }
 
-// Missing test implementations - stubs for now
+// Trie structure and matching tests
 void MultiSearchEngineTest::testTrieTraversal() {
-    // TODO: Implement trie traversal test
-    QSKIP("Test not yet implemented");
+    // Test that trie traversal correctly finds all words with a given prefix
+    QStringList queries = {"apple", "application", "apply", "banana", "band"};
+    QList<int> frequencies = {10, 8, 6, 5, 3};
+
+    m_suggestionEngine->trainModel(queries, frequencies);
+
+    // Test traversal for "app" prefix - should find apple, application, apply
+    QStringList appSuggestions =
+        m_suggestionEngine->generateSuggestions("app", 10);
+
+    QVERIFY(!appSuggestions.isEmpty());
+    QVERIFY(appSuggestions.size() <= 3);  // At most 3 matches
+
+    // All suggestions should start with "app"
+    for (const QString& suggestion : appSuggestions) {
+        QVERIFY(suggestion.startsWith("app"));
+    }
+
+    // Test traversal for "ban" prefix - should find banana, band
+    QStringList banSuggestions =
+        m_suggestionEngine->generateSuggestions("ban", 10);
+
+    QVERIFY(!banSuggestions.isEmpty());
+    QVERIFY(banSuggestions.size() <= 2);  // At most 2 matches
+
+    for (const QString& suggestion : banSuggestions) {
+        QVERIFY(suggestion.startsWith("ban"));
+    }
+
+    // Test traversal for non-existent prefix
+    QStringList noMatch = m_suggestionEngine->generateSuggestions("xyz", 10);
+
+    // May be empty or contain fuzzy matches depending on implementation
+    // Just verify it doesn't crash
+    QVERIFY(true);
 }
 
 void MultiSearchEngineTest::testTrieFrequencyOrdering() {
-    // TODO: Implement trie frequency ordering test
-    QSKIP("Test not yet implemented");
+    // Test that suggestions are ordered by frequency
+    QStringList queries = {"search low", "search high", "search medium"};
+    QList<int> frequencies = {5, 100, 50};  // high > medium > low
+
+    m_suggestionEngine->trainModel(queries, frequencies);
+
+    QStringList suggestions =
+        m_suggestionEngine->generateSuggestions("search", 3);
+
+    QVERIFY(!suggestions.isEmpty());
+
+    // Verify frequency ordering - higher frequency should come first
+    if (suggestions.size() >= 2) {
+        for (int i = 0; i < suggestions.size() - 1; ++i) {
+            int freq1 = m_suggestionEngine->getQueryFrequency(suggestions[i]);
+            int freq2 =
+                m_suggestionEngine->getQueryFrequency(suggestions[i + 1]);
+
+            // Current suggestion should have >= frequency than next
+            QVERIFY2(freq1 >= freq2, QString("Frequency ordering violated: %1 "
+                                             "(freq=%2) before %3 (freq=%4)")
+                                         .arg(suggestions[i])
+                                         .arg(freq1)
+                                         .arg(suggestions[i + 1])
+                                         .arg(freq2)
+                                         .toUtf8());
+        }
+    }
+
+    // Test with more complex scenario
+    QStringList moreQueries = {"test a", "test b", "test c", "test d",
+                               "test e"};
+    QList<int> moreFreqs = {1, 50, 25, 75,
+                            10};  // d(75) > b(50) > c(25) > e(10) > a(1)
+
+    m_suggestionEngine->trainModel(moreQueries, moreFreqs);
+
+    QStringList moreSuggestions =
+        m_suggestionEngine->generateSuggestions("test", 5);
+
+    QVERIFY(!moreSuggestions.isEmpty());
+
+    // Verify ordering is maintained
+    for (int i = 0; i < moreSuggestions.size() - 1; ++i) {
+        int freq1 = m_suggestionEngine->getQueryFrequency(moreSuggestions[i]);
+        int freq2 =
+            m_suggestionEngine->getQueryFrequency(moreSuggestions[i + 1]);
+        QVERIFY(freq1 >= freq2);
+    }
 }
 
 void MultiSearchEngineTest::testPartialWordMatching() {
-    // TODO: Implement partial word matching test
-    QSKIP("Test not yet implemented");
+    // Test partial word matching within queries
+    QStringList queries = {"quick brown fox", "quick search", "brown sugar",
+                           "fox hunting", "quick fix"};
+    QList<int> frequencies = {10, 15, 8, 5, 12};
+
+    m_suggestionEngine->trainModel(queries, frequencies);
+
+    // Test matching with "quick" - should find queries starting with "quick"
+    QStringList quickMatches =
+        m_suggestionEngine->generateSuggestions("quick", 5);
+
+    QVERIFY(!quickMatches.isEmpty());
+
+    // All matches should start with "quick"
+    for (const QString& match : quickMatches) {
+        QVERIFY(match.startsWith("quick"));
+    }
+
+    // Test matching with "bro" - should find "brown" queries
+    QStringList broMatches = m_suggestionEngine->generateSuggestions("bro", 5);
+
+    QVERIFY(!broMatches.isEmpty());
+
+    for (const QString& match : broMatches) {
+        QVERIFY(match.startsWith("bro"));
+    }
+
+    // Test partial match with single character
+    QStringList singleChar = m_suggestionEngine->generateSuggestions("q", 10);
+
+    // Should find all queries starting with 'q'
+    for (const QString& match : singleChar) {
+        QVERIFY(match.startsWith("q", Qt::CaseInsensitive));
+    }
+
+    // Test empty prefix - should return most frequent queries
+    QStringList emptyPrefix = m_suggestionEngine->generateSuggestions("", 3);
+
+    // May return top frequent queries or empty list depending on implementation
+    // Just verify it doesn't crash
+    QVERIFY(true);
 }
 
 void MultiSearchEngineTest::testCaseInsensitiveSuggestions() {

@@ -365,27 +365,28 @@ DocumentAnalyzer::AnalysisResult DocumentAnalyzer::performAnalysis(
         }
 
         if (types & TextAnalysis) {
-            analysis["text"] = performTextAnalysis(document);
+            analysis["text"] = performTextAnalysisImpl(document);
         }
 
         if (types & ImageAnalysis) {
-            analysis["images"] = performImageAnalysis(document);
+            analysis["images"] = performImageAnalysisImpl(document);
         }
 
         if (types & StructureAnalysis) {
-            analysis["structure"] = performStructureAnalysis(document);
+            analysis["structure"] = performStructureAnalysisImpl(document);
         }
 
         if (types & SecurityAnalysis) {
-            analysis["security"] = performSecurityAnalysis(document);
+            analysis["security"] = performSecurityAnalysisImpl(document);
         }
 
         if (types & QualityAnalysis) {
-            analysis["quality"] = performQualityAnalysis(document);
+            analysis["quality"] = performQualityAnalysisImpl(document);
         }
 
         if (types & AccessibilityAnalysis) {
-            analysis["accessibility"] = performAccessibilityAnalysis(document);
+            analysis["accessibility"] =
+                performAccessibilityAnalysisImpl(document);
         }
 
         result.analysis = analysis;
@@ -438,8 +439,46 @@ QString DocumentAnalyzer::formatAnalysisTime(qint64 milliseconds) const {
 
 void DocumentAnalyzer::onBatchProgressUpdate() { updateBatchProgress(); }
 
-// Analysis function implementations
+// Static convenience wrappers for backward compatibility
 QJsonObject DocumentAnalyzer::performTextAnalysis(Poppler::Document* document) {
+    DocumentAnalyzer analyzer;
+    return analyzer.DocumentAnalyzer::performTextAnalysisImpl(document);
+}
+
+QJsonObject DocumentAnalyzer::performImageAnalysis(
+    Poppler::Document* document) {
+    DocumentAnalyzer analyzer;
+    return analyzer.DocumentAnalyzer::performImageAnalysisImpl(document);
+}
+
+QJsonObject DocumentAnalyzer::performStructureAnalysis(
+    Poppler::Document* document) {
+    DocumentAnalyzer analyzer;
+    return analyzer.DocumentAnalyzer::performStructureAnalysisImpl(document);
+}
+
+QJsonObject DocumentAnalyzer::performSecurityAnalysis(
+    Poppler::Document* document) {
+    DocumentAnalyzer analyzer;
+    return analyzer.DocumentAnalyzer::performSecurityAnalysisImpl(document);
+}
+
+QJsonObject DocumentAnalyzer::performQualityAnalysis(
+    Poppler::Document* document) {
+    DocumentAnalyzer analyzer;
+    return analyzer.DocumentAnalyzer::performQualityAnalysisImpl(document);
+}
+
+QJsonObject DocumentAnalyzer::performAccessibilityAnalysis(
+    Poppler::Document* document) {
+    DocumentAnalyzer analyzer;
+    return analyzer.DocumentAnalyzer::performAccessibilityAnalysisImpl(
+        document);
+}
+
+// Analysis function implementations
+QJsonObject DocumentAnalyzer::performTextAnalysisImpl(
+    Poppler::Document* document) {
     QJsonObject textAnalysis;
 
     if (!document) {
@@ -496,7 +535,7 @@ QJsonObject DocumentAnalyzer::performTextAnalysis(Poppler::Document* document) {
     return textAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performImageAnalysis(
+QJsonObject DocumentAnalyzer::performImageAnalysisImpl(
     Poppler::Document* document) {
     QJsonObject imageAnalysis;
 
@@ -539,7 +578,7 @@ QJsonObject DocumentAnalyzer::performImageAnalysis(
     return imageAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performStructureAnalysis(
+QJsonObject DocumentAnalyzer::performStructureAnalysisImpl(
     Poppler::Document* document) {
     QJsonObject structureAnalysis;
 
@@ -577,7 +616,7 @@ QJsonObject DocumentAnalyzer::performStructureAnalysis(
     return structureAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performSecurityAnalysis(
+QJsonObject DocumentAnalyzer::performSecurityAnalysisImpl(
     Poppler::Document* document) {
     QJsonObject securityAnalysis;
 
@@ -597,7 +636,7 @@ QJsonObject DocumentAnalyzer::performSecurityAnalysis(
     return securityAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performQualityAnalysis(
+QJsonObject DocumentAnalyzer::performQualityAnalysisImpl(
     Poppler::Document* document) {
     QJsonObject qualityAnalysis;
 
@@ -643,7 +682,7 @@ QJsonObject DocumentAnalyzer::performQualityAnalysis(
     return qualityAnalysis;
 }
 
-QJsonObject DocumentAnalyzer::performAccessibilityAnalysis(
+QJsonObject DocumentAnalyzer::performAccessibilityAnalysisImpl(
     Poppler::Document* document) {
     QJsonObject accessibilityAnalysis;
 

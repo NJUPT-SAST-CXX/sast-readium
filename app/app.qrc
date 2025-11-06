@@ -27,5 +27,6 @@
         <file alias="light.qss">../assets/styles/light.qss</file>
         <file alias="thumbnails.qss">../assets/styles/thumbnails.qss</file>
         <file alias="common.qss">../assets/styles/common.qss</file>
+        <file alias="metadata_dialog.qss">../assets/styles/metadata_dialog.qss</file>
     </qresource>
 </RCC>

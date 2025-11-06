@@ -1,5 +1,7 @@
 #include "ToastNotification.h"
 #include <QApplication>
+#include <QCoreApplication>
+
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QPainter>
@@ -8,6 +10,9 @@
 #include <QVBoxLayout>
 #include "../../managers/StyleManager.h"
 
+// ElaWidgetTools
+#include "ElaPushButton.h"
+#include "ElaText.h"
 // ToastNotification Implementation
 ToastNotification::ToastNotification(QWidget* parent)
     : QWidget(parent),
@@ -42,6 +47,9 @@ ToastNotification::~ToastNotification() {
     if (m_dismissTimer) {
         m_dismissTimer->stop();
     }
+    if (parentWidget()) {
+        parentWidget()->removeEventFilter(this);
+    }
 }
 
 void ToastNotification::setupUI() {
@@ -57,13 +65,13 @@ void ToastNotification::setupUI() {
     mainLayout->addWidget(m_iconLabel);
 
     // Message label
-    m_messageLabel = new QLabel(this);
+    m_messageLabel = new ElaText(this);
     m_messageLabel->setWordWrap(true);
     m_messageLabel->setFont(STYLE.defaultFont());
     mainLayout->addWidget(m_messageLabel, 1);
 
     // Action button (hidden by default)
-    m_actionButton = new QPushButton(this);
+    m_actionButton = new ElaPushButton(this);
     m_actionButton->setFont(STYLE.buttonFont());
     m_actionButton->setVisible(false);
     m_actionButton->setCursor(Qt::PointingHandCursor);
@@ -77,7 +85,7 @@ void ToastNotification::setupUI() {
     mainLayout->addWidget(m_actionButton);
 
     // Close button
-    m_closeButton = new QPushButton("×", this);
+    m_closeButton = new ElaPushButton("×", this);
     m_closeButton->setFixedSize(24, 24);
     m_closeButton->setCursor(Qt::PointingHandCursor);
     m_closeButton->setFlat(true);
@@ -117,7 +125,13 @@ void ToastNotification::setupAnimations() {
     connect(m_fadeOutAnimation, &QPropertyAnimation::finished, this, [this]() {
         hide();
         emit dismissed();
-        deleteLater();
+        // Avoid deleteLater() during app shutdown when event loop won't process
+        // it
+        if (QCoreApplication::closingDown()) {
+            delete this;
+        } else {
+            deleteLater();
+        }
     });
 
     // Auto-dismiss timer
@@ -399,7 +413,19 @@ ToastManager& ToastManager::instance() {
 ToastManager::ToastManager()
     : QObject(nullptr), m_currentToast(nullptr), m_isProcessing(false) {}
 
-ToastManager::~ToastManager() { clearQueue(); }
+ToastManager::~ToastManager() {
+    m_queue.clear();
+    if (m_currentToast) {
+        if (QCoreApplication::closingDown()) {
+            // Let Qt clean it up during application shutdown
+            m_currentToast = nullptr;
+        } else {
+            m_currentToast->disconnect();
+            delete m_currentToast;
+            m_currentToast = nullptr;
+        }
+    }
+}
 
 void ToastManager::showToast(QWidget* parent, const QString& message,
                              ToastNotification::Type type, int duration) {

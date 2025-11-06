@@ -1,3 +1,4 @@
+#include <poppler-qt6.h>
 #include <QApplication>
 #include <QTemporaryFile>
 #include <QtTest/QtTest>
@@ -19,7 +20,7 @@ private:
 };
 
 void TestQGraphicsPDF::initTestCase() {
-    m_viewer = new PDFViewer(nullptr, false);  // Disable styling for tests
+    m_viewer = new PDFViewer(nullptr);  // Disable styling for tests
 
     // Create a simple test PDF document (this would normally be loaded from a
     // file) For testing purposes, we'll just test the interface without a real
@@ -49,8 +50,8 @@ void TestQGraphicsPDF::testConditionalCompilation() {
     QVERIFY(m_viewer != nullptr);
 
     // Traditional rendering should still work
-    QVERIFY(m_viewer->getCurrentPage() >= 0);
-    QVERIFY(m_viewer->getCurrentZoom() > 0);
+    QVERIFY(m_viewer->currentPage() >= 0);
+    QVERIFY(m_viewer->zoom() > 0);
 
     qDebug()
         << "QGraphics PDF support is DISABLED - using traditional rendering";
@@ -85,17 +86,17 @@ void TestQGraphicsPDF::testFallbackFunctionality() {
     QVERIFY(m_viewer != nullptr);
 
     // Test basic navigation methods exist and don't crash
-    m_viewer->nextPage();
-    m_viewer->previousPage();
-    m_viewer->firstPage();
-    m_viewer->lastPage();
+    m_viewer->goToNextPage();
+    m_viewer->goToPreviousPage();
+    m_viewer->goToFirstPage();
+    m_viewer->goToLastPage();
 
     // Test zoom methods
     m_viewer->zoomIn();
     m_viewer->zoomOut();
-    m_viewer->zoomToFit();
-    m_viewer->zoomToWidth();
-    m_viewer->zoomToHeight();
+    m_viewer->fitToPage();
+    m_viewer->fitToWidth();
+    m_viewer->fitToHeight();
 
     // Test rotation methods
     m_viewer->rotateLeft();

@@ -2,10 +2,8 @@
 
 #include <QAction>
 #include <QApplication>
-#include <QCheckBox>
 #include <QClipboard>
 #include <QColor>
-#include <QComboBox>
 #include <QContextMenuEvent>
 #include <QDateTime>
 #include <QFileDialog>
@@ -14,16 +12,10 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
-#include <QLabel>
-#include <QLineEdit>
-#include <QMenu>
 #include <QMessageBox>
 #include <QMutex>
-#include <QProgressBar>
-#include <QPushButton>
 #include <QScrollBar>
 #include <QSettings>
-#include <QSpinBox>
 #include <QSplitter>
 #include <QTabWidget>
 #include <QTableWidget>
@@ -37,6 +29,15 @@
 #include <memory>
 #include "../../logging/Logger.h"
 #include "../../logging/LoggingManager.h"
+
+// Forward declarations for Ela widgets
+class ElaCheckBox;
+class ElaComboBox;
+class ElaLineEdit;
+class ElaPushButton;
+class ElaText;
+class ElaProgressBar;
+class ElaMenu;
 
 /**
  * @brief Comprehensive debug logging panel widget
@@ -207,31 +208,31 @@ private:
 
     // Filter controls
     QGroupBox* m_filterGroup;
-    QComboBox* m_logLevelFilter;
-    QComboBox* m_categoryFilter;
-    QLineEdit* m_searchEdit;
-    QPushButton* m_searchNextBtn;
-    QPushButton* m_searchPrevBtn;
-    QCheckBox* m_caseSensitiveCheck;
-    QCheckBox* m_regexCheck;
+    ElaComboBox* m_logLevelFilter;
+    ElaComboBox* m_categoryFilter;
+    ElaLineEdit* m_searchEdit;
+    ElaPushButton* m_searchNextBtn;
+    ElaPushButton* m_searchPrevBtn;
+    ElaCheckBox* m_caseSensitiveCheck;
+    ElaCheckBox* m_regexCheck;
 
     // Action buttons
     QHBoxLayout* m_actionLayout;
-    QPushButton* m_clearBtn;
-    QPushButton* m_exportBtn;
-    QPushButton* m_copyBtn;
-    QPushButton* m_pauseBtn;
-    QPushButton* m_settingsBtn;
-    QCheckBox* m_autoScrollCheck;
+    ElaPushButton* m_clearBtn;
+    ElaPushButton* m_exportBtn;
+    ElaPushButton* m_copyBtn;
+    ElaPushButton* m_pauseBtn;
+    ElaPushButton* m_settingsBtn;
+    ElaCheckBox* m_autoScrollCheck;
 
     // Statistics display
     QGroupBox* m_statsGroup;
     QTableWidget* m_statsTable;
-    QLabel* m_messagesPerSecLabel;
-    QProgressBar* m_memoryUsageBar;
+    ElaText* m_messagesPerSecLabel;
+    ElaProgressBar* m_memoryUsageBar;
 
     // Context menu
-    QMenu* m_contextMenu;
+    ElaMenu* m_contextMenu;
     QAction* m_copyAction;
     QAction* m_copyAllAction;
     QAction* m_clearAction;

@@ -1,4 +1,42 @@
-/* 亮色主题 - 仿Okular风格 */
+/*
+ * ============================================================================
+ * SAST Readium - Light Theme Stylesheet
+ * ============================================================================
+ *
+ * Purpose:     Main light theme stylesheet for the entire application
+ * Theme:       Light (default)
+ * Components:  All UI widgets (windows, toolbars, buttons, inputs, etc.)
+ * Loading:     Loaded by StyleManager when Theme::Light is active
+ *
+ * Organization:
+ *   1. Main Window & Layout
+ *   2. Toolbars & Tool Buttons
+ *   3. Menus & Menu Items
+ *   4. Buttons (Push, Tool, Radio, Check)
+ *   5. Input Widgets (LineEdit, TextEdit, ComboBox)
+ *   6. Lists, Trees & Tables
+ *   7. Tabs & Tab Widgets
+ *   8. Scrollbars
+ *   9. Dialogs & Message Boxes
+ *  10. Progress Bars & Status Bar
+ *  11. Specialized Application Widgets
+ *
+ * Color Palette:
+ *   Primary:    #0078d4 (Microsoft Blue)
+ *   Background: #f6f7f9 (Light Gray)
+ *   Text:       #333333 (Dark Gray)
+ *   Border:     #c0c0c0 (Medium Gray)
+ *   Hover:      #e8eaed (Lighter Gray)
+ *   Accent:     #0066b8 (Darker Blue)
+ *
+ * Notes:
+ *   - CSS3 properties (transition, box-shadow, transform) are NOT supported
+ *   - Use QPropertyAnimation for animations instead
+ *   - Keep in sync with dark.qss structure
+ *
+ * Last Updated: 2025-10-29
+ * ============================================================================
+ */
 QMainWindow {
     background-color: #f6f7f9;
     color: #2b2b2b;
@@ -12,7 +50,7 @@ QMainWindow::separator {
     height: 1px;
 }
 
-/* Stacked widget for smooth transitions */
+/* Stacked widget */
 QStackedWidget {
     background-color: #f6f7f9;
     border: none;
@@ -96,14 +134,13 @@ QMenu::indicator:non-exclusive:checked {
     image: url(:/images/checkmark.svg);
 }
 
-/* Enhanced Toolbar with Modern Visual Feedback, Smooth Animations, and Depth */
+/* Enhanced Toolbar with Modern Visual Feedback and Depth */
 QToolBar {
     background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                 stop: 0 #f7f8fa, stop: 1 #eef0f3);
     border-bottom: 1px solid #d6d6d6;
     padding: 10px 12px;
     spacing: 6px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
 QToolBar::separator {
@@ -120,7 +157,6 @@ QToolButton {
     border-radius: 10px;
     padding: 8px 10px;
     margin: 2px;
-    transition: all 0.2s ease-in-out;
     font-size: 13px;
 }
 
@@ -128,16 +164,12 @@ QToolButton:hover {
     background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                 stop: 0 #eff1f4, stop: 1 #e2e6eb);
     border: 1px solid #c7cbd1;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
 }
 
 QToolButton:pressed {
     background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                 stop: 0 #dceeff, stop: 1 #c8e0fb);
     border: 1px solid #0078d4;
-    transform: translateY(1px);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 QToolButton:checked {
@@ -350,7 +382,7 @@ QProgressBar::chunk {
     border-radius: 5px;
 }
 
-/* Enhanced Buttons with Modern Design, Smooth Animations, and Refined Visual Feedback */
+/* Enhanced Buttons with Modern Design and Refined Visual Feedback */
 QPushButton {
     background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                 stop: 0 #ffffff, stop: 0.5 #fafafa, stop: 1 #f0f0f0);
@@ -362,15 +394,12 @@ QPushButton {
     font-size: 13px;
     min-height: 28px;
     outline: none;
-    transition: all 0.2s ease-in-out;
 }
 
 QPushButton:hover {
     background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                 stop: 0 #f8f9fa, stop: 0.5 #f0f2f4, stop: 1 #e8eaed);
     border: 1px solid #0078d4;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 120, 212, 0.15);
 }
 
 QPushButton:pressed {
@@ -378,8 +407,6 @@ QPushButton:pressed {
                                 stop: 0 #cce4f7, stop: 0.5 #b8d4f0, stop: 1 #a4c4e8);
     border: 1px solid #0066b8;
     padding: 9px 16px 7px 16px;
-    transform: translateY(1px);
-    box-shadow: 0 2px 6px rgba(0, 120, 212, 0.2);
 }
 
 QPushButton:focus {
@@ -426,7 +453,7 @@ QLabel {
     color: #333333;
 }
 
-/* Enhanced Input Widgets with Smooth Animations and Modern Focus States */
+/* Enhanced Input Widgets with Modern Focus States */
 QLineEdit, QTextEdit, QPlainTextEdit {
     background-color: #ffffff;
     border: 1px solid #b8b8b8;
@@ -436,20 +463,17 @@ QLineEdit, QTextEdit, QPlainTextEdit {
     selection-background-color: #0078d4;
     selection-color: #ffffff;
     font-size: 13px;
-    transition: all 0.2s ease-in-out;
 }
 
 QLineEdit:hover, QTextEdit:hover, QPlainTextEdit:hover {
     border: 1px solid #909090;
     background-color: #fafafa;
-    box-shadow: 0 2px 8px rgba(0, 120, 212, 0.1);
 }
 
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
     border: 2px solid #0078d4;
     padding: 8px 13px;
     background-color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
     outline: none;
 }
 
@@ -932,18 +956,7 @@ EnhancedFocusIndicator {
     background-color: transparent;
 }
 
-/* Enhanced Button Styles with Micro-interactions */
-QPushButton {
-    transition: all 0.25s ease-in-out;
-}
-
-QPushButton:hover {
-    transform: translateY(-1px);
-}
-
-QPushButton:pressed {
-    transform: translateY(1px);
-}
+/* Enhanced Button Styles */
 
 /* Enhanced Input Fields with Focus States */
 QLineEdit:focus,
@@ -951,38 +964,19 @@ QTextEdit:focus,
 QPlainTextEdit:focus,
 QComboBox:focus {
     border-color: #0078d4;
-    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
 }
 
-/* Enhanced Tab Widget with Smooth Transitions */
-QTabWidget::pane {
-    transition: all 0.25s ease-in-out;
-}
+/* Enhanced Tab Widget */
 
-QTabBar::tab {
-    transition: all 0.2s ease-in-out;
-}
-
-/* Enhanced Scroll Areas with Smooth Scrolling */
-QScrollArea {
-    transition: all 0.25s ease-in-out;
-}
+/* Enhanced Scroll Areas */
 
 /* Enhanced List and Tree Views with Hover Effects */
 QListView::item:hover,
 QTreeView::item:hover {
     background-color: rgba(0, 120, 212, 0.05);
-    transition: background-color 0.2s ease-in-out;
 }
 
-/* Enhanced Progress Bar with Smooth Animation */
-QProgressBar {
-    transition: all 0.3s ease-in-out;
-}
-
-QProgressBar::chunk {
-    transition: width 0.3s ease-in-out;
-}
+/* Enhanced Progress Bar */
 
 /* Enhanced Tooltips with Modern Design */
 QToolTip {
@@ -1005,7 +999,6 @@ QGroupBox {
     margin-top: 16px;
     padding: 16px;
     font-weight: 500;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 QGroupBox::title {

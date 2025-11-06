@@ -142,7 +142,7 @@ public:
     void deleteSnapshot(const QString& name);
 
     // Debugging
-    void enableDebugMode(bool enabled) { m_debugMode = enabled; }
+    void enableDebugMode(bool enabled);
     bool isDebugMode() const { return m_debugMode; }
     QString stateReport() const;
 

@@ -37,8 +37,8 @@ function(discover_app_sources output_var)
 
     # Define standard application components
     set(app_components
-        ui/core ui/viewer ui/widgets ui/dialogs ui/thumbnail ui/managers
-        managers model controller delegate view cache utils
+        ui/core ui/viewer ui/widgets ui/dialogs ui/thumbnail ui/managers ui/pages
+        managers model controller delegate view cache utils adapters
         plugin factory command search logging
     )
 
@@ -315,6 +315,10 @@ function(create_test_target test_name)
         target_link_libraries(${test_name} PRIVATE app_lib)
     endif()
 
+    # Resources are linked via app_lib -> app_resources (PUBLIC), so tests
+    # inherit linkage automatically and can register them at runtime via
+    # SastResources::ensureInitialized().
+
     # Link to TestUtilities if it exists (for tests that use test utilities)
     if(TARGET TestUtilities)
         target_link_libraries(${test_name} PRIVATE TestUtilities)
@@ -328,26 +332,92 @@ function(create_test_target test_name)
     # Add test to CTest
     add_test(NAME ${test_name} COMMAND ${test_name})
 
-    # Set test properties
-    set(test_properties)
-
-    # Working directory
-    if(TEST_WORKING_DIRECTORY)
-        list(APPEND test_properties WORKING_DIRECTORY "${TEST_WORKING_DIRECTORY}")
-    endif()
-
     # Timeout
     set(timeout ${TEST_TIMEOUT})
     if(NOT timeout)
         set(timeout 30)
     endif()
-    list(APPEND test_properties TIMEOUT ${timeout})
 
-    # Environment variables for headless testing
-    list(APPEND test_properties ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    # Collect test environment variables (single ENVIRONMENT property)
+    set(_test_env)
+    # Headless/offscreen Qt platform for CI/testing
+    list(APPEND _test_env "QT_QPA_PLATFORM=offscreen")
+    # Disable Qt Accessibility in headless runs to avoid QAccessible crashes with dock widgets
+    list(APPEND _test_env "QT_ACCESSIBILITY=0")
 
-    # Apply properties
-    set_tests_properties(${test_name} PROPERTIES ${test_properties})
+    # On Windows with vcpkg Qt, ensure tests can find Qt DLLs and plugins
+    if(WIN32)
+        # Compute Qt bin and plugin directories from vcpkg layout if available
+        if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+            # vcpkg layout (multi-config): prefer Debug first, then Release
+            set(_qt_bin_dir_dbg "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/debug/bin")
+            set(_qt_bin_dir_rel "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/bin")
+            set(_qt_plugins_dir_dbg "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/debug/Qt6/plugins")
+            set(_qt_plugins_dir_rel "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/Qt6/plugins")
+            set(_qt_platforms_dir_dbg "${_qt_plugins_dir_dbg}/platforms")
+            set(_qt_platforms_dir_rel "${_qt_plugins_dir_rel}/platforms")
+
+            # Normalize to forward slashes to avoid CTest escaping issues
+            file(TO_CMAKE_PATH "${_qt_bin_dir_dbg}" _qt_bin_dir_dbg_norm)
+            file(TO_CMAKE_PATH "${_qt_bin_dir_rel}" _qt_bin_dir_rel_norm)
+            file(TO_CMAKE_PATH "${_qt_plugins_dir_dbg}" _qt_plugins_dir_dbg_norm)
+            file(TO_CMAKE_PATH "${_qt_plugins_dir_rel}" _qt_plugins_dir_rel_norm)
+            file(TO_CMAKE_PATH "${_qt_platforms_dir_dbg}" _qt_platforms_dir_dbg_norm)
+            file(TO_CMAKE_PATH "${_qt_platforms_dir_rel}" _qt_platforms_dir_rel_norm)
+
+            # Build PATH override: prepend Qt bin, then original PATH; escape semicolons
+            set(_combined_path "${_qt_bin_dir_dbg_norm};${_qt_bin_dir_rel_norm};$ENV{PATH}")
+            string(REPLACE "\\" "/" _combined_path_slashed "${_combined_path}")
+            string(REPLACE ";" "\\;" _combined_path_escaped "${_combined_path_slashed}")
+
+            # Prepend Qt bin to PATH so Qt6*.dll are found; set plugin search paths explicitly
+            # Compose plugin paths: Debug first, then Release
+            set(_plugins_path "${_qt_plugins_dir_dbg_norm};${_qt_plugins_dir_rel_norm}")
+            set(_platforms_path "${_qt_platforms_dir_dbg_norm};${_qt_platforms_dir_rel_norm}")
+            list(APPEND _test_env
+                "PATH=${_combined_path_escaped}"
+                "QT_PLUGIN_PATH=${_plugins_path}"
+                "QT_QPA_PLATFORM_PLUGIN_PATH=${_platforms_path}"
+                # Prefer system fonts on Windows to avoid QFontDatabase warnings
+                "QT_QPA_FONTDIR=C:/Windows/Fonts"
+                # Force software rendering to avoid GPU/ANGLE issues in headless CI
+                "QT_OPENGL=software"
+            )
+        endif()
+    endif()
+
+    # Join environment entries into a single string for the ENVIRONMENT property
+    set(_env_string "")
+    if(_test_env)
+        list(JOIN _test_env ";" _env_string)
+    endif()
+
+    # Apply properties in one call (avoid ambiguous list expansions)
+    if(TEST_WORKING_DIRECTORY)
+        if(_env_string)
+            set_tests_properties(${test_name} PROPERTIES
+                WORKING_DIRECTORY "${TEST_WORKING_DIRECTORY}"
+                TIMEOUT ${timeout}
+                ENVIRONMENT "${_env_string}"
+            )
+        else()
+            set_tests_properties(${test_name} PROPERTIES
+                WORKING_DIRECTORY "${TEST_WORKING_DIRECTORY}"
+                TIMEOUT ${timeout}
+            )
+        endif()
+    else()
+        if(_env_string)
+            set_tests_properties(${test_name} PROPERTIES
+                TIMEOUT ${timeout}
+                ENVIRONMENT "${_env_string}"
+            )
+        else()
+            set_tests_properties(${test_name} PROPERTIES
+                TIMEOUT ${timeout}
+            )
+        endif()
+    endif()
 
     message(STATUS "Test ${test_name} registered with CTest")
 endfunction()

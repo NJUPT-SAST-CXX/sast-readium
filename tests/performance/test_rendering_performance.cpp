@@ -69,13 +69,13 @@ private:
     void saveMetricsToFile(const QList<PerformanceMetrics>& metrics);
 
     PDFViewer* m_viewer;
-    Poppler::Document* m_testDocument;
-    Poppler::Document* m_largeDocument;
+    std::shared_ptr<Poppler::Document> m_testDocument;
+    std::shared_ptr<Poppler::Document> m_largeDocument;
     QList<PerformanceMetrics> m_allMetrics;
 };
 
 void TestRenderingPerformance::initTestCase() {
-    m_viewer = new PDFViewer(nullptr, false);  // Disable styling for tests
+    m_viewer = new PDFViewer(nullptr);
     m_testDocument = nullptr;
     m_largeDocument = nullptr;
 
@@ -90,8 +90,9 @@ void TestRenderingPerformance::initTestCase() {
     renderer.setRenderConfig(config);
 
     // Create test documents
-    m_testDocument = createLargeTestDocument();
-    QVERIFY(m_testDocument != nullptr);
+    Poppler::Document* rawDoc = createLargeTestDocument();
+    QVERIFY(rawDoc != nullptr);
+    m_testDocument = std::shared_ptr<Poppler::Document>(rawDoc);
 
     m_viewer->setDocument(m_testDocument);
 
@@ -112,9 +113,9 @@ void TestRenderingPerformance::initTestCase() {
 void TestRenderingPerformance::cleanupTestCase() {
     delete m_viewer;
     if (m_testDocument)
-        delete m_testDocument;
+        m_testDocument.reset();
     if (m_largeDocument)
-        delete m_largeDocument;
+        m_largeDocument.reset();
 
     // Save performance report
     saveMetricsToFile(m_allMetrics);
@@ -334,13 +335,13 @@ TestRenderingPerformance::measureNavigationPerformance(bool useQGraphics) {
         navTimer.start();
 
         if (iter % 4 == 0)
-            m_viewer->nextPage();
+            m_viewer->goToNextPage();
         else if (iter % 4 == 1)
-            m_viewer->previousPage();
+            m_viewer->goToPreviousPage();
         else if (iter % 4 == 2)
-            m_viewer->firstPage();
+            m_viewer->goToFirstPage();
         else
-            m_viewer->lastPage();
+            m_viewer->goToLastPage();
 
         QCoreApplication::processEvents();
 
@@ -518,9 +519,9 @@ void TestRenderingPerformance::testLargeDocumentHandling() {
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     m_viewer->setQGraphicsRenderingEnabled(false);
 #endif
-    for (int i = 0; i < m_testDocument->numPages(); ++i) {
+    for (int i = 1; i <= m_testDocument->numPages(); ++i) {
         m_viewer->goToPage(i);
-        QCOMPARE(m_viewer->getCurrentPage(), i);
+        QCOMPARE(m_viewer->currentPage(), i);
     }
 
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
@@ -643,7 +644,7 @@ void TestRenderingPerformance::testVirtualScrollingPerformance() {
     qDebug() << "=== Testing Virtual Scrolling Performance ===";
 
     // Test continuous scroll mode with virtual scrolling
-    m_viewer->setViewMode(PDFViewMode::ContinuousScroll);
+    m_viewer->setViewMode(PDFViewer::ViewMode::Continuous);
 
     size_t initialMemory = getCurrentMemoryUsage();
     QElapsedTimer timer;
@@ -680,14 +681,14 @@ void TestRenderingPerformance::testLazyLoadingPerformance() {
     timer.start();
 
     // Switch to continuous mode (which uses lazy loading)
-    m_viewer->setViewMode(PDFViewMode::ContinuousScroll);
+    m_viewer->setViewMode(PDFViewer::ViewMode::Continuous);
     QCoreApplication::processEvents();
 
     qint64 lazyLoadTime = timer.elapsed();
 
     // Switch to single page mode for comparison
     timer.restart();
-    m_viewer->setViewMode(PDFViewMode::SinglePage);
+    m_viewer->setViewMode(PDFViewer::ViewMode::SinglePage);
     QCoreApplication::processEvents();
 
     qint64 singlePageTime = timer.elapsed();

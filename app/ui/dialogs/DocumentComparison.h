@@ -1,24 +1,23 @@
 #pragma once
 
 #include <poppler-qt6.h>
-#include <QCheckBox>
-#include <QComboBox>
+
 #include <QFuture>
 #include <QFutureWatcher>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QProgressBar>
-#include <QPushButton>
+
 #include <QScrollArea>
-#include <QSlider>
-#include <QSpinBox>
+
 #include <QSplitter>
 #include <QTextEdit>
+#include <QThread>
 #include <QTimer>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <atomic>
 
 class StyleManager;
 
@@ -101,6 +100,16 @@ struct ComparisonResults {
           overallSimilarity(0.0) {}
 };
 
+// Forward declaration
+class DocumentComparisonWorker;
+
+class ElaPushButton;
+class ElaComboBox;
+class ElaText;
+class ElaProgressBar;
+class ElaCheckBox;
+class ElaSlider;
+class ElaSpinBox;
 /**
  * Widget for comparing two PDF documents
  */
@@ -212,24 +221,24 @@ private:
     QHBoxLayout* m_contentLayout = nullptr;
 
     // Toolbar
-    QPushButton* m_compareButton = nullptr;
-    QPushButton* m_stopButton = nullptr;
-    QPushButton* m_optionsButton = nullptr;
-    QPushButton* m_exportButton = nullptr;
-    QComboBox* m_viewModeCombo = nullptr;
-    QLabel* m_statusLabel = nullptr;
-    QProgressBar* m_progressBar = nullptr;
+    ElaPushButton* m_compareButton = nullptr;
+    ElaPushButton* m_stopButton = nullptr;
+    ElaPushButton* m_optionsButton = nullptr;
+    ElaPushButton* m_exportButton = nullptr;
+    ElaComboBox* m_viewModeCombo = nullptr;
+    ElaText* m_statusLabel = nullptr;
+    ElaProgressBar* m_progressBar = nullptr;
 
     // Options panel
     QGroupBox* m_optionsGroup = nullptr;
-    QCheckBox* m_compareTextCheck = nullptr;
-    QCheckBox* m_compareImagesCheck = nullptr;
-    QCheckBox* m_compareLayoutCheck = nullptr;
-    QCheckBox* m_compareAnnotationsCheck = nullptr;
-    QCheckBox* m_ignoreWhitespaceCheck = nullptr;
-    QCheckBox* m_ignoreCaseCheck = nullptr;
-    QSlider* m_similaritySlider = nullptr;
-    QSpinBox* m_maxDifferencesSpinBox = nullptr;
+    ElaCheckBox* m_compareTextCheck = nullptr;
+    ElaCheckBox* m_compareImagesCheck = nullptr;
+    ElaCheckBox* m_compareLayoutCheck = nullptr;
+    ElaCheckBox* m_compareAnnotationsCheck = nullptr;
+    ElaCheckBox* m_ignoreWhitespaceCheck = nullptr;
+    ElaCheckBox* m_ignoreCaseCheck = nullptr;
+    ElaSlider* m_similaritySlider = nullptr;
+    ElaSpinBox* m_maxDifferencesSpinBox = nullptr;
 
     // Results panel
     QSplitter* m_resultsSplitter = nullptr;
@@ -257,4 +266,50 @@ private:
     QFuture<ComparisonResults> m_comparisonFuture;
     QFutureWatcher<ComparisonResults>* m_comparisonWatcher = nullptr;
     QTimer* m_progressTimer = nullptr;
+
+    // Async comparison using QThread
+    QThread* m_comparisonThread = nullptr;
+    DocumentComparisonWorker* m_comparisonWorker = nullptr;
+    std::atomic<bool> m_cancelRequested{false};
+};
+
+/**
+ * Worker class for running document comparison in background thread
+ */
+class DocumentComparisonWorker : public QObject {
+    Q_OBJECT
+
+public:
+    explicit DocumentComparisonWorker(Poppler::Document* doc1,
+                                      Poppler::Document* doc2,
+                                      const ComparisonOptions& options,
+                                      std::atomic<bool>* cancelFlag,
+                                      QObject* parent = nullptr);
+
+signals:
+    void comparisonComplete(const ComparisonResults& results);
+    void progressUpdate(int percentage, const QString& status);
+    void errorOccurred(const QString& error);
+
+public slots:
+    void doComparison();
+
+private:
+    Poppler::Document* m_document1;
+    Poppler::Document* m_document2;
+    ComparisonOptions m_options;
+    std::atomic<bool>* m_cancelFlag;
+
+    ComparisonResults compareDocuments();
+    QList<DocumentDifference> comparePages(int page1, int page2);
+    QList<DocumentDifference> compareText(const QString& text1,
+                                          const QString& text2, int page1,
+                                          int page2) const;
+    QList<DocumentDifference> compareImages(const QPixmap& image1,
+                                            const QPixmap& image2, int page1,
+                                            int page2) const;
+    static double calculateTextSimilarity(const QString& text1,
+                                          const QString& text2);
+    static double calculateImageSimilarity(const QPixmap& image1,
+                                           const QPixmap& image2);
 };

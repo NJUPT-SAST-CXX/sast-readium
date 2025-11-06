@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QMetaType>
 #include <QRectF>
 #include <QString>
 
@@ -52,6 +53,8 @@ struct SearchOptions {
     }
 };
 
+Q_DECLARE_METATYPE(SearchOptions)
+
 /**
  * Comprehensive search result with enhanced features
  * Unified structure combining all search result functionality
@@ -99,6 +102,9 @@ public:
                                       const QSizeF& pageSize,
                                       const QSize& widgetSize);
 };
+
+Q_DECLARE_METATYPE(SearchResult)
+Q_DECLARE_METATYPE(QList<SearchResult>)
 
 /**
  * Search engine configuration

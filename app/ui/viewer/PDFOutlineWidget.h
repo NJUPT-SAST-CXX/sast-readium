@@ -4,7 +4,6 @@
 #include <QContextMenuEvent>
 #include <QHeaderView>
 #include <QKeyEvent>
-#include <QMenu>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -12,6 +11,8 @@
 #include <QTreeWidgetItem>
 #include <memory>
 #include "../../model/PDFOutlineModel.h"
+
+class ElaMenu;  // Forward declaration
 
 class PDFOutlineWidget : public QTreeWidget {
     Q_OBJECT
@@ -70,7 +71,7 @@ private slots:
 private:
     PDFOutlineModel* outlineModel;
     QTreeWidgetItem* currentHighlightedItem;
-    QMenu* contextMenu;
+    ElaMenu* contextMenu;
     QAction* expandAllAction;
     QAction* collapseAllAction;
     QAction* copyTitleAction;

@@ -52,7 +52,7 @@ private slots:
 public:
     DocumentModel();
     DocumentModel(RenderModel* _renderModel);
-    ~DocumentModel() = default;
+    ~DocumentModel() override;
 
     // 多文档管理
     virtual bool openFromFile(const QString& filePath);

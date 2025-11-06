@@ -86,4 +86,8 @@ signals:
     void fullScreenToggleRequested();
     void languageChanged(const QString& languageCode);
     void settingsChanged();
+
+    // Document reload signal with state preservation
+    void documentReloadRequested(const QString& filePath, int currentPage,
+                                 double currentZoom);
 };

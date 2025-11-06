@@ -22,7 +22,7 @@ constexpr int PAGE_NUMBER_BASE = 10;
 }
 
 ThumbnailContextMenu::ThumbnailContextMenu(QWidget* parent)
-    : QMenu(parent),
+    : ElaMenu(parent),
       m_thumbnailModel(nullptr),
       m_currentPage(-1),
       m_clipboard(QApplication::clipboard()),

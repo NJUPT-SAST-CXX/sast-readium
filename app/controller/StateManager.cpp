@@ -173,6 +173,24 @@ StateChange::StateChange(const State& oldState, const State& newState,
 QStringList StateChange::changedPaths() const {
     QStringList paths;
 
+    // Fast-path detection based on reason to avoid full JSON diff
+    // Common cases: single-path set/remove operations
+    if (!m_reason.isEmpty()) {
+        if (m_reason.startsWith("Set ")) {
+            QString p = m_reason.mid(4);
+            if (!p.isEmpty()) {
+                paths.append(p);
+                return paths;
+            }
+        } else if (m_reason.startsWith("Remove ")) {
+            QString p = m_reason.mid(7);
+            if (!p.isEmpty()) {
+                paths.append(p);
+                return paths;
+            }
+        }
+    }
+
     // Helper function for recursive comparison
     std::function<void(const QJsonValue&, const QJsonValue&, const QString&)>
         compareValues;
@@ -288,6 +306,16 @@ StateManager::~StateManager() {
 StateManager& StateManager::instance() {
     static StateManager instance;
     return instance;
+}
+
+void StateManager::enableDebugMode(bool enabled) {
+    m_debugMode = enabled;
+    // Elevate logging verbosity when debug mode is on to surface diagnostics
+    m_logger.setLevel(enabled ? SastLogging::Level::Debug
+                              : SastLogging::Level::Info);
+    if (enabled) {
+        m_logger.debug("Debug mode enabled");
+    }
 }
 
 State StateManager::currentState() const {
@@ -611,6 +639,9 @@ void StateManager::setState(const State& newState, const QString& reason) {
     QMutexLocker locker(&m_mutex);
 
     State oldState = m_currentState;
+    if (m_debugMode) {
+        qDebug() << "StateManager::setState begin" << reason;
+    }
 
     // Apply middleware
     State processedState = applyMiddleware(oldState, newState);
@@ -620,22 +651,33 @@ void StateManager::setState(const State& newState, const QString& reason) {
         return;
     }
 
+    if (m_debugMode) {
+        qDebug() << "StateManager::setState beforeStateChange";
+    }
     emit beforeStateChange(oldState, processedState);
 
     m_currentState = processedState;
 
-    // Maintain history even when disabled so it can be activated later
-    if (m_historyIndex < m_history.size() - 1) {
-        m_history = m_history.mid(0, m_historyIndex + 1);
-    }
-
+    // Prepare change for notifications
     StateChange change(oldState, processedState, reason);
-    m_history.append(change);
-    m_historyIndex = static_cast<int>(m_history.size()) - 1;
 
-    if (m_history.size() > m_maxHistorySize) {
-        m_history.removeFirst();
+    // Maintain history only when enabled
+    if (m_historyEnabled) {
+        if (m_historyIndex < m_history.size() - 1) {
+            m_history = m_history.mid(0, m_historyIndex + 1);
+        }
+
+        m_history.append(change);
         m_historyIndex = static_cast<int>(m_history.size()) - 1;
+
+        if (m_history.size() > m_maxHistorySize) {
+            m_history.removeFirst();
+            m_historyIndex = static_cast<int>(m_history.size()) - 1;
+        }
+    } else {
+        // When history is disabled, keep indices consistent with an empty
+        // history
+        m_historyIndex = -1;
     }
 
     bool shouldEmitHistoryChanged = m_historyEnabled;
@@ -646,15 +688,35 @@ void StateManager::setState(const State& newState, const QString& reason) {
         emit historyChanged();
     }
 
+    if (m_debugMode) {
+        qDebug() << "StateManager::setState notifyObservers";
+    }
     // Notify observers
     notifyObservers(change);
 
-    for (const QString& changedPath : change.changedPaths()) {
-        if (changedPath.isEmpty()) {
-            continue;
+    // Emit fine-grained stateChanged signals. Prefer single-path fast path
+    // based on reason to avoid expensive diff when possible.
+    auto extractSinglePathFromReason = [](const QString& reason) -> QString {
+        if (reason.startsWith("Set ")) {
+            return reason.mid(4);
         }
-        emit stateChanged(changedPath, change.oldValue(changedPath),
-                          change.newValue(changedPath));
+        if (reason.startsWith("Remove ")) {
+            return reason.mid(7);
+        }
+        return QString();
+    };
+    const QString singlePath = extractSinglePathFromReason(reason);
+    if (!singlePath.isEmpty()) {
+        emit stateChanged(singlePath, change.oldValue(singlePath),
+                          change.newValue(singlePath));
+    } else {
+        for (const QString& changedPath : change.changedPaths()) {
+            if (changedPath.isEmpty()) {
+                continue;
+            }
+            emit stateChanged(changedPath, change.oldValue(changedPath),
+                              change.newValue(changedPath));
+        }
     }
 
     // Emit signals
@@ -662,6 +724,7 @@ void StateManager::setState(const State& newState, const QString& reason) {
 
     if (m_debugMode) {
         m_logger.debug(QString("State changed: %1").arg(reason));
+        qDebug() << "StateManager::setState end";
     }
 }
 
@@ -670,7 +733,48 @@ void StateManager::notifyObservers(const StateChange& change) {
     QList<Subscription> subs = m_subscriptions;  // Copy to avoid issues
     locker.unlock();
 
-    QStringList changedPaths = change.changedPaths();
+    if (m_debugMode) {
+        qDebug() << "StateManager::notifyObservers begin";
+    }
+    // Try to avoid heavy diff computation when possible by extracting
+    // the single changed path from the reason (common Set/Remove cases).
+    auto extractSinglePathFromReason = [](const QString& reason) -> QString {
+        if (reason.startsWith("Set ")) {
+            return reason.mid(4);
+        }
+        if (reason.startsWith("Remove ")) {
+            return reason.mid(7);
+        }
+        return QString();
+    };
+
+    const QString singlePath = extractSinglePathFromReason(change.reason());
+
+    // Only compute full changed paths if really necessary (e.g., for wildcard
+    // subscriptions and when we don't have a singlePath optimization).
+    QStringList changedPaths;
+    bool needsFullPaths = false;
+    for (const auto& sub : subs) {
+        if (!sub.path.isEmpty() && sub.path.contains('*')) {
+            needsFullPaths = true;
+            break;
+        }
+    }
+    if (needsFullPaths && singlePath.isEmpty()) {
+        changedPaths = change.changedPaths();
+    }
+    // Diagnostic logging to help identify crashes in observer notification
+    if (m_debugMode) {
+        m_logger.debug(
+            QString(
+                "notifyObservers: subs=%1, hasSinglePath=%2, changedPaths=%3")
+                .arg(subs.size())
+                .arg(!singlePath.isEmpty())
+                .arg(changedPaths.size()));
+        qDebug() << "StateManager::notifyObservers subs" << subs.size()
+                 << "hasSinglePath" << !singlePath.isEmpty()
+                 << "changedPaths.size" << changedPaths.size();
+    }
 
     auto patternMatches = [](const QString& pattern,
                              const QString& candidate) -> bool {
@@ -695,6 +799,7 @@ void StateManager::notifyObservers(const StateChange& change) {
         return prefixMatches && suffixMatches;
     };
 
+    int idx = 0;
     for (const Subscription& sub : subs) {
         if (sub.subscriber == nullptr || !sub.observer) {
             continue;
@@ -705,10 +810,14 @@ void StateManager::notifyObservers(const StateChange& change) {
         if (sub.path.isEmpty() || sub.path == "*") {
             shouldNotify = true;
         } else if (sub.path.contains('*')) {
-            for (const QString& path : changedPaths) {
-                if (patternMatches(sub.path, path)) {
-                    shouldNotify = true;
-                    break;
+            if (!singlePath.isEmpty()) {
+                shouldNotify = patternMatches(sub.path, singlePath);
+            } else {
+                for (const QString& path : changedPaths) {
+                    if (patternMatches(sub.path, path)) {
+                        shouldNotify = true;
+                        break;
+                    }
                 }
             }
         } else if (change.hasChanged(sub.path)) {
@@ -716,6 +825,20 @@ void StateManager::notifyObservers(const StateChange& change) {
         }
 
         if (!shouldNotify) {
+            continue;
+        }
+        if (m_debugMode) {
+            m_logger.debug(
+                QString("notifyObservers: calling observer #%1 for path '%2'")
+                    .arg(idx)
+                    .arg(sub.path));
+            qDebug() << "StateManager::notifyObservers calling observer" << idx
+                     << "path" << sub.path;
+        }
+
+        // Extra defensive guard: avoid invoking default-constructed or
+        // moved-from functor
+        if (!sub.observer) {
             continue;
         }
 
@@ -727,6 +850,17 @@ void StateManager::notifyObservers(const StateChange& change) {
         } catch (...) {
             m_logger.error("Unknown exception in state observer");
         }
+
+        if (m_debugMode) {
+            m_logger.debug(
+                QString("notifyObservers: observer #%1 completed").arg(idx));
+            qDebug() << "StateManager::notifyObservers observer completed"
+                     << idx;
+        }
+        ++idx;
+    }
+    if (m_debugMode) {
+        qDebug() << "StateManager::notifyObservers end";
     }
 }
 

@@ -132,6 +132,12 @@ public:
     CompatibilityResult checkCompatibility(Poppler::Document* document);
 
     /**
+     * @brief Convenience overload for std::shared_ptr documents
+     */
+    CompatibilityResult checkCompatibility(
+        const std::shared_ptr<Poppler::Document>& document);
+
+    /**
      * @brief Check page compatibility to detect problematic pages
      * @param page Poppler page to check
      * @return Compatibility assessment result

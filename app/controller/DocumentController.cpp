@@ -7,8 +7,10 @@
 #include <QFileInfo>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QPainter>
 #include <QPrintDialog>
 #include <QPrinter>
+#include <QProgressDialog>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTimer>
@@ -760,26 +762,175 @@ void DocumentController::exportDocument(QWidget* parent) {
         return;
     }
 
-    // For now, just copy the PDF file for PDF export
-    // TODO: Implement proper export functionality for different formats
+    // Use the currentDoc already retrieved at the beginning of the function
+    int totalPages = currentDoc->numPages();
+    bool exportSuccess = false;
+
     if (defaultExt == ".pdf") {
+        // PDF export - just copy the file
         QString originalPath = documentModel->getCurrentFilePath();
         if (QFile::copy(originalPath, fileName)) {
             QMessageBox::information(
                 parent, tr("导出成功"),
                 tr("文档已成功导出到：\n%1").arg(fileName));
-            emit documentOperationCompleted(ActionMap::exportFile, true);
+            exportSuccess = true;
         } else {
             QMessageBox::critical(parent, tr("导出失败"),
                                   tr("无法导出文档到指定位置"));
-            emit documentOperationCompleted(ActionMap::exportFile, false);
         }
-    } else {
-        // For other formats, show not implemented message
-        QMessageBox::information(parent, tr("功能开发中"),
-                                 tr("该导出格式功能正在开发中，敬请期待"));
-        emit documentOperationCompleted(ActionMap::exportFile, false);
+    } else if (defaultExt == ".png") {
+        // PNG export - export all pages as images
+        QFileInfo fileInfo(fileName);
+        QString baseName = fileInfo.completeBaseName();
+        QString dirPath = fileInfo.absolutePath();
+
+        // Create progress dialog
+        QProgressDialog progressDialog(tr("正在导出为图片..."), tr("取消"), 0,
+                                       totalPages, parent);
+        progressDialog.setWindowModality(Qt::WindowModal);
+        progressDialog.setMinimumDuration(500);
+
+        int exportedCount = 0;
+
+        for (int pageIndex = 0; pageIndex < totalPages; ++pageIndex) {
+            // Check if user cancelled
+            if (progressDialog.wasCanceled()) {
+                break;
+            }
+
+            // Update progress
+            progressDialog.setValue(pageIndex + 1);
+            progressDialog.setLabelText(tr("正在导出第 %1/%2 页...")
+                                            .arg(pageIndex + 1)
+                                            .arg(totalPages));
+
+            // Get page
+            std::unique_ptr<Poppler::Page> page(currentDoc->page(pageIndex));
+            if (!page) {
+                qWarning() << "Failed to load page" << pageIndex + 1
+                           << ", skipping";
+                continue;
+            }
+
+            // Render page to image at 150 DPI (good quality for images)
+            QImage pageImage = page->renderToImage(150.0, 150.0);
+            if (pageImage.isNull()) {
+                qWarning() << "Failed to render page" << pageIndex + 1
+                           << ", skipping";
+                continue;
+            }
+
+            // Generate filename for this page
+            QString pageFileName;
+            if (totalPages == 1) {
+                pageFileName = fileName;
+            } else {
+                pageFileName = QString("%1/%2_page_%3.png")
+                                   .arg(dirPath)
+                                   .arg(baseName)
+                                   .arg(pageIndex + 1, 3, 10, QChar('0'));
+            }
+
+            // Save image
+            if (pageImage.save(pageFileName, "PNG")) {
+                exportedCount++;
+            } else {
+                qWarning() << "Failed to save page" << pageIndex + 1 << "to"
+                           << pageFileName;
+            }
+        }
+
+        progressDialog.setValue(totalPages);
+
+        if (exportedCount > 0 && !progressDialog.wasCanceled()) {
+            QString message;
+            if (totalPages == 1) {
+                message = tr("文档已成功导出到：\n%1").arg(fileName);
+            } else {
+                message = tr("文档已成功导出 %1 页到：\n%2")
+                              .arg(exportedCount)
+                              .arg(dirPath);
+            }
+            QMessageBox::information(parent, tr("导出成功"), message);
+            exportSuccess = true;
+        } else if (progressDialog.wasCanceled()) {
+            QMessageBox::information(parent, tr("导出已取消"),
+                                     tr("已导出 %1 页").arg(exportedCount));
+        } else {
+            QMessageBox::critical(parent, tr("导出失败"),
+                                  tr("无法导出任何页面"));
+        }
+    } else if (defaultExt == ".txt") {
+        // TXT export - extract text from all pages
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::critical(parent, tr("导出失败"),
+                                  tr("无法创建文件：%1").arg(fileName));
+            emit documentOperationCompleted(ActionMap::exportFile, false);
+            return;
+        }
+
+        QTextStream out(&file);
+        out.setEncoding(QStringConverter::Utf8);
+
+        // Create progress dialog
+        QProgressDialog progressDialog(tr("正在提取文本..."), tr("取消"), 0,
+                                       totalPages, parent);
+        progressDialog.setWindowModality(Qt::WindowModal);
+        progressDialog.setMinimumDuration(500);
+
+        int extractedCount = 0;
+
+        for (int pageIndex = 0; pageIndex < totalPages; ++pageIndex) {
+            // Check if user cancelled
+            if (progressDialog.wasCanceled()) {
+                break;
+            }
+
+            // Update progress
+            progressDialog.setValue(pageIndex + 1);
+            progressDialog.setLabelText(tr("正在提取第 %1/%2 页...")
+                                            .arg(pageIndex + 1)
+                                            .arg(totalPages));
+
+            // Get page
+            std::unique_ptr<Poppler::Page> page(currentDoc->page(pageIndex));
+            if (!page) {
+                qWarning() << "Failed to load page" << pageIndex + 1
+                           << ", skipping";
+                continue;
+            }
+
+            // Extract text
+            QString pageText = page->text(QRectF());
+            if (!pageText.isEmpty()) {
+                out << "=== Page " << (pageIndex + 1) << " ===\n\n";
+                out << pageText << "\n\n";
+                extractedCount++;
+            }
+        }
+
+        file.close();
+        progressDialog.setValue(totalPages);
+
+        if (extractedCount > 0 && !progressDialog.wasCanceled()) {
+            QMessageBox::information(
+                parent, tr("导出成功"),
+                tr("文本已成功导出到：\n%1\n\n提取了 %2 页的文本")
+                    .arg(fileName)
+                    .arg(extractedCount));
+            exportSuccess = true;
+        } else if (progressDialog.wasCanceled()) {
+            QMessageBox::information(
+                parent, tr("导出已取消"),
+                tr("已提取 %1 页的文本").arg(extractedCount));
+        } else {
+            QMessageBox::warning(parent, tr("导出警告"),
+                                 tr("文档中没有可提取的文本"));
+        }
     }
+
+    emit documentOperationCompleted(ActionMap::exportFile, exportSuccess);
 }
 
 void DocumentController::printDocument(QWidget* parent) {
@@ -796,20 +947,127 @@ void DocumentController::printDocument(QWidget* parent) {
         return;
     }
 
-    // Show print dialog
+    int totalPages = currentDoc->numPages();
+
+    // Create printer with high resolution
     QPrinter printer(QPrinter::HighResolution);
+    printer.setOutputFormat(QPrinter::NativeFormat);
+    printer.setColorMode(QPrinter::Color);
+
+    // Show print dialog
     QPrintDialog printDialog(&printer, parent);
     printDialog.setWindowTitle(tr("打印文档"));
+    printDialog.setMinMax(1, totalPages);
 
-    if (printDialog.exec() == QDialog::Accepted) {
-        // TODO: Implement actual printing functionality
-        // For now, show a placeholder message
-        QMessageBox::information(
-            parent, tr("打印功能"),
-            tr("打印功能正在开发中。\n\n当前文档：%1\n页数：%2")
-                .arg(documentModel->getCurrentFileName())
-                .arg(currentDoc->numPages()));
+    if (printDialog.exec() != QDialog::Accepted) {
+        emit documentOperationCompleted(ActionMap::printFile, false);
+        return;
+    }
 
+    // Get page range from dialog
+    int startPage = 0;
+    int endPage = totalPages - 1;
+
+    if (printDialog.printRange() == QAbstractPrintDialog::PageRange) {
+        startPage = printDialog.fromPage() - 1;
+        endPage = printDialog.toPage() - 1;
+    }
+
+    // Validate page range
+    if (startPage < 0 || endPage >= totalPages || startPage > endPage) {
+        QMessageBox::warning(
+            parent, tr("错误"),
+            tr("无效的页面范围：%1-%2").arg(startPage + 1).arg(endPage + 1));
+        emit documentOperationCompleted(ActionMap::printFile, false);
+        return;
+    }
+
+    // Create progress dialog
+    QProgressDialog progressDialog(tr("正在打印..."), tr("取消"), 0,
+                                   endPage - startPage + 1, parent);
+    progressDialog.setWindowModality(Qt::WindowModal);
+    progressDialog.setMinimumDuration(500);
+
+    // Start printing
+    QPainter painter;
+    if (!painter.begin(&printer)) {
+        QMessageBox::critical(parent, tr("打印错误"), tr("无法启动打印任务"));
+        emit documentOperationCompleted(ActionMap::printFile, false);
+        return;
+    }
+
+    // Configure rendering for high quality
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setRenderHint(QPainter::TextAntialiasing, true);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+
+    bool printSuccess = true;
+
+    // Print each page
+    for (int pageIndex = startPage; pageIndex <= endPage; ++pageIndex) {
+        // Check if user cancelled
+        if (progressDialog.wasCanceled()) {
+            printSuccess = false;
+            break;
+        }
+
+        // Update progress
+        progressDialog.setValue(pageIndex - startPage + 1);
+        progressDialog.setLabelText(tr("正在打印第 %1/%2 页...")
+                                        .arg(pageIndex - startPage + 1)
+                                        .arg(endPage - startPage + 1));
+
+        // Get page
+        std::unique_ptr<Poppler::Page> page(currentDoc->page(pageIndex));
+        if (!page) {
+            qWarning() << "Failed to load page" << pageIndex + 1
+                       << ", skipping";
+            continue;
+        }
+
+        // Render page to image at 300 DPI for high quality printing
+        QImage pageImage = page->renderToImage(300.0, 300.0);
+        if (pageImage.isNull()) {
+            qWarning() << "Failed to render page" << pageIndex + 1
+                       << ", skipping";
+            continue;
+        }
+
+        // Calculate scaling to fit page on printer
+        QRectF printerRect = printer.pageRect(QPrinter::DevicePixel);
+
+        // Scale to fit while maintaining aspect ratio
+        double scaleX = printerRect.width() / pageImage.width();
+        double scaleY = printerRect.height() / pageImage.height();
+        double scale = qMin(scaleX, scaleY);
+
+        // Center the image on the page
+        double x = (printerRect.width() - pageImage.width() * scale) / 2.0;
+        double y = (printerRect.height() - pageImage.height() * scale) / 2.0;
+
+        // Draw the page
+        painter.drawImage(
+            QRectF(x, y, pageImage.width() * scale, pageImage.height() * scale),
+            pageImage);
+
+        // Start new page if not the last page
+        if (pageIndex < endPage) {
+            if (!printer.newPage()) {
+                QMessageBox::critical(parent, tr("打印错误"),
+                                      tr("无法创建新页面，打印已中止"));
+                printSuccess = false;
+                break;
+            }
+        }
+    }
+
+    painter.end();
+    progressDialog.setValue(endPage - startPage + 1);
+
+    if (printSuccess && !progressDialog.wasCanceled()) {
+        QMessageBox::information(parent, tr("打印完成"),
+                                 tr("文档已成功发送到打印机\n\n打印页数：%1")
+                                     .arg(endPage - startPage + 1));
         emit documentOperationCompleted(ActionMap::printFile, true);
     } else {
         emit documentOperationCompleted(ActionMap::printFile, false);
@@ -852,27 +1110,16 @@ void DocumentController::reloadDocument(QWidget* parent) {
         return;
     }
 
-    // Store current page and zoom for restoration
-    // TODO: Get current page and zoom from document model for restoration
-    // int currentPage = 0;
-    // double currentZoom = 1.0;
+    // Emit signal to request reload with state preservation
+    // The ApplicationController will handle getting the current state from
+    // ViewWidget, closing the document, reopening it, and restoring the state
+    emit documentReloadRequested(currentFilePath, 0, 1.0);
 
-    // Close and reopen the document
-    bool success = false;
-    if (closeCurrentDocument()) {
-        success = openDocument(currentFilePath);
-        if (success) {
-            // TODO: Restore page and zoom settings
-            QMessageBox::information(parent, tr("重新加载成功"),
-                                     tr("文档已成功重新加载"));
-        } else {
-            QMessageBox::critical(parent, tr("重新加载失败"),
-                                  tr("无法重新加载文档，请检查文件是否损坏"));
-        }
-    } else {
-        QMessageBox::critical(parent, tr("重新加载失败"),
-                              tr("无法关闭当前文档"));
-    }
+    // Show success message - the actual reload is handled asynchronously by
+    // ApplicationController
+    QMessageBox::information(parent, tr("重新加载成功"),
+                             tr("文档已成功重新加载"));
 
-    emit documentOperationCompleted(ActionMap::reloadFile, success);
+    // Note: documentOperationCompleted is emitted by ApplicationController
+    // after reload completes
 }

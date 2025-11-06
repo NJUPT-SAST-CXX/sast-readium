@@ -11,9 +11,9 @@
 #include <QPushButton>
 #include <QStyle>
 #include <QTabBar>
-#include <QTabWidget>
 #include "../../model/DocumentModel.h"
 #include "../core/ContextMenuManager.h"
+#include "ElaTabWidget.h"
 
 class DocumentTabBar : public QTabBar {
     Q_OBJECT
@@ -36,7 +36,7 @@ signals:
     void tabMoveRequested(int from, int to);
 };
 
-class DocumentTabWidget : public QTabWidget {
+class DocumentTabWidget : public ElaTabWidget {
     Q_OBJECT
 
 public:

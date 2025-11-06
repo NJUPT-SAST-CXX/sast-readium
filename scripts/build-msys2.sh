@@ -16,6 +16,7 @@ BUILD_TYPE="Release"
 USE_VCPKG="OFF"
 CLEAN_BUILD="false"
 INSTALL_DEPS="false"
+PACKAGE_TYPE=""
 JOBS=$(nproc)
 
 # Function to print colored output
@@ -47,6 +48,7 @@ OPTIONS:
     -v, --vcpkg             Use vcpkg for dependencies instead of system packages
     -c, --clean             Clean build directory before building
     -d, --install-deps      Install required MSYS2 dependencies
+    -p, --package TYPE      Create package after build: portable, installer, all
     -j, --jobs JOBS         Number of parallel jobs (default: $(nproc))
     -h, --help              Show this help message
 
@@ -56,6 +58,8 @@ EXAMPLES:
     $0 -v                   # Build release with vcpkg
     $0 -c -d                # Clean build and install dependencies
     $0 -t Debug -v -c       # Clean debug build with vcpkg
+    $0 -p portable          # Build and create portable package
+    $0 -p all               # Build and create all packages
 
 EOF
 }
@@ -192,6 +196,14 @@ while [[ $# -gt 0 ]]; do
         INSTALL_DEPS="true"
         shift
         ;;
+    -p | --package)
+        PACKAGE_TYPE="$2"
+        if [[ $PACKAGE_TYPE != "portable" && $PACKAGE_TYPE != "installer" && $PACKAGE_TYPE != "all" ]]; then
+            print_error "Invalid package type: $PACKAGE_TYPE. Must be portable, installer, or all."
+            exit 1
+        fi
+        shift 2
+        ;;
     -j | --jobs)
         JOBS="$2"
         if ! [[ $JOBS =~ ^[0-9]+$ ]]; then
@@ -235,6 +247,13 @@ main() {
 
     # Show build information
     show_build_info
+
+    # Create packages if requested
+    if [[ -n $PACKAGE_TYPE ]]; then
+        print_status "Creating packages..."
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        bash "$script_dir/package-msys2.sh" -t "$PACKAGE_TYPE" -b "$BUILD_TYPE"
+    fi
 
     print_success "MSYS2 build process completed successfully!"
 }

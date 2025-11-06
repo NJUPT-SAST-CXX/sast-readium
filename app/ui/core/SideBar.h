@@ -1,131 +1,338 @@
-#pragma once
+﻿#ifndef SIDEBAR_H
+#define SIDEBAR_H
 
-#include <QPropertyAnimation>
-#include <QSettings>
-#include <QTabWidget>
-#include <QWidget>
+#include <QList>
+#include <QString>
 #include <memory>
-#include "../../delegate/ThumbnailDelegate.h"
-#include "../../model/PDFOutlineModel.h"
-#include "../../model/ThumbnailModel.h"
-#include "../thumbnail/ThumbnailListView.h"
-#include "../viewer/PDFOutlineWidget.h"
+#include "ElaDockWidget.h"
+#include "model/ThumbnailModel.h"  // For complete type in getter
 
-// 前向声明
+// Forward declarations
+class ElaTabWidget;
+class ThumbnailPanel;
+class BookmarkPanel;
+class OutlinePanel;
+class ThumbnailModel;
+class BookmarkModel;
+class PDFOutlineModel;
+class QPropertyAnimation;
+class QSettings;
+class PDFOutlineWidget;   // Compat: legacy outline widget type
+class ThumbnailListView;  // Compat: legacy thumbnail view type
+
 namespace Poppler {
 class Document;
 }
-class BookmarkWidget;
 
 /**
- * @brief Left sidebar with thumbnails and bookmarks tabs
+ * @brief ElaSideBar - 左侧边栏组件
  *
- * @details Provides document navigation via:
- * - Thumbnail view with synchronized selection
- * - Bookmark/outline tree view
- * - Animated show/hide with state persistence
- * - Configurable width with min/max constraints
+ * 包含三个标签页：
+ * 1. 缩略图 (Thumbnails) - 显示所有页面的缩略图
+ * 2. 书签 (Bookmarks) - 显示和管理书签
+ * 3. 大纲 (Outline) - 显示 PDF 文档大纲/目录
  *
- * @note State (visibility, width, active tab) is persisted via QSettings
+ * 复用现有业务逻辑：
+ * - ThumbnailModel - 缩略图生成和管理
+ * - BookmarkModel - 书签管理
+ * - PDFOutlineModel - PDF 大纲管理
  */
-class SideBar : public QWidget {
+class SideBar : public ElaDockWidget {
     Q_OBJECT
+
 public:
     /**
-     * @brief Construct a new Side Bar object
-     * @param parent Parent widget (optional)
+     * @brief 标签页索引
      */
-    SideBar(QWidget* parent = nullptr);
+    enum TabIndex { ThumbnailsTab = 0, BookmarksTab = 1, OutlineTab = 2 };
+    Q_ENUM(TabIndex)
+
+    explicit SideBar(QWidget* parent = nullptr);
+    ~SideBar() override;
+
+    // ========================================================================
+    // 文档操作
+    // ========================================================================
 
     /**
-     * @brief Destroy the Side Bar object and clean up resources
+     * @brief 设置 PDF 文档
      */
-    ~SideBar();
+    void setDocument(std::shared_ptr<Poppler::Document> document);
 
-    // 显示/隐藏控制
-    bool isVisible() const;
-    using QWidget::setVisible;  // Bring base class method into scope
-    void setVisible(bool visible, bool animated = true);
+    /**
+     * @brief 清除文档
+     */
+    void clearDocument();
+
+    // ========================================================================
+    // 标签页控制
+    // ========================================================================
+
+    /**
+     * @brief 切换到指定标签页
+     */
+    void switchToTab(TabIndex index);
+
+    /**
+     * @brief 获取当前标签页
+     */
+    TabIndex currentTab() const;
+
+    /**
+     * @brief 访问内部的标签页控件
+     */
+    ElaTabWidget* tabWidget() const;
+
+    // ========================================================================
+    // 缩略图功能
+    // ========================================================================
+
+    /**
+     * @brief 设置当前页面（高亮对应缩略图）
+     */
+    void setCurrentPage(int pageNumber);
+
+    /**
+     * @brief 刷新缩略图
+     */
+    void refreshThumbnails();
+
+    /**
+     * @brief 设置缩略图大小
+     */
+    void setThumbnailSize(int size);
+    // Backward-compatibility: overload accepting QSize
+    void setThumbnailSize(const QSize& size);
+
+    // ========================================================================
+    // 书签功能
+    // ========================================================================
+
+    /**
+     * @brief 添加书签
+     */
+    void addBookmark(int pageNumber, const QString& title = QString());
+
+    /**
+     * @brief 删除书签
+     */
+    void removeBookmark(int pageNumber);
+
+    /**
+     * @brief 清除所有书签
+     */
+    void clearBookmarks();
+
+    /**
+     * @brief 导出书签
+     */
+    bool exportBookmarks(const QString& filePath);
+
+    /**
+     * @brief 导入书签
+     */
+    bool importBookmarks(const QString& filePath);
+
+    // ========================================================================
+    // 大纲功能
+    // ========================================================================
+
+    /**
+     * @brief 刷新大纲
+     */
+    void refreshOutline();
+
+    /**
+     * @brief 展开所有大纲项
+     */
+    void expandAllOutline();
+
+    /**
+     * @brief 折叠所有大纲项
+     */
+    void collapseAllOutline();
+
+    // ========================================================================
+    // 业务逻辑集成
+    // ========================================================================
+
+    /**
+     * @brief 设置缩略图模型
+     */
+    void setThumbnailModel(ThumbnailModel* model);
+
+    /**
+     * @brief 设置书签模型
+     */
+    void setBookmarkModel(BookmarkModel* model);
+
+    /**
+     * @brief 设置大纲模型
+     */
+    void setOutlineModel(PDFOutlineModel* model);
+
+    // ========================================================================
+    // 可见性和宽度管理
+    // ========================================================================
+
+    /**
+     * @brief 显示侧边栏（带动画）
+     * @param animated 是否使用动画
+     */
+    void show(bool animated = true);
+
+    /**
+     * @brief 隐藏侧边栏（带动画）
+     * @param animated 是否使用动画
+     */
+    void hide(bool animated = true);
+
+    /**
+     * @brief 切换可见性
+     * @param animated 是否使用动画
+     */
     void toggleVisibility(bool animated = true);
 
-    // 宽度管理
-    int getPreferredWidth() const;
+    /**
+     * @brief QWidget 兼容的可见性设置（带动画选项）
+     */
+    void setVisible(bool visible, bool animated);
+    // QWidget-compatible override for callers using the standard signature
+    void setVisible(bool visible) override;
+
+    /**
+     * @brief 设置首选宽度
+     */
     void setPreferredWidth(int width);
+
+    /**
+     * @brief 获取首选宽度
+     */
+    int getPreferredWidth() const { return m_preferredWidth; }
+
+    /**
+     * @brief 最小/最大宽度（兼容旧接口）
+     */
     int getMinimumWidth() const { return minimumWidth; }
     int getMaximumWidth() const { return maximumWidth; }
 
-    // 状态持久化
+    /**
+     * @brief 是否可见
+     */
+    bool isSideBarVisible() const { return m_isCurrentlyVisible; }
+
+    // Backward-compatibility getters expected by legacy tests
+    PDFOutlineWidget* getOutlineWidget() const { return m_compatOutlineWidget; }
+    ThumbnailListView* getThumbnailView() const {
+        return m_compatThumbnailView;
+    }
+    ThumbnailModel* getThumbnailModel() const { return m_thumbnailModel; }
+
+    /**
+     * @brief 访问内部 TabWidget（兼容旧接口名）
+     */
+    ElaTabWidget* getTabWidget() const { return m_tabWidget; }
+
+    /**
+     * @brief 保存状态到 QSettings
+     */
     void saveState();
+
+    /**
+     * @brief 从 QSettings 恢复状态
+     */
     void restoreState();
 
-    // PDF目录相关
-    void setOutlineModel(PDFOutlineModel* model);
-    PDFOutlineWidget* getOutlineWidget() const { return outlineWidget; }
-
-    // 缩略图相关
-    void setDocument(std::shared_ptr<Poppler::Document> document);
-    void setThumbnailSize(const QSize& size);
-    void refreshThumbnails();
-    ThumbnailListView* getThumbnailView() const { return thumbnailView; }
-    ThumbnailModel* getThumbnailModel() const { return thumbnailModel.get(); }
-
-    // Tab widget access for delegate
-    QTabWidget* getTabWidget() const { return tabWidget; }
-
-    // 书签管理
-    class BookmarkWidget* getBookmarkWidget() const { return bookmarkWidget; }
-    void setCurrentDocumentPath(const QString& documentPath);
-    bool addBookmark(const QString& documentPath, int pageNumber,
-                     const QString& title = QString());
-    bool removeBookmark(const QString& bookmarkId);
-    bool hasBookmarkForPage(const QString& documentPath, int pageNumber) const;
-
-public slots:
-    void show(bool animated = true);
-    void hide(bool animated = true);
-
 signals:
+    /**
+     * @brief 请求跳转到页面
+     */
+    void pageJumpRequested(int pageNumber);
+
+    /**
+     * @brief 书签添加
+     */
+    void bookmarkAdded(int pageNumber, const QString& title);
+
+    /**
+     * @brief 书签删除
+     */
+    void bookmarkRemoved(int pageNumber);
+
+    /**
+     * @brief 大纲项点击
+     */
+    void outlineItemClicked(int pageNumber);
+
+    // Backward-compatibility signals expected by legacy tests
+    void pageClicked(int pageNumber);
+    void pageDoubleClicked(int pageNumber);
+
+    /**
+     * @brief 标签页切换
+     */
+    void tabChanged(TabIndex index);
+
+    /**
+     * @brief 可见性改变
+     */
     void visibilityChanged(bool visible);
+
+    /**
+     * @brief 宽度改变
+     */
     void widthChanged(int width);
+
+protected:
+    void changeEvent(QEvent* event) override;
 
 private slots:
     void onAnimationFinished();
 
-signals:
-    void pageClicked(int pageNumber);
-    void pageDoubleClicked(int pageNumber);
-    void thumbnailSizeChanged(const QSize& size);
-    void bookmarkNavigationRequested(const QString& documentPath,
-                                     int pageNumber);
-
 private:
-    QTabWidget* tabWidget;
-    QPropertyAnimation* animation;
-    QSettings* settings;
-    PDFOutlineWidget* outlineWidget;
+    // UI 组件
+    ElaTabWidget* m_tabWidget;
+    ThumbnailPanel* m_thumbnailPanel;
+    BookmarkPanel* m_bookmarkPanel;
+    OutlinePanel* m_outlinePanel;
 
-    // 缩略图组件
-    ThumbnailListView* thumbnailView;
-    std::unique_ptr<ThumbnailModel> thumbnailModel;
-    std::unique_ptr<ThumbnailDelegate> thumbnailDelegate;
+    // 业务逻辑模型
+    ThumbnailModel* m_thumbnailModel;
+    BookmarkModel* m_bookmarkModel;
+    PDFOutlineModel* m_outlineModel;
 
-    // 书签组件
-    class BookmarkWidget* bookmarkWidget;
+    // 文档
+    std::shared_ptr<Poppler::Document> m_document;
 
-    bool isCurrentlyVisible;
-    int preferredWidth;
-    int lastWidth;
+    // 当前状态
+    int m_currentPage;
 
+    // 可见性和宽度管理
+    QPropertyAnimation* m_animation;
+    QSettings* m_settings;
+    bool m_isCurrentlyVisible;
+    int m_preferredWidth;
+    int m_lastWidth;
+
+    // 常量
     static const int minimumWidth = 200;
+    // Backward-compatibility adapters (not shown in UI)
+    PDFOutlineWidget* m_compatOutlineWidget{nullptr};
+    ThumbnailListView* m_compatThumbnailView{nullptr};
+
     static const int maximumWidth = 400;
     static const int defaultWidth = 250;
     static const int animationDuration = 300;
 
-    void initWindow();
-    void initContent();
+    // 初始化方法
+    void setupUi();
+    void setupTabs();
+    void connectSignals();
     void initAnimation();
     void initSettings();
 
-    QWidget* createThumbnailsTab();
-    QWidget* createBookmarksTab();
+    // 辅助方法
+    void retranslateUi();
 };
+
+#endif  // SIDEBAR_H

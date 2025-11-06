@@ -78,6 +78,8 @@ void TestStateManager::cleanupTestCase() { QFile::remove(m_testFilePath); }
 
 void TestStateManager::init() {
     m_stateManager = &StateManager::instance();
+    // Enable verbose diagnostics to help catch and localize crashes
+    m_stateManager->enableDebugMode(true);
     m_stateManager->reset();
 }
 
@@ -431,6 +433,11 @@ void TestStateManager::testStateManagerWithEventBus() {
 
     QVERIFY(eventReceived);
     QCOMPARE(eventPath, QString("test.event"));
+
+    // Important: Unsubscribe to avoid dangling references captured by the
+    // lambda persisting across subsequent tests. Otherwise later state changes
+    // may invoke this handler after eventReceived/eventPath go out of scope.
+    eventBus.unsubscribe("state.changed", this);
 }
 
 void TestStateManager::testStateManagerWithServiceLocator() {

@@ -10,6 +10,8 @@
 #include "../widgets/DocumentTabWidget.h"
 #include "ContextMenuManager.h"
 
+class ElaProgressBar;
+
 /**
  * @brief Main document viewing widget with multi-tab PDF viewer support
  *
@@ -172,8 +174,8 @@ private:
     QList<PDFOutlineModel*> outlineModels;  // 每个文档对应一个目录模型
 
     // Loading state tracking
-    QMap<QString, QWidget*> loadingWidgets;     // filePath -> loading widget
-    QMap<QString, QProgressBar*> progressBars;  // filePath -> progress bar
+    QMap<QString, QWidget*> loadingWidgets;       // filePath -> loading widget
+    QMap<QString, ElaProgressBar*> progressBars;  // filePath -> progress bar
 
     // Enhanced state management
     QList<DocumentState> documentStates;  // Document state for each viewer

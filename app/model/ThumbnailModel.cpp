@@ -42,10 +42,17 @@ ThumbnailModel::ThumbnailModel(QObject* parent)
 }
 
 ThumbnailModel::~ThumbnailModel() {
+    // Proactively disconnect all outbound connections to avoid signal delivery
+    // during object teardown (prevents crashes in test environments where
+    // QAbstractItemModelTester or views might outlive the model momentarily).
+    disconnect(this, nullptr, nullptr, nullptr);
+
     cleanupAdvancedFeatures();
     if (m_preloadTimer) {
         m_preloadTimer->stop();
     }
+
+    // Safe to emit after disconnect: no receivers remain
     clearCache();
 }
 

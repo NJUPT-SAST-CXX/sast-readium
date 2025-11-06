@@ -5,6 +5,14 @@
 PDFOutlineModel::PDFOutlineModel(QObject* parent)
     : QObject(parent), totalItemCount(0) {}
 
+PDFOutlineModel::~PDFOutlineModel() {
+    // Disconnect to prevent any queued signal from firing during teardown
+    disconnect(this, nullptr, nullptr, nullptr);
+    // Avoid emitting outlineCleared() during destruction; just reset state
+    rootNodes.clear();
+    totalItemCount = 0;
+}
+
 bool PDFOutlineModel::parseOutline(Poppler::Document* document) {
     clear();
 

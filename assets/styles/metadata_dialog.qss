@@ -1,4 +1,40 @@
-/* Enhanced Metadata Dialog Styles */
+/*
+ * ============================================================================
+ * SAST Readium - Metadata Dialog Stylesheet (OPTIONAL)
+ * ============================================================================
+ *
+ * Purpose:     Specialized stylesheet for DocumentMetadataDialog
+ * Theme:       Both (contains light and dark variants)
+ * Components:  Dialog header, tabs, fields, buttons, tree widgets
+ * Loading:     NOT LOADED BY DEFAULT - Available for future use
+ *
+ * Status:      OPTIONAL - Currently not used
+ *
+ * Usage:
+ *   This file is embedded in resources but not currently loaded.
+ *   The DocumentMetadataDialog uses the global StyleManager stylesheet.
+ *
+ *   To enable this specialized stylesheet:
+ *   1. In DocumentMetadataDialog::applyCurrentTheme(), load this file:
+ *      QFile file(":/styles/metadata_dialog.qss");
+ *      file.open(QFile::ReadOnly);
+ *      setStyleSheet(QString::fromUtf8(file.readAll()));
+ *
+ *   2. Set the [theme="dark"] attribute when dark theme is active:
+ *      setProperty("theme", isDark ? "dark" : "light");
+ *
+ * Structure:
+ *   - Lines 1-273:   Light theme styles
+ *   - Lines 274-447: Dark theme styles (using [theme="dark"] selectors)
+ *
+ * Notes:
+ *   - Contains both light and dark theme variants in one file
+ *   - Uses attribute selectors for theme switching
+ *   - More specialized than global stylesheet
+ *
+ * Last Updated: 2025-10-29
+ * ============================================================================
+ */
 
 /* Main Dialog */
 DocumentMetadataDialog {

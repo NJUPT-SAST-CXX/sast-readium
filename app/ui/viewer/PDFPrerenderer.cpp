@@ -57,10 +57,24 @@ PDFPrerenderer::~PDFPrerenderer() {
 }
 
 void PDFPrerenderer::setDocument(Poppler::Document* document) {
+    // RACE CONDITION FIX: When clearing document (setting to nullptr),
+    // we must stop prerendering first to prevent workers from accessing
+    // the old document pointer while we're changing it
+
+    if (!document && m_isRunning) {
+        // Stop prerendering before clearing document to prevent race conditions
+        stopPrerendering();
+    }
+
     // DEADLOCK FIX: Update workers outside of queue mutex to prevent deadlocks
     // since worker->setDocument() also acquires mutexes
 
-    // First, update workers with new document
+    // Clear worker queues first to prevent processing old requests
+    for (PDFRenderWorker* worker : m_workers) {
+        worker->clearQueue();
+    }
+
+    // Then update workers with new document
     for (PDFRenderWorker* worker : m_workers) {
         worker->setDocument(document);
     }
@@ -69,6 +83,9 @@ void PDFPrerenderer::setDocument(Poppler::Document* document) {
     QMutexLocker locker(&m_queueMutex);
 
     m_document = document;
+
+    // Clear render queue when document changes
+    m_renderQueue.clear();
 
     // Configure document for optimal rendering using centralized method
     if (m_document) {
@@ -637,11 +654,18 @@ void PDFRenderWorker::processRenderQueue() {
 
 QPixmap PDFRenderWorker::renderPage(
     const PDFPrerenderer::RenderRequest& request) {
-    if (!m_document) {
-        return QPixmap();
+    // RACE CONDITION FIX: Hold mutex while accessing document to prevent
+    // it from being changed to nullptr during page access
+    Poppler::Document* doc = nullptr;
+    {
+        QMutexLocker locker(&m_queueMutex);
+        doc = m_document;
+        if (!doc) {
+            return QPixmap();
+        }
     }
 
-    std::unique_ptr<Poppler::Page> page(m_document->page(request.pageNumber));
+    std::unique_ptr<Poppler::Page> page(doc->page(request.pageNumber));
     if (!page) {
         return QPixmap();
     }

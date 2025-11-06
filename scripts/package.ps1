@@ -1,20 +1,23 @@
 #!/usr/bin/env pwsh
 # Local packaging script for SAST Readium (Windows)
 # Supports creating .msi packages and portable distributions
+# Now integrated with CMake CPack system
 
 param(
     [string]$PackageType = "auto",
     [string]$Version = "0.1.0",
     [string]$BuildType = "Release",
     [switch]$Clean,
+    [switch]$UseCMake = $true,
+    [switch]$Verify = $false,
     [switch]$Help
 )
 
 # Script directory and project root
-$ScriptDir = Split-Path -Parent $PSScriptRoot
-$ProjectRoot = Split-Path -Parent $ScriptDir
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = (Get-Item $ScriptDir).Parent.FullName
 $BuildDir = Join-Path $ProjectRoot "build"
-$PackageDir = Join-Path $ProjectRoot "packaging"
+$PackageDir = Join-Path $ProjectRoot "package"
 
 # Application info
 $AppName = "sast-readium"
@@ -46,49 +49,78 @@ function Show-Usage {
     @"
 Usage: .\scripts\package.ps1 [OPTIONS]
 
-Create Windows packages for SAST Readium
+Create Windows packages for SAST Readium using CMake CPack
 
 OPTIONS:
-    -PackageType TYPE       Package type: msi, portable, all (default: auto)
+    -PackageType TYPE       Package type: msi, nsis, zip, all (default: auto)
     -Version VERSION        Version string (default: $Version)
     -BuildType TYPE         Build type: Debug or Release (default: $BuildType)
     -Clean                  Clean packaging directory before building
+    -UseCMake               Use CMake CPack for packaging (default: true)
+    -Verify                 Run verification after packaging
     -Help                   Show this help message
 
 PACKAGE TYPES:
-    msi                     Windows Installer package (.msi)
-    portable                Portable ZIP distribution
+    msi                     Windows Installer package (.msi) via WiX
+    nsis                    NSIS installer (.exe) for MSYS2 builds
+    zip                     Portable ZIP distribution
     all                     Build all supported packages
-    auto                    Auto-detect and create MSI
+    auto                    Auto-detect and create appropriate package
 
 EXAMPLES:
-    .\scripts\package.ps1                           # Create MSI package
-    .\scripts\package.ps1 -PackageType portable     # Create portable ZIP
+    .\scripts\package.ps1                           # Create package using CMake
+    .\scripts\package.ps1 -PackageType zip          # Create portable ZIP
+    .\scripts\package.ps1 -Verify                   # Create and verify package
     .\scripts\package.ps1 -PackageType all -Version 1.0.0  # Create all packages
-    .\scripts\package.ps1 -Clean                    # Clean build packages
+    .\scripts\package.ps1 -Clean                    # Clean and rebuild packages
 
 REQUIREMENTS:
-    MSI: WiX Toolset (https://wixtoolset.org/)
-    Portable: 7-Zip or PowerShell Compress-Archive
+    CMake 3.28+ with CPack
+    MSI: WiX Toolset 3.x (https://wixtoolset.org/)
+    NSIS: NSIS 3.x (https://nsis.sourceforge.io/)
+    ZIP: Built-in PowerShell Compress-Archive
 
 "@
 }
 
+# Detect build type (MSYS2 or Windows)
+function Detect-BuildType {
+    # Check for MSYS2 build first
+    $MSYS2Path = Join-Path $BuildDir "$BuildType-MSYS2"
+    $WindowsPath = Join-Path $BuildDir "$BuildType-Windows"
+
+    if (Test-Path (Join-Path $MSYS2Path "app\app.exe")) {
+        Write-Status "Detected MSYS2 build"
+        return @{
+            Type = "MSYS2"
+            Path = $MSYS2Path
+        }
+    } elseif (Test-Path (Join-Path $WindowsPath "app\app.exe")) {
+        Write-Status "Detected Windows (MSVC) build"
+        return @{
+            Type = "Windows"
+            Path = $WindowsPath
+        }
+    } else {
+        Write-Error "No build found. Please build the project first:"
+        Write-Error "  MSYS2: ./scripts/build-msys2.sh -t $BuildType"
+        Write-Error "  Windows: cmake --preset=$BuildType-Windows && cmake --build --preset=$BuildType-Windows"
+        exit 1
+    }
+}
+
 # Check if build exists
 function Test-Build {
-    $BuildPath = Join-Path $BuildDir "$BuildType-Windows"
-    $AppPath = Join-Path $BuildPath "app\app.exe"
+    $BuildInfo = Detect-BuildType
+    $AppPath = Join-Path $BuildInfo.Path "app\app.exe"
 
     if (-not (Test-Path $AppPath)) {
         Write-Error "Build not found at $AppPath"
-        Write-Error "Please build the project first:"
-        Write-Error "  cmake --preset=$BuildType-Windows"
-        Write-Error "  cmake --build --preset=$BuildType-Windows"
         exit 1
     }
 
     Write-Success "Found build at $AppPath"
-    return $BuildPath
+    return $BuildInfo
 }
 
 # Clean packaging directory
@@ -102,9 +134,86 @@ function Clear-Packaging {
     New-Item -ItemType Directory -Path $PackageDir -Force | Out-Null
 }
 
-# Create MSI package using WiX
+# Create package using CMake CPack
+function New-CMakePackage {
+    param(
+        [object]$BuildInfo,
+        [string]$Generator
+    )
+
+    Write-Status "Creating package using CMake CPack..."
+    Write-Status "  Build path: $($BuildInfo.Path)"
+    Write-Status "  Generator: $Generator"
+
+    # Check if CMake is available
+    $cmake = Get-Command cmake -ErrorAction SilentlyContinue
+    if (-not $cmake) {
+        Write-Error "CMake not found in PATH"
+        return $false
+    }
+
+    # Check if cpack is available
+    $cpack = Get-Command cpack -ErrorAction SilentlyContinue
+    if (-not $cpack) {
+        Write-Error "CPack not found in PATH"
+        return $false
+    }
+
+    # Run CPack
+    Push-Location $BuildInfo.Path
+    try {
+        Write-Status "Running CPack with generator: $Generator"
+
+        $cpackArgs = @(
+            "-G", $Generator,
+            "-C", $BuildType,
+            "-B", $PackageDir
+        )
+
+        Write-Status "Command: cpack $($cpackArgs -join ' ')"
+
+        & cpack @cpackArgs
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "CPack failed with exit code $LASTEXITCODE"
+            return $false
+        }
+
+        # Find generated package
+        $packages = Get-ChildItem -Path $PackageDir -File | Where-Object {
+            $_.Extension -in @('.msi', '.exe', '.zip')
+        }
+
+        if ($packages.Count -eq 0) {
+            Write-Error "No package files found in $PackageDir"
+            return $false
+        }
+
+        foreach ($pkg in $packages) {
+            Write-Success "Created package: $($pkg.FullName)"
+            Write-Status "  Size: $([math]::Round($pkg.Length / 1MB, 2)) MB"
+        }
+
+        return $true
+    }
+    catch {
+        Write-Error "CPack execution failed: $_"
+        return $false
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+# Create MSI package using WiX (Windows/MSVC builds only)
 function New-MsiPackage {
-    param([string]$BuildPath)
+    param([object]$BuildInfo)
+
+    # Skip MSI for MSYS2 builds (use NSIS instead)
+    if ($BuildInfo.Type -eq "MSYS2") {
+        Write-Warning "Skipping MSI creation for MSYS2 build (use portable package instead)"
+        return $true
+    }
 
     Write-Status "Creating MSI package..."
 
@@ -150,13 +259,13 @@ function New-MsiPackage {
   <Fragment>
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <Component Id="MainExecutable" Guid="*">
-        <File Id="AppExe" Source="$BuildPath\app\app.exe" KeyPath="yes" />
+        <File Id="AppExe" Source="$($BuildInfo.Path)\app\app.exe" KeyPath="yes" />
       </Component>
       <Component Id="QtLibraries" Guid="*">
-        <File Id="Qt6Core" Source="$BuildPath\app\Qt6Core.dll" />
-        <File Id="Qt6Gui" Source="$BuildPath\app\Qt6Gui.dll" />
-        <File Id="Qt6Widgets" Source="$BuildPath\app\Qt6Widgets.dll" />
-        <File Id="Qt6Svg" Source="$BuildPath\app\Qt6Svg.dll" />
+        <File Id="Qt6Core" Source="$($BuildInfo.Path)\app\Qt6Core.dll" />
+        <File Id="Qt6Gui" Source="$($BuildInfo.Path)\app\Qt6Gui.dll" />
+        <File Id="Qt6Widgets" Source="$($BuildInfo.Path)\app\Qt6Widgets.dll" />
+        <File Id="Qt6Svg" Source="$($BuildInfo.Path)\app\Qt6Svg.dll" />
       </Component>
       <Component Id="StartMenuShortcut" Guid="*">
         <Shortcut Id="ApplicationStartMenuShortcut"
@@ -203,7 +312,7 @@ function New-MsiPackage {
 
 # Create portable ZIP package
 function New-PortablePackage {
-    param([string]$BuildPath)
+    param([object]$BuildInfo)
 
     Write-Status "Creating portable package..."
 
@@ -212,7 +321,7 @@ function New-PortablePackage {
     New-Item -ItemType Directory -Path $AppDir -Force | Out-Null
 
     # Copy application files
-    $AppFiles = Join-Path $BuildPath "app\*"
+    $AppFiles = Join-Path $BuildInfo.Path "app\*"
     Copy-Item $AppFiles -Destination $AppDir -Recurse -Force
 
     # Create launcher script
@@ -268,45 +377,110 @@ function Main {
         exit 0
     }
 
-    Write-Status "$AppDisplayName Packaging Script"
-    Write-Status "=============================="
+    Write-Host "`n╔════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "║     $AppDisplayName Packaging Script                      ║" -ForegroundColor Cyan
+    Write-Host "╚════════════════════════════════════════════════════════════╝`n" -ForegroundColor Cyan
 
-    # Auto-detect package type
+    # Detect build and auto-select package type
+    $BuildInfo = Test-Build
+
     if ($PackageType -eq "auto") {
-        $PackageType = "msi"
+        if ($BuildInfo.Type -eq "MSYS2") {
+            $PackageType = "nsis"
+            Write-Status "Auto-selected NSIS installer for MSYS2 build"
+        } else {
+            $PackageType = "msi"
+            Write-Status "Auto-selected MSI installer for MSVC build"
+        }
     }
 
-    $BuildPath = Test-Build
     Clear-Packaging
 
     $Success = $true
 
-    # Create packages based on requested types
-    switch ($PackageType) {
-        "msi" {
-            $Success = New-MsiPackage -BuildPath $BuildPath
+    # Use CMake CPack if enabled
+    if ($UseCMake) {
+        Write-Status "Using CMake CPack for packaging"
+
+        # Map package types to CPack generators
+        $generator = switch ($PackageType) {
+            "msi"  { "WIX" }
+            "nsis" { "NSIS" }
+            "zip"  { "ZIP" }
+            "all"  {
+                if ($BuildInfo.Type -eq "MSYS2") {
+                    "NSIS;ZIP"
+                } else {
+                    "WIX;ZIP"
+                }
+            }
+            default {
+                Write-Error "Unknown package type: $PackageType"
+                Show-Usage
+                exit 1
+            }
         }
-        "portable" {
-            $Success = New-PortablePackage -BuildPath $BuildPath
-        }
-        "all" {
-            $Success = (New-MsiPackage -BuildPath $BuildPath) -and (New-PortablePackage -BuildPath $BuildPath)
-        }
-        default {
-            Write-Error "Unknown package type: $PackageType"
-            Show-Usage
-            exit 1
+
+        $Success = New-CMakePackage -BuildInfo $BuildInfo -Generator $generator
+    }
+    else {
+        # Legacy packaging (fallback)
+        Write-Warning "Using legacy packaging method (not recommended)"
+
+        switch ($PackageType) {
+            "msi" {
+                $Success = New-MsiPackage -BuildInfo $BuildInfo
+            }
+            "zip" {
+                $Success = New-PortablePackage -BuildInfo $BuildInfo
+            }
+            "all" {
+                $Success = (New-MsiPackage -BuildInfo $BuildInfo) -and (New-PortablePackage -BuildInfo $BuildInfo)
+            }
+            default {
+                Write-Error "Unknown package type: $PackageType"
+                Show-Usage
+                exit 1
+            }
         }
     }
 
     if ($Success) {
-        Write-Success "Packaging completed successfully!"
+        Write-Success "`nPackaging completed successfully!"
         Write-Status "Generated packages:"
-        Get-ChildItem $ProjectRoot -Filter "*$AppName*" | Where-Object { $_.Extension -in @('.msi', '.zip') } | ForEach-Object {
-            Write-Host "  $($_.Name)" -ForegroundColor Cyan
+
+        $packages = Get-ChildItem $PackageDir -File -ErrorAction SilentlyContinue | Where-Object {
+            $_.Extension -in @('.msi', '.zip', '.exe')
         }
+
+        foreach ($pkg in $packages) {
+            Write-Host "  ✓ $($pkg.Name)" -ForegroundColor Green
+            Write-Host "    Size: $([math]::Round($pkg.Length / 1MB, 2)) MB" -ForegroundColor Gray
+            Write-Host "    Path: $($pkg.FullName)" -ForegroundColor Gray
+        }
+
+        # Run verification if requested
+        if ($Verify) {
+            Write-Status "`nRunning package verification..."
+
+            $verifyScript = Join-Path $ScriptDir "verify-package.ps1"
+            if (Test-Path $verifyScript) {
+                # Extract ZIP or use MSI install location for verification
+                $testPath = $PackageDir
+
+                & $verifyScript -InstallPath $testPath -SkipFunctionalTest
+
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warning "Package verification found issues"
+                }
+            } else {
+                Write-Warning "Verification script not found: $verifyScript"
+            }
+        }
+
+        Write-Host "`n✓ All done!" -ForegroundColor Green
     } else {
-        Write-Error "Packaging failed!"
+        Write-Error "`nPackaging failed!"
         exit 1
     }
 }

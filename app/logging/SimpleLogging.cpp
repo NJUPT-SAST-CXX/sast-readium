@@ -206,24 +206,6 @@ void logFormatted(Level level, const std::string& formatted) {
     }
 }
 
-std::string formatString(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-
-    // Get required buffer size
-    va_list args_copy;
-    va_copy(args_copy, args);
-    int size = vsnprintf(nullptr, 0, format, args_copy) + 1;
-    va_end(args_copy);
-
-    // Format the string
-    std::vector<char> buffer(size);
-    vsnprintf(buffer.data(), size, format, args);
-    va_end(args);
-
-    return std::string(buffer.data());
-}
-
 }  // namespace detail
 
 // ============================================================================
@@ -293,7 +275,7 @@ class Timer::Impl {
 public:
     Impl(const QString& name)
         : m_name(name), m_startTime(std::chrono::high_resolution_clock::now()) {
-        SastLogging::debug("Timer [%s] started", name.toStdString().c_str());
+        SastLogging::debug("Timer [{}] started", name.toStdString());
     }
 
     ~Impl() {
@@ -301,8 +283,8 @@ public:
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
                             endTime - m_startTime)
                             .count();
-        SastLogging::debug("Timer [%s] finished: %lld ms",
-                           m_name.toStdString().c_str(), duration);
+        SastLogging::debug("Timer [{}] finished: {} ms", m_name.toStdString(),
+                           duration);
     }
 
     void checkpoint(const QString& name) {
@@ -313,9 +295,8 @@ public:
         QString checkpointName =
             name.isEmpty() ? QString("Checkpoint %1").arg(++m_checkpointCount)
                            : name;
-        SastLogging::debug("Timer [%s] %s: %lld ms",
-                           m_name.toStdString().c_str(),
-                           checkpointName.toStdString().c_str(), duration);
+        SastLogging::debug("Timer [{}] {}: {} ms", m_name.toStdString(),
+                           checkpointName.toStdString(), duration);
         m_lastCheckpoint = now;
     }
 

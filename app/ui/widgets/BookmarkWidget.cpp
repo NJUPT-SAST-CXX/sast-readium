@@ -8,6 +8,11 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
+#include "ElaComboBox.h"
+#include "ElaLineEdit.h"
+#include "ElaMenu.h"
+#include "ElaPushButton.h"
+#include "ElaText.h"
 #include "ToastNotification.h"
 
 BookmarkWidget::BookmarkWidget(QWidget* parent)
@@ -53,24 +58,24 @@ void BookmarkWidget::setupUI() {
     // Toolbar
     m_toolbarLayout = new QHBoxLayout();
 
-    m_addButton = new QPushButton(tr("Add Bookmark"));
+    m_addButton = new ElaPushButton(tr("Add Bookmark"));
     m_addButton->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_FileDialogNewFolder));
     m_addButton->setToolTip(tr("Add bookmark for current page"));
 
-    m_removeButton = new QPushButton(tr("Delete"));
+    m_removeButton = new ElaPushButton(tr("Delete"));
     m_removeButton->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_TrashIcon));
     m_removeButton->setToolTip(tr("Delete selected bookmark"));
     m_removeButton->setEnabled(false);
 
-    m_editButton = new QPushButton(tr("Edit"));
+    m_editButton = new ElaPushButton(tr("Edit"));
     m_editButton->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_FileDialogDetailedView));
     m_editButton->setToolTip(tr("Edit selected bookmark"));
     m_editButton->setEnabled(false);
 
-    m_refreshButton = new QPushButton(tr("Refresh"));
+    m_refreshButton = new ElaPushButton(tr("Refresh"));
     m_refreshButton->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_BrowserReload));
     m_refreshButton->setToolTip(tr("Refresh bookmark list"));
@@ -84,34 +89,46 @@ void BookmarkWidget::setupUI() {
     // Filter controls
     m_filterLayout = new QHBoxLayout();
 
-    m_searchEdit = new QLineEdit();
+    m_searchEdit = new ElaLineEdit();
     m_searchEdit->setPlaceholderText(tr("Search bookmarks..."));
     m_searchEdit->setClearButtonEnabled(true);
 
-    m_categoryFilter = new QComboBox();
+    m_categoryFilter = new ElaComboBox();
     m_categoryFilter->addItem(tr("All Categories"), "");
     m_categoryFilter->setMinimumWidth(120);
 
-    m_sortOrder = new QComboBox();
+    m_sortOrder = new ElaComboBox();
     m_sortOrder->addItem(tr("Recently Visited"), "recent");
     m_sortOrder->addItem(tr("Created Time"), "created");
     m_sortOrder->addItem(tr("Title"), "title");
     m_sortOrder->addItem(tr("Page"), "page");
     m_sortOrder->setMinimumWidth(100);
 
-    m_countLabel = new QLabel(tr("%1 bookmarks").arg(0));
+    m_countLabel = new ElaText(tr("%1 bookmarks").arg(0));
 
-    m_filterLayout->addWidget(new QLabel(tr("Search:")));
+    {
+        auto* searchLabel = new ElaText(tr("Search:"), this);
+        searchLabel->setObjectName("searchLabel");
+        m_filterLayout->addWidget(searchLabel);
+    }
     m_filterLayout->addWidget(m_searchEdit);
-    m_filterLayout->addWidget(new QLabel(tr("Category:")));
+    {
+        auto* categoryLabel = new ElaText(tr("Category:"), this);
+        categoryLabel->setObjectName("categoryLabel");
+        m_filterLayout->addWidget(categoryLabel);
+    }
     m_filterLayout->addWidget(m_categoryFilter);
-    m_filterLayout->addWidget(new QLabel(tr("Sort:")));
+    {
+        auto* sortLabel = new ElaText(tr("Sort:"), this);
+        sortLabel->setObjectName("sortLabel");
+        m_filterLayout->addWidget(sortLabel);
+    }
     m_filterLayout->addWidget(m_sortOrder);
     m_filterLayout->addStretch();
     m_filterLayout->addWidget(m_countLabel);
 
     // Main bookmark view
-    m_bookmarkView = new QTreeView();
+    m_bookmarkView = new ElaTreeView(this);
     m_bookmarkView->setAlternatingRowColors(true);
     m_bookmarkView->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_bookmarkView->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -177,7 +194,7 @@ void BookmarkWidget::setupConnections() {
 }
 
 void BookmarkWidget::setupContextMenu() {
-    m_contextMenu = new QMenu(this);
+    m_contextMenu = new ElaMenu(this);
 
     m_navigateAction =
         m_contextMenu->addAction(tr("Navigate to Page"), [this]() {
@@ -473,18 +490,18 @@ void BookmarkWidget::retranslateUi() {
     }
 
     // Update labels
-    auto* searchLabel = findChild<QLabel*>("searchLabel");
-    if (searchLabel) {
+    auto* searchLabel = findChild<ElaText*>("searchLabel");
+    if (searchLabel != nullptr) {
         searchLabel->setText(tr("Search:"));
     }
 
-    auto* categoryLabel = findChild<QLabel*>("categoryLabel");
-    if (categoryLabel) {
+    auto* categoryLabel = findChild<ElaText*>("categoryLabel");
+    if (categoryLabel != nullptr) {
         categoryLabel->setText(tr("Category:"));
     }
 
-    auto* sortLabel = findChild<QLabel*>("sortLabel");
-    if (sortLabel) {
+    auto* sortLabel = findChild<ElaText*>("sortLabel");
+    if (sortLabel != nullptr) {
         sortLabel->setText(tr("Sort:"));
     }
 

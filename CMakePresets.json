@@ -59,7 +59,10 @@
             "binaryDir": "${sourceDir}/build/Debug-MSYS2",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "USE_VCPKG": "OFF"
+                "USE_VCPKG": "OFF",
+                "ENABLE_PACKAGING": "ON",
+                "PACKAGE_PORTABLE": "ON",
+                "DEPLOY_QT_PLUGINS": "ON"
             }
         },
         {
@@ -70,7 +73,10 @@
             "binaryDir": "${sourceDir}/build/Release-MSYS2",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "USE_VCPKG": "OFF"
+                "USE_VCPKG": "OFF",
+                "ENABLE_PACKAGING": "ON",
+                "PACKAGE_PORTABLE": "ON",
+                "DEPLOY_QT_PLUGINS": "ON"
             }
         },
         {

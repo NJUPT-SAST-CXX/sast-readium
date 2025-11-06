@@ -1,4 +1,28 @@
-/* Chrome风格缩略图样式 */
+/*
+ * ============================================================================
+ * SAST Readium - Thumbnail Stylesheet
+ * ============================================================================
+ *
+ * Purpose:     Chrome-style thumbnail grid styling for PDF page previews
+ * Theme:       Independent (works with both Light and Dark)
+ * Components:  ThumbnailListView, ThumbnailDelegate, thumbnail items
+ * Loading:     Loaded by StyleManager after common.qss
+ *
+ * Features:
+ *   - Grid layout with hover effects
+ *   - Page number badges
+ *   - Selection highlighting
+ *   - Smooth scrolling
+ *   - Responsive sizing
+ *
+ * Notes:
+ *   - Theme-independent colors (adapts to system theme)
+ *   - Specialized for PDF thumbnail view only
+ *   - Does not affect main document view
+ *
+ * Last Updated: 2025-10-29
+ * ============================================================================
+ */
 
 /* 缩略图列表视图 */
 ThumbnailListView {

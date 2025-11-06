@@ -1,119 +1,175 @@
-#pragma once
+﻿#ifndef RIGHTSIDEBAR_H
+#define RIGHTSIDEBAR_H
 
 #include <poppler/qt6/poppler-qt6.h>
-#include <QLabel>
-#include <QPropertyAnimation>
-#include <QSettings>
-#include <QTabWidget>
-#include <QVBoxLayout>
-#include <QWidget>
-#include <memory>
+#include <QString>
+#include "ElaDockWidget.h"
 
 // Forward declarations
+class ElaTabWidget;
+class QWidget;
+class PropertiesPanel;
+class AnnotationsPanel;
+class LayersPanel;
+class SearchPanel;
 class DebugLogPanel;
-class DocumentPropertiesPanel;
-class AnnotationToolbar;
-class SearchWidget;
+class QPropertyAnimation;
+class QSettings;
 
 /**
- * @brief Right sidebar with properties, tools, and debug panels
+ * @brief ElaRightSideBar - 右侧边栏组件
  *
- * @details Provides auxiliary functionality via:
- * - Properties panel (document metadata)
- * - Tools panel (annotations, highlights)
- * - Debug log panel with filtering and export
- * - Animated show/hide with state persistence
- * - Theme-aware styling
- *
- * @note State (visibility, width, active tab) is persisted via QSettings
+ * 包含：
+ * 1. 属性面板 - 显示选中对象的属性
+ * 2. 注释面板 - 显示和管理注释
+ * 3. 图层面板 - 显示和管理图层（如果支持）
+ * 4. 搜索面板 - 全文搜索功能
+ * 5. 调试面板 - 调试日志显示
  */
-class RightSideBar : public QWidget {
+class RightSideBar : public ElaDockWidget {
     Q_OBJECT
-public:
-    /**
-     * @brief Construct a new Right Side Bar object
-     * @param parent Parent widget (optional)
-     */
-    RightSideBar(QWidget* parent = nullptr);
 
-    /**
-     * @brief Destroy the Right Side Bar object and clean up resources
-     */
-    ~RightSideBar();
+public:
+    enum TabIndex {
+        PropertiesTab = 0,
+        AnnotationsTab = 1,
+        LayersTab = 2,
+        SearchTab = 3,
+        DebugTab = 4
+    };
+    Q_ENUM(TabIndex)
+
+    explicit RightSideBar(QWidget* parent = nullptr);
+    ~RightSideBar() override;
+
+    // Tab management
+    void switchToTab(TabIndex index);
+    TabIndex currentTab() const;
 
     // Document management
-    /**
-     * @brief Update the properties panel with document information
-     * @param document Poppler document pointer
-     * @param filePath Full path to the PDF file
-     */
     void setDocument(Poppler::Document* document, const QString& filePath);
+    void clearDocument();
+    bool hasDocument() const;
+
+    // Panel access
+    PropertiesPanel* propertiesPanel() const { return m_propertiesPanel; }
+    AnnotationsPanel* annotationsPanel() const { return m_annotationsPanel; }
+    LayersPanel* layersPanel() const { return m_layersPanel; }
+    SearchPanel* searchPanel() const { return m_searchPanel; }
+    DebugLogPanel* debugPanel() const { return m_debugPanel; }
+
+    // ========================================================================
+    // 可见性和宽度管理
+    // ========================================================================
 
     /**
-     * @brief Clear document properties
+     * @brief 显示侧边栏（带动画）
+     * @param animated 是否使用动画
      */
-    void clearDocument();
+    void show(bool animated = true);
 
-    // Search widget access
-    SearchWidget* getSearchWidget() const { return m_searchWidget; }
+    /**
+     * @brief 隐藏侧边栏（带动画）
+     * @param animated 是否使用动画
+     */
+    void hide(bool animated = true);
 
-    // 显示/隐藏控制
-    bool isVisible() const;
-    using QWidget::setVisible;  // Bring base class method into scope
-    void setVisible(bool visible, bool animated = true);
+    /**
+     * @brief 切换可见性
+     * @param animated 是否使用动画
+     */
     void toggleVisibility(bool animated = true);
 
-    // 宽度管理
-    int getPreferredWidth() const;
+    /**
+     * @brief 设置可见性（测试兼容重载）
+     * @param visible 目标可见状态
+     * @param animated 是否使用动画
+     */
+    void setVisible(bool visible, bool animated);
+
+    /**
+     * @brief QWidget-compatible visibility setter
+     * Convenience wrapper to preserve existing call sites; non-animated by
+     * default
+     */
+    void setVisible(bool visible) override;
+
+    /**
+     * @brief 设置首选宽度
+     */
     void setPreferredWidth(int width);
+
+    /**
+     * @brief 获取首选宽度
+     */
+    int getPreferredWidth() const { return m_preferredWidth; }
+
+    /**
+     * @brief 获取宽度约束（测试兼容）
+     */
     int getMinimumWidth() const { return minimumWidth; }
     int getMaximumWidth() const { return maximumWidth; }
 
-    // 状态持久化
+    /**
+     * @brief 是否可见
+     */
+    bool isRightSideBarVisible() const { return m_isCurrentlyVisible; }
+
+    /**
+     * @brief 保存状态到 QSettings
+     */
     void saveState();
+
+    /**
+     * @brief 从 QSettings 恢复状态
+     */
     void restoreState();
 
-public slots:
-    void show(bool animated = true);
-    void hide(bool animated = true);
-
 signals:
+    void tabChanged(TabIndex index);
+    void navigateToPage(int pageNumber);
+
+    /**
+     * @brief 可见性改变
+     */
     void visibilityChanged(bool visible);
+
+    /**
+     * @brief 宽度改变
+     */
     void widthChanged(int width);
-    void viewFullDetailsRequested(Poppler::Document* document,
-                                  const QString& filePath);
+
+protected:
+    void changeEvent(QEvent* event) override;
 
 private slots:
     void onAnimationFinished();
-    void onViewFullDetailsRequested(Poppler::Document* document,
-                                    const QString& filePath);
 
 private:
-    QTabWidget* tabWidget;
-    QPropertyAnimation* animation;
-    QSettings* settings;
-    DebugLogPanel* debugLogPanel;
-    DocumentPropertiesPanel* m_propertiesPanel;
-    AnnotationToolbar* m_annotationToolbar;
-    class SearchWidget* m_searchWidget;
+    ElaTabWidget* m_tabWidget;
+    PropertiesPanel* m_propertiesPanel;
+    AnnotationsPanel* m_annotationsPanel;
+    LayersPanel* m_layersPanel;
+    SearchPanel* m_searchPanel;
+    DebugLogPanel* m_debugPanel;
 
-    bool isCurrentlyVisible;
-    int preferredWidth;
-    int lastWidth;
+    // 可见性和宽度管理
+    QPropertyAnimation* m_animation;
+    QSettings* m_settings;
+    bool m_isCurrentlyVisible;
+    int m_preferredWidth;
+    int m_lastWidth;
 
+    // 常量
     static const int minimumWidth = 200;
     static const int maximumWidth = 400;
     static const int defaultWidth = 250;
     static const int animationDuration = 300;
 
-    void initWindow();
-    void initContent();
+    void setupUi();
+    void retranslateUi();
     void initAnimation();
     void initSettings();
-    void applyTheme();
-
-    QWidget* createPropertiesTab();
-    QWidget* createToolsTab();
-    QWidget* createSearchTab();
-    QWidget* createDebugTab();
 };
+
+#endif  // RIGHTSIDEBAR_H

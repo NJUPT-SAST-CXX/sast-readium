@@ -216,6 +216,13 @@ void ThumbnailGenerator::generateThumbnail(int pageNumber, const QSize& size,
 
     emit queueSizeChanged(static_cast<int>(m_requestQueue.size()));
     m_queueCondition.wakeOne();
+
+    // Ensure processing starts promptly in on-demand usage (tests/integration)
+    if (!m_running) {
+        start();
+    }
+    // Kick the queue processor immediately for responsiveness
+    processQueue();
 }
 
 void ThumbnailGenerator::generateThumbnailRange(int startPage, int endPage,
@@ -232,6 +239,11 @@ void ThumbnailGenerator::generateThumbnailRange(int startPage, int endPage,
     for (int i = startPage; i <= endPage; ++i) {
         generateThumbnail(i, size, quality, i - startPage);  // 按顺序设置优先级
     }
+
+    if (!m_running) {
+        start();
+    }
+    processQueue();
 }
 
 void ThumbnailGenerator::clearQueue() {
@@ -378,6 +390,9 @@ void ThumbnailGenerator::startNextJob() {
 
     job->watcher->setFuture(job->future);
 
+    qInfo() << "ThumbnailGenerator: started job for page" << request.pageNumber
+            << "size" << request.size;
+
     // 添加到活动任务 (separate mutex scope)
     {
         QMutexLocker jobsLocker(&m_jobsMutex);
@@ -417,10 +432,14 @@ void ThumbnailGenerator::onGenerationFinished() {
         QPixmap pixmap = watcher->result();
 
         if (!pixmap.isNull()) {
+            qInfo() << "ThumbnailGenerator: job completed for page"
+                    << pageNumber;
             handleJobCompletion(job);
             emit thumbnailGenerated(pageNumber, pixmap);
             m_totalGenerated++;
         } else {
+            qWarning() << "ThumbnailGenerator: job returned null for page"
+                       << pageNumber;
             handleJobError(job, "Failed to generate pixmap");
         }
     } catch (const std::exception& e) {
@@ -826,6 +845,10 @@ void ThumbnailGenerator::generateThumbnailBatch(const QList<int>& pageNumbers,
 
     if (!requests.isEmpty()) {
         processBatchRequest(requests);
+        if (!m_running) {
+            start();
+        }
+        processQueue();
     }
 }
 

@@ -109,6 +109,77 @@ Project-wide utilities and configuration.
 - Comprehensive build summaries
 - Standardized project options
 
+### Packaging.cmake
+
+Comprehensive packaging and deployment configuration.
+
+**Key Functions:**
+
+- `setup_packaging_options()` - Configure packaging options and optimization levels
+- `setup_qt_deployment()` - Qt library and plugin deployment with cleanup
+- `setup_install_targets()` - Configure installation rules for all components
+- `cleanup_installed_dependencies()` - Remove development files to reduce package size
+- `install_runtime_dependencies()` - Automatic runtime DLL discovery and filtering
+- `setup_cpack_configuration()` - CPack generator configuration (NSIS, WiX, ZIP)
+- `add_deploy_qt_command()` - Post-build Qt deployment for development
+
+**Features:**
+
+- **Package Size Optimization:**
+  - Minimal Qt deployment (excludes unused plugins)
+  - Debug symbol stripping (20-40% size reduction)
+  - Aggressive cleanup of development files (40-60% size reduction)
+  - Overall size reduction: 60-80% compared to unoptimized packages
+
+- **Multi-Platform Support:**
+  - Windows: NSIS installer (MSYS2), WiX MSI (MSVC), ZIP
+  - Linux: DEB, RPM, TGZ
+  - macOS: DragNDrop, Bundle
+
+- **Automatic Dependency Management:**
+  - Runtime DLL discovery and bundling
+  - System DLL exclusion
+  - MSYS2/MinGW runtime handling
+  - MSVC redistributable integration
+
+- **Configurable Optimization Levels:**
+  - `PACKAGING_MINIMAL` - Exclude unnecessary Qt plugins (default: ON)
+  - `PACKAGING_STRIP_DEBUG` - Strip debug symbols (default: ON)
+  - `PACKAGING_AGGRESSIVE_CLEANUP` - Remove all development files (default: ON)
+
+**Usage:**
+
+```cmake
+# In root CMakeLists.txt
+include(Packaging)
+
+# Configure packaging options
+setup_packaging_options()
+find_qt_deployment_tools()
+setup_cpack_configuration()
+
+# In target CMakeLists.txt
+setup_install_targets(app)
+setup_qt_deployment(app)
+add_deploy_qt_command(app)  # For development builds
+```
+
+**Package Creation:**
+
+```bash
+# Using CMake
+cmake --build build --target package
+
+# Using CPack directly
+cpack -G WIX -C Release -B package/
+
+# With custom options
+cmake -DPACKAGING_MINIMAL=OFF -DPACKAGING_STRIP_DEBUG=OFF
+cpack -G ZIP -C Release
+```
+
+See [docs/packaging/optimization-guide.md](../docs/packaging/optimization-guide.md) for detailed optimization information.
+
 ## Usage Examples
 
 ### Basic Project Setup

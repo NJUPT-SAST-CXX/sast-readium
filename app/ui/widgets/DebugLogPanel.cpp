@@ -49,6 +49,15 @@
 #include <QtCore/Qt>
 #include "../../managers/StyleManager.h"
 #include "ToastNotification.h"
+// ElaWidgetTools
+#include "ElaCheckBox.h"
+#include "ElaComboBox.h"
+#include "ElaLineEdit.h"
+#include "ElaMenu.h"
+#include "ElaProgressBar.h"
+#include "ElaPushButton.h"
+#include "ElaSpinBox.h"
+#include "ElaText.h"
 
 const QString DebugLogPanel::SETTINGS_GROUP = QStringLiteral("DebugLogPanel");
 const int DebugLogPanel::DEFAULT_MAX_ENTRIES = 10000;
@@ -177,8 +186,8 @@ void DebugLogPanel::setupFilterControls() {
     QGridLayout* filterLayout = new QGridLayout(m_filterGroup);
 
     // Log level filter
-    filterLayout->addWidget(new QLabel(tr("Level:")), 0, 0);
-    m_logLevelFilter = new QComboBox();
+    filterLayout->addWidget(new ElaText(tr("Level:")), 0, 0);
+    m_logLevelFilter = new ElaComboBox();
     m_logLevelFilter->addItem(tr("All"),
                               static_cast<int>(Logger::LogLevel::Trace));
     m_logLevelFilter->addItem(tr("Debug+"),
@@ -195,23 +204,23 @@ void DebugLogPanel::setupFilterControls() {
     filterLayout->addWidget(m_logLevelFilter, 0, 1);
 
     // Category filter
-    filterLayout->addWidget(new QLabel(tr("Category:")), 0, 2);
-    m_categoryFilter = new QComboBox();
+    filterLayout->addWidget(new ElaText(tr("Category:")), 0, 2);
+    m_categoryFilter = new ElaComboBox();
     m_categoryFilter->addItem(tr("All Categories"));
     m_categoryFilter->setEditable(true);
     filterLayout->addWidget(m_categoryFilter, 0, 3);
 
     // Search controls
-    filterLayout->addWidget(new QLabel(tr("Search:")), 1, 0);
-    m_searchEdit = new QLineEdit();
+    filterLayout->addWidget(new ElaText(tr("Search:")), 1, 0);
+    m_searchEdit = new ElaLineEdit();
     m_searchEdit->setPlaceholderText(tr("Search log messages..."));
     filterLayout->addWidget(m_searchEdit, 1, 1, 1, 2);
 
     // Search buttons
     QHBoxLayout* searchBtnLayout = new QHBoxLayout();
-    m_searchNextBtn = new QPushButton(tr("Next"));
+    m_searchNextBtn = new ElaPushButton(tr("Next"));
     m_searchNextBtn->setMaximumWidth(60);
-    m_searchPrevBtn = new QPushButton(tr("Prev"));
+    m_searchPrevBtn = new ElaPushButton(tr("Prev"));
     m_searchPrevBtn->setMaximumWidth(60);
     searchBtnLayout->addWidget(m_searchPrevBtn);
     searchBtnLayout->addWidget(m_searchNextBtn);
@@ -220,8 +229,8 @@ void DebugLogPanel::setupFilterControls() {
 
     // Search options
     QHBoxLayout* searchOptionsLayout = new QHBoxLayout();
-    m_caseSensitiveCheck = new QCheckBox(tr("Case sensitive"));
-    m_regexCheck = new QCheckBox(tr("Regex"));
+    m_caseSensitiveCheck = new ElaCheckBox(tr("Case sensitive"));
+    m_regexCheck = new ElaCheckBox(tr("Regex"));
     searchOptionsLayout->addWidget(m_caseSensitiveCheck);
     searchOptionsLayout->addWidget(m_regexCheck);
     searchOptionsLayout->addStretch();
@@ -236,24 +245,24 @@ void DebugLogPanel::setupActionButtons() {
     m_actionLayout->setContentsMargins(0, 5, 0, 5);
 
     // Control buttons
-    m_pauseBtn = new QPushButton(tr("Pause"));
+    m_pauseBtn = new ElaPushButton(tr("Pause"));
     m_pauseBtn->setCheckable(true);
     m_pauseBtn->setMaximumWidth(80);
 
-    m_clearBtn = new QPushButton(tr("Clear"));
+    m_clearBtn = new ElaPushButton(tr("Clear"));
     m_clearBtn->setMaximumWidth(80);
 
-    m_exportBtn = new QPushButton(tr("Export"));
+    m_exportBtn = new ElaPushButton(tr("Export"));
     m_exportBtn->setMaximumWidth(80);
 
-    m_copyBtn = new QPushButton(tr("Copy"));
+    m_copyBtn = new ElaPushButton(tr("Copy"));
     m_copyBtn->setMaximumWidth(80);
 
-    m_settingsBtn = new QPushButton(tr("Settings"));
+    m_settingsBtn = new ElaPushButton(tr("Settings"));
     m_settingsBtn->setMaximumWidth(80);
 
     // Auto-scroll checkbox
-    m_autoScrollCheck = new QCheckBox(tr("Auto-scroll"));
+    m_autoScrollCheck = new ElaCheckBox(tr("Auto-scroll"));
     m_autoScrollCheck->setChecked(true);
 
     // Add to layout
@@ -291,13 +300,13 @@ void DebugLogPanel::setupStatisticsDisplay() {
     statsLayout->addWidget(m_statsTable);
 
     // Messages per second label
-    m_messagesPerSecLabel = new QLabel(tr("Messages/sec: 0.0"));
+    m_messagesPerSecLabel = new ElaText(tr("Messages/sec: 0.0"));
     statsLayout->addWidget(m_messagesPerSecLabel);
 
     // Memory usage bar
     QHBoxLayout* memoryLayout = new QHBoxLayout();
-    memoryLayout->addWidget(new QLabel(tr("Memory:")));
-    m_memoryUsageBar = new QProgressBar();
+    memoryLayout->addWidget(new ElaText(tr("Memory:")));
+    m_memoryUsageBar = new ElaProgressBar();
     m_memoryUsageBar->setMaximum(100);
     m_memoryUsageBar->setValue(0);
     memoryLayout->addWidget(m_memoryUsageBar);
@@ -307,7 +316,7 @@ void DebugLogPanel::setupStatisticsDisplay() {
 }
 
 void DebugLogPanel::setupContextMenu() {
-    m_contextMenu = new QMenu(this);
+    m_contextMenu = new ElaMenu(this);
 
     m_copyAction = m_contextMenu->addAction(tr("Copy Selected"));
     m_copyAllAction = m_contextMenu->addAction(tr("Copy All"));
@@ -1142,32 +1151,33 @@ void DebugLogPanel::showSettingsDialog() {
 
     // Max entries
     QHBoxLayout* maxEntriesLayout = new QHBoxLayout();
-    QLabel* maxEntriesLabel = new QLabel(tr("Max entries:"));
-    QSpinBox* maxEntriesSpin = new QSpinBox();
+    ElaText* maxEntriesLabel = new ElaText(tr("Max entries:"));
+    ElaSpinBox* maxEntriesSpin = new ElaSpinBox();
     maxEntriesSpin->setRange(100, 1000000);
     maxEntriesSpin->setValue(m_config.maxLogEntries);
     maxEntriesLayout->addWidget(maxEntriesLabel);
     maxEntriesLayout->addWidget(maxEntriesSpin);
 
     // Auto-scroll
-    QCheckBox* autoScrollBox = new QCheckBox(tr("Auto-scroll"));
+    ElaCheckBox* autoScrollBox = new ElaCheckBox(tr("Auto-scroll"));
     autoScrollBox->setChecked(m_config.autoScroll);
 
     // Word wrap
-    QCheckBox* wordWrapBox = new QCheckBox(tr("Word wrap"));
+    ElaCheckBox* wordWrapBox = new ElaCheckBox(tr("Word wrap"));
     wordWrapBox->setChecked(m_config.wordWrap);
 
     // Timestamp format
     QHBoxLayout* tsLayout = new QHBoxLayout();
-    QLabel* tsLabel = new QLabel(tr("Timestamp format:"));
-    QLineEdit* tsEdit = new QLineEdit(m_config.timestampFormat);
+    ElaText* tsLabel = new ElaText(tr("Timestamp format:"));
+    ElaLineEdit* tsEdit = new ElaLineEdit();
+    tsEdit->setText(m_config.timestampFormat);
     tsLayout->addWidget(tsLabel);
     tsLayout->addWidget(tsEdit);
 
     // Update interval
     QHBoxLayout* updateLayout = new QHBoxLayout();
-    QLabel* updateLabel = new QLabel(tr("Update interval (ms):"));
-    QSpinBox* updateSpin = new QSpinBox();
+    ElaText* updateLabel = new ElaText(tr("Update interval (ms):"));
+    ElaSpinBox* updateSpin = new ElaSpinBox();
     updateSpin->setRange(10, 5000);
     updateSpin->setValue(m_config.updateIntervalMs);
     updateLayout->addWidget(updateLabel);
@@ -1175,8 +1185,8 @@ void DebugLogPanel::showSettingsDialog() {
 
     // Batch size
     QHBoxLayout* batchLayout = new QHBoxLayout();
-    QLabel* batchLabel = new QLabel(tr("Batch size:"));
-    QSpinBox* batchSpin = new QSpinBox();
+    ElaText* batchLabel = new ElaText(tr("Batch size:"));
+    ElaSpinBox* batchSpin = new ElaSpinBox();
     batchSpin->setRange(1, 10000);
     batchSpin->setValue(m_config.batchSize);
     batchLayout->addWidget(batchLabel);
@@ -1441,8 +1451,8 @@ void DebugLogPanel::retranslateUi() {
 
     // Update filter labels (we need to find them as children since they're not
     // member variables)
-    QList<QLabel*> labels = findChildren<QLabel*>();
-    for (QLabel* label : labels) {
+    QList<ElaText*> labels = findChildren<ElaText*>();
+    for (ElaText* label : labels) {
         if (label->text() == "Level:" || label->text().contains("Level")) {
             label->setText(tr("Level:"));
         } else if (label->text() == "Category:" ||

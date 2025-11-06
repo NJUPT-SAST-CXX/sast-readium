@@ -134,7 +134,25 @@ public:
 MemoryManager::MemoryManager(QObject* parent)
     : QObject(parent), d(std::make_unique<Implementation>(this)) {}
 
-MemoryManager::~MemoryManager() = default;
+MemoryManager::~MemoryManager() {
+    // If QCoreApplication is already torn down, avoid interacting with globals
+    if (QCoreApplication::instance() == nullptr) {
+        return;
+    }
+    if (d) {
+        if (d->optimizationTimer) {
+            d->optimizationTimer->stop();
+            d->optimizationTimer->disconnect(this);
+        }
+        if (d->statsUpdateTimer) {
+            d->statsUpdateTimer->stop();
+            d->statsUpdateTimer->disconnect(this);
+        }
+        // Disconnect from CacheManager signals to prevent callbacks during
+        // teardown
+        QObject::disconnect(&CacheManager::instance(), nullptr, this, nullptr);
+    }
+}
 
 MemoryAwareSearchResults::~MemoryAwareSearchResults() = default;
 
@@ -440,7 +458,13 @@ public:
     ~ResultsImplementation() {
         if (memoryTimer != nullptr) {
             memoryTimer->stop();
-            delete memoryTimer;
+            // Avoid double-delete: if the timer has a QObject parent (created
+            // with parent), Qt's parent-child system will clean it up in
+            // QObject::~QObject().
+            if (memoryTimer->parent() == nullptr) {
+                delete memoryTimer;
+            }
+            memoryTimer = nullptr;
         }
     }
 

@@ -9,6 +9,8 @@
 #include <QStyle>
 #include <QStyleOption>
 
+// ElaWidgetTools
+#include "ElaText.h"
 // DocumentTabBar Implementation
 DocumentTabBar::DocumentTabBar(QWidget* parent)
     : QTabBar(parent), dragInProgress(false) {
@@ -91,7 +93,7 @@ void DocumentTabBar::dropEvent(QDropEvent* event) {
 
 // DocumentTabWidget Implementation
 DocumentTabWidget::DocumentTabWidget(QWidget* parent)
-    : QTabWidget(parent), customTabBar(nullptr) {
+    : ElaTabWidget(parent), customTabBar(nullptr) {
     // Initialize context menu manager
     contextMenuManager = new ContextMenuManager(this);
 
@@ -217,7 +219,7 @@ QWidget* DocumentTabWidget::createTabWidget(const QString& fileName,
     auto* widget = new QWidget(this);
     auto* layout = new QVBoxLayout(widget);
 
-    auto* label = new QLabel(QString("PDF内容: %1").arg(fileName), widget);
+    auto* label = new ElaText(QString("PDF内容: %1").arg(fileName), widget);
     label->setAlignment(Qt::AlignCenter);
     layout->addWidget(label);
 
@@ -234,7 +236,7 @@ void DocumentTabWidget::onTabMoveRequested(int from, int to) {
 }
 void DocumentTabWidget::contextMenuEvent(QContextMenuEvent* event) {
     if (!contextMenuManager) {
-        QTabWidget::contextMenuEvent(event);
+        ElaTabWidget::contextMenuEvent(event);
         return;
     }
 

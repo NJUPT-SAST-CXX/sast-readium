@@ -574,7 +574,13 @@ void SearchEngine::setDocument(Poppler::Document* document) {
     }
 }
 
-Poppler::Document* SearchEngine::document() const { return d->document; }
+Poppler::Document* SearchEngine::document() const {
+    // Be defensive in case of unexpected partial construction or misuse
+    if (!d) {
+        return nullptr;
+    }
+    return d->document;
+}
 
 void SearchEngine::search(const QString& query, const SearchOptions& options) {
     SEARCH_ERROR_SCOPE(d->errorRecovery.get(), SearchErrorRecovery::SearchError,

@@ -1,230 +1,201 @@
-#pragma once
+﻿#ifndef TOOLBAR_H
+#define TOOLBAR_H
 
-#include <QAction>
-#include <QButtonGroup>
-#include <QComboBox>
-#include <QContextMenuEvent>
 #include <QDateTime>
-#include <QFrame>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QPropertyAnimation>
-#include <QSlider>
-#include <QSpinBox>
-#include <QToolBar>
-#include <QToolButton>
-#include <QVBoxLayout>
-#include <memory>
-#include "../../controller/tool.hpp"
-#include "ContextMenuManager.h"
+#include <QObject>
+#include <QString>
+#include "ElaToolBar.h"  // From ElaWidgetTools library
+#include "controller/tool.hpp"
 
-class CollapsibleSection : public QWidget {
-    Q_OBJECT
+// Forward declarations
+class ElaToolButton;
+class ElaLineEdit;
+class ElaComboBox;
+class ElaSlider;
+class QSpinBox;
+class ElaText;
+class QWidget;
 
-public:
-    CollapsibleSection(const QString& title, QWidget* parent = nullptr);
-    void setContentWidget(QWidget* widget);
-    void setExpanded(bool expanded);
-    bool isExpanded() const { return m_expanded; }
-
-signals:
-    void expandedChanged(bool expanded);
-
-private:
-    QToolButton* m_toggleButton;
-    QWidget* m_contentWidget;
-    QFrame* m_contentFrame;
-    QFrame* m_headerFrame;
-    QPropertyAnimation* m_animation;
-    bool m_expanded;
-
-    void toggleExpanded();
-    void applyTheme();
-};
+class QDateTime;
 
 /**
- * @brief Enhanced toolbar with file operations, navigation, zoom, view
- * controls, and tools
+ * @brief ElaToolBarWidget - 完整的工具栏实现
  *
- * @details This toolbar provides comprehensive document manipulation controls
- * including:
- * - File operations (open, save, print, email)
- * - Navigation controls (first/prev/next/last page, page slider)
- * - Zoom controls (zoom in/out, fit width/page/height, zoom presets)
- * - View controls (sidebar toggle, fullscreen, view modes, night mode)
- * - Tool controls (search, annotate, highlight, bookmark, snapshot, rotate)
- * - Quick access bar (theme toggle, settings, help)
- *
- * **Simplified Mode:**
- * The toolbar uses a simplified constructor that creates only essential actions
- * without CollapsibleSection widgets. This design decision was made to:
- * - Avoid UI hangs and performance issues with complex collapsible sections
- * - Provide a more responsive user experience
- * - Reduce memory footprint
- * - Simplify the toolbar layout for better usability
- *
- * The full implementation methods (setupFileSection, setupNavigationSection,
- * etc.) exist in the codebase but are not called in the simplified mode. These
- * methods are preserved for potential future use if the performance issues with
- * CollapsibleSections are resolved.
- *
- * **Defensive Programming:**
- * All update methods (updatePageInfo, updateZoomLevel, etc.) include defensive
- * null pointer checks because some widget pointers may be nullptr in simplified
- * mode. This ensures the toolbar remains stable even when certain features are
- * not initialized.
- *
- * @note All public methods are safe to call - they will gracefully handle
- * nullptr widgets and log warnings when widgets are not initialized.
- *
- * @see CollapsibleSection for the collapsible section implementation (not used
- * in simplified mode)
+ * 实现所有工具栏功能：
+ * - 文件操作：打开、保存、打印
+ * - 导航：首页、上一页、下一页、末页、页面跳转
+ * - 缩放：放大、缩小、缩放滑块、预设缩放
+ * - 视图：视图模式、旋转、全屏
+ * - 工具：搜索、书签、注释
  */
-class ToolBar : public QToolBar {
+class ToolBar : public ::ElaToolBar {
     Q_OBJECT
 
 public:
-    /**
-     * @brief Construct a new Tool Bar object in simplified mode
-     * @param parent Parent widget (optional)
-     */
-    ToolBar(QWidget* parent = nullptr);
+    explicit ToolBar(const QString& title, QWidget* parent = nullptr);
+    ~ToolBar() override;
 
-    /**
-     * @brief Destroy the Tool Bar object and clean up resources
-     */
-    ~ToolBar();
-
-    // 状态更新接口
+    // 状态更新
     void updatePageInfo(int currentPage, int totalPages);
     void updateZoomLevel(double zoomFactor);
     void updateDocumentInfo(const QString& fileName, qint64 fileSize,
                             const QDateTime& lastModified);
     void setActionsEnabled(bool enabled);
+    void setNavigationEnabled(bool canGoBack, bool canGoForward);
     void setCompactMode(bool compact);
+
+signals:
+    // 动作触发信号
+    void actionTriggered(ActionMap action);
+
+    // 导航信号
+    void pageJumpRequested(int pageNumber);
+    void goToFirstPageRequested();
+    void goToPreviousPageRequested();
+    void goToNextPageRequested();
+    void goToLastPageRequested();
+    void goBackRequested();
+    void goForwardRequested();
+
+    // 缩放信号
+    void zoomLevelChanged(double zoomFactor);
+    void zoomInRequested();
+    void zoomOutRequested();
+    void fitWidthRequested();
+    void fitPageRequested();
+    void fitHeightRequested();
+
+    // 视图信号
+    void viewModeChanged(int mode);
+    void rotateLeftRequested();
+    void rotateRightRequested();
+    void fullScreenToggled();
+
+    // 工具信号
+    void searchRequested();
+    void bookmarkToggled();
+    void annotationModeToggled();
+    void highlightRequested();
+    void snapshotRequested();
+
+    // 视图控制信号
+    void toggleSidebarRequested();
+    void nightModeToggled(bool enabled);
+    void readingModeToggled(bool enabled);
+    void layoutModeChanged(int mode);
 
 protected:
     void changeEvent(QEvent* event) override;
-    void enterEvent(QEnterEvent* event) override;
-    void leaveEvent(QEvent* event) override;
-    void contextMenuEvent(QContextMenuEvent* event) override;
-
-signals:
-    void actionTriggered(ActionMap action);
-    void pageJumpRequested(int pageNumber);
-    void zoomLevelChanged(int percentage);
-    void viewModeChanged(const QString& modeName);
-    void sectionExpandChanged(const QString& sectionName, bool expanded);
-
-private slots:
-    void onPageSpinBoxChanged(int pageNumber);
-    void onViewModeChanged();
-    void onZoomSliderChanged(int value);
-    void onSectionExpandChanged(bool expanded);
 
 private:
+    // 工具栏区域设置
     void setupFileSection();
     void setupNavigationSection();
     void setupZoomSection();
     void setupViewSection();
     void setupToolsSection();
     void setupQuickAccessBar();
-    void applyEnhancedStyle();
-    void applyToolbarTheme();
-    void updateZoomValueLabelColor();
+    void setupDocumentInfo();
+
+    // UI 更新
     void retranslateUi();
-    void createCollapsibleGroup(const QString& title, QWidget* content);
+    void updateButtonStates();
+    void updateDocumentInfoDisplay();
+    void syncActionToolTips();
+    void setButtonTooltip(ElaToolButton* button, const QString& text,
+                          const QString& shortcut = QString());
 
-    // 文件操作组
-    CollapsibleSection* m_fileSection;
-    QAction* m_openAction;
-    QAction* m_openFolderAction;
-    QAction* m_saveAction;
-    QAction* m_saveAsAction;
-    QAction* m_printAction;
-    QAction* m_emailAction;
+    // 辅助方法
+    ElaToolButton* createToolButton(const QString& iconName,
+                                    const QString& tooltip,
+                                    const QString& shortcut = QString());
+    void addSeparator();
 
-    // 导航操作组
-    CollapsibleSection* m_navigationSection;
-    QAction* m_firstPageAction;
-    QAction* m_prevPageAction;
+    // ========================================================================
+    // 文件操作区域
+    // ========================================================================
+    ElaToolButton* m_openBtn;
+    ElaToolButton* m_openFolderBtn;
+    ElaToolButton* m_saveBtn;
+    ElaToolButton* m_saveAsBtn;
+    ElaToolButton* m_printBtn;
+    ElaToolButton* m_emailBtn;
+
+    // ========================================================================
+    // 导航区域
+    // ========================================================================
+    ElaToolButton* m_firstPageBtn;
+    ElaToolButton* m_prevPageBtn;
+    ElaToolButton* m_backBtn;
+    ElaToolButton* m_forwardBtn;
     QSpinBox* m_pageSpinBox;
-    QLabel* m_pageCountLabel;
-    QAction* m_nextPageAction;
-    QAction* m_lastPageAction;
-    QSlider* m_pageSlider;
-    QLabel* m_thumbnailPreview;
+    ElaText* m_pageCountLabel;
+    ElaToolButton* m_nextPageBtn;
+    ElaToolButton* m_lastPageBtn;
+    ElaSlider* m_pageSlider;      // Page slider for quick navigation
+    QWidget* m_thumbnailPreview;  // Thumbnail preview widget
 
-    // 缩放操作组
-    CollapsibleSection* m_zoomSection;
-    QAction* m_zoomInAction;
-    QAction* m_zoomOutAction;
-    QSlider* m_zoomSlider;
-    QLabel* m_zoomValueLabel;
-    QComboBox* m_zoomPresets;
-    QAction* m_fitWidthAction;
-    QAction* m_fitPageAction;
-    QAction* m_fitHeightAction;
+    // ========================================================================
+    // 缩放区域
+    // ========================================================================
+    ElaToolButton* m_zoomOutBtn;
+    ElaSlider* m_zoomSlider;
+    ElaLineEdit* m_zoomInput;
+    ElaText* m_zoomLabel;
+    ElaToolButton* m_zoomInBtn;
+    ElaComboBox* m_zoomPresets;
+    ElaToolButton* m_fitWidthBtn;
+    ElaToolButton* m_fitPageBtn;
+    ElaToolButton* m_fitHeightBtn;
 
-    // 视图操作组
-    CollapsibleSection* m_viewSection;
-    QAction* m_toggleSidebarAction;
-    QAction* m_toggleFullscreenAction;
-    QComboBox* m_viewModeCombo;
-    QComboBox* m_layoutCombo;
-    QAction* m_nightModeAction;
-    QAction* m_readingModeAction;
+    // ========================================================================
+    // 视图区域
+    // ========================================================================
+    ElaComboBox* m_viewModeCombo;
+    ElaComboBox* m_layoutCombo;  // Layout mode (Vertical/Horizontal)
+    ElaToolButton* m_rotateLeftBtn;
+    ElaToolButton* m_rotateRightBtn;
+    ElaToolButton* m_fullscreenBtn;
+    ElaToolButton* m_toggleSidebarBtn;
+    ElaToolButton* m_nightModeBtn;
+    ElaToolButton* m_readingModeBtn;
 
-    // 工具操作组
-    CollapsibleSection* m_toolsSection;
-    QAction* m_searchAction;
-    QAction* m_annotateAction;
-    QAction* m_highlightAction;
-    QAction* m_bookmarkAction;
-    QAction* m_snapshotAction;
-    QAction* m_rotateLeftAction;
-    QAction* m_rotateRightAction;
+    // ========================================================================
+    // 工具区域
+    // ========================================================================
+    ElaToolButton* m_searchBtn;
+    ElaToolButton* m_bookmarkBtn;
+    ElaToolButton* m_annotationBtn;
+    ElaToolButton* m_highlightBtn;
+    ElaToolButton* m_snapshotBtn;
 
+    // ========================================================================
     // 快速访问栏
-    QFrame* m_quickAccessBar;
-    QAction* m_themeToggleAction;
-    QAction* m_settingsAction;
-    QAction* m_helpAction;
+    // ========================================================================
+    ElaToolButton* m_themeToggleBtn;
+    ElaToolButton* m_settingsBtn;
+    ElaToolButton* m_helpBtn;
 
+    // ========================================================================
     // 文档信息显示
-    QLabel* m_documentInfoLabel;
-    QLabel* m_fileSizeLabel;
-    QLabel* m_lastModifiedLabel;
+    // ========================================================================
+    ElaText* m_documentInfoLabel;  // File name display
+    ElaText* m_fileSizeLabel;      // File size display
+    ElaText* m_lastModifiedLabel;  // Last modified display
 
-    // 动画和效果
-    QPropertyAnimation* m_hoverAnimation;
-    QPropertyAnimation* m_expandAnimation;
-
-    bool m_compactMode;
-    bool m_isHovered;
-
-    // Context menu management
-    ContextMenuManager* contextMenuManager;
-
-    // 保留兼容性的别名
-    QAction*& openAction = m_openAction;
-    QAction*& openFolderAction = m_openFolderAction;
-    QAction*& saveAction = m_saveAction;
-    QAction*& firstPageAction = m_firstPageAction;
-    QAction*& prevPageAction = m_prevPageAction;
-    QSpinBox*& pageSpinBox = m_pageSpinBox;
-    QLabel*& pageCountLabel = m_pageCountLabel;
-    QAction*& nextPageAction = m_nextPageAction;
-    QAction*& lastPageAction = m_lastPageAction;
-    QAction*& zoomInAction = m_zoomInAction;
-    QAction*& zoomOutAction = m_zoomOutAction;
-    QAction*& fitWidthAction = m_fitWidthAction;
-    QAction*& fitPageAction = m_fitPageAction;
-    QAction*& fitHeightAction = m_fitHeightAction;
-    QAction*& toggleSidebarAction = m_toggleSidebarAction;
-    QComboBox*& viewModeCombo = m_viewModeCombo;
-    QAction*& rotateLeftAction = m_rotateLeftAction;
-    QAction*& rotateRightAction = m_rotateRightAction;
-    QAction*& themeToggleAction = m_themeToggleAction;
+    // ========================================================================
+    // 状态
+    // ========================================================================
+    int m_currentPage;
+    int m_totalPages;
+    double m_currentZoom;
+    bool m_actionsEnabled;
+    bool m_isUpdatingZoom;  // 防止循环更新
+    bool m_isUpdatingPage;  // Prevent recursive page updates
+    bool m_compactMode;     // Compact mode flag
+    QString m_currentFileName;
+    qint64 m_currentFileSize;
+    QDateTime m_currentLastModified;
 };
+
+#endif  // ELATOOLBAR_H

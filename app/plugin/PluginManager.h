@@ -171,7 +171,7 @@ public:
     bool isFeatureAvailable(const QString& feature) const;
 
     // Plugin validation
-    bool validatePlugin(const QString& filePath) const;
+    static bool validatePlugin(const QString& filePath);
     QStringList getPluginErrors(const QString& pluginName) const;
 
     // Settings persistence
@@ -229,7 +229,7 @@ private:
 
     bool loadPluginFromFile(const QString& filePath);
     void unloadPluginInternal(const QString& pluginName);
-    PluginMetadata extractMetadata(QPluginLoader* loader) const;
+    static PluginMetadata extractMetadata(QPluginLoader* loader);
     bool checkDependencies(const QString& pluginName) const;
     void resolveAndLoadPlugins();
 

@@ -1,5 +1,6 @@
 #include <poppler-qt6.h>
 #include <QApplication>
+#include <QFontDatabase>
 #include <QPainter>
 #include <QPdfWriter>
 #include <QSignalSpy>
@@ -292,7 +293,10 @@ Poppler::Document* TestSearchEngineCore::createTestDocument() {
         return nullptr;
     }
 
-    QFont font = painter.font();
+    // Ensure a common Windows font is used to improve text extractability by
+    // Poppler Ignore return value; font may already be available.
+    QFontDatabase::addApplicationFont("C:/Windows/Fonts/arial.ttf");
+    QFont font("Arial");
     font.setPointSize(12);
     painter.setFont(font);
 

@@ -1,0 +1,22 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <!-- Application Icons - Reusing existing assets -->
+    <qresource prefix="/icons">
+        <!-- Use existing logo as app icon -->
+        <file alias="app_icon">../assets/images/logo.svg</file>
+        <!-- Use logo as user avatar placeholder -->
+        <file alias="user_avatar">../assets/images/logo.svg</file>
+        <!-- Placeholder icons - using PDF icon as fallback -->
+        <file alias="github">../assets/images/filetypes/pdf.svg</file>
+        <file alias="open_file">../assets/images/filetypes/pdf.svg</file>
+        <file alias="recent_files">../assets/images/filetypes/pdf.svg</file>
+        <file alias="settings">../assets/images/filetypes/default.svg</file>
+        <file alias="documentation">../assets/images/filetypes/doc.svg</file>
+    </qresource>
+
+    <!-- Background Images -->
+    <qresource prefix="/images">
+        <!-- Use logo as background placeholder -->
+        <file alias="home_background">../assets/images/logo.svg</file>
+    </qresource>
+</RCC>

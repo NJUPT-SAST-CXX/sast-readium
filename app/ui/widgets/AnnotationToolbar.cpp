@@ -58,57 +58,57 @@ void AnnotationToolbar::setupUI() {
     m_toolButtonGroup = new QButtonGroup(this);
 
     // Create tool buttons
-    m_highlightBtn = new QPushButton("高亮");
+    m_highlightBtn = new ElaPushButton("高亮");
     m_highlightBtn->setCheckable(true);
     m_highlightBtn->setToolTip("文本高亮");
     m_highlightBtn->setProperty("tool",
                                 static_cast<int>(AnnotationType::Highlight));
 
-    m_noteBtn = new QPushButton("便签");
+    m_noteBtn = new ElaPushButton("便签");
     m_noteBtn->setCheckable(true);
     m_noteBtn->setToolTip("添加便签");
     m_noteBtn->setProperty("tool", static_cast<int>(AnnotationType::Note));
 
-    m_freeTextBtn = new QPushButton("文本");
+    m_freeTextBtn = new ElaPushButton("文本");
     m_freeTextBtn->setCheckable(true);
     m_freeTextBtn->setToolTip("自由文本");
     m_freeTextBtn->setProperty("tool",
                                static_cast<int>(AnnotationType::FreeText));
 
-    m_underlineBtn = new QPushButton("下划线");
+    m_underlineBtn = new ElaPushButton("下划线");
     m_underlineBtn->setCheckable(true);
     m_underlineBtn->setToolTip("文本下划线");
     m_underlineBtn->setProperty("tool",
                                 static_cast<int>(AnnotationType::Underline));
 
-    m_strikeOutBtn = new QPushButton("删除线");
+    m_strikeOutBtn = new ElaPushButton("删除线");
     m_strikeOutBtn->setCheckable(true);
     m_strikeOutBtn->setToolTip("文本删除线");
     m_strikeOutBtn->setProperty("tool",
                                 static_cast<int>(AnnotationType::StrikeOut));
 
-    m_rectangleBtn = new QPushButton("矩形");
+    m_rectangleBtn = new ElaPushButton("矩形");
     m_rectangleBtn->setCheckable(true);
     m_rectangleBtn->setToolTip("绘制矩形");
     m_rectangleBtn->setProperty("tool",
                                 static_cast<int>(AnnotationType::Rectangle));
 
-    m_circleBtn = new QPushButton("圆形");
+    m_circleBtn = new ElaPushButton("圆形");
     m_circleBtn->setCheckable(true);
     m_circleBtn->setToolTip("绘制圆形");
     m_circleBtn->setProperty("tool", static_cast<int>(AnnotationType::Circle));
 
-    m_lineBtn = new QPushButton("直线");
+    m_lineBtn = new ElaPushButton("直线");
     m_lineBtn->setCheckable(true);
     m_lineBtn->setToolTip("绘制直线");
     m_lineBtn->setProperty("tool", static_cast<int>(AnnotationType::Line));
 
-    m_arrowBtn = new QPushButton("箭头");
+    m_arrowBtn = new ElaPushButton("箭头");
     m_arrowBtn->setCheckable(true);
     m_arrowBtn->setToolTip("绘制箭头");
     m_arrowBtn->setProperty("tool", static_cast<int>(AnnotationType::Arrow));
 
-    m_inkBtn = new QPushButton("手绘");
+    m_inkBtn = new ElaPushButton("手绘");
     m_inkBtn->setCheckable(true);
     m_inkBtn->setToolTip("自由手绘");
     m_inkBtn->setProperty("tool", static_cast<int>(AnnotationType::Ink));
@@ -133,8 +133,8 @@ void AnnotationToolbar::setupUI() {
 
     // Color selection
     auto* colorLayout = new QHBoxLayout();
-    colorLayout->addWidget(new QLabel("颜色:"));
-    m_colorButton = new QPushButton();
+    colorLayout->addWidget(new ElaText("颜色:"));
+    m_colorButton = new ElaPushButton();
     m_colorButton->setMinimumSize(40, 25);
     m_colorButton->setMaximumSize(40, 25);
     m_colorButton->setStyleSheet("border: 1px solid gray;");
@@ -144,9 +144,9 @@ void AnnotationToolbar::setupUI() {
 
     // Opacity control
     auto* opacityLayout = new QHBoxLayout();
-    m_opacityLabel = new QLabel("透明度: 70%");
+    m_opacityLabel = new ElaText("透明度: 70%");
     opacityLayout->addWidget(m_opacityLabel);
-    m_opacitySlider = new QSlider(Qt::Horizontal);
+    m_opacitySlider = new ElaSlider(Qt::Horizontal);
     m_opacitySlider->setRange(10, 100);
     m_opacitySlider->setValue(70);
     opacityLayout->addWidget(m_opacitySlider);
@@ -154,9 +154,9 @@ void AnnotationToolbar::setupUI() {
 
     // Line width control
     auto* lineWidthLayout = new QHBoxLayout();
-    m_lineWidthLabel = new QLabel("线宽:");
+    m_lineWidthLabel = new ElaText("线宽:");
     lineWidthLayout->addWidget(m_lineWidthLabel);
-    m_lineWidthSpinBox = new QSpinBox();
+    m_lineWidthSpinBox = new ElaSpinBox();
     m_lineWidthSpinBox->setRange(1, 10);
     m_lineWidthSpinBox->setValue(2);
     m_lineWidthSpinBox->setSuffix(" px");
@@ -166,9 +166,9 @@ void AnnotationToolbar::setupUI() {
 
     // Font size control
     auto* fontSizeLayout = new QHBoxLayout();
-    m_fontSizeLabel = new QLabel("字号:");
+    m_fontSizeLabel = new ElaText("字号:");
     fontSizeLayout->addWidget(m_fontSizeLabel);
-    m_fontSizeSpinBox = new QSpinBox();
+    m_fontSizeSpinBox = new ElaSpinBox();
     m_fontSizeSpinBox->setRange(8, 72);
     m_fontSizeSpinBox->setValue(12);
     m_fontSizeSpinBox->setSuffix(" pt");
@@ -178,9 +178,9 @@ void AnnotationToolbar::setupUI() {
 
     // Font family control
     auto* fontFamilyLayout = new QHBoxLayout();
-    m_fontFamilyLabel = new QLabel("字体:");
+    m_fontFamilyLabel = new ElaText("字体:");
     fontFamilyLayout->addWidget(m_fontFamilyLabel);
-    m_fontFamilyCombo = new QComboBox();
+    m_fontFamilyCombo = new ElaComboBox();
     m_fontFamilyCombo->addItems(QFontDatabase::families());
     m_fontFamilyCombo->setCurrentText("Arial");
     fontFamilyLayout->addWidget(m_fontFamilyCombo);
@@ -190,17 +190,17 @@ void AnnotationToolbar::setupUI() {
     m_actionsGroup = new QGroupBox("操作", this);
     m_actionsLayout = new QHBoxLayout(m_actionsGroup);
 
-    m_clearAllBtn = new QPushButton("清除全部");
+    m_clearAllBtn = new ElaPushButton("清除全部");
     m_clearAllBtn->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_DialogDiscardButton));
     m_clearAllBtn->setToolTip("清除所有注释");
 
-    m_saveBtn = new QPushButton("保存");
+    m_saveBtn = new ElaPushButton("保存");
     m_saveBtn->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_DialogSaveButton));
     m_saveBtn->setToolTip("保存注释到文档");
 
-    m_loadBtn = new QPushButton("加载");
+    m_loadBtn = new ElaPushButton("加载");
     m_loadBtn->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_DialogOpenButton));
     m_loadBtn->setToolTip("从文档加载注释");
@@ -226,7 +226,7 @@ void AnnotationToolbar::setupConnections() {
             &AnnotationToolbar::onToolButtonClicked);
 
     // Color selection
-    connect(m_colorButton, &QPushButton::clicked, this,
+    connect(m_colorButton, &ElaPushButton::clicked, this,
             &AnnotationToolbar::onColorButtonClicked);
 
     // Property controls

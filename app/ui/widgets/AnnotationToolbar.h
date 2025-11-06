@@ -4,17 +4,17 @@
 #include <QActionGroup>
 #include <QButtonGroup>
 #include <QColorDialog>
-#include <QComboBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
-#include <QLabel>
-#include <QPushButton>
-#include <QSlider>
-#include <QSpinBox>
 #include <QToolBar>
 #include <QVBoxLayout>
 #include <QWidget>
 #include "../../model/AnnotationModel.h"
+#include "ElaComboBox.h"
+#include "ElaPushButton.h"
+#include "ElaSlider.h"
+#include "ElaSpinBox.h"
+#include "ElaText.h"
 
 /**
  * Toolbar for annotation tools and controls
@@ -81,43 +81,43 @@ private:
     QHBoxLayout* m_toolLayout;
     QButtonGroup* m_toolButtonGroup;
 
-    QPushButton* m_highlightBtn;
-    QPushButton* m_noteBtn;
-    QPushButton* m_freeTextBtn;
-    QPushButton* m_underlineBtn;
-    QPushButton* m_strikeOutBtn;
-    QPushButton* m_rectangleBtn;
-    QPushButton* m_circleBtn;
-    QPushButton* m_lineBtn;
-    QPushButton* m_arrowBtn;
-    QPushButton* m_inkBtn;
+    ElaPushButton* m_highlightBtn;
+    ElaPushButton* m_noteBtn;
+    ElaPushButton* m_freeTextBtn;
+    ElaPushButton* m_underlineBtn;
+    ElaPushButton* m_strikeOutBtn;
+    ElaPushButton* m_rectangleBtn;
+    ElaPushButton* m_circleBtn;
+    ElaPushButton* m_lineBtn;
+    ElaPushButton* m_arrowBtn;
+    ElaPushButton* m_inkBtn;
 
     // Properties
     QGroupBox* m_propertiesGroup;
     QVBoxLayout* m_propertiesLayout;
 
-    QPushButton* m_colorButton;
+    ElaPushButton* m_colorButton;
     QColorDialog* m_colorDialog;
 
-    QLabel* m_opacityLabel;
-    QSlider* m_opacitySlider;
+    ElaText* m_opacityLabel;
+    ElaSlider* m_opacitySlider;
 
-    QLabel* m_lineWidthLabel;
-    QSpinBox* m_lineWidthSpinBox;
+    ElaText* m_lineWidthLabel;
+    ElaSpinBox* m_lineWidthSpinBox;
 
-    QLabel* m_fontSizeLabel;
-    QSpinBox* m_fontSizeSpinBox;
+    ElaText* m_fontSizeLabel;
+    ElaSpinBox* m_fontSizeSpinBox;
 
-    QLabel* m_fontFamilyLabel;
-    QComboBox* m_fontFamilyCombo;
+    ElaText* m_fontFamilyLabel;
+    ElaComboBox* m_fontFamilyCombo;
 
     // Actions
     QGroupBox* m_actionsGroup;
     QHBoxLayout* m_actionsLayout;
 
-    QPushButton* m_clearAllBtn;
-    QPushButton* m_saveBtn;
-    QPushButton* m_loadBtn;
+    ElaPushButton* m_clearAllBtn;
+    ElaPushButton* m_saveBtn;
+    ElaPushButton* m_loadBtn;
 
     // Current state
     AnnotationType m_currentTool;

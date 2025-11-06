@@ -3,6 +3,7 @@
 #include <QClipboard>
 #include <QDebug>
 #include <QFileDialog>
+#include <QMenu>
 #include <QMessageBox>
 #include <QStandardPaths>
 #include "../../logging/LoggingMacros.h"
@@ -57,7 +58,7 @@ void ContextMenuManager::showDocumentViewerMenu(const QPoint& position,
 
     m_currentDocumentContext = context;
 
-    QMenu* menu = createDocumentViewerMenu(context, parent);
+    ElaMenu* menu = createDocumentViewerMenu(context, parent);
     if (menu) {
         applyMenuStyling(menu);
         menu->exec(position);
@@ -78,7 +79,7 @@ void ContextMenuManager::showDocumentTabMenu(const QPoint& position,
 
     m_currentUIContext = context;
 
-    QMenu* menu = createDocumentTabMenu(tabIndex, context, parent);
+    ElaMenu* menu = createDocumentTabMenu(tabIndex, context, parent);
     if (menu) {
         applyMenuStyling(menu);
         menu->exec(position);
@@ -97,7 +98,7 @@ void ContextMenuManager::showSidebarMenu(const QPoint& position,
 
     m_currentUIContext = context;
 
-    QMenu* menu = createSidebarMenu(menuType, context, parent);
+    ElaMenu* menu = createSidebarMenu(menuType, context, parent);
     if (menu) {
         applyMenuStyling(menu);
         menu->exec(position);
@@ -115,7 +116,7 @@ void ContextMenuManager::showToolbarMenu(const QPoint& position,
 
     m_currentUIContext = context;
 
-    QMenu* menu = createToolbarMenu(context, parent);
+    ElaMenu* menu = createToolbarMenu(context, parent);
     if (menu) {
         applyMenuStyling(menu);
         menu->exec(position);
@@ -133,7 +134,7 @@ void ContextMenuManager::showSearchMenu(const QPoint& position,
 
     m_currentUIContext = context;
 
-    QMenu* menu = createSearchMenu(context, parent);
+    ElaMenu* menu = createSearchMenu(context, parent);
     if (menu) {
         applyMenuStyling(menu);
         menu->exec(position);
@@ -152,7 +153,7 @@ void ContextMenuManager::showStatusBarMenu(const QPoint& position,
 
     m_currentUIContext = context;
 
-    QMenu* menu = createStatusBarMenu(context, parent);
+    ElaMenu* menu = createStatusBarMenu(context, parent);
     if (menu) {
         applyMenuStyling(menu);
         menu->exec(position);
@@ -171,7 +172,7 @@ void ContextMenuManager::showRightSidebarMenu(const QPoint& position,
 
     m_currentUIContext = context;
 
-    QMenu* menu = createRightSidebarMenu(context, parent);
+    ElaMenu* menu = createRightSidebarMenu(context, parent);
     if (menu) {
         applyMenuStyling(menu);
         menu->exec(position);
@@ -179,9 +180,9 @@ void ContextMenuManager::showRightSidebarMenu(const QPoint& position,
     }
 }
 
-QMenu* ContextMenuManager::createDocumentViewerMenu(
+ElaMenu* ContextMenuManager::createDocumentViewerMenu(
     const DocumentContext& context, QWidget* parent) {
-    QMenu* menu = new QMenu(parent);
+    ElaMenu* menu = new ElaMenu(parent);
     menu->setTitle(tr("Document"));
 
     // Copy operations
@@ -202,19 +203,19 @@ QMenu* ContextMenuManager::createDocumentViewerMenu(
 
     // Page operations submenu
     if (context.hasDocument) {
-        QMenu* pageSubmenu = createPageSubmenu(menu, context);
+        ElaMenu* pageSubmenu = createPageSubmenu(menu, context);
         menu->addMenu(pageSubmenu);
     }
 
     // Zoom operations submenu
     if (context.hasDocument && context.canZoom) {
-        QMenu* zoomSubmenu = createZoomSubmenu(menu, context);
+        ElaMenu* zoomSubmenu = createZoomSubmenu(menu, context);
         menu->addMenu(zoomSubmenu);
     }
 
     // View operations submenu
     if (context.hasDocument) {
-        QMenu* viewSubmenu = createViewSubmenu(menu, context);
+        ElaMenu* viewSubmenu = createViewSubmenu(menu, context);
         menu->addMenu(viewSubmenu);
     }
 
@@ -248,9 +249,9 @@ QMenu* ContextMenuManager::createDocumentViewerMenu(
     return menu;
 }
 
-QMenu* ContextMenuManager::createZoomSubmenu(QMenu* parent,
-                                             const DocumentContext& context) {
-    QMenu* zoomMenu = new QMenu(tr("Zoom"), parent);
+ElaMenu* ContextMenuManager::createZoomSubmenu(ElaMenu* parent,
+                                               const DocumentContext& context) {
+    ElaMenu* zoomMenu = new ElaMenu(tr("Zoom"), parent);
 
     QAction* zoomInAction = zoomMenu->addAction(tr("Zoom In"));
     zoomInAction->setShortcut(QKeySequence::ZoomIn);
@@ -308,9 +309,9 @@ QMenu* ContextMenuManager::createZoomSubmenu(QMenu* parent,
     return zoomMenu;
 }
 
-QMenu* ContextMenuManager::createPageSubmenu(QMenu* parent,
-                                             const DocumentContext& context) {
-    QMenu* pageMenu = new QMenu(tr("Page"), parent);
+ElaMenu* ContextMenuManager::createPageSubmenu(ElaMenu* parent,
+                                               const DocumentContext& context) {
+    ElaMenu* pageMenu = new ElaMenu(tr("Page"), parent);
 
     QAction* firstPageAction = pageMenu->addAction(tr("First Page"));
     firstPageAction->setShortcut(QKeySequence("Ctrl+Home"));
@@ -351,11 +352,11 @@ QMenu* ContextMenuManager::createPageSubmenu(QMenu* parent,
     return pageMenu;
 }
 
-QMenu* ContextMenuManager::createViewSubmenu(QMenu* parent,
-                                             const DocumentContext& context) {
+ElaMenu* ContextMenuManager::createViewSubmenu(ElaMenu* parent,
+                                               const DocumentContext& context) {
     Q_UNUSED(context)
 
-    QMenu* viewMenu = new QMenu(tr("View"), parent);
+    ElaMenu* viewMenu = new ElaMenu(tr("View"), parent);
 
     QAction* singlePageAction = viewMenu->addAction(tr("Single Page"));
     singlePageAction->setCheckable(true);
@@ -381,9 +382,9 @@ QMenu* ContextMenuManager::createViewSubmenu(QMenu* parent,
     return viewMenu;
 }
 
-QMenu* ContextMenuManager::createDocumentTabMenu(
+ElaMenu* ContextMenuManager::createDocumentTabMenu(
     int tabIndex, const UIElementContext& context, QWidget* parent) {
-    QMenu* menu = new QMenu(parent);
+    ElaMenu* menu = new ElaMenu(parent);
     menu->setTitle(tr("Tab"));
 
     // Store tab index in context for actions
@@ -427,7 +428,7 @@ QMenu* ContextMenuManager::createDocumentTabMenu(
     menu->addSeparator();
 
     // Recent files submenu
-    QMenu* recentMenu = new QMenu(tr("Recent Files"), menu);
+    ElaMenu* recentMenu = new ElaMenu(tr("Recent Files"), menu);
 
     // Add placeholder for recent files (would be populated from recent files
     // manager)
@@ -455,16 +456,16 @@ QMenu* ContextMenuManager::createDocumentTabMenu(
     return menu;
 }
 
-QMenu* ContextMenuManager::createSidebarMenu(MenuType menuType,
-                                             const UIElementContext& context,
-                                             QWidget* parent) {
-    QMenu* menu = new QMenu(parent);
+ElaMenu* ContextMenuManager::createSidebarMenu(MenuType menuType,
+                                               const UIElementContext& context,
+                                               QWidget* parent) {
+    ElaMenu* menu = new ElaMenu(parent);
 
     if (menuType == MenuType::SidebarThumbnail) {
         menu->setTitle(tr("Thumbnails"));
 
         // Thumbnail size options
-        QMenu* sizeMenu = new QMenu(tr("Thumbnail Size"), menu);
+        ElaMenu* sizeMenu = new ElaMenu(tr("Thumbnail Size"), menu);
 
         QStringList sizes = {"Small", "Medium", "Large", "Extra Large"};
         QList<QSize> sizeValues = {QSize(80, 100), QSize(120, 160),
@@ -571,11 +572,11 @@ QMenu* ContextMenuManager::createSidebarMenu(MenuType menuType,
 
     return menu;
 }
-QMenu* ContextMenuManager::createToolbarMenu(const UIElementContext& context,
-                                             QWidget* parent) {
+ElaMenu* ContextMenuManager::createToolbarMenu(const UIElementContext& context,
+                                               QWidget* parent) {
     Q_UNUSED(context)
 
-    QMenu* menu = new QMenu(parent);
+    ElaMenu* menu = new ElaMenu(parent);
     menu->setTitle(tr("Toolbar"));
 
     // Toolbar customization
@@ -608,11 +609,11 @@ QMenu* ContextMenuManager::createToolbarMenu(const UIElementContext& context,
     return menu;
 }
 
-QMenu* ContextMenuManager::createSearchMenu(const UIElementContext& context,
-                                            QWidget* parent) {
+ElaMenu* ContextMenuManager::createSearchMenu(const UIElementContext& context,
+                                              QWidget* parent) {
     Q_UNUSED(context)
 
-    QMenu* menu = new QMenu(parent);
+    ElaMenu* menu = new ElaMenu(parent);
     menu->setTitle(tr("Search"));
 
     // Search options
@@ -637,7 +638,7 @@ QMenu* ContextMenuManager::createSearchMenu(const UIElementContext& context,
     menu->addSeparator();
 
     // Search history
-    QMenu* historyMenu = new QMenu(tr("Search History"), menu);
+    ElaMenu* historyMenu = new ElaMenu(tr("Search History"), menu);
 
     QAction* clearHistoryAction = historyMenu->addAction(tr("Clear History"));
     m_customActionMap[clearHistoryAction] = "clearSearchHistory";
@@ -657,11 +658,11 @@ QMenu* ContextMenuManager::createSearchMenu(const UIElementContext& context,
     return menu;
 }
 
-QMenu* ContextMenuManager::createStatusBarMenu(const UIElementContext& context,
-                                               QWidget* parent) {
+ElaMenu* ContextMenuManager::createStatusBarMenu(
+    const UIElementContext& context, QWidget* parent) {
     Q_UNUSED(context)
 
-    QMenu* menu = new QMenu(parent);
+    ElaMenu* menu = new ElaMenu(parent);
     menu->setTitle(tr("Status Bar"));
 
     // Status bar elements
@@ -697,11 +698,11 @@ QMenu* ContextMenuManager::createStatusBarMenu(const UIElementContext& context,
     return menu;
 }
 
-QMenu* ContextMenuManager::createRightSidebarMenu(
+ElaMenu* ContextMenuManager::createRightSidebarMenu(
     const UIElementContext& context, QWidget* parent) {
     Q_UNUSED(context)
 
-    QMenu* menu = new QMenu(parent);
+    ElaMenu* menu = new ElaMenu(parent);
     menu->setTitle(tr("Right Sidebar"));
 
     // Panel visibility
@@ -917,6 +918,11 @@ void ContextMenuManager::clearMenuCache() {
     m_actionContextMap.clear();
 
     LOG_DEBUG("ContextMenuManager::clearMenuCache() - Menu cache cleared");
+}
+
+void ContextMenuManager::applyMenuStyling(ElaMenu* menu) {
+    // Delegate to the QMenu* overload for unified handling
+    applyMenuStyling(static_cast<QMenu*>(menu));
 }
 
 void ContextMenuManager::applyMenuStyling(QMenu* menu) {

@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QHash>
+#include <QMetaType>
 #include <QMutex>
 #include <QObject>
 #include <QTimer>
@@ -98,6 +99,8 @@ private:
     class Implementation;
     std::unique_ptr<Implementation> d;
 };
+
+Q_DECLARE_METATYPE(MemoryManager::MemoryStats)
 
 /**
  * Memory-aware search result container

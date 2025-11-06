@@ -1,7 +1,12 @@
 #include <QApplication>
+#include <QComboBox>
 #include <QGuiApplication>
+#include <QLabel>
 #include <QPropertyAnimation>
 #include <QSignalSpy>
+#include <QSlider>
+#include <QSpinBox>
+#include <QToolButton>
 #include <QtTest/QtTest>
 #include "../../app/ui/core/ToolBar.h"
 
@@ -33,7 +38,6 @@ private:
     ToolBar* m_toolbar;
     QWidget* m_parentWidget;
 
-    CollapsibleSection* findSection(const QString& title);
     void waitForAnimation();
 };
 
@@ -53,7 +57,7 @@ void ToolBarIntegrationTest::cleanupTestCase() {
 }
 
 void ToolBarIntegrationTest::init() {
-    m_toolbar = new ToolBar(m_parentWidget);
+    m_toolbar = new ToolBar("Test Toolbar", m_parentWidget);
     m_toolbar->show();
 
     // In offscreen mode, qWaitForWindowExposed() will timeout
@@ -103,7 +107,7 @@ void ToolBarIntegrationTest::testSectionExpandCollapse() {
 void ToolBarIntegrationTest::testSectionExpandCollapseSignals() {
     // In simplified toolbar implementation, test view mode change signals
     // instead
-    QSignalSpy sectionSpy(m_toolbar, &ToolBar::sectionExpandChanged);
+    QSignalSpy viewModeSpy(m_toolbar, &ToolBar::viewModeChanged);
 
     // Find view mode combo and change it
     QComboBox* viewModeCombo = m_toolbar->findChild<QComboBox*>();
@@ -385,19 +389,6 @@ void ToolBarIntegrationTest::testLanguageChangeIntegration() {
             QVERIFY(!viewModeCombo->itemText(i).isEmpty());
         }
     }
-}
-
-CollapsibleSection* ToolBarIntegrationTest::findSection(const QString& title) {
-    QList<CollapsibleSection*> sections =
-        m_toolbar->findChildren<CollapsibleSection*>();
-
-    for (CollapsibleSection* section : sections) {
-        if (section->windowTitle().contains(title, Qt::CaseInsensitive)) {
-            return section;
-        }
-    }
-
-    return nullptr;
 }
 
 void ToolBarIntegrationTest::waitForAnimation() {

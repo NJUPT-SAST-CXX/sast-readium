@@ -34,7 +34,7 @@ protected:
         testPdfFile.setFileTemplate(
             QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
             "/test_XXXXXX.pdf");
-        testPdfFile.open();
+        ASSERT_TRUE(testPdfFile.open());
 
         // Write PDF content with actual content
         QByteArray pdfContent =

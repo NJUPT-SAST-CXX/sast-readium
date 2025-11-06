@@ -16,8 +16,28 @@ public:
     }
 
     ~Implementation() {
+        // Stop accepting callbacks and cancel queued tasks
         cancelAllTasks();
         threadPool.waitForDone(5000);
+
+        // Ensure all watchers are destroyed deterministically to avoid
+        // deleteLater() during shutdown when the event loop is gone
+        QList<QFutureWatcherBase*> toDelete;
+        {
+            QMutexLocker locker(&futuresMutex);
+            toDelete = activeWatchers;
+            activeWatchers.clear();
+        }
+        for (auto* watcher : toDelete) {
+            if (!watcher)
+                continue;
+            watcher->disconnect();
+            // Best-effort cancel; tasks should already be done by now
+            if (!watcher->isFinished()) {
+                watcher->cancel();
+            }
+            delete watcher;  // direct delete is safe here
+        }
     }
 
     void cancelAllTasks() {
@@ -44,7 +64,16 @@ public:
     void removeWatcher(QFutureWatcherBase* watcher) {
         QMutexLocker locker(&futuresMutex);
         activeWatchers.removeAll(watcher);
-        watcher->deleteLater();
+        // Avoid deleteLater() which can crash if the event loop is shutting
+        // down
+        if (QCoreApplication::closingDown()) {
+            locker.unlock();
+            watcher->disconnect();
+            delete watcher;
+        } else {
+            locker.unlock();
+            watcher->deleteLater();
+        }
     }
 
     void checkAllTasksFinished() {

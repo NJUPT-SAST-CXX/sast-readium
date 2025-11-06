@@ -303,6 +303,7 @@ Doxyfile.bak
 dist/
 release/
 deploy/
+package/
 
 # =============================================================================
 # Miscellaneous

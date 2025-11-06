@@ -62,6 +62,17 @@ DocumentModel::DocumentModel() : currentDocumentIndex(-1) {
             &DocumentModel::loadingFailed);
 }
 
+DocumentModel::~DocumentModel() {
+    LOG_DEBUG("DocumentModel: Destructor called");
+    // Proactively disconnect to avoid late signal deliveries during teardown
+    disconnect(this, nullptr, nullptr, nullptr);
+    if (asyncLoader) {
+        asyncLoader->disconnect(this);
+        asyncLoader->cancelLoading();
+        // let QObject parent-child delete handle actual deletion
+    }
+}
+
 bool DocumentModel::openFromFile(const QString& filePath) {
     using namespace ErrorHandling;
     using namespace ErrorRecovery;

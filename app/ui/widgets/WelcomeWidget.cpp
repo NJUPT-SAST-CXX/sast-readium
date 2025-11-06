@@ -8,6 +8,7 @@
 #include <QFrame>
 #include <QGraphicsOpacityEffect>
 #include <QGridLayout>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -33,6 +34,8 @@
 #include "../../managers/RecentFilesManager.h"
 #include "../../managers/StyleManager.h"
 #include "../managers/WelcomeScreenManager.h"
+#include "ElaPushButton.h"
+#include "ElaText.h"
 #include "RecentFileListWidget.h"
 #include "TutorialCard.h"
 
@@ -59,22 +62,43 @@ WelcomeWidget::WelcomeWidget(QWidget* parent)
       m_actionsLayout(nullptr),
       m_newFileButton(nullptr),
       m_openFileButton(nullptr),
+      m_openFolderButton(nullptr),
       m_recentFilesWidget(nullptr),
       m_recentFilesLayout(nullptr),
       m_recentFilesTitle(nullptr),
       m_recentFilesList(nullptr),
       m_noRecentFilesLabel(nullptr),
+      m_quickActionsWidget(nullptr),
+      m_quickActionsLayout(nullptr),
+      m_tutorialCardsWidget(nullptr),
+      m_tutorialCardsLayout(nullptr),
+      m_tutorialCardsTitle(nullptr),
+      m_tutorialCardsContainer(nullptr),
+      m_tutorialCardsContainerLayout(nullptr),
+      m_tipsWidget(nullptr),
+      m_tipsLayout(nullptr),
+      m_tipsTitle(nullptr),
+      m_currentTipLabel(nullptr),
+      m_nextTipButton(nullptr),
+      m_previousTipButton(nullptr),
+      m_currentTipIndex(0),
+      m_shortcutsWidget(nullptr),
+      m_shortcutsLayout(nullptr),
+      m_shortcutsTitle(nullptr),
+      m_shortcutsListWidget(nullptr),
       m_separatorLine(nullptr),
+      m_separatorLine2(nullptr),
+      m_separatorLine3(nullptr),
       m_recentFilesManager(nullptr),
       m_welcomeScreenManager(nullptr),
       m_onboardingManager(nullptr),
       m_commandManager(nullptr),
-      m_settings(nullptr),
       m_opacityEffect(nullptr),
       m_fadeAnimation(nullptr),
       m_refreshTimer(nullptr),
       m_isInitialized(false),
-      m_isVisible(false) {
+      m_isVisible(false),
+      m_settings(nullptr) {
     LOG_DEBUG("WelcomeWidget: Initializing...");
 
     // 设置基本属性
@@ -689,9 +713,9 @@ void WelcomeWidget::setupLogo() {
     m_logoLabel->setScaledContents(true);
 
     // 应用程序标题
-    m_titleLabel = new QLabel(QApplication::applicationDisplayName().isEmpty()
-                                  ? "SAST Readium"
-                                  : QApplication::applicationDisplayName());
+    m_titleLabel = new ElaText(QApplication::applicationDisplayName().isEmpty()
+                                   ? "SAST Readium"
+                                   : QApplication::applicationDisplayName());
     m_titleLabel->setObjectName("WelcomeTitleLabel");
     m_titleLabel->setAlignment(Qt::AlignCenter);
 
@@ -700,7 +724,7 @@ void WelcomeWidget::setupLogo() {
     if (version.isEmpty()) {
         version = "1.0.0";
     }
-    m_versionLabel = new QLabel(QString("Version %1").arg(version));
+    m_versionLabel = new ElaText(QString("Version %1").arg(version));
     m_versionLabel->setObjectName("WelcomeVersionLabel");
     m_versionLabel->setAlignment(Qt::AlignCenter);
 
@@ -783,18 +807,18 @@ void WelcomeWidget::setupActions() {
                                              SPACING_SMALL, SPACING_SMALL);
 
     // Primary action - Open File (most common action)
-    m_openFileButton = new QPushButton(tr("Open File..."));
+    m_openFileButton = new ElaPushButton(tr("Open File..."));
     m_openFileButton->setObjectName("WelcomeOpenFileButton");
     m_openFileButton->setCursor(Qt::PointingHandCursor);
     m_openFileButton->setProperty("buttonRole", "primary");  // For styling
 
     // Secondary actions
-    m_newFileButton = new QPushButton(tr("New File"));
+    m_newFileButton = new ElaPushButton(tr("New File"));
     m_newFileButton->setObjectName("WelcomeNewFileButton");
     m_newFileButton->setCursor(Qt::PointingHandCursor);
     m_newFileButton->setProperty("buttonRole", "secondary");
 
-    m_openFolderButton = new QPushButton(tr("Open Folder..."));
+    m_openFolderButton = new ElaPushButton(tr("Open Folder..."));
     m_openFolderButton->setObjectName("WelcomeOpenFolderButton");
     m_openFolderButton->setCursor(Qt::PointingHandCursor);
     m_openFolderButton->setProperty("buttonRole", "secondary");
@@ -808,8 +832,8 @@ void WelcomeWidget::setupActions() {
     actionsContainerLayout->addWidget(primaryActionsWidget, 0, Qt::AlignCenter);
 
     // Add keyboard shortcut hints for better UX
-    QLabel* shortcutsHint =
-        new QLabel(tr("Quick access: Ctrl+O to open, Ctrl+N for new file"));
+    ElaText* shortcutsHint =
+        new ElaText(tr("Quick access: Ctrl+O to open, Ctrl+N for new file"));
     shortcutsHint->setObjectName("ShortcutsHintLabel");
     shortcutsHint->setAlignment(Qt::AlignCenter);
     shortcutsHint->setStyleSheet(
@@ -827,7 +851,7 @@ void WelcomeWidget::setupRecentFiles() {
     m_recentFilesLayout->setSpacing(SPACING_SMALL);
 
     // 最近文件标题
-    m_recentFilesTitle = new QLabel(tr("Recent Files"));
+    m_recentFilesTitle = new ElaText(tr("Recent Files"));
     m_recentFilesTitle->setObjectName("WelcomeRecentFilesTitle");
     m_recentFilesTitle->setAlignment(Qt::AlignLeft);
 
@@ -836,7 +860,7 @@ void WelcomeWidget::setupRecentFiles() {
     m_recentFilesList->setObjectName("WelcomeRecentFilesList");
 
     // 无最近文件标签
-    m_noRecentFilesLabel = new QLabel(tr("No recent files"));
+    m_noRecentFilesLabel = new ElaText(tr("No recent files"));
     m_noRecentFilesLabel->setObjectName("WelcomeNoRecentFilesLabel");
     m_noRecentFilesLabel->setAlignment(Qt::AlignCenter);
     m_noRecentFilesLabel->setVisible(false);
@@ -889,24 +913,53 @@ void WelcomeWidget::setupTutorialCards() {
         return;
     }
 
-    // Clear existing layout if it exists
-    if (m_tutorialCardsLayout) {
-        QLayoutItem* item;
+    qDebug() << "WelcomeWidget: setupTutorialCards invoked"
+             << QGuiApplication::platformName();
+
+    const bool isOffscreen =
+        (QGuiApplication::platformName() == QStringLiteral("offscreen"));
+    qDebug() << "WelcomeWidget: setupTutorialCards isOffscreen=" << isOffscreen;
+
+    auto ensureLayout = [this]() {
+        if (!m_tutorialCardsLayout) {
+            m_tutorialCardsLayout = new QVBoxLayout(m_tutorialCardsWidget);
+            m_tutorialCardsLayout->setContentsMargins(0, 0, 0, 0);
+            m_tutorialCardsLayout->setSpacing(SPACING_MEDIUM);
+        }
+
+        QLayoutItem* item = nullptr;
         while ((item = m_tutorialCardsLayout->takeAt(0)) != nullptr) {
-            delete item->widget();
+            if (QWidget* widget = item->widget()) {
+                widget->deleteLater();
+            }
             delete item;
         }
-        delete m_tutorialCardsLayout;
-    }
+    };
 
-    m_tutorialCardsLayout = new QVBoxLayout(m_tutorialCardsWidget);
-    m_tutorialCardsLayout->setContentsMargins(0, 0, 0, 0);
-    m_tutorialCardsLayout->setSpacing(SPACING_MEDIUM);
+    ensureLayout();
+
+    m_tutorialCardsTitle = nullptr;
+    m_tutorialCardsContainer = nullptr;
+    m_tutorialCardsContainerLayout = nullptr;
 
     // Title
-    m_tutorialCardsTitle = new QLabel(tr("Interactive Tutorials"));
+    m_tutorialCardsTitle = new ElaText(tr("Interactive Tutorials"));
     m_tutorialCardsTitle->setObjectName("WelcomeTutorialCardsTitle");
     m_tutorialCardsTitle->setAlignment(Qt::AlignLeft);
+
+    if (isOffscreen) {
+        qDebug() << "WelcomeWidget: setupTutorialCards offscreen placeholder";
+        m_tutorialCardsLayout->addWidget(m_tutorialCardsTitle);
+
+        auto* placeholder =
+            new ElaText(tr("Interactive tutorials are available when running "
+                           "with full UI support."));
+        placeholder->setObjectName("WelcomeTutorialCardsPlaceholder");
+        placeholder->setWordWrap(true);
+        placeholder->setAlignment(Qt::AlignLeft);
+        m_tutorialCardsLayout->addWidget(placeholder);
+        return;
+    }
 
     // Container for cards
     m_tutorialCardsContainer = new QWidget();
@@ -962,8 +1015,8 @@ void WelcomeWidget::setupTutorialCards() {
                            tr("Speed up your workflow with shortcuts"),
                            QString(":/icons/tutorial"));
 
-        QLabel* noManagerLabel =
-            new QLabel(tr("Advanced tutorials require tutorial system"));
+        ElaText* noManagerLabel =
+            new ElaText(tr("Advanced tutorials require tutorial system"));
         noManagerLabel->setObjectName("NoManagerLabel");
         noManagerLabel->setAlignment(Qt::AlignCenter);
         noManagerLabel->setStyleSheet(
@@ -975,7 +1028,8 @@ void WelcomeWidget::setupTutorialCards() {
     m_tutorialCardsLayout->addWidget(m_tutorialCardsContainer);
 
     // Start tour button
-    QPushButton* startTourBtn = new QPushButton(tr("Start Interactive Tour"));
+    ElaPushButton* startTourBtn =
+        new ElaPushButton(tr("Start Interactive Tour"));
     startTourBtn->setObjectName("WelcomeStartTourButton");
     startTourBtn->setCursor(Qt::PointingHandCursor);
     startTourBtn->setEnabled(m_onboardingManager != nullptr);
@@ -1002,7 +1056,7 @@ void WelcomeWidget::setupTipsSection() {
     m_tipsLayout->setSpacing(SPACING_SMALL);
 
     // Title
-    m_tipsTitle = new QLabel(tr("Tips & Tricks"));
+    m_tipsTitle = new ElaText(tr("Tips & Tricks"));
     m_tipsTitle->setObjectName("WelcomeTipsTitle");
     m_tipsTitle->setAlignment(Qt::AlignLeft);
 
@@ -1021,15 +1075,15 @@ void WelcomeWidget::setupTipsSection() {
     m_currentTipIndex = 0;
 
     // Current tip label
-    m_currentTipLabel = new QLabel(m_tips[m_currentTipIndex]);
+    m_currentTipLabel = new ElaText(m_tips[m_currentTipIndex]);
     m_currentTipLabel->setObjectName("WelcomeCurrentTipLabel");
     m_currentTipLabel->setWordWrap(true);
     m_currentTipLabel->setAlignment(Qt::AlignLeft);
 
     // Navigation buttons
     QHBoxLayout* tipNavLayout = new QHBoxLayout();
-    m_previousTipButton = new QPushButton(tr("Previous Tip"));
-    m_nextTipButton = new QPushButton(tr("Next Tip"));
+    m_previousTipButton = new ElaPushButton(tr("Previous Tip"));
+    m_nextTipButton = new ElaPushButton(tr("Next Tip"));
 
     connect(m_previousTipButton, &QPushButton::clicked, [this]() {
         if (--m_currentTipIndex < 0) {
@@ -1064,7 +1118,7 @@ void WelcomeWidget::setupKeyboardShortcuts() {
     m_shortcutsLayout->setSpacing(SPACING_SMALL);
 
     // Title
-    m_shortcutsTitle = new QLabel(tr("Keyboard Shortcuts"));
+    m_shortcutsTitle = new ElaText(tr("Keyboard Shortcuts"));
     m_shortcutsTitle->setObjectName("WelcomeShortcutsTitle");
     m_shortcutsTitle->setAlignment(Qt::AlignLeft);
 
@@ -1087,8 +1141,8 @@ void WelcomeWidget::setupKeyboardShortcuts() {
 
     int row = 0;
     for (const auto& shortcut : shortcuts) {
-        QLabel* keysLabel = new QLabel(shortcut.keys);
-        QLabel* descLabel = new QLabel(shortcut.description);
+        ElaText* keysLabel = new ElaText(shortcut.keys);
+        ElaText* descLabel = new ElaText(shortcut.description);
         keysLabel->setObjectName("ShortcutKeys");
         descLabel->setObjectName("ShortcutDescription");
         shortcutsGrid->addWidget(keysLabel, row, 0);
@@ -1097,7 +1151,7 @@ void WelcomeWidget::setupKeyboardShortcuts() {
     }
 
     // Learn more button
-    QPushButton* learnMoreBtn = new QPushButton(tr("Learn More Shortcuts"));
+    ElaPushButton* learnMoreBtn = new ElaPushButton(tr("Learn More Shortcuts"));
     learnMoreBtn->setObjectName("WelcomeLearnShortcutsButton");
     connect(learnMoreBtn, &QPushButton::clicked, this,
             &WelcomeWidget::onKeyboardShortcutClicked);
@@ -1432,8 +1486,8 @@ void WelcomeWidget::refreshShortcuts() {
     for (int i = 0; i < maxShortcuts; ++i) {
         const auto& shortcut = shortcuts[i];
 
-        QLabel* keysLabel = new QLabel(shortcut.first);
-        QLabel* descLabel = new QLabel(shortcut.second);
+        ElaText* keysLabel = new ElaText(shortcut.first);
+        ElaText* descLabel = new ElaText(shortcut.second);
 
         keysLabel->setObjectName("ShortcutKeys");
         descLabel->setObjectName("ShortcutDescription");

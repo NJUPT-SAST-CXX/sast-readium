@@ -1,7 +1,8 @@
 #pragma once
 
 #include <QAction>
-#include <QMenu>
+#include "ElaMenu.h"
+class QMenu;
 #include <QObject>
 #include <QPoint>
 #include <QWidget>
@@ -216,8 +217,8 @@ private:
      * @param parent Parent widget
      * @return Created menu
      */
-    QMenu* createDocumentViewerMenu(const DocumentContext& context,
-                                    QWidget* parent);
+    ElaMenu* createDocumentViewerMenu(const DocumentContext& context,
+                                      QWidget* parent);
 
     /**
      * @brief Create document tab context menu
@@ -226,8 +227,9 @@ private:
      * @param parent Parent widget
      * @return Created menu
      */
-    QMenu* createDocumentTabMenu(int tabIndex, const UIElementContext& context,
-                                 QWidget* parent);
+    ElaMenu* createDocumentTabMenu(int tabIndex,
+                                   const UIElementContext& context,
+                                   QWidget* parent);
 
     /**
      * @brief Create sidebar context menu
@@ -236,8 +238,9 @@ private:
      * @param parent Parent widget
      * @return Created menu
      */
-    QMenu* createSidebarMenu(MenuType menuType, const UIElementContext& context,
-                             QWidget* parent);
+    ElaMenu* createSidebarMenu(MenuType menuType,
+                               const UIElementContext& context,
+                               QWidget* parent);
 
     /**
      * @brief Create toolbar context menu
@@ -245,7 +248,8 @@ private:
      * @param parent Parent widget
      * @return Created menu
      */
-    QMenu* createToolbarMenu(const UIElementContext& context, QWidget* parent);
+    ElaMenu* createToolbarMenu(const UIElementContext& context,
+                               QWidget* parent);
 
     /**
      * @brief Create search widget context menu
@@ -253,7 +257,7 @@ private:
      * @param parent Parent widget
      * @return Created menu
      */
-    QMenu* createSearchMenu(const UIElementContext& context, QWidget* parent);
+    ElaMenu* createSearchMenu(const UIElementContext& context, QWidget* parent);
 
     /**
      * @brief Create status bar context menu
@@ -261,8 +265,8 @@ private:
      * @param parent Parent widget
      * @return Created menu
      */
-    QMenu* createStatusBarMenu(const UIElementContext& context,
-                               QWidget* parent);
+    ElaMenu* createStatusBarMenu(const UIElementContext& context,
+                                 QWidget* parent);
 
     /**
      * @brief Create right sidebar context menu
@@ -270,8 +274,8 @@ private:
      * @param parent Parent widget
      * @return Created menu
      */
-    QMenu* createRightSidebarMenu(const UIElementContext& context,
-                                  QWidget* parent);
+    ElaMenu* createRightSidebarMenu(const UIElementContext& context,
+                                    QWidget* parent);
 
     /**
      * @brief Create submenu for zoom operations
@@ -279,7 +283,7 @@ private:
      * @param context Document context
      * @return Created submenu
      */
-    QMenu* createZoomSubmenu(QMenu* parent, const DocumentContext& context);
+    ElaMenu* createZoomSubmenu(ElaMenu* parent, const DocumentContext& context);
 
     /**
      * @brief Create submenu for page operations
@@ -287,7 +291,7 @@ private:
      * @param context Document context
      * @return Created submenu
      */
-    QMenu* createPageSubmenu(QMenu* parent, const DocumentContext& context);
+    ElaMenu* createPageSubmenu(ElaMenu* parent, const DocumentContext& context);
 
     /**
      * @brief Create submenu for view operations
@@ -295,12 +299,13 @@ private:
      * @param context Document context
      * @return Created submenu
      */
-    QMenu* createViewSubmenu(QMenu* parent, const DocumentContext& context);
+    ElaMenu* createViewSubmenu(ElaMenu* parent, const DocumentContext& context);
 
     /**
      * @brief Apply consistent styling to menu
      * @param menu Menu to style
      */
+    void applyMenuStyling(ElaMenu* menu);
     void applyMenuStyling(QMenu* menu);
 
     /**
@@ -335,7 +340,7 @@ private:
 
 private:
     // Menu caching for performance
-    QHash<MenuType, QMenu*> m_menuCache;
+    QHash<MenuType, ElaMenu*> m_menuCache;
 
     // Current context information
     DocumentContext m_currentDocumentContext;

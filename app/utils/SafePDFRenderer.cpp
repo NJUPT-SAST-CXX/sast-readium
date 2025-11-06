@@ -325,6 +325,11 @@ SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkCompatibility(
     return CompatibilityResult::Compatible;
 }
 
+SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkCompatibility(
+    const std::shared_ptr<Poppler::Document>& document) {
+    return checkCompatibility(document.get());
+}
+
 SafePDFRenderer::CompatibilityResult SafePDFRenderer::checkPageCompatibility(
     Poppler::Page* page) {
     if (!page) {

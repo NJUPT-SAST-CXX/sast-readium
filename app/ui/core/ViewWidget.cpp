@@ -1,16 +1,20 @@
 #include "ViewWidget.h"
 #include <QContextMenuEvent>
 #include <QDebug>
-#include <QLabel>
+
 #include <QMessageBox>
-#include <QProgressBar>
+
 #include <QTimer>
 #include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
 #include "../viewer/PDFViewer.h"
 #include "../widgets/SkeletonWidget.h"
 #include "../widgets/ToastNotification.h"
+#include "ElaProgressBar.h"
+#include "ElaText.h"
 #include "UIErrorHandler.h"
+
+#include <memory>
 
 ViewWidget::ViewWidget(QWidget* parent)
     : QWidget(parent),
@@ -72,7 +76,7 @@ void ViewWidget::setupUI() {
     emptyLayout->setContentsMargins(20, 20, 20, 20);  // Padding for empty state
     emptyLayout->setSpacing(0);
 
-    auto* emptyLabel = new QLabel(
+    auto* emptyLabel = new ElaText(
         tr("No PDF documents open\nClick File menu to open a PDF document"),
         emptyWidget);
     emptyLabel->setAlignment(Qt::AlignCenter);
@@ -235,8 +239,10 @@ void ViewWidget::switchToDocument(int index) {
     documentController->switchToDocument(index);
 
     // Restore state for the new document after a short delay to ensure UI is
-    // ready
-    QTimer::singleShot(50, [this, index]() { restoreDocumentState(index); });
+    // ready. Bind timer to this widget as context so it won't fire after
+    // deletion.
+    QTimer::singleShot(50, this,
+                       [this, index]() { restoreDocumentState(index); });
 }
 
 void ViewWidget::goToPage(int pageNumber) {
@@ -254,7 +260,7 @@ void ViewWidget::setCurrentViewMode(int mode) {
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
         PDFViewer* currentViewer = pdfViewers[currentIndex];
         if (currentViewer) {
-            auto viewMode = static_cast<PDFViewMode>(mode);
+            auto viewMode = static_cast<PDFViewer::ViewMode>(mode);
             currentViewer->setViewMode(viewMode);
         }
     }
@@ -265,7 +271,7 @@ int ViewWidget::getCurrentViewMode() const {
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
         PDFViewer* currentViewer = pdfViewers[currentIndex];
         if (currentViewer) {
-            return static_cast<int>(currentViewer->getViewMode());
+            return static_cast<int>(currentViewer->viewMode());
         }
     }
     return 0;  // Default to SinglePage mode
@@ -291,16 +297,16 @@ void ViewWidget::executePDFAction(ActionMap action) {
         // 执行相应的PDF操作
         switch (action) {
             case ActionMap::firstPage:
-                currentViewer->firstPage();
+                currentViewer->goToFirstPage();
                 break;
             case ActionMap::previousPage:
-                currentViewer->previousPage();
+                currentViewer->goToPreviousPage();
                 break;
             case ActionMap::nextPage:
-                currentViewer->nextPage();
+                currentViewer->goToNextPage();
                 break;
             case ActionMap::lastPage:
-                currentViewer->lastPage();
+                currentViewer->goToLastPage();
                 break;
             case ActionMap::zoomIn:
                 currentViewer->zoomIn();
@@ -309,13 +315,13 @@ void ViewWidget::executePDFAction(ActionMap action) {
                 currentViewer->zoomOut();
                 break;
             case ActionMap::fitToWidth:
-                currentViewer->zoomToWidth();
+                currentViewer->fitToWidth();
                 break;
             case ActionMap::fitToPage:
-                currentViewer->zoomToFit();
+                currentViewer->fitToPage();
                 break;
             case ActionMap::fitToHeight:
-                currentViewer->zoomToHeight();
+                currentViewer->fitToHeight();
                 break;
             case ActionMap::rotateLeft:
                 currentViewer->rotateLeft();
@@ -374,7 +380,7 @@ int ViewWidget::getCurrentPage() const {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
         PDFViewer* viewer = pdfViewers[currentIndex];
-        return viewer ? viewer->getCurrentPage() : 0;
+        return viewer ? viewer->currentPage() : 0;
     }
     return 0;
 }
@@ -383,7 +389,7 @@ int ViewWidget::getCurrentPageCount() const {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
         PDFViewer* viewer = pdfViewers[currentIndex];
-        return viewer ? viewer->getPageCount() : 0;
+        return viewer ? viewer->pageCount() : 0;
     }
     return 0;
 }
@@ -392,7 +398,7 @@ double ViewWidget::getCurrentZoom() const {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
         PDFViewer* viewer = pdfViewers[currentIndex];
-        return viewer ? viewer->getCurrentZoom() : 1.0;
+        return viewer ? viewer->zoom() : 1.0;
     }
     return 1.0;
 }
@@ -401,7 +407,7 @@ int ViewWidget::getCurrentRotation() const {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
         PDFViewer* viewer = pdfViewers[currentIndex];
-        return viewer ? viewer->getRotation() : 0;
+        return viewer ? viewer->rotation() : 0;
     }
     return 0;  // Default to no rotation
 }
@@ -416,7 +422,9 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
 
     // 创建新的PDF查看器
     PDFViewer* viewer = createPDFViewer();
-    viewer->setDocument(document);
+    auto docPtr =
+        std::shared_ptr<Poppler::Document>(document, [](Poppler::Document*) {});
+    viewer->setDocument(docPtr);
 
     // 创建目录模型并解析目录
     auto* docOutlineModel = new PDFOutlineModel(this);
@@ -434,7 +442,8 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
             QWidget* loadingWidget = viewerStack->widget(i + 1);
             if (loadingWidget) {
                 viewerStack->removeWidget(loadingWidget);
-                loadingWidget->deleteLater();
+                delete loadingWidget;  // direct delete to avoid deferred
+                                       // deletion during teardown
             }
 
             viewerStack->insertWidget(i + 1, viewer);
@@ -485,7 +494,8 @@ void ViewWidget::onDocumentClosed(int index) {
 
     if (index < outlineModels.size()) {
         PDFOutlineModel* model = outlineModels.takeAt(index);
-        model->deleteLater();
+        delete model;  // direct delete to avoid deferred deletion during
+                       // teardown
     }
 
     // Update document states for remaining documents
@@ -530,7 +540,7 @@ void ViewWidget::onAllDocumentsClosed() {
     // 清理所有PDF查看器
     for (PDFViewer* viewer : pdfViewers) {
         viewerStack->removeWidget(viewer);
-        viewer->deleteLater();
+        delete viewer;  // direct delete for deterministic cleanup
     }
     pdfViewers.clear();
 
@@ -565,8 +575,8 @@ void ViewWidget::onDocumentLoadingStarted(const QString& filePath) {
 
         // Track loading widget and find progress bar
         loadingWidgets[filePath] = loadingWidget;
-        auto* progressBar =
-            loadingWidget->findChild<QProgressBar*>("documentLoadingProgress");
+        auto* progressBar = loadingWidget->findChild<ElaProgressBar*>(
+            "documentLoadingProgress");
         if (progressBar) {
             progressBars[filePath] = progressBar;
         }
@@ -585,7 +595,7 @@ void ViewWidget::onDocumentLoadingProgress(int progress) {
     // Update progress bar for the currently loading document
     // Find the progress bar by iterating through tracked progress bars
     for (auto it = progressBars.begin(); it != progressBars.end(); ++it) {
-        QProgressBar* progressBar = it.value();
+        ElaProgressBar* progressBar = it.value();
         if (progressBar) {
             progressBar->setValue(progress);
         }
@@ -609,7 +619,8 @@ void ViewWidget::onDocumentLoadingFailed(const QString& error,
         QWidget* loadingWidget = loadingWidgets.take(filePath);
         if (loadingWidget) {
             viewerStack->removeWidget(loadingWidget);
-            loadingWidget->deleteLater();
+            delete loadingWidget;  // direct delete to avoid queued delete after
+                                   // parent destruction
         }
     }
 
@@ -685,13 +696,13 @@ QWidget* ViewWidget::createLoadingWidget(const QString& fileName) {
     layout->addWidget(skeletonWidget);
 
     // Add loading text
-    auto* textLabel = new QLabel(tr("Loading %1...").arg(fileName), container);
+    auto* textLabel = new ElaText(tr("Loading %1...").arg(fileName), container);
     textLabel->setAlignment(Qt::AlignCenter);
     textLabel->setObjectName("loadingLabel");
     layout->addWidget(textLabel);
 
     // Add progress bar
-    auto* progressBar = new QProgressBar(container);
+    auto* progressBar = new ElaProgressBar(container);
     progressBar->setRange(0, 100);
     progressBar->setValue(0);
     progressBar->setTextVisible(true);
@@ -719,7 +730,7 @@ void ViewWidget::removePDFViewer(int index) {
 
     PDFViewer* viewer = pdfViewers.takeAt(index);
     viewerStack->removeWidget(viewer);
-    viewer->deleteLater();
+    delete viewer;  // direct delete
 }
 
 void ViewWidget::updateCurrentViewer() {
@@ -798,7 +809,7 @@ QPoint ViewWidget::getScrollPosition() const {
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
         PDFViewer* currentViewer = pdfViewers[currentIndex];
         if (currentViewer) {
-            return currentViewer->getScrollPosition();
+            return currentViewer->scrollPosition();
         }
     }
     return QPoint(0, 0);
@@ -847,11 +858,11 @@ ViewWidget::DocumentState ViewWidget::getDocumentState(int index) const {
         if (index == getCurrentDocumentIndex() && index < pdfViewers.size()) {
             PDFViewer* viewer = pdfViewers[index];
             if (viewer) {
-                state.currentPage = viewer->getCurrentPage();
-                state.zoomLevel = viewer->getCurrentZoom();
-                state.rotation = viewer->getRotation();
-                state.scrollPosition = viewer->getScrollPosition();
-                state.viewMode = static_cast<int>(viewer->getViewMode());
+                state.currentPage = viewer->currentPage();
+                state.zoomLevel = viewer->zoom();
+                state.rotation = viewer->rotation();
+                state.scrollPosition = viewer->scrollPosition();
+                state.viewMode = static_cast<int>(viewer->viewMode());
             }
         }
     }
@@ -878,7 +889,8 @@ void ViewWidget::setDocumentState(int index, const DocumentState& state) {
             viewer->goToPage(state.currentPage);
             viewer->setZoom(state.zoomLevel);
             viewer->setScrollPosition(state.scrollPosition);
-            viewer->setViewMode(static_cast<PDFViewMode>(state.viewMode));
+            viewer->setViewMode(
+                static_cast<PDFViewer::ViewMode>(state.viewMode));
             // Note: Rotation is typically not restored as it may affect
             // document layout
         }
@@ -912,20 +924,22 @@ void ViewWidget::restoreDocumentState(int index) {
             PDFViewer* viewer = pdfViewers[index];
             if (viewer) {
                 // Restore state with small delays to ensure UI is ready
-                QTimer::singleShot(10, [viewer, state]() {
+                // Bind timers to 'viewer' context so they are automatically
+                // canceled if the viewer is deleted
+                QTimer::singleShot(10, viewer, [viewer, state]() {
                     viewer->setViewMode(
-                        static_cast<PDFViewMode>(state.viewMode));
+                        static_cast<PDFViewer::ViewMode>(state.viewMode));
                 });
 
-                QTimer::singleShot(20, [viewer, state]() {
+                QTimer::singleShot(20, viewer, [viewer, state]() {
                     viewer->setZoom(state.zoomLevel);
                 });
 
-                QTimer::singleShot(30, [viewer, state]() {
+                QTimer::singleShot(30, viewer, [viewer, state]() {
                     viewer->goToPage(state.currentPage);
                 });
 
-                QTimer::singleShot(40, [viewer, state]() {
+                QTimer::singleShot(40, viewer, [viewer, state]() {
                     viewer->setScrollPosition(state.scrollPosition);
                 });
 

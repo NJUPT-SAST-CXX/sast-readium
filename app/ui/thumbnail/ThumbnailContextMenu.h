@@ -7,7 +7,6 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QList>
-#include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
 #include <QPixmap>
@@ -17,6 +16,7 @@
 #include <QtGui>
 #include <QtWidgets>
 #include <memory>
+#include "ElaMenu.h"
 
 class ThumbnailModel;
 
@@ -30,7 +30,7 @@ class ThumbnailModel;
  * - 页面信息显示
  * - 刷新缩略图
  */
-class ThumbnailContextMenu : public QMenu {
+class ThumbnailContextMenu : public ElaMenu {
     Q_OBJECT
 
 public:

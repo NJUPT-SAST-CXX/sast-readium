@@ -2,7 +2,6 @@
 #include <QApplication>
 #include <QDialog>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QMessageBox>
 #include <QMetaProperty>
 #include <QPushButton>
@@ -11,6 +10,7 @@
 #include <QWidget>
 #include <algorithm>
 #include "../../managers/StyleManager.h"
+#include "ElaText.h"
 #include "UIErrorHandler.h"
 
 UIRecoveryManager::UIRecoveryManager()
@@ -164,7 +164,7 @@ bool UIRecoveryManager::recoverWidgetCreation(
 
     // Try creating a simple placeholder widget
     try {
-        QLabel* placeholder = new QLabel(tr("Widget unavailable"), parent);
+        ElaText* placeholder = new ElaText(tr("Widget unavailable"), parent);
         placeholder->setStyleSheet(
             "QLabel { color: gray; font-style: italic; }");
         placeholder->setAlignment(Qt::AlignCenter);
@@ -388,9 +388,9 @@ bool UIRecoveryManager::tryFallbackMethod(
     // For now, just try to create a simple replacement
     if (context && context->parent()) {
         try {
-            QLabel* fallback =
-                new QLabel(tr("Feature temporarily unavailable"),
-                           qobject_cast<QWidget*>(context->parent()));
+            ElaText* fallback =
+                new ElaText(tr("Feature temporarily unavailable"),
+                            qobject_cast<QWidget*>(context->parent()));
             fallback->setStyleSheet(
                 "QLabel { color: orange; font-style: italic; }");
             fallback->setAlignment(Qt::AlignCenter);
@@ -432,7 +432,7 @@ bool UIRecoveryManager::tryGracefulDegradation(
         }
 
         // Add a simple status indicator
-        QLabel* statusLabel = new QLabel(tr("Running in safe mode"), context);
+        ElaText* statusLabel = new ElaText(tr("Running in safe mode"), context);
         statusLabel->setStyleSheet(
             "QLabel { color: orange; font-size: 10px; }");
 

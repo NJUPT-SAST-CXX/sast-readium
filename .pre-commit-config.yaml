@@ -86,7 +86,12 @@ repos:
               .*ui_.*\.h$|
               .*qrc_.*\.cpp$
           )$
-        args: [-p=build/Debug-MSYS2, --extra-arg=-Wno-unknown-warning-option, --extra-arg=-Wno-error]
+        args:
+          - -p=build/Debug-MSYS2
+          - --extra-arg-before=--target=x86_64-w64-windows-gnu
+          - --extra-arg-before=--sysroot=D:/msys64/mingw64
+          - --extra-arg=-Wno-unknown-warning-option
+          - --extra-arg=-Wno-error
         additional_dependencies:
           - clang-tidy
 

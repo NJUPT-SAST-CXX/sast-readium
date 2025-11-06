@@ -14,6 +14,13 @@
 #include <QPainter>
 #include <QSplitter>
 #include <QTextStream>
+#include "ElaCheckBox.h"
+#include "ElaComboBox.h"
+#include "ElaProgressBar.h"
+#include "ElaPushButton.h"
+#include "ElaSlider.h"
+#include "ElaSpinBox.h"
+#include "ElaText.h"
 // // #include <QtConcurrent> // Not available in this MSYS2 setup // Not
 // available in this MSYS2 setup
 #include <QDebug>
@@ -53,25 +60,25 @@ void DocumentComparison::initializeToolbar(StyleManager& styleManager) {
     m_toolbarLayout = new QHBoxLayout();
     m_toolbarLayout->setSpacing(styleManager.spacingSM());
 
-    m_compareButton = new QPushButton("Compare Documents", this);
-    m_stopButton = new QPushButton("Stop", this);
+    m_compareButton = new ElaPushButton("Compare Documents", this);
+    m_stopButton = new ElaPushButton("Stop", this);
     m_stopButton->setEnabled(false);
-    m_optionsButton = new QPushButton("Options", this);
-    m_exportButton = new QPushButton("Export Results", this);
+    m_optionsButton = new ElaPushButton("Options", this);
+    m_exportButton = new ElaPushButton("Export Results", this);
     m_exportButton->setEnabled(false);
 
-    m_viewModeCombo = new QComboBox(this);
+    m_viewModeCombo = new ElaComboBox(this);
     m_viewModeCombo->addItems({"Side by Side", "Overlay", "Differences Only"});
     m_viewModeCombo->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
-    m_statusLabel = new QLabel("Ready", this);
+    m_statusLabel = new ElaText("Ready", this);
     m_statusLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    m_progressBar = new QProgressBar(this);
+    m_progressBar = new ElaProgressBar(this);
     m_progressBar->setVisible(false);
     m_progressBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    auto* viewModeLabel = new QLabel("View Mode:", this);
+    auto* viewModeLabel = new ElaText("View Mode:", this);
 
     m_toolbarLayout->addWidget(m_compareButton);
     m_toolbarLayout->addWidget(m_stopButton);
@@ -99,28 +106,29 @@ void DocumentComparison::initializeOptionsPanel(StyleManager& styleManager) {
     optionsLayout->setHorizontalSpacing(styleManager.spacingMD());
     optionsLayout->setVerticalSpacing(styleManager.spacingSM());
 
-    m_compareTextCheck = new QCheckBox("Compare Text", this);
+    m_compareTextCheck = new ElaCheckBox("Compare Text", this);
     m_compareTextCheck->setChecked(true);
-    m_compareImagesCheck = new QCheckBox("Compare Images", this);
+    m_compareImagesCheck = new ElaCheckBox("Compare Images", this);
     m_compareImagesCheck->setChecked(true);
-    m_compareLayoutCheck = new QCheckBox("Compare Layout", this);
-    m_compareAnnotationsCheck = new QCheckBox("Compare Annotations", this);
+    m_compareLayoutCheck = new ElaCheckBox("Compare Layout", this);
+    m_compareAnnotationsCheck = new ElaCheckBox("Compare Annotations", this);
     m_compareAnnotationsCheck->setChecked(true);
 
-    m_ignoreWhitespaceCheck = new QCheckBox("Ignore Whitespace", this);
+    m_ignoreWhitespaceCheck = new ElaCheckBox("Ignore Whitespace", this);
     m_ignoreWhitespaceCheck->setChecked(true);
-    m_ignoreCaseCheck = new QCheckBox("Ignore Case", this);
+    m_ignoreCaseCheck = new ElaCheckBox("Ignore Case", this);
 
-    m_similaritySlider = new QSlider(Qt::Horizontal, this);
+    m_similaritySlider = new ElaSlider(Qt::Horizontal, this);
     m_similaritySlider->setRange(50, 100);
     m_similaritySlider->setValue(90);
 
-    m_maxDifferencesSpinBox = new QSpinBox(this);
+    m_maxDifferencesSpinBox = new ElaSpinBox(this);
     m_maxDifferencesSpinBox->setRange(1, 1000);
     m_maxDifferencesSpinBox->setValue(50);
 
-    auto* similarityLabel = new QLabel("Similarity Threshold:", m_optionsGroup);
-    auto* maxDifferencesLabel = new QLabel("Max Differences:", m_optionsGroup);
+    auto* similarityLabel =
+        new ElaText("Similarity Threshold:", m_optionsGroup);
+    auto* maxDifferencesLabel = new ElaText("Max Differences:", m_optionsGroup);
 
     optionsLayout->addWidget(m_compareTextCheck, 0, 0);
     optionsLayout->addWidget(m_compareImagesCheck, 0, 1);
@@ -280,7 +288,14 @@ void DocumentComparison::startComparison() {
         return;
     }
 
+    // Clean up any existing comparison thread
+    if (m_comparisonThread != nullptr && m_comparisonThread->isRunning()) {
+        stopComparison();
+        m_comparisonThread->wait();
+    }
+
     m_isComparing = true;
+    m_cancelRequested.store(false);
     m_compareButton->setEnabled(false);
     m_stopButton->setEnabled(true);
     m_exportButton->setEnabled(false);
@@ -291,16 +306,62 @@ void DocumentComparison::startComparison() {
 
     m_progressTimer->start();
 
-    // Start comparison in background thread (simplified without QtConcurrent)
-    // For now, run synchronously - could be improved with QThread later
-    ComparisonResults results = compareDocuments();
-    m_results = results;
-    QTimer::singleShot(0, this, &DocumentComparison::onComparisonFinished);
+    // Create worker thread for async comparison (FIXED: no longer blocks UI)
+    m_comparisonThread = new QThread(this);
+    m_comparisonWorker = new DocumentComparisonWorker(
+        m_document1, m_document2, getComparisonOptions(), &m_cancelRequested);
+
+    // Move worker to thread
+    m_comparisonWorker->moveToThread(m_comparisonThread);
+
+    // Connect signals
+    connect(m_comparisonThread, &QThread::started, m_comparisonWorker,
+            &DocumentComparisonWorker::doComparison);
+    connect(m_comparisonWorker, &DocumentComparisonWorker::comparisonComplete,
+            this, [this](const ComparisonResults& results) {
+                m_results = results;
+                onComparisonFinished();
+            });
+    connect(m_comparisonWorker, &DocumentComparisonWorker::progressUpdate, this,
+            [this](int percentage, const QString& status) {
+                m_progressBar->setValue(percentage);
+                m_statusLabel->setText(status);
+                emit comparisonProgress(percentage, status);
+            });
+    connect(m_comparisonWorker, &DocumentComparisonWorker::errorOccurred, this,
+            [this](const QString& error) {
+                emit comparisonError(error);
+                if (QGuiApplication::platformName() != "offscreen") {
+                    QMessageBox::critical(this, "Comparison Error", error);
+                }
+                stopComparison();
+            });
+    connect(m_comparisonThread, &QThread::finished, m_comparisonWorker,
+            &QObject::deleteLater);
+    connect(m_comparisonThread, &QThread::finished, m_comparisonThread,
+            &QObject::deleteLater);
+
+    // Start the thread
+    m_comparisonThread->start();
 
     emit comparisonStarted();
 }
 
 void DocumentComparison::stopComparison() {
+    // Signal the worker to cancel
+    m_cancelRequested.store(true);
+
+    // Stop the comparison thread if running
+    if (m_comparisonThread != nullptr && m_comparisonThread->isRunning()) {
+        m_comparisonThread->quit();
+        if (!m_comparisonThread->wait(3000)) {
+            // Force terminate if it doesn't stop within 3 seconds
+            m_comparisonThread->terminate();
+            m_comparisonThread->wait();
+        }
+    }
+
+    // Legacy QFutureWatcher support (if ever used)
     if (m_comparisonWatcher != nullptr && m_comparisonWatcher->isRunning()) {
         m_comparisonWatcher->cancel();
     }
@@ -576,14 +637,23 @@ void DocumentComparison::onComparisonFinished() {
     m_progressBar->setVisible(false);
     m_progressTimer->stop();
 
+    // Check if comparison was cancelled
+    if (m_cancelRequested.load()) {
+        m_statusLabel->setText("Comparison cancelled");
+        return;
+    }
+
+    // Legacy QFutureWatcher support (if ever used)
     if (m_comparisonWatcher != nullptr && m_comparisonWatcher->isCanceled()) {
         m_statusLabel->setText("Comparison cancelled");
         return;
     }
 
-    if (m_comparisonWatcher != nullptr) {
+    if (m_comparisonWatcher != nullptr && m_comparisonWatcher->isFinished()) {
         m_results = m_comparisonWatcher->result();
     }
+
+    // m_results is already set by the worker's signal in startComparison()
     updateDifferencesList();
 
     m_statusLabel->setText(
@@ -1165,4 +1235,260 @@ bool DocumentComparison::loadComparisonSession(const QString& filePath) {
 
     emit comparisonSessionLoaded(filePath);
     return true;
+}
+
+// ============================================================================
+// DocumentComparisonWorker Implementation
+// ============================================================================
+
+DocumentComparisonWorker::DocumentComparisonWorker(
+    Poppler::Document* doc1, Poppler::Document* doc2,
+    const ComparisonOptions& options, std::atomic<bool>* cancelFlag,
+    QObject* parent)
+    : QObject(parent),
+      m_document1(doc1),
+      m_document2(doc2),
+      m_options(options),
+      m_cancelFlag(cancelFlag) {}
+
+void DocumentComparisonWorker::doComparison() {
+    try {
+        ComparisonResults results = compareDocuments();
+        emit comparisonComplete(results);
+    } catch (const std::exception& e) {
+        emit errorOccurred(QString("Comparison error: %1").arg(e.what()));
+    } catch (...) {
+        emit errorOccurred("Unknown comparison error occurred");
+    }
+}
+
+ComparisonResults DocumentComparisonWorker::compareDocuments() {
+    ComparisonResults results;
+
+    if (m_document1 == nullptr || m_document2 == nullptr) {
+        return results;
+    }
+
+    results.totalPages1 = m_document1->numPages();
+    results.totalPages2 = m_document2->numPages();
+    results.pagesCompared = qMin(results.totalPages1, results.totalPages2);
+
+    QElapsedTimer timer;
+    timer.start();
+
+    // Compare pages
+    for (int i = 0; i < results.pagesCompared; ++i) {
+        // Check for cancellation
+        if (m_cancelFlag && m_cancelFlag->load()) {
+            emit progressUpdate(100, "Comparison cancelled");
+            break;
+        }
+
+        QList<DocumentDifference> pageDiffs = comparePages(i, i);
+        results.differences.append(pageDiffs);
+
+        // Update progress
+        int percentage = ((i + 1) * 100) / results.pagesCompared;
+        QString status = QString("Comparing page %1 of %2")
+                             .arg(i + 1)
+                             .arg(results.pagesCompared);
+        emit progressUpdate(percentage, status);
+    }
+
+    results.comparisonTime = timer.elapsed();
+
+    // Calculate statistics
+    for (const auto& diff : results.differences) {
+        results.differenceCountByType[diff.type]++;
+    }
+
+    // Calculate overall similarity (simplified)
+    qsizetype totalDifferences = results.differences.size();
+    results.overallSimilarity =
+        totalDifferences > 0
+            ? qMax(0.0, 1.0 - (static_cast<double>(totalDifferences) /
+                               (results.pagesCompared * 10.0)))
+            : 1.0;
+
+    results.summary = QString("Found %1 differences across %2 pages in %3ms")
+                          .arg(totalDifferences)
+                          .arg(results.pagesCompared)
+                          .arg(results.comparisonTime);
+
+    return results;
+}
+
+QList<DocumentDifference> DocumentComparisonWorker::comparePages(int page1,
+                                                                 int page2) {
+    QList<DocumentDifference> differences;
+
+    if (m_document1 == nullptr || m_document2 == nullptr ||
+        page1 >= m_document1->numPages() || page2 >= m_document2->numPages()) {
+        return differences;
+    }
+
+    try {
+        std::unique_ptr<Poppler::Page> popplerPage1(m_document1->page(page1));
+        std::unique_ptr<Poppler::Page> popplerPage2(m_document2->page(page2));
+
+        if (!popplerPage1 || !popplerPage2) {
+            return differences;
+        }
+
+        // Compare text if enabled
+        if (m_options.compareText) {
+            QString text1 = popplerPage1->text(QRectF());
+            QString text2 = popplerPage2->text(QRectF());
+            differences.append(compareText(text1, text2, page1, page2));
+        }
+
+        // Compare images if enabled
+        if (m_options.compareImages) {
+            QImage image1 = popplerPage1->renderToImage(150, 150);
+            QImage image2 = popplerPage2->renderToImage(150, 150);
+            QPixmap pixmap1 = QPixmap::fromImage(image1);
+            QPixmap pixmap2 = QPixmap::fromImage(image2);
+            differences.append(compareImages(pixmap1, pixmap2, page1, page2));
+        }
+
+    } catch (const std::exception& e) {
+        qDebug() << "Error comparing pages" << page1 << "and" << page2 << ":"
+                 << e.what();
+    } catch (...) {
+        qDebug() << "Unknown error comparing pages" << page1 << "and" << page2;
+    }
+
+    return differences;
+}
+
+QList<DocumentDifference> DocumentComparisonWorker::compareText(
+    const QString& text1, const QString& text2, int page1, int page2) const {
+    QList<DocumentDifference> differences;
+
+    QString processedText1 = text1;
+    QString processedText2 = text2;
+
+    if (m_options.ignoreWhitespace) {
+        processedText1 = processedText1.simplified();
+        processedText2 = processedText2.simplified();
+    }
+
+    if (m_options.ignoreCaseChanges) {
+        processedText1 = processedText1.toLower();
+        processedText2 = processedText2.toLower();
+    }
+
+    double similarity = calculateTextSimilarity(processedText1, processedText2);
+
+    if (similarity < m_options.textSimilarityThreshold) {
+        DocumentDifference diff;
+        diff.type = DifferenceType::TextModified;
+        diff.pageNumber1 = page1;
+        diff.pageNumber2 = page2;
+        diff.oldText = text1;
+        diff.newText = text2;
+        diff.confidence = 1.0 - similarity;
+        diff.description = QString("Text differs (similarity: %1%)")
+                               .arg(similarity * 100, 0, 'f', 1);
+        differences.append(diff);
+    }
+
+    return differences;
+}
+
+QList<DocumentDifference> DocumentComparisonWorker::compareImages(
+    const QPixmap& image1, const QPixmap& image2, int page1, int page2) const {
+    QList<DocumentDifference> differences;
+
+    if (image1.isNull() || image2.isNull()) {
+        return differences;
+    }
+
+    double similarity = calculateImageSimilarity(image1, image2);
+
+    if (similarity < m_options.imageSimilarityThreshold) {
+        DocumentDifference diff;
+        diff.type = DifferenceType::ImageModified;
+        diff.pageNumber1 = page1;
+        diff.pageNumber2 = page2;
+        diff.confidence = 1.0 - similarity;
+        diff.description = QString("Image differs (similarity: %1%)")
+                               .arg(similarity * 100, 0, 'f', 1);
+        differences.append(diff);
+    }
+
+    return differences;
+}
+
+double DocumentComparisonWorker::calculateTextSimilarity(const QString& text1,
+                                                         const QString& text2) {
+    if (text1 == text2) {
+        return 1.0;
+    }
+    if (text1.isEmpty() && text2.isEmpty()) {
+        return 1.0;
+    }
+    if (text1.isEmpty() || text2.isEmpty()) {
+        return 0.0;
+    }
+
+    qsizetype maxLength = std::max(text1.length(), text2.length());
+    qsizetype distance = 0;
+
+    qsizetype minLength = std::min(text1.length(), text2.length());
+    for (qsizetype index = 0; index < minLength; ++index) {
+        if (text1[index] != text2[index]) {
+            ++distance;
+        }
+    }
+    distance += std::abs(text1.length() - text2.length());
+
+    double normalizedDistance =
+        static_cast<double>(distance) / static_cast<double>(maxLength);
+    return qMax(0.0, 1.0 - normalizedDistance);
+}
+
+double DocumentComparisonWorker::calculateImageSimilarity(
+    const QPixmap& image1, const QPixmap& image2) {
+    if (image1.size() != image2.size()) {
+        return 0.5;  // Different sizes, moderate similarity
+    }
+
+    // Convert to images for pixel comparison
+    QImage img1 = image1.toImage();
+    QImage img2 = image2.toImage();
+
+    if (img1.format() != img2.format()) {
+        img1 = img1.convertToFormat(QImage::Format_RGB32);
+        img2 = img2.convertToFormat(QImage::Format_RGB32);
+    }
+
+    int imageWidth = img1.width();
+    int imageHeight = img1.height();
+    int sampleStep = 4;  // Sample every 4th pixel for performance
+
+    qint64 totalDifference = 0;
+    qint64 sampledPixels = 0;
+
+    for (int y = 0; y < imageHeight; y += sampleStep) {
+        for (int x = 0; x < imageWidth; x += sampleStep) {
+            QRgb pixel1 = img1.pixel(x, y);
+            QRgb pixel2 = img2.pixel(x, y);
+
+            int rDiff = std::abs(qRed(pixel1) - qRed(pixel2));
+            int gDiff = std::abs(qGreen(pixel1) - qGreen(pixel2));
+            int bDiff = std::abs(qBlue(pixel1) - qBlue(pixel2));
+
+            totalDifference += rDiff + gDiff + bDiff;
+            ++sampledPixels;
+        }
+    }
+
+    if (sampledPixels == 0) {
+        return 1.0;
+    }
+
+    double avgDifference =
+        static_cast<double>(totalDifference) / (sampledPixels * 3 * 255);
+    return qMax(0.0, 1.0 - avgDifference);
 }

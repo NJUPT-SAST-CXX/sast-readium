@@ -5,6 +5,11 @@
 #include <QLocale>
 #include "../../managers/StyleManager.h"
 
+// ElaWidgetTools
+#include "ElaLineEdit.h"
+#include "ElaPushButton.h"
+#include "ElaText.h"
+
 DocumentPropertiesPanel::DocumentPropertiesPanel(QWidget* parent)
     : QWidget(parent),
       m_mainLayout(nullptr),
@@ -58,25 +63,29 @@ void DocumentPropertiesPanel::setupUI() {
     m_fileInfoLayout->setSpacing(6);
     m_fileInfoLayout->setContentsMargins(8, 12, 8, 8);
 
-    m_fileNameField = new QLineEdit();
+    m_fileNameField = new ElaLineEdit();
     m_fileNameField->setReadOnly(true);
     m_fileNameField->setFrame(false);
-    m_fileInfoLayout->addRow(tr("File:"), m_fileNameField);
+    m_fileInfoLayout->addRow(new ElaText(tr("File:"), m_fileInfoGroup),
+                             m_fileNameField);
 
-    m_fileSizeField = new QLineEdit();
+    m_fileSizeField = new ElaLineEdit();
     m_fileSizeField->setReadOnly(true);
     m_fileSizeField->setFrame(false);
-    m_fileInfoLayout->addRow(tr("Size:"), m_fileSizeField);
+    m_fileInfoLayout->addRow(new ElaText(tr("Size:"), m_fileInfoGroup),
+                             m_fileSizeField);
 
-    m_pageCountField = new QLineEdit();
+    m_pageCountField = new ElaLineEdit();
     m_pageCountField->setReadOnly(true);
     m_pageCountField->setFrame(false);
-    m_fileInfoLayout->addRow(tr("Pages:"), m_pageCountField);
+    m_fileInfoLayout->addRow(new ElaText(tr("Pages:"), m_fileInfoGroup),
+                             m_pageCountField);
 
-    m_pdfVersionField = new QLineEdit();
+    m_pdfVersionField = new ElaLineEdit();
     m_pdfVersionField->setReadOnly(true);
     m_pdfVersionField->setFrame(false);
-    m_fileInfoLayout->addRow(tr("Version:"), m_pdfVersionField);
+    m_fileInfoLayout->addRow(new ElaText(tr("Version:"), m_fileInfoGroup),
+                             m_pdfVersionField);
 
     m_contentLayout->addWidget(m_fileInfoGroup);
 
@@ -86,25 +95,29 @@ void DocumentPropertiesPanel::setupUI() {
     m_documentInfoLayout->setSpacing(6);
     m_documentInfoLayout->setContentsMargins(8, 12, 8, 8);
 
-    m_titleField = new QLineEdit();
+    m_titleField = new ElaLineEdit();
     m_titleField->setReadOnly(true);
     m_titleField->setFrame(false);
-    m_documentInfoLayout->addRow(tr("Title:"), m_titleField);
+    m_documentInfoLayout->addRow(new ElaText(tr("Title:"), m_documentInfoGroup),
+                                 m_titleField);
 
-    m_authorField = new QLineEdit();
+    m_authorField = new ElaLineEdit();
     m_authorField->setReadOnly(true);
     m_authorField->setFrame(false);
-    m_documentInfoLayout->addRow(tr("Author:"), m_authorField);
+    m_documentInfoLayout->addRow(
+        new ElaText(tr("Author:"), m_documentInfoGroup), m_authorField);
 
-    m_subjectField = new QLineEdit();
+    m_subjectField = new ElaLineEdit();
     m_subjectField->setReadOnly(true);
     m_subjectField->setFrame(false);
-    m_documentInfoLayout->addRow(tr("Subject:"), m_subjectField);
+    m_documentInfoLayout->addRow(
+        new ElaText(tr("Subject:"), m_documentInfoGroup), m_subjectField);
 
-    m_creatorField = new QLineEdit();
+    m_creatorField = new ElaLineEdit();
     m_creatorField->setReadOnly(true);
     m_creatorField->setFrame(false);
-    m_documentInfoLayout->addRow(tr("Creator:"), m_creatorField);
+    m_documentInfoLayout->addRow(
+        new ElaText(tr("Creator:"), m_documentInfoGroup), m_creatorField);
 
     m_contentLayout->addWidget(m_documentInfoGroup);
 
@@ -114,15 +127,17 @@ void DocumentPropertiesPanel::setupUI() {
     m_datesLayout->setSpacing(6);
     m_datesLayout->setContentsMargins(8, 12, 8, 8);
 
-    m_creationDateField = new QLineEdit();
+    m_creationDateField = new ElaLineEdit();
     m_creationDateField->setReadOnly(true);
     m_creationDateField->setFrame(false);
-    m_datesLayout->addRow(tr("Created:"), m_creationDateField);
+    m_datesLayout->addRow(new ElaText(tr("Created:"), m_datesGroup),
+                          m_creationDateField);
 
-    m_modificationDateField = new QLineEdit();
+    m_modificationDateField = new ElaLineEdit();
     m_modificationDateField->setReadOnly(true);
     m_modificationDateField->setFrame(false);
-    m_datesLayout->addRow(tr("Modified:"), m_modificationDateField);
+    m_datesLayout->addRow(new ElaText(tr("Modified:"), m_datesGroup),
+                          m_modificationDateField);
 
     m_contentLayout->addWidget(m_datesGroup);
 
@@ -136,7 +151,7 @@ void DocumentPropertiesPanel::setupUI() {
     m_contentLayout->addWidget(m_separatorLine);
 
     // View Full Details button
-    m_viewFullDetailsButton = new QPushButton(tr("View Full Details..."));
+    m_viewFullDetailsButton = new ElaPushButton(tr("View Full Details..."));
     m_viewFullDetailsButton->setEnabled(false);
     m_contentLayout->addWidget(m_viewFullDetailsButton);
 
@@ -253,7 +268,7 @@ void DocumentPropertiesPanel::applyTheme() {
     setStyleSheet(readOnlyStyle);
 }
 
-void DocumentPropertiesPanel::updatePropertyField(QLineEdit* field,
+void DocumentPropertiesPanel::updatePropertyField(ElaLineEdit* field,
                                                   const QString& value) {
     if (field) {
         field->setText(value.isEmpty() ? tr("N/A") : value);

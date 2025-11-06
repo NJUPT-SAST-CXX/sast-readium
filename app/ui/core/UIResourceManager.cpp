@@ -1,9 +1,13 @@
 #include "UIResourceManager.h"
 #include <QApplication>
+#include <QCoreApplication>
+
 #include <QPixmapCache>
 #include <QStyleFactory>
 #include <QThread>
 #include <QTimer>
+#include <algorithm>
+
 #include <QWidget>
 #include "../../logging/LoggingMacros.h"
 
@@ -15,11 +19,22 @@ UIResourceManager::UIResourceManager()
       m_cleanupIntervalMs(60000),            // 1 minute
       m_logger("UIResourceManager") {
     setupCleanupTimer();
+    // Track application shutdown to avoid deleteLater() during teardown
+    m_appShuttingDown = false;
+    if (QCoreApplication::instance()) {
+        connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
+                this, [this]() {
+                    m_appShuttingDown = true;
+                    if (m_cleanupTimer)
+                        m_cleanupTimer->stop();
+                });
+    }
+
     m_logger.info("UIResourceManager initialized");
 }
 
 UIResourceManager::~UIResourceManager() {
-    cleanupAllResources();
+    forceCleanupAllResources();
     m_logger.debug("UIResourceManager destroyed");
 }
 
@@ -96,7 +111,7 @@ void UIResourceManager::scheduleWidgetCleanup(QWidget* widget, int delayMs) {
     if (!widget)
         return;
 
-    if (delayMs <= 0) {
+    if (delayMs <= 0 || m_appShuttingDown) {
         cleanupWidget(widget);
     } else {
         QTimer::singleShot(delayMs, this,
@@ -119,8 +134,12 @@ void UIResourceManager::cleanupWidget(QWidget* widget) {
     // Clear any references
     widget->setParent(nullptr);
 
-    // Schedule deletion
-    widget->deleteLater();
+    // Delete deterministically during shutdown
+    if (m_appShuttingDown) {
+        delete widget;
+    } else {
+        widget->deleteLater();
+    }
 }
 
 QTimer* UIResourceManager::createManagedTimer(QObject* parent,
@@ -136,7 +155,11 @@ void UIResourceManager::cleanupTimer(QTimer* timer) {
 
     timer->stop();
     unregisterResource(timer);
-    timer->deleteLater();
+    if (m_appShuttingDown) {
+        delete timer;
+    } else {
+        timer->deleteLater();
+    }
 }
 
 void UIResourceManager::optimizeMemoryUsage() {
@@ -218,7 +241,11 @@ void UIResourceManager::cleanupExpiredResources() {
             it = m_resources.erase(it);
 
             if (obj) {
-                obj->deleteLater();
+                if (m_appShuttingDown) {
+                    delete obj;
+                } else {
+                    obj->deleteLater();
+                }
             }
             cleanedCount++;
         } else {
@@ -259,7 +286,11 @@ void UIResourceManager::cleanupAllResources() {
     for (QObject* obj : objects) {
         if (obj) {
             unregisterResource(obj);
-            obj->deleteLater();
+            if (m_appShuttingDown) {
+                delete obj;
+            } else {
+                obj->deleteLater();
+            }
         }
     }
 
@@ -267,6 +298,40 @@ void UIResourceManager::cleanupAllResources() {
 
     m_logger.info(QString("Cleaned up %1 resources").arg(totalCount));
     emit cleanupCompleted(ResourceType::Other, totalCount);
+}
+
+void UIResourceManager::forceCleanupAllResources() {
+    m_logger.info("Force cleaning up all resources...");
+
+    if (m_cleanupTimer) {
+        m_cleanupTimer->stop();
+    }
+
+    // Delete everything deterministically, regardless of autoCleanup flags
+    QList<QObject*> objects;
+    for (auto it = m_resources.begin(); it != m_resources.end(); ++it) {
+        if (it->object) {
+            objects.append(it->object);
+        }
+    }
+
+    // Newest first: same order as cleanupAllResources sorting would do
+    std::reverse(objects.begin(), objects.end());
+
+    m_appShuttingDown = true;
+    for (QObject* obj : objects) {
+        if (obj) {
+            unregisterResource(obj);
+            if (auto t = qobject_cast<QTimer*>(obj)) {
+                t->stop();
+            }
+            delete obj;
+        }
+    }
+
+    m_resources.clear();
+
+    m_logger.info("Force cleanup completed");
 }
 
 // Private helper methods
@@ -350,7 +415,11 @@ ResourceGuard::ResourceGuard(QObject* resource,
 ResourceGuard::~ResourceGuard() {
     if (m_resource && !m_released) {
         UIResourceManager::instance().unregisterResource(m_resource);
-        m_resource->deleteLater();
+        if (UIResourceManager::instance().isAppShuttingDown()) {
+            delete m_resource;
+        } else {
+            m_resource->deleteLater();
+        }
     }
 }
 

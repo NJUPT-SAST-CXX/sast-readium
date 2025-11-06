@@ -9,6 +9,16 @@
 #include "../core/UIErrorHandler.h"
 #include "../widgets/ToastNotification.h"
 
+// ElaWidgetTools replacements
+#include "ElaCheckBox.h"
+#include "ElaComboBox.h"
+#include "ElaLineEdit.h"
+#include "ElaPushButton.h"
+#include "ElaRadioButton.h"
+#include "ElaSpinBox.h"
+#include "ElaTabWidget.h"
+#include "ElaText.h"
+
 SettingsDialog::SettingsDialog(QWidget* parent)
     : QDialog(parent),
       m_mainLayout(nullptr),
@@ -54,7 +64,7 @@ void SettingsDialog::setupUI() {
     m_mainLayout = new QVBoxLayout(this);
 
     // Create tab widget
-    m_tabWidget = new QTabWidget(this);
+    m_tabWidget = new ElaTabWidget(this);
     m_tabWidget->addTab(createAppearanceTab(), tr("Appearance"));
     m_tabWidget->addTab(createPerformanceTab(), tr("Performance"));
     m_tabWidget->addTab(createBehaviorTab(), tr("Behavior"));
@@ -70,7 +80,7 @@ void SettingsDialog::setupUI() {
     m_applyButton = m_buttonBox->button(QDialogButtonBox::Apply);
 
     // Add restore defaults button
-    m_restoreDefaultsButton = new QPushButton(tr("Restore Defaults"), this);
+    m_restoreDefaultsButton = new ElaPushButton(tr("Restore Defaults"), this);
     m_buttonBox->addButton(m_restoreDefaultsButton,
                            QDialogButtonBox::ResetRole);
 
@@ -145,8 +155,8 @@ QWidget* SettingsDialog::createAppearanceTab() {
     QVBoxLayout* themeLayout = new QVBoxLayout(themeGroup);
 
     m_themeGroup = new QButtonGroup(this);
-    m_lightThemeRadio = new QRadioButton(tr("Light"));
-    m_darkThemeRadio = new QRadioButton(tr("Dark"));
+    m_lightThemeRadio = new ElaRadioButton(tr("Light"));
+    m_darkThemeRadio = new ElaRadioButton(tr("Dark"));
 
     m_themeGroup->addButton(m_lightThemeRadio, 0);
     m_themeGroup->addButton(m_darkThemeRadio, 1);
@@ -160,7 +170,7 @@ QWidget* SettingsDialog::createAppearanceTab() {
     QGroupBox* languageGroup = new QGroupBox(tr("Language"));
     QFormLayout* languageLayout = new QFormLayout(languageGroup);
 
-    m_languageCombo = new QComboBox();
+    m_languageCombo = new ElaComboBox();
     m_languageCombo->addItem(tr("English"), "en");
     m_languageCombo->addItem(tr("中文"), "zh");
 
@@ -182,11 +192,11 @@ QWidget* SettingsDialog::createPerformanceTab() {
     QGroupBox* cacheGroup = new QGroupBox(tr("Cache Settings"));
     QFormLayout* cacheLayout = new QFormLayout(cacheGroup);
 
-    m_enableCacheCheckBox = new QCheckBox(tr("Enable caching"));
+    m_enableCacheCheckBox = new ElaCheckBox(tr("Enable caching"));
     m_enableCacheCheckBox->setChecked(true);
     cacheLayout->addRow(m_enableCacheCheckBox);
 
-    m_cacheSizeSpinBox = new QSpinBox();
+    m_cacheSizeSpinBox = new ElaSpinBox();
     m_cacheSizeSpinBox->setRange(50, 5000);
     m_cacheSizeSpinBox->setSuffix(" MB");
     m_cacheSizeSpinBox->setValue(500);
@@ -198,16 +208,16 @@ QWidget* SettingsDialog::createPerformanceTab() {
     QGroupBox* renderGroup = new QGroupBox(tr("Rendering"));
     QFormLayout* renderLayout = new QFormLayout(renderGroup);
 
-    m_preloadPagesCheckBox = new QCheckBox(tr("Preload adjacent pages"));
+    m_preloadPagesCheckBox = new ElaCheckBox(tr("Preload adjacent pages"));
     m_preloadPagesCheckBox->setChecked(true);
     renderLayout->addRow(m_preloadPagesCheckBox);
 
-    m_preloadCountSpinBox = new QSpinBox();
+    m_preloadCountSpinBox = new ElaSpinBox();
     m_preloadCountSpinBox->setRange(1, 10);
     m_preloadCountSpinBox->setValue(2);
     renderLayout->addRow(tr("Pages to preload:"), m_preloadCountSpinBox);
 
-    m_renderQualityCombo = new QComboBox();
+    m_renderQualityCombo = new ElaComboBox();
     m_renderQualityCombo->addItem(tr("Low (Faster)"), 0);
     m_renderQualityCombo->addItem(tr("Medium"), 1);
     m_renderQualityCombo->addItem(tr("High (Better Quality)"), 2);
@@ -230,7 +240,7 @@ QWidget* SettingsDialog::createBehaviorTab() {
     QGroupBox* viewGroup = new QGroupBox(tr("Default View Settings"));
     QFormLayout* viewLayout = new QFormLayout(viewGroup);
 
-    m_defaultZoomCombo = new QComboBox();
+    m_defaultZoomCombo = new ElaComboBox();
     m_defaultZoomCombo->addItem(tr("Fit Width"), "fitWidth");
     m_defaultZoomCombo->addItem(tr("Fit Page"), "fitPage");
     m_defaultZoomCombo->addItem(tr("100%"), "100");
@@ -239,7 +249,7 @@ QWidget* SettingsDialog::createBehaviorTab() {
     m_defaultZoomCombo->setCurrentIndex(0);
     viewLayout->addRow(tr("Default Zoom:"), m_defaultZoomCombo);
 
-    m_defaultPageModeCombo = new QComboBox();
+    m_defaultPageModeCombo = new ElaComboBox();
     m_defaultPageModeCombo->addItem(tr("Single Page"), "single");
     m_defaultPageModeCombo->addItem(tr("Continuous Scroll"), "continuous");
     m_defaultPageModeCombo->setCurrentIndex(1);
@@ -251,21 +261,21 @@ QWidget* SettingsDialog::createBehaviorTab() {
     QGroupBox* sessionGroup = new QGroupBox(tr("Session"));
     QVBoxLayout* sessionLayout = new QVBoxLayout(sessionGroup);
 
-    m_recentFilesCountSpinBox = new QSpinBox();
+    m_recentFilesCountSpinBox = new ElaSpinBox();
     m_recentFilesCountSpinBox->setRange(5, 50);
     m_recentFilesCountSpinBox->setValue(10);
     QHBoxLayout* recentLayout = new QHBoxLayout();
-    recentLayout->addWidget(new QLabel(tr("Recent files to remember:")));
+    recentLayout->addWidget(new ElaText(tr("Recent files to remember:")));
     recentLayout->addWidget(m_recentFilesCountSpinBox);
     recentLayout->addStretch();
     sessionLayout->addLayout(recentLayout);
 
     m_rememberWindowStateCheckBox =
-        new QCheckBox(tr("Remember window size and position"));
+        new ElaCheckBox(tr("Remember window size and position"));
     m_rememberWindowStateCheckBox->setChecked(true);
     sessionLayout->addWidget(m_rememberWindowStateCheckBox);
 
-    m_openLastFileCheckBox = new QCheckBox(tr("Reopen last file on startup"));
+    m_openLastFileCheckBox = new ElaCheckBox(tr("Reopen last file on startup"));
     sessionLayout->addWidget(m_openLastFileCheckBox);
 
     layout->addWidget(sessionGroup);
@@ -284,7 +294,7 @@ QWidget* SettingsDialog::createAdvancedTab() {
     QGroupBox* debugGroup = new QGroupBox(tr("Debug"));
     QFormLayout* debugLayout = new QFormLayout(debugGroup);
 
-    m_logLevelCombo = new QComboBox();
+    m_logLevelCombo = new ElaComboBox();
     m_logLevelCombo->addItem(tr("Error"), "error");
     m_logLevelCombo->addItem(tr("Warning"), "warning");
     m_logLevelCombo->addItem(tr("Info"), "info");
@@ -292,7 +302,7 @@ QWidget* SettingsDialog::createAdvancedTab() {
     m_logLevelCombo->setCurrentIndex(2);
     debugLayout->addRow(tr("Log Level:"), m_logLevelCombo);
 
-    m_enableDebugPanelCheckBox = new QCheckBox(tr("Show debug panel"));
+    m_enableDebugPanelCheckBox = new ElaCheckBox(tr("Show debug panel"));
     debugLayout->addRow(m_enableDebugPanelCheckBox);
 
     layout->addWidget(debugGroup);
@@ -302,7 +312,7 @@ QWidget* SettingsDialog::createAdvancedTab() {
     QVBoxLayout* startupLayout = new QVBoxLayout(startupGroup);
 
     m_showWelcomeScreenCheckBox =
-        new QCheckBox(tr("Show welcome screen on startup"));
+        new ElaCheckBox(tr("Show welcome screen on startup"));
     m_showWelcomeScreenCheckBox->setChecked(true);
     startupLayout->addWidget(m_showWelcomeScreenCheckBox);
 
@@ -313,15 +323,15 @@ QWidget* SettingsDialog::createAdvancedTab() {
     QVBoxLayout* cachePathLayout = new QVBoxLayout(cachePathGroup);
 
     QHBoxLayout* pathLayout = new QHBoxLayout();
-    m_customCachePathEdit = new QLineEdit();
+    m_customCachePathEdit = new ElaLineEdit();
     m_customCachePathEdit->setPlaceholderText(
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation));
-    m_browseCachePathButton = new QPushButton(tr("Browse..."));
+    m_browseCachePathButton = new ElaPushButton(tr("Browse..."));
     pathLayout->addWidget(m_customCachePathEdit);
     pathLayout->addWidget(m_browseCachePathButton);
     cachePathLayout->addLayout(pathLayout);
 
-    m_clearCacheButton = new QPushButton(tr("Clear Cache"));
+    m_clearCacheButton = new ElaPushButton(tr("Clear Cache"));
     cachePathLayout->addWidget(m_clearCacheButton);
 
     layout->addWidget(cachePathGroup);

@@ -674,9 +674,85 @@ void DocumentAnalyzerTest::testFindSimilarDocuments() {
         otherDocs.first()));  // Should find the identical one
 }
 
-// Missing test implementations - stubs for now
+// Text analysis test implementation
 void DocumentAnalyzerTest::testPerformTextAnalysis() {
-    QSKIP("Test not yet implemented");
+    // Create a test PDF with known content
+    QString testContent =
+        "This is a test document. It contains multiple sentences! "
+        "Does it work correctly? Yes, it does. "
+        "The quick brown fox jumps over the lazy dog. "
+        "This paragraph has several words and sentences.\n\n"
+        "This is a second paragraph. It also has content.";
+
+    QString testFile = createTestPdf(testContent);
+
+    // Load the PDF document
+    std::unique_ptr<Poppler::Document> document(
+        Poppler::Document::load(testFile));
+
+    QVERIFY(document != nullptr);
+
+    // Perform text analysis using DocumentAnalyzer's static method
+    QJsonObject textAnalysis =
+        DocumentAnalyzer::performTextAnalysis(document.get());
+
+    // Verify the analysis result contains expected fields
+    QVERIFY(textAnalysis.contains("totalWords"));
+    QVERIFY(textAnalysis.contains("totalSentences"));
+    QVERIFY(textAnalysis.contains("totalParagraphs"));
+    QVERIFY(textAnalysis.contains("totalCharacters"));
+    QVERIFY(textAnalysis.contains("averageWordsPerPage"));
+    QVERIFY(textAnalysis.contains("estimatedReadingTime"));
+    QVERIFY(textAnalysis.contains("detectedLanguage"));
+
+    // Verify values are reasonable
+    int totalWords = textAnalysis["totalWords"].toInt();
+    QVERIFY(totalWords > 0);
+
+    int totalSentences = textAnalysis["totalSentences"].toInt();
+    QVERIFY(totalSentences > 0);
+
+    int totalParagraphs = textAnalysis["totalParagraphs"].toInt();
+    QVERIFY(totalParagraphs > 0);
+
+    int totalCharacters = textAnalysis["totalCharacters"].toInt();
+    QVERIFY(totalCharacters > 0);
+
+    int averageWordsPerPage = textAnalysis["averageWordsPerPage"].toInt();
+    QVERIFY(averageWordsPerPage >= 0);
+
+    double estimatedReadingTime =
+        textAnalysis["estimatedReadingTime"].toDouble();
+    QVERIFY(estimatedReadingTime >= 0.0);
+
+    QString detectedLanguage = textAnalysis["detectedLanguage"].toString();
+    QVERIFY(!detectedLanguage.isEmpty());
+    // Should detect English due to common words like "the", "and", "that"
+    QCOMPARE(detectedLanguage, QString("english"));
+
+    // Test with null document
+    QJsonObject emptyAnalysis = DocumentAnalyzer::performTextAnalysis(nullptr);
+    QVERIFY(emptyAnalysis.isEmpty());
+
+    // Test with Chinese content
+    QString chineseContent = "这是一个测试文档。它包含中文内容。";
+    QString chineseFile = createTestPdf(chineseContent);
+    std::unique_ptr<Poppler::Document> chineseDoc(
+        Poppler::Document::load(chineseFile));
+
+    if (chineseDoc) {
+        QJsonObject chineseAnalysis =
+            DocumentAnalyzer::performTextAnalysis(chineseDoc.get());
+
+        QString chineseLanguage =
+            chineseAnalysis["detectedLanguage"].toString();
+        // Should detect Chinese due to Unicode range
+        QCOMPARE(chineseLanguage, QString("chinese"));
+    }
+
+    // Cleanup
+    QFile::remove(testFile);
+    QFile::remove(chineseFile);
 }
 
 void DocumentAnalyzerTest::testPerformImageAnalysis() {

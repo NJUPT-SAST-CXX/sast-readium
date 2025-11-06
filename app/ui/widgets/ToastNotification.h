@@ -2,8 +2,10 @@
 
 #include <QGraphicsOpacityEffect>
 #include <QLabel>
+class ElaPushButton;
+class ElaText;
 #include <QPropertyAnimation>
-#include <QPushButton>
+
 #include <QTimer>
 #include <QWidget>
 #include <functional>
@@ -102,9 +104,9 @@ private:
 
     // UI Components
     QLabel* m_iconLabel;
-    QLabel* m_messageLabel;
-    QPushButton* m_actionButton;
-    QPushButton* m_closeButton;
+    ElaText* m_messageLabel;
+    ElaPushButton* m_actionButton;
+    ElaPushButton* m_closeButton;
 
     // Animation
     QPropertyAnimation* m_fadeInAnimation;

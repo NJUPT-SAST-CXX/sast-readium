@@ -92,11 +92,11 @@ UIConsistencyManager::ValidationResult UIConsistencyManager::validateComponent(
 
     // Component-specific validation
     QString componentType = getComponentType(widget);
-    if (componentType == "QPushButton") {
+    if (componentType == "QPushButton" || componentType == "ElaPushButton") {
         issues.append(validateButton(widget));
-    } else if (componentType == "QLineEdit") {
+    } else if (componentType == "QLineEdit" || componentType == "ElaLineEdit") {
         issues.append(validateLineEdit(widget));
-    } else if (componentType == "QLabel") {
+    } else if (componentType == "QLabel" || componentType == "ElaText") {
         issues.append(validateLabel(widget));
     } else if (componentType == "QToolBar") {
         issues.append(validateToolBar(widget));
@@ -218,19 +218,19 @@ void UIConsistencyManager::applyDesignSystemStyles(
         return;
 
     // Apply component-specific design system styles
-    if (componentType == "QPushButton") {
+    if (componentType == "QPushButton" || componentType == "ElaPushButton") {
         QPushButton* button = qobject_cast<QPushButton*>(widget);
         if (button) {
             button->setMinimumHeight(DesignSystem::getStandardButtonHeight());
             button->setFont(DesignSystem::getStandardFont("button"));
         }
-    } else if (componentType == "QLineEdit") {
+    } else if (componentType == "QLineEdit" || componentType == "ElaLineEdit") {
         QLineEdit* lineEdit = qobject_cast<QLineEdit*>(widget);
         if (lineEdit) {
             lineEdit->setMinimumHeight(DesignSystem::getStandardButtonHeight());
             lineEdit->setFont(DesignSystem::getStandardFont("input"));
         }
-    } else if (componentType == "QLabel") {
+    } else if (componentType == "QLabel" || componentType == "ElaText") {
         QLabel* label = qobject_cast<QLabel*>(widget);
         if (label) {
             label->setFont(DesignSystem::getStandardFont("body"));

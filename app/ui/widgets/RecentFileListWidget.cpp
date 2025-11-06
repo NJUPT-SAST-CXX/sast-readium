@@ -1,6 +1,7 @@
 #include "RecentFileListWidget.h"
 #include <QDateTime>
 #include <QDebug>
+#include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
 #include <QFrame>
@@ -10,32 +11,49 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSettings>
 #include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
 #include "../../managers/FileTypeIconManager.h"
 #include "../../managers/RecentFilesManager.h"
 #include "../../managers/StyleManager.h"
+#include "ElaComboBox.h"
+#include "ElaLineEdit.h"
+#include "ElaMenu.h"
+#include "ElaPushButton.h"
+#include "ElaText.h"
+#include "ElaToolButton.h"
 
 // Static const member definitions
-const int RecentFileItemWidget::ITEM_HEIGHT;
+const int RecentFileItemWidget::ITEM_HEIGHT_DETAILED;
+const int RecentFileItemWidget::ITEM_HEIGHT_COMPACT;
 const int RecentFileItemWidget::PADDING;
 const int RecentFileItemWidget::SPACING;
+const int RecentFileItemWidget::ICON_SIZE_DETAILED;
+const int RecentFileItemWidget::ICON_SIZE_COMPACT;
 
 const int RecentFileListWidget::MAX_VISIBLE_ITEMS;
 const int RecentFileListWidget::REFRESH_DELAY;
 
 // RecentFileItemWidget Implementation
 RecentFileItemWidget::RecentFileItemWidget(const RecentFileInfo& fileInfo,
+                                           RecentFileViewMode viewMode,
                                            QWidget* parent)
     : QFrame(parent),
       m_fileInfo(fileInfo),
+      m_viewMode(viewMode),
       m_mainLayout(nullptr),
       m_infoLayout(nullptr),
       m_fileIconLabel(nullptr),
       m_fileNameLabel(nullptr),
       m_filePathLabel(nullptr),
       m_lastOpenedLabel(nullptr),
+      m_fileSizeLabel(nullptr),
+      m_pageCountLabel(nullptr),
+      m_thumbnailLabel(nullptr),
       m_removeButton(nullptr),
+      m_pinButton(nullptr),
       m_isHovered(false),
       m_isPressed(false),
       m_hoverAnimation(nullptr),
@@ -43,7 +61,9 @@ RecentFileItemWidget::RecentFileItemWidget(const RecentFileInfo& fileInfo,
       m_opacityEffect(nullptr),
       m_currentOpacity(1.0) {
     setObjectName("RecentFileItemWidget");
-    setFixedHeight(ITEM_HEIGHT);
+    setFixedHeight(viewMode == RecentFileViewMode::Compact
+                       ? ITEM_HEIGHT_COMPACT
+                       : ITEM_HEIGHT_DETAILED);
     setFrameShape(QFrame::NoFrame);
     setCursor(Qt::PointingHandCursor);
 
@@ -53,10 +73,22 @@ RecentFileItemWidget::RecentFileItemWidget(const RecentFileInfo& fileInfo,
     applyTheme();
 }
 
-RecentFileItemWidget::~RecentFileItemWidget() {}
+RecentFileItemWidget::~RecentFileItemWidget() = default;
 
 void RecentFileItemWidget::updateFileInfo(const RecentFileInfo& fileInfo) {
     m_fileInfo = fileInfo;
+    updateDisplay();
+}
+
+void RecentFileItemWidget::setViewMode(RecentFileViewMode mode) {
+    if (m_viewMode == mode) {
+        return;
+    }
+
+    m_viewMode = mode;
+    setFixedHeight(mode == RecentFileViewMode::Compact ? ITEM_HEIGHT_COMPACT
+                                                       : ITEM_HEIGHT_DETAILED);
+    updateLayoutForViewMode();
     updateDisplay();
 }
 
@@ -81,7 +113,7 @@ void RecentFileItemWidget::applyTheme() {
     // VSCode-style file name label - prominent and clean
     if (m_fileNameLabel) {
         m_fileNameLabel->setStyleSheet(
-            QString("QLabel {"
+            QString("QLabel, ElaText {"
                     "    color: %1;"
                     "    font-size: 13px;"
                     "    font-weight: 500;"
@@ -94,7 +126,7 @@ void RecentFileItemWidget::applyTheme() {
     // VSCode-style path label - smaller and muted
     if (m_filePathLabel) {
         m_filePathLabel->setStyleSheet(
-            QString("QLabel {"
+            QString("QLabel, ElaText {"
                     "    color: %1;"
                     "    font-size: 11px;"
                     "    font-weight: 400;"
@@ -107,7 +139,7 @@ void RecentFileItemWidget::applyTheme() {
     // VSCode-style time label - very small and subtle
     if (m_lastOpenedLabel) {
         m_lastOpenedLabel->setStyleSheet(
-            QString("QLabel {"
+            QString("QLabel, ElaText {"
                     "    color: %1;"
                     "    font-size: 10px;"
                     "    font-weight: 400;"
@@ -120,7 +152,7 @@ void RecentFileItemWidget::applyTheme() {
     // VSCode-style remove button - subtle and only visible on hover
     if (m_removeButton) {
         m_removeButton->setStyleSheet(
-            QString("QPushButton {"
+            QString("QPushButton, ElaPushButton {"
                     "    background-color: transparent;"
                     "    border: none;"
                     "    color: %1;"
@@ -131,7 +163,7 @@ void RecentFileItemWidget::applyTheme() {
                     "    border-radius: 9px;"
                     "    padding: 0px;"
                     "}"
-                    "QPushButton:hover {"
+                    "QPushButton:hover, ElaPushButton:hover {"
                     "    background-color: %2;"
                     "    color: %3;"
                     "}")
@@ -165,7 +197,7 @@ void RecentFileItemWidget::mouseReleaseEvent(QMouseEvent* event) {
 }
 
 void RecentFileItemWidget::showContextMenu(const QPoint& globalPos) {
-    QMenu contextMenu(this);
+    ElaMenu contextMenu(this);
     contextMenu.setTitle(tr("Recent File Actions"));
 
     QAction* openAction = contextMenu.addAction(tr("Open"));
@@ -175,6 +207,19 @@ void RecentFileItemWidget::showContextMenu(const QPoint& globalPos) {
     QAction* openInNewTabAction = contextMenu.addAction(tr("Open in New Tab"));
     openInNewTabAction->setShortcut(QKeySequence("Ctrl+T"));
     openInNewTabAction->setIcon(QIcon(":/icons/new-tab"));
+
+    contextMenu.addSeparator();
+
+    // Pin/Unpin action
+    QAction* pinAction = contextMenu.addAction(
+        m_fileInfo.isPinned ? tr("Unpin from Top") : tr("Pin to Top"));
+    pinAction->setIcon(
+        QIcon(m_fileInfo.isPinned ? ":/icons/unpin" : ":/icons/pin"));
+
+    // Open containing folder action
+    QAction* openFolderAction =
+        contextMenu.addAction(tr("Open Containing Folder"));
+    openFolderAction->setIcon(QIcon(":/icons/folder"));
 
     contextMenu.addSeparator();
 
@@ -191,6 +236,13 @@ void RecentFileItemWidget::showContextMenu(const QPoint& globalPos) {
 
     connect(openInNewTabAction, &QAction::triggered,
             [this]() { emit openInNewTabRequested(m_fileInfo.filePath); });
+
+    connect(pinAction, &QAction::triggered,
+            [this]() { emit pinToggleRequested(m_fileInfo.filePath); });
+
+    connect(openFolderAction, &QAction::triggered, [this]() {
+        emit openContainingFolderRequested(m_fileInfo.filePath);
+    });
 
     connect(removeAction, &QAction::triggered,
             [this]() { emit removeRequested(m_fileInfo.filePath); });
@@ -265,9 +317,12 @@ void RecentFileItemWidget::setupUI() {
     m_mainLayout->setSpacing(12);
 
     // 文件类型图标
+    int iconSize = m_viewMode == RecentFileViewMode::Compact
+                       ? ICON_SIZE_COMPACT
+                       : ICON_SIZE_DETAILED;
     m_fileIconLabel = new QLabel();
     m_fileIconLabel->setObjectName("RecentFileIconLabel");
-    m_fileIconLabel->setFixedSize(32, 32);
+    m_fileIconLabel->setFixedSize(iconSize, iconSize);
     m_fileIconLabel->setScaledContents(true);
     m_fileIconLabel->setAlignment(Qt::AlignCenter);
 
@@ -276,33 +331,50 @@ void RecentFileItemWidget::setupUI() {
     m_infoLayout->setContentsMargins(0, 0, 0, 0);
     m_infoLayout->setSpacing(4);
 
-    m_fileNameLabel = new QLabel();
+    m_fileNameLabel = new ElaText();
     m_fileNameLabel->setObjectName("RecentFileNameLabel");
 
-    m_filePathLabel = new QLabel();
+    m_filePathLabel = new ElaText();
     m_filePathLabel->setObjectName("RecentFilePathLabel");
 
-    m_lastOpenedLabel = new QLabel();
+    m_lastOpenedLabel = new ElaText();
     m_lastOpenedLabel->setObjectName("RecentFileLastOpenedLabel");
 
-    m_infoLayout->addWidget(m_fileNameLabel);
-    m_infoLayout->addWidget(m_filePathLabel);
-    m_infoLayout->addWidget(m_lastOpenedLabel);
-    m_infoLayout->addStretch();
+    // Additional labels for detailed view
+    m_fileSizeLabel = new ElaText();
+    m_fileSizeLabel->setObjectName("RecentFileFileSizeLabel");
+
+    m_pageCountLabel = new ElaText();
+    m_pageCountLabel->setObjectName("RecentFilePageCountLabel");
+
+    m_thumbnailLabel = new QLabel();
+    m_thumbnailLabel->setObjectName("RecentFileThumbnailLabel");
+    m_thumbnailLabel->setFixedSize(48, 64);
+    m_thumbnailLabel->setScaledContents(true);
+    m_thumbnailLabel->setVisible(
+        false);  // Optional, shown in detailed view if available
+
+    // Pin button
+    m_pinButton = new ElaPushButton();
+    m_pinButton->setObjectName("RecentFilePinButton");
+    m_pinButton->setCursor(Qt::PointingHandCursor);
+    m_pinButton->setToolTip(tr("Pin to top"));
+    m_pinButton->setFixedSize(24, 24);
+    m_pinButton->setVisible(false);  // Initially hidden, shown on hover
+    connect(m_pinButton, &QPushButton::clicked, this,
+            [this]() { emit pinToggleRequested(m_fileInfo.filePath); });
 
     // 移除按钮
-    m_removeButton = new QPushButton("×");
+    m_removeButton = new ElaPushButton("×");
     m_removeButton->setObjectName("RecentFileRemoveButton");
     m_removeButton->setCursor(Qt::PointingHandCursor);
-    m_removeButton->setToolTip("Remove from recent files");
+    m_removeButton->setToolTip(tr("Remove from recent files"));
     m_removeButton->setVisible(false);  // Initially hidden, shown on hover
     connect(m_removeButton, &QPushButton::clicked, this,
             &RecentFileItemWidget::onRemoveClicked);
 
-    // Layout assembly
-    m_mainLayout->addWidget(m_fileIconLabel, 0, Qt::AlignTop);
-    m_mainLayout->addLayout(m_infoLayout, 1);
-    m_mainLayout->addWidget(m_removeButton, 0, Qt::AlignTop);
+    // Layout assembly based on view mode
+    updateLayoutForViewMode();
 }
 
 void RecentFileItemWidget::setupAnimations() {
@@ -322,6 +394,87 @@ void RecentFileItemWidget::setupAnimations() {
     m_pressAnimation->setEasingCurve(QEasingCurve::OutQuad);
 }
 
+void RecentFileItemWidget::updateLayoutForViewMode() {
+    // Clear existing layout
+    while (m_mainLayout->count() > 0) {
+        QLayoutItem* item = m_mainLayout->takeAt(0);
+        if (item->widget()) {
+            item->widget()->setParent(nullptr);
+        } else if (item->layout()) {
+            // Don't delete the info layout, we'll reuse it
+        }
+        delete item;
+    }
+
+    // Clear info layout
+    while (m_infoLayout->count() > 0) {
+        QLayoutItem* item = m_infoLayout->takeAt(0);
+        if (item->widget()) {
+            item->widget()->setParent(nullptr);
+        }
+        delete item;
+    }
+
+    // Update icon size
+    int iconSize = m_viewMode == RecentFileViewMode::Compact
+                       ? ICON_SIZE_COMPACT
+                       : ICON_SIZE_DETAILED;
+    if (m_fileIconLabel) {
+        m_fileIconLabel->setFixedSize(iconSize, iconSize);
+    }
+
+    if (m_viewMode == RecentFileViewMode::Compact) {
+        // Compact view: filename, icon, and date only
+        m_infoLayout->addWidget(m_fileNameLabel);
+        m_infoLayout->addWidget(m_lastOpenedLabel);
+
+        m_mainLayout->addWidget(m_fileIconLabel, 0, Qt::AlignVCenter);
+        m_mainLayout->addLayout(m_infoLayout, 1);
+        m_mainLayout->addWidget(m_pinButton, 0, Qt::AlignVCenter);
+        m_mainLayout->addWidget(m_removeButton, 0, Qt::AlignVCenter);
+
+        // Hide detailed view components
+        if (m_filePathLabel)
+            m_filePathLabel->setVisible(false);
+        if (m_fileSizeLabel)
+            m_fileSizeLabel->setVisible(false);
+        if (m_pageCountLabel)
+            m_pageCountLabel->setVisible(false);
+        if (m_thumbnailLabel)
+            m_thumbnailLabel->setVisible(false);
+
+    } else {
+        // Detailed view: all information
+        m_infoLayout->addWidget(m_fileNameLabel);
+        m_infoLayout->addWidget(m_filePathLabel);
+
+        // Create a horizontal layout for metadata (size, page count, date)
+        QHBoxLayout* metadataLayout = new QHBoxLayout();
+        metadataLayout->setSpacing(12);
+        metadataLayout->addWidget(m_fileSizeLabel);
+        metadataLayout->addWidget(m_pageCountLabel);
+        metadataLayout->addWidget(m_lastOpenedLabel);
+        metadataLayout->addStretch();
+
+        m_infoLayout->addLayout(metadataLayout);
+
+        m_mainLayout->addWidget(m_fileIconLabel, 0, Qt::AlignTop);
+        m_mainLayout->addLayout(m_infoLayout, 1);
+        // m_mainLayout->addWidget(m_thumbnailLabel, 0, Qt::AlignTop);  //
+        // Optional thumbnail
+        m_mainLayout->addWidget(m_pinButton, 0, Qt::AlignTop);
+        m_mainLayout->addWidget(m_removeButton, 0, Qt::AlignTop);
+
+        // Show detailed view components
+        if (m_filePathLabel)
+            m_filePathLabel->setVisible(true);
+        if (m_fileSizeLabel)
+            m_fileSizeLabel->setVisible(true);
+        if (m_pageCountLabel)
+            m_pageCountLabel->setVisible(true);
+    }
+}
+
 void RecentFileItemWidget::updateDisplay() {
     if (!m_fileNameLabel || !m_filePathLabel || !m_lastOpenedLabel ||
         !m_fileIconLabel) {
@@ -329,8 +482,12 @@ void RecentFileItemWidget::updateDisplay() {
     }
 
     // 更新文件类型图标
-    QIcon fileIcon = FILE_ICON_MANAGER.getFileTypeIcon(m_fileInfo.filePath, 32);
-    m_fileIconLabel->setPixmap(fileIcon.pixmap(32, 32));
+    int iconSize = m_viewMode == RecentFileViewMode::Compact
+                       ? ICON_SIZE_COMPACT
+                       : ICON_SIZE_DETAILED;
+    QIcon fileIcon =
+        FILE_ICON_MANAGER.getFileTypeIcon(m_fileInfo.filePath, iconSize);
+    m_fileIconLabel->setPixmap(fileIcon.pixmap(iconSize, iconSize));
 
     // 更新文件名 - VSCode style: just the filename without extension for
     // display
@@ -349,32 +506,66 @@ void RecentFileItemWidget::updateDisplay() {
             displayName = m_fileInfo.fileName;
         }
     }
+
+    // Add pin indicator to filename if pinned
+    if (m_fileInfo.isPinned) {
+        displayName = "📌 " + displayName;
+    }
     m_fileNameLabel->setText(displayName);
 
     // 更新文件路径 - VSCode style: show directory path, not full path
-    QString displayPath = m_fileInfo.filePath;
-    QFileInfo fileInfo(displayPath);
-    QString dirPath = fileInfo.absolutePath();
+    if (m_filePathLabel && m_viewMode == RecentFileViewMode::Detailed) {
+        QString displayPath = m_fileInfo.filePath;
+        QFileInfo fileInfo(displayPath);
+        QString dirPath = fileInfo.absolutePath();
 
-    // Shorten path like VSCode does
-    if (dirPath.length() > 50) {
-        QStringList pathParts =
-            dirPath.split(QDir::separator(), Qt::SkipEmptyParts);
-        if (pathParts.size() > 2) {
-            displayPath =
-                QString("...") + QDir::separator() + pathParts.takeLast();
-            if (pathParts.size() > 0) {
-                displayPath = QString("...") + QDir::separator() +
-                              pathParts.takeLast() + QDir::separator() +
-                              pathParts.takeLast();
+        // Shorten path like VSCode does
+        if (dirPath.length() > 50) {
+            QStringList pathParts =
+                dirPath.split(QDir::separator(), Qt::SkipEmptyParts);
+            if (pathParts.size() > 2) {
+                displayPath =
+                    QString("...") + QDir::separator() + pathParts.takeLast();
+                if (pathParts.size() > 0) {
+                    displayPath = QString("...") + QDir::separator() +
+                                  pathParts.takeLast() + QDir::separator() +
+                                  pathParts.takeLast();
+                }
+            } else {
+                displayPath = dirPath;
             }
         } else {
             displayPath = dirPath;
         }
-    } else {
-        displayPath = dirPath;
+        m_filePathLabel->setText(displayPath);
     }
-    m_filePathLabel->setText(displayPath);
+
+    // 更新文件大小
+    if (m_fileSizeLabel && m_viewMode == RecentFileViewMode::Detailed) {
+        QString sizeText;
+        qint64 size = m_fileInfo.fileSize;
+        if (size < 1024) {
+            sizeText = QString("%1 B").arg(size);
+        } else if (size < 1024 * 1024) {
+            sizeText = QString("%1 KB").arg(size / 1024.0, 0, 'f', 1);
+        } else if (size < 1024 * 1024 * 1024) {
+            sizeText =
+                QString("%1 MB").arg(size / (1024.0 * 1024.0), 0, 'f', 1);
+        } else {
+            sizeText = QString("%1 GB").arg(size / (1024.0 * 1024.0 * 1024.0),
+                                            0, 'f', 2);
+        }
+        m_fileSizeLabel->setText(sizeText);
+    }
+
+    // 更新页数
+    if (m_pageCountLabel && m_viewMode == RecentFileViewMode::Detailed) {
+        if (m_fileInfo.pageCount > 0) {
+            m_pageCountLabel->setText(tr("%1 pages").arg(m_fileInfo.pageCount));
+        } else {
+            m_pageCountLabel->setText("");
+        }
+    }
 
     // 更新最后打开时间 - VSCode style: simpler format
     QString timeText;
@@ -398,10 +589,21 @@ void RecentFileItemWidget::updateDisplay() {
 
     m_lastOpenedLabel->setText(timeText);
 
+    // Update pin button
+    if (m_pinButton) {
+        m_pinButton->setText(m_fileInfo.isPinned ? "📌" : "📍");
+        m_pinButton->setToolTip(m_fileInfo.isPinned ? tr("Unpin from top")
+                                                    : tr("Pin to top"));
+    }
+
     // 设置工具提示
-    setToolTip(QString("%1\n%2\nLast opened: %3")
-                   .arg(m_fileInfo.fileName, m_fileInfo.filePath,
-                        m_fileInfo.lastOpened.toString()));
+    QString tooltip = QString("%1\n%2\nLast opened: %3")
+                          .arg(m_fileInfo.fileName, m_fileInfo.filePath,
+                               m_fileInfo.lastOpened.toString());
+    if (m_fileInfo.pageCount > 0) {
+        tooltip += QString("\nPages: %1").arg(m_fileInfo.pageCount);
+    }
+    setToolTip(tooltip);
 }
 
 void RecentFileItemWidget::setHovered(bool hovered) {
@@ -468,12 +670,21 @@ RecentFileListWidget::RecentFileListWidget(QWidget* parent)
     : QWidget(parent),
       m_recentFilesManager(nullptr),
       m_mainLayout(nullptr),
+      m_toolbarWidget(nullptr),
+      m_toolbarLayout(nullptr),
+      m_viewModeButton(nullptr),
+      m_sortComboBox(nullptr),
+      m_searchLineEdit(nullptr),
+      m_clearAllButton(nullptr),
       m_scrollArea(nullptr),
       m_contentWidget(nullptr),
       m_contentLayout(nullptr),
       m_emptyLabel(nullptr),
       m_refreshTimer(nullptr),
-      m_isInitialized(false) {
+      m_isInitialized(false),
+      m_viewMode(RecentFileViewMode::Detailed),
+      m_sortOrder(RecentFilesManager::SortOrder::ByDate),
+      m_searchFilter("") {
     setObjectName("RecentFileListWidget");
 
     setupUI();
@@ -485,11 +696,23 @@ RecentFileListWidget::RecentFileListWidget(QWidget* parent)
     connect(m_refreshTimer, &QTimer::timeout, this,
             &RecentFileListWidget::onRefreshTimer);
 
+    // Load view mode preference
+    QSettings settings("SAST", "Readium-RecentFiles");
+    int viewModeInt =
+        settings
+            .value("viewMode", static_cast<int>(RecentFileViewMode::Detailed))
+            .toInt();
+    m_viewMode = static_cast<RecentFileViewMode>(viewModeInt);
+
     m_isInitialized = true;
     updateEmptyState();
 }
 
-RecentFileListWidget::~RecentFileListWidget() {}
+RecentFileListWidget::~RecentFileListWidget() {
+    // Save view mode preference
+    QSettings settings("SAST", "Readium-RecentFiles");
+    settings.setValue("viewMode", static_cast<int>(m_viewMode));
+}
 
 void RecentFileListWidget::setRecentFilesManager(RecentFilesManager* manager) {
     if (m_recentFilesManager == manager) {
@@ -524,15 +747,30 @@ void RecentFileListWidget::refreshList() {
     // 清空现有列表
     clearList();
 
-    // 获取最近文件列表
-    QList<RecentFileInfo> recentFiles = m_recentFilesManager->getRecentFiles();
+    // 获取排序后的最近文件列表
+    QList<RecentFileInfo> recentFiles =
+        m_recentFilesManager->getSortedRecentFiles(m_sortOrder);
+
+    // Apply search filter if set
+    QList<RecentFileInfo> filteredFiles;
+    if (!m_searchFilter.isEmpty()) {
+        QString filterLower = m_searchFilter.toLower();
+        for (const RecentFileInfo& fileInfo : recentFiles) {
+            if (fileInfo.fileName.toLower().contains(filterLower) ||
+                fileInfo.filePath.toLower().contains(filterLower)) {
+                filteredFiles.append(fileInfo);
+            }
+        }
+    } else {
+        filteredFiles = recentFiles;
+    }
 
     // 限制显示数量
-    int maxItems = qMin(recentFiles.size(), MAX_VISIBLE_ITEMS);
+    int maxItems = qMin(filteredFiles.size(), MAX_VISIBLE_ITEMS);
 
     // 添加文件条目
     for (int i = 0; i < maxItems; ++i) {
-        const RecentFileInfo& fileInfo = recentFiles[i];
+        const RecentFileInfo& fileInfo = filteredFiles[i];
         if (fileInfo.isValid()) {
             addFileItem(fileInfo);
         }
@@ -541,7 +779,8 @@ void RecentFileListWidget::refreshList() {
     updateEmptyState();
 
     qDebug() << "RecentFileListWidget: List refreshed with"
-             << m_fileItems.size() << "items";
+             << m_fileItems.size() << "items (filtered from"
+             << filteredFiles.size() << "total)";
 }
 
 void RecentFileListWidget::clearList() {
@@ -571,7 +810,7 @@ void RecentFileListWidget::applyTheme() {
     // 更新空状态标签样式
     if (m_emptyLabel) {
         m_emptyLabel->setStyleSheet(
-            QString("QLabel {"
+            QString("QLabel, ElaText {"
                     "    color: %1;"
                     "    font-size: 14px;"
                     "    margin: 20px;"
@@ -652,6 +891,77 @@ void RecentFileListWidget::setupUI() {
     m_mainLayout->setContentsMargins(0, 0, 0, 0);
     m_mainLayout->setSpacing(0);
 
+    // Create toolbar
+    m_toolbarWidget = new QWidget();
+    m_toolbarWidget->setObjectName("RecentFileListToolbar");
+    m_toolbarLayout = new QHBoxLayout(m_toolbarWidget);
+    m_toolbarLayout->setContentsMargins(8, 8, 8, 8);
+    m_toolbarLayout->setSpacing(8);
+
+    // View mode toggle button
+    m_viewModeButton = new ElaToolButton();
+    m_viewModeButton->setObjectName("ViewModeButton");
+    m_viewModeButton->setToolTip(tr("Toggle view mode"));
+    m_viewModeButton->setText(m_viewMode == RecentFileViewMode::Compact ? "📋"
+                                                                        : "📄");
+    m_viewModeButton->setCheckable(false);
+    connect(m_viewModeButton, &QToolButton::clicked, this, [this]() {
+        setViewMode(m_viewMode == RecentFileViewMode::Compact
+                        ? RecentFileViewMode::Detailed
+                        : RecentFileViewMode::Compact);
+    });
+
+    // Sort combo box
+    m_sortComboBox = new ElaComboBox();
+    m_sortComboBox->setObjectName("SortComboBox");
+    m_sortComboBox->addItem(
+        tr("Sort by Date"),
+        static_cast<int>(RecentFilesManager::SortOrder::ByDate));
+    m_sortComboBox->addItem(
+        tr("Sort by Name"),
+        static_cast<int>(RecentFilesManager::SortOrder::ByName));
+    m_sortComboBox->addItem(
+        tr("Sort by Type"),
+        static_cast<int>(RecentFilesManager::SortOrder::ByFileType));
+    m_sortComboBox->addItem(
+        tr("Sort by Size"),
+        static_cast<int>(RecentFilesManager::SortOrder::BySize));
+    m_sortComboBox->setCurrentIndex(0);
+    connect(m_sortComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int index) {
+                if (index >= 0) {
+                    setSortOrder(static_cast<RecentFilesManager::SortOrder>(
+                        m_sortComboBox->itemData(index).toInt()));
+                }
+            });
+
+    // Search/filter line edit
+    m_searchLineEdit = new ElaLineEdit();
+    m_searchLineEdit->setObjectName("SearchLineEdit");
+    m_searchLineEdit->setPlaceholderText(tr("Search files..."));
+    m_searchLineEdit->setClearButtonEnabled(true);
+    connect(m_searchLineEdit, &QLineEdit::textChanged, this,
+            &RecentFileListWidget::setSearchFilter);
+
+    // Clear all button
+    m_clearAllButton = new ElaToolButton();
+    m_clearAllButton->setObjectName("ClearAllButton");
+    m_clearAllButton->setText(tr("Clear All"));
+    m_clearAllButton->setToolTip(tr("Clear all recent files"));
+    connect(m_clearAllButton, &QToolButton::clicked, this, [this]() {
+        if (m_recentFilesManager) {
+            m_recentFilesManager->clearRecentFiles();
+        }
+    });
+
+    // Add widgets to toolbar
+    m_toolbarLayout->addWidget(m_viewModeButton);
+    m_toolbarLayout->addWidget(m_sortComboBox);
+    m_toolbarLayout->addWidget(m_searchLineEdit, 1);  // Stretch factor 1
+    m_toolbarLayout->addWidget(m_clearAllButton);
+
+    m_mainLayout->addWidget(m_toolbarWidget);
+
     // 创建滚动区域 - VSCode style
     m_scrollArea = new QScrollArea();
     m_scrollArea->setWidgetResizable(true);
@@ -672,7 +982,7 @@ void RecentFileListWidget::setupUI() {
     m_contentLayout->setAlignment(Qt::AlignTop);
 
     // VSCode-style empty state label
-    m_emptyLabel = new QLabel("No recent files");
+    m_emptyLabel = new ElaText(tr("No recent files"));
     m_emptyLabel->setObjectName("RecentFileListEmptyLabel");
     m_emptyLabel->setAlignment(Qt::AlignCenter);
     m_emptyLabel->setVisible(false);
@@ -685,12 +995,31 @@ void RecentFileListWidget::setupUI() {
 }
 
 void RecentFileListWidget::addFileItem(const RecentFileInfo& fileInfo) {
-    RecentFileItemWidget* item = new RecentFileItemWidget(fileInfo, this);
+    RecentFileItemWidget* item =
+        new RecentFileItemWidget(fileInfo, m_viewMode, this);
 
     connect(item, &RecentFileItemWidget::clicked, this,
             &RecentFileListWidget::onItemClicked);
     connect(item, &RecentFileItemWidget::removeRequested, this,
             &RecentFileListWidget::onItemRemoveRequested);
+    connect(item, &RecentFileItemWidget::pinToggleRequested, this,
+            [this](const QString& filePath) {
+                if (m_recentFilesManager) {
+                    m_recentFilesManager->togglePinFile(filePath);
+                }
+            });
+    connect(item, &RecentFileItemWidget::openContainingFolderRequested, this,
+            [](const QString& filePath) {
+                QFileInfo fileInfo(filePath);
+                QString folderPath = fileInfo.absolutePath();
+                QDesktopServices::openUrl(QUrl::fromLocalFile(folderPath));
+            });
+    connect(item, &RecentFileItemWidget::clearAllRecentRequested, this,
+            [this]() {
+                if (m_recentFilesManager) {
+                    m_recentFilesManager->clearRecentFiles();
+                }
+            });
 
     // 插入到布局中（在空标签和弹性空间之前）
     int insertIndex = m_contentLayout->count() - 1;  // 在弹性空间之前
@@ -725,6 +1054,52 @@ void RecentFileListWidget::updateEmptyState() {
     if (m_emptyLabel) {
         m_emptyLabel->setVisible(isEmpty);
     }
+}
+
+void RecentFileListWidget::setViewMode(RecentFileViewMode mode) {
+    if (m_viewMode == mode) {
+        return;
+    }
+
+    m_viewMode = mode;
+
+    // Update view mode button icon
+    if (m_viewModeButton) {
+        m_viewModeButton->setText(
+            m_viewMode == RecentFileViewMode::Compact ? "📋" : "📄");
+        m_viewModeButton->setToolTip(m_viewMode == RecentFileViewMode::Compact
+                                         ? tr("Switch to detailed view")
+                                         : tr("Switch to compact view"));
+    }
+
+    // Update all existing items
+    for (RecentFileItemWidget* item : m_fileItems) {
+        if (item) {
+            item->setViewMode(m_viewMode);
+        }
+    }
+
+    // Save preference
+    QSettings settings("SAST", "Readium-RecentFiles");
+    settings.setValue("viewMode", static_cast<int>(m_viewMode));
+}
+
+void RecentFileListWidget::setSortOrder(RecentFilesManager::SortOrder order) {
+    if (m_sortOrder == order) {
+        return;
+    }
+
+    m_sortOrder = order;
+    refreshList();
+}
+
+void RecentFileListWidget::setSearchFilter(const QString& filter) {
+    if (m_searchFilter == filter) {
+        return;
+    }
+
+    m_searchFilter = filter;
+    refreshList();
 }
 
 void RecentFileListWidget::scheduleRefresh() {

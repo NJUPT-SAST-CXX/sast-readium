@@ -1,6 +1,6 @@
 #include "PageTools.h"
-#include <QDebug>
 #include <QFile>
+#include "../logging/LoggingMacros.h"
 
 PageTools::PageTools(QObject* parent) : QObject(parent) {}
 
@@ -12,7 +12,7 @@ bool PageTools::validatePageNumber(Poppler::Document* document,
 bool PageTools::extractPages(Poppler::Document* source,
                              const QList<int>& pageNumbers,
                              const QString& outputPath) {
-    if (!source || pageNumbers.isEmpty() || outputPath.isEmpty()) {
+    if (source == nullptr || pageNumbers.isEmpty() || outputPath.isEmpty()) {
         emit operationCompleted(false, "Invalid parameters");
         return false;
     }
@@ -29,7 +29,9 @@ bool PageTools::extractPages(Poppler::Document* source,
     // Would use PDF manipulation library (like PoDoFo or QPdf) to extract pages
     // Poppler doesn't directly support page extraction, needs external library
 
-    qDebug() << "Extracting" << pageNumbers.size() << "pages to" << outputPath;
+    LOG_INFO(QStringLiteral("PageTools: Extracting %1 pages to %2")
+                 .arg(pageNumbers.size())
+                 .arg(outputPath));
 
     emit operationCompleted(true, "Pages extracted successfully");
     return true;
@@ -52,7 +54,12 @@ bool PageTools::cropPage(Poppler::Document* document, int pageNumber,
     }
 
     // Would implement page cropping using PDF manipulation library
-    qDebug() << "Cropping page" << pageNumber << "to rect" << cropRect;
+    LOG_INFO(QStringLiteral("PageTools: Cropping page %1 to rect [%2,%3 %4x%5]")
+                 .arg(pageNumber)
+                 .arg(cropRect.x())
+                 .arg(cropRect.y())
+                 .arg(cropRect.width())
+                 .arg(cropRect.height()));
 
     emit operationCompleted(true, "Page cropped successfully");
     return true;
@@ -80,7 +87,9 @@ bool PageTools::rotatePage(Poppler::Document* document, int pageNumber,
     degrees = ((degrees % 360) + 360) % 360;
 
     // Would implement rotation using PDF manipulation library
-    qDebug() << "Rotating page" << pageNumber << "by" << degrees << "degrees";
+    LOG_INFO(QStringLiteral("PageTools: Rotating page %1 by %2 degrees")
+                 .arg(pageNumber)
+                 .arg(degrees));
 
     emit operationCompleted(true, "Page rotated successfully");
     return true;
@@ -99,13 +108,14 @@ bool PageTools::rotatePages(Poppler::Document* document,
 
 bool PageTools::deletePages(Poppler::Document* document,
                             const QList<int>& pageNumbers) {
-    if (!document || pageNumbers.isEmpty()) {
+    if (document == nullptr || pageNumbers.isEmpty()) {
         emit operationCompleted(false, "Invalid parameters");
         return false;
     }
 
     // Would implement page deletion using PDF manipulation library
-    qDebug() << "Deleting" << pageNumbers.size() << "pages";
+    LOG_INFO(
+        QStringLiteral("PageTools: Deleting %1 pages").arg(pageNumbers.size()));
 
     emit operationCompleted(true, "Pages deleted successfully");
     return true;

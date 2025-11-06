@@ -24,8 +24,8 @@
 #include <QWidget>
 #include <memory>
 
-// Forward declaration for resource initialization
-extern void qInitResources_app();
+// Initialize Qt resources for app (ensures QSS/icons are available)
+#include <QResource>
 
 #include "../../app/MainWindow.h"
 #include "../../app/controller/ApplicationController.h"
@@ -146,7 +146,7 @@ void MainWindowUIImprovementsTest::initTestCase() {
     qDebug() << "=== MainWindow UI Improvements Test Suite ===";
 
     // Initialize Qt resources
-    qInitResources_app();
+    Q_INIT_RESOURCE(app);
 
     // Set test mode
     qputenv("SAST_READIUM_TEST_MODE", "1");

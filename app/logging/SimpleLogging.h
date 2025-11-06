@@ -12,9 +12,21 @@
 
 #pragma once
 
+#include <fmt/format.h>
 #include <QString>
 #include <memory>
 #include <string>
+#include <utility>
+
+namespace fmt {
+template <>
+struct formatter<QString> : formatter<std::string> {
+    template <typename FormatContext>
+    auto format(const QString& value, FormatContext& ctx) const {
+        return formatter<std::string>::format(value.toStdString(), ctx);
+    }
+};
+}  // namespace fmt
 
 // Forward declarations to minimize dependencies
 class Logger;
@@ -102,22 +114,22 @@ void critical(const QString& message);
 
 // Format string logging (for convenience)
 template <typename... Args>
-void trace(const char* format, Args&&... args);
+void trace(fmt::format_string<Args...> format, Args&&... args);
 
 template <typename... Args>
-void debug(const char* format, Args&&... args);
+void debug(fmt::format_string<Args...> format, Args&&... args);
 
 template <typename... Args>
-void info(const char* format, Args&&... args);
+void info(fmt::format_string<Args...> format, Args&&... args);
 
 template <typename... Args>
-void warning(const char* format, Args&&... args);
+void warning(fmt::format_string<Args...> format, Args&&... args);
 
 template <typename... Args>
-void error(const char* format, Args&&... args);
+void error(fmt::format_string<Args...> format, Args&&... args);
 
 template <typename... Args>
-void critical(const char* format, Args&&... args);
+void critical(fmt::format_string<Args...> format, Args&&... args);
 
 // ============================================================================
 // Conditional Logging - Only Log When Needed
@@ -127,14 +139,15 @@ void critical(const char* format, Args&&... args);
  * @brief Log only if condition is true
  */
 template <typename... Args>
-void logIf(bool condition, Level level, const char* format, Args&&... args);
+void logIf(bool condition, Level level, fmt::format_string<Args...> format,
+           Args&&... args);
 
 /**
  * @brief Log only in debug builds
  */
 #ifdef QT_DEBUG
 template <typename... Args>
-void debugOnly(const char* format, Args&&... args);
+void debugOnly(fmt::format_string<Args...> format, Args&&... args);
 #else
 template <typename... Args>
 inline void debugOnly(const char*, Args&&...) {}
@@ -160,7 +173,7 @@ public:
     void critical(const QString& message);
 
     template <typename... Args>
-    void log(Level level, const char* format, Args&&... args);
+    void log(Level level, fmt::format_string<Args...> format, Args&&... args);
 
     void setLevel(Level level);
     Level getLevel() const;
@@ -316,52 +329,58 @@ namespace SastLogging {
 // Forward declaration of internal implementation
 namespace detail {
 void logFormatted(Level level, const std::string& formatted);
-std::string formatString(const char* format, ...);
+
+template <typename... Args>
+inline std::string formatString(fmt::format_string<Args...> format,
+                                Args&&... args) {
+    return fmt::format(format, std::forward<Args>(args)...);
+}
 }  // namespace detail
 
 template <typename... Args>
-void trace(const char* format, Args&&... args) {
+void trace(fmt::format_string<Args...> format, Args&&... args) {
     detail::logFormatted(
         Level::Trace,
         detail::formatString(format, std::forward<Args>(args)...));
 }
 
 template <typename... Args>
-void debug(const char* format, Args&&... args) {
+void debug(fmt::format_string<Args...> format, Args&&... args) {
     detail::logFormatted(
         Level::Debug,
         detail::formatString(format, std::forward<Args>(args)...));
 }
 
 template <typename... Args>
-void info(const char* format, Args&&... args) {
+void info(fmt::format_string<Args...> format, Args&&... args) {
     detail::logFormatted(
         Level::Info, detail::formatString(format, std::forward<Args>(args)...));
 }
 
 template <typename... Args>
-void warning(const char* format, Args&&... args) {
+void warning(fmt::format_string<Args...> format, Args&&... args) {
     detail::logFormatted(
         Level::Warning,
         detail::formatString(format, std::forward<Args>(args)...));
 }
 
 template <typename... Args>
-void error(const char* format, Args&&... args) {
+void error(fmt::format_string<Args...> format, Args&&... args) {
     detail::logFormatted(
         Level::Error,
         detail::formatString(format, std::forward<Args>(args)...));
 }
 
 template <typename... Args>
-void critical(const char* format, Args&&... args) {
+void critical(fmt::format_string<Args...> format, Args&&... args) {
     detail::logFormatted(
         Level::Critical,
         detail::formatString(format, std::forward<Args>(args)...));
 }
 
 template <typename... Args>
-void logIf(bool condition, Level level, const char* format, Args&&... args) {
+void logIf(bool condition, Level level, fmt::format_string<Args...> format,
+           Args&&... args) {
     if (condition) {
         detail::logFormatted(
             level, detail::formatString(format, std::forward<Args>(args)...));
@@ -370,13 +389,14 @@ void logIf(bool condition, Level level, const char* format, Args&&... args) {
 
 #ifdef QT_DEBUG
 template <typename... Args>
-void debugOnly(const char* format, Args&&... args) {
+void debugOnly(fmt::format_string<Args...> format, Args&&... args) {
     debug(format, std::forward<Args>(args)...);
 }
 #endif
 
 template <typename... Args>
-void CategoryLogger::log(Level level, const char* format, Args&&... args) {
+void CategoryLogger::log(Level level, fmt::format_string<Args...> format,
+                         Args&&... args) {
     if (level >= d->level) {
         QString msg = QString("[%1] %2")
                           .arg(d->category)

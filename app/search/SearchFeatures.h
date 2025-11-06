@@ -124,10 +124,10 @@ public:
 
     // Search statistics and analytics
     struct SearchStatistics {
-        int totalSearches;
-        int successfulSearches;
-        double averageSearchTime;
-        double averageResultCount;
+        int totalSearches = 0;
+        int successfulSearches = 0;
+        double averageSearchTime = 0.0;
+        double averageResultCount = 0.0;
         QStringList mostPopularQueries;
         QHash<QString, int> queryFrequency;
         QDateTime lastSearchTime;

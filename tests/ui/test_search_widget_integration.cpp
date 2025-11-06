@@ -1,8 +1,10 @@
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QtTest/QtTest>

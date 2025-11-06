@@ -86,6 +86,8 @@ public:
     // Cleanup operations
     void cleanupExpiredResources();
     void cleanupAllResources();
+    void forceCleanupAllResources();
+
     void forceCleanupType(ResourceType type);
 
     // Configuration
@@ -96,6 +98,10 @@ public:
     // Resource validation
     bool validateResources();
     QStringList findLeakedResources();
+
+    // Shutdown state
+    bool isAppShuttingDown() const { return m_appShuttingDown; }
+
     void repairResourceReferences();
 
 signals:
@@ -127,6 +133,8 @@ private:
     QTimer* m_cleanupTimer;
     bool m_autoCleanupEnabled;
     qint64 m_memoryThreshold;
+    bool m_appShuttingDown = false;
+
     int m_cleanupIntervalMs;
 
     SastLogging::CategoryLogger m_logger;

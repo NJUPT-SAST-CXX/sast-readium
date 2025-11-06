@@ -22,6 +22,8 @@
 #include "../ui/core/SideBar.h"
 #include "../ui/core/StatusBar.h"
 #include "../ui/core/ToolBar.h"
+#include "../ui/widgets/SearchPanel.h"
+
 #include "../ui/core/UIErrorHandler.h"
 #include "../ui/core/ViewWidget.h"
 #include "../ui/dialogs/SettingsDialog.h"
@@ -202,7 +204,7 @@ void ApplicationController::initializeViews() {
         m_logger.debug("MenuBar created");
 
         m_logger.debug("Creating ToolBar...");
-        m_toolBar = new ToolBar(m_mainWindow);
+        m_toolBar = new ToolBar(tr("Toolbar"), m_mainWindow);
         m_logger.debug("ToolBar created");
 
         m_logger.info("Creating SideBar...");
@@ -214,19 +216,7 @@ void ApplicationController::initializeViews() {
         m_logger.info("RightSideBar created successfully");
 
         m_logger.info("Creating StatusBar...");
-        // Check if we're in test/minimal mode (offscreen platform or test
-        // environment)
-        QString platformName = QGuiApplication::platformName();
-        bool isTestMode = (platformName == "offscreen" ||
-                           qEnvironmentVariableIsSet("SAST_READIUM_TEST_MODE"));
-        if (isTestMode) {
-            m_logger.info(
-                "Detected test/offscreen mode - creating minimal StatusBar");
-            m_statusBar =
-                new StatusBar(m_mainWindow, true);  // true = minimal mode
-        } else {
-            m_statusBar = new StatusBar(&factory, m_mainWindow);
-        }
+        m_statusBar = new StatusBar(m_mainWindow);
         m_logger.info("StatusBar created successfully");
 
         m_logger.info("Creating ViewWidget...");
@@ -578,17 +568,94 @@ void ApplicationController::connectControllerSignals() {
                     m_logger.warning("Document operation failed");
                 }
             });
+
+        // Connect document reload signal for state preservation
+        connect(
+            m_documentController, &DocumentController::documentReloadRequested,
+            this,
+            [this](const QString& filePath, int /*suggestedPage*/,
+                   double /*suggestedZoom*/) {
+                // Get current state from ViewWidget before reload
+                if (!m_viewWidget) {
+                    m_logger.warning(
+                        "ViewWidget not available for document reload state "
+                        "preservation");
+                    if (m_documentController) {
+                        emit m_documentController->documentOperationCompleted(
+                            ActionMap::reloadFile, false);
+                    }
+                    return;
+                }
+
+                int currentPage = m_viewWidget->getCurrentPage();
+                double currentZoom = m_viewWidget->getCurrentZoom();
+                QPoint scrollPosition = m_viewWidget->getScrollPosition();
+
+                m_logger.info(QString("Document reload requested for: %1 "
+                                      "(preserving state: page=%2, zoom=%3)")
+                                  .arg(filePath)
+                                  .arg(currentPage)
+                                  .arg(currentZoom, 0, 'f', 2));
+
+                // Close current document
+                if (!m_documentController->closeCurrentDocument()) {
+                    m_logger.error("Failed to close document for reload");
+                    if (m_documentController) {
+                        emit m_documentController->documentOperationCompleted(
+                            ActionMap::reloadFile, false);
+                    }
+                    return;
+                }
+
+                // Reopen the document
+                bool success = m_documentController->openDocument(filePath);
+                if (success) {
+                    // Restore state after a short delay to ensure document is
+                    // fully loaded
+                    QTimer::singleShot(100, [this, currentPage, currentZoom,
+                                             scrollPosition]() {
+                        if (m_viewWidget) {
+                            m_viewWidget->goToPage(currentPage);
+                            m_viewWidget->setZoom(currentZoom);
+                            m_viewWidget->setScrollPosition(scrollPosition);
+                            m_logger.info(
+                                QString(
+                                    "Document state restored: page=%1, zoom=%2")
+                                    .arg(currentPage)
+                                    .arg(currentZoom, 0, 'f', 2));
+                        }
+
+                        // Emit completion signal after state restoration
+                        if (m_documentController) {
+                            emit m_documentController
+                                ->documentOperationCompleted(
+                                    ActionMap::reloadFile, true);
+                        }
+                    });
+                } else {
+                    m_logger.error(
+                        QString("Failed to reopen document: %1").arg(filePath));
+                    if (m_documentController) {
+                        emit m_documentController->documentOperationCompleted(
+                            ActionMap::reloadFile, false);
+                    }
+                }
+            });
     }
 }
 
 void ApplicationController::connectViewSignals() {
     // Connect menu bar signals
     if (m_menuBar) {
-        connect(m_menuBar, &MenuBar::themeChanged, this,
+        connect(m_menuBar, &MenuBar::themeChangeRequested, this,
                 &ApplicationController::applyTheme);
 
-        connect(m_menuBar, &MenuBar::onExecuted, m_documentController,
-                &DocumentController::execute);
+        connect(m_menuBar, &MenuBar::actionTriggered, this,
+                [this](ActionMap action) {
+                    if (m_documentController) {
+                        m_documentController->execute(action, m_mainWindow);
+                    }
+                });
 
         connect(m_menuBar, &MenuBar::openRecentFileRequested, this,
                 [this](const QString& filePath) {
@@ -597,7 +664,7 @@ void ApplicationController::connectViewSignals() {
                     }
                 });
 
-        connect(m_menuBar, &MenuBar::languageChanged, this,
+        connect(m_menuBar, &MenuBar::languageChangeRequested, this,
                 [this](const QString& languageCode) {
                     I18nManager::instance().loadLanguage(languageCode);
                     // The I18nManager will emit languageChanged signal which
@@ -651,30 +718,58 @@ void ApplicationController::connectViewSignals() {
                 });
 
         // Search control signals
-        connect(m_documentController,
-                &DocumentController::searchToggleRequested, this,
-                [this](bool show) {
-                    // TODO: Connect to search widget when implemented
-                    QString message = QString("Search toggle requested: %1")
-                                          .arg(show ? "show" : "hide");
-                    m_logger.debug(message);
-                });
+        connect(
+            m_documentController, &DocumentController::searchToggleRequested,
+            this, [this](bool show) {
+                if (m_rightSideBar) {
+                    // Show/hide the right sidebar with search tab
+                    if (show) {
+                        m_rightSideBar->show(true);
+                        m_rightSideBar->switchToTab(RightSideBar::SearchTab);
+                        m_logger.debug("Search panel shown");
+                    } else {
+                        // Optionally hide the sidebar or just switch away from
+                        // search
+                        m_logger.debug("Search hide requested");
+                    }
+                } else {
+                    m_logger.warning(
+                        "RightSideBar not available for search toggle");
+                }
+            });
 
-        connect(m_documentController,
-                &DocumentController::searchNavigationRequested, this,
-                [this](bool forward) {
-                    // TODO: Connect to search widget navigation
-                    QString message =
-                        QString("Search navigation requested: %1")
-                            .arg(forward ? "forward" : "backward");
-                    m_logger.debug(message);
-                });
+        connect(
+            m_documentController,
+            &DocumentController::searchNavigationRequested, this,
+            [this](bool forward) {
+                if (m_rightSideBar) {
+                    // Ensure search panel is visible; actual navigation is
+                    // handled within the panel
+                    m_rightSideBar->show(true);
+                    m_rightSideBar->switchToTab(RightSideBar::SearchTab);
+                    m_logger.debug(QString("Search navigation requested: %1")
+                                       .arg(forward ? "next" : "previous"));
+                } else {
+                    m_logger.warning(
+                        "RightSideBar not available for search navigation");
+                }
+            });
 
-        connect(m_documentController, &DocumentController::searchClearRequested,
-                this, [this]() {
-                    // TODO: Connect to search widget clear
-                    m_logger.debug("Search clear requested");
-                });
+        connect(
+            m_documentController, &DocumentController::searchClearRequested,
+            this, [this]() {
+                if (m_rightSideBar) {
+                    if (auto* panel = m_rightSideBar->searchPanel()) {
+                        panel->clearResults();
+                        m_logger.debug("Search cleared");
+                    } else {
+                        m_logger.warning("SearchPanel not available for clear");
+                    }
+                } else {
+                    m_logger.warning(
+                        "RightSideBar not available for search clear");
+                }
+            });
 
         // Full screen toggle signal
         connect(m_documentController,
@@ -689,10 +784,15 @@ void ApplicationController::connectViewSignals() {
                 });
 
         // Tab switch signal
+        // Note: This is a generic signal for tab switching. Actual tab
+        // switching is handled by nextTab/prevTab actions in DocumentController
+        // which call switchToDocument(). The ViewWidget responds to
+        // DocumentModel's currentDocumentChanged signal to update the UI.
         connect(m_documentController, &DocumentController::tabSwitchRequested,
                 this, [this]() {
-                    // TODO: Connect to tab widget when implemented
-                    m_logger.debug("Tab switch requested");
+                    m_logger.debug(
+                        "Generic tab switch requested - specific tab switching "
+                        "is handled by nextTab/prevTab actions");
                 });
 
         // Theme toggle signal
@@ -977,8 +1077,8 @@ void ApplicationController::connectStatusBarSignals() {
                 [this](int index) {
                     Q_UNUSED(index)
                     if (m_documentModel->getDocumentCount() == 0) {
-                        m_statusBar->clearDocumentInfo();
-                        m_statusBar->setMessage(tr("No documents open"));
+                        m_statusBar->clearAll();
+                        m_statusBar->showMessage(tr("No documents open"));
                     } else {
                         updateStatusBarFromDocument();
                     }
@@ -1001,13 +1101,13 @@ void ApplicationController::updateStatusBarFromDocument() {
 
     int currentIndex = m_documentModel->getCurrentDocumentIndex();
     if (currentIndex < 0) {
-        m_statusBar->clearDocumentInfo();
+        m_statusBar->clearAll();
         return;
     }
 
     QString fileName = m_documentModel->getDocumentFileName(currentIndex);
     if (fileName.isEmpty()) {
-        m_statusBar->clearDocumentInfo();
+        m_statusBar->clearAll();
         return;
     }
 
@@ -1020,9 +1120,10 @@ void ApplicationController::updateStatusBarFromDocument() {
     int totalPages = m_viewWidget->getCurrentPageCount();
     double zoomLevel = m_viewWidget->getCurrentZoom();
 
-    // Update StatusBar with complete document information
-    m_statusBar->setDocumentInfo(fileName, currentPage, totalPages, zoomLevel,
-                                 fileSize);
+    // Update StatusBar with basic document information
+    m_statusBar->setFileName(fileName);
+    m_statusBar->setPageInfo(currentPage, totalPages);
+    m_statusBar->setZoomLevel(zoomLevel);
 
     // Update document metadata if available
     if (auto* document = m_documentModel->getDocument(currentIndex)) {
@@ -1062,20 +1163,71 @@ void ApplicationController::updateStatusBarFromDocument() {
             modified = fileInfo.lastModified();
         }
 
-        m_statusBar->setDocumentMetadata(title, author, subject, keywords,
-                                         created, modified);
+        QMap<QString, QString> metadata;
+        metadata.insert("Title", title);
+        metadata.insert("Author", author);
+        metadata.insert("Subject", subject);
+        metadata.insert("Keywords", keywords);
+        metadata.insert("Created", created.toString(Qt::ISODate));
+        metadata.insert("Modified", modified.toString(Qt::ISODate));
+        m_statusBar->setDocumentMetadata(metadata);
 
-        // Set document statistics (placeholder values - would need actual text
-        // analysis) For now, estimate based on page count
-        int estimatedWords = totalPages * 250;    // Rough estimate
-        int estimatedChars = estimatedWords * 6;  // Rough estimate
-        m_statusBar->setDocumentStatistics(estimatedWords, estimatedChars,
-                                           totalPages);
+        // Calculate actual document statistics by analyzing text content
+        int totalWords = 0;
+        int totalChars = 0;
 
-        // Set security information (placeholder - would need actual PDF
-        // security analysis)
-        m_statusBar->setDocumentSecurity(
-            false, true, true);  // Default: not encrypted, copy/print allowed
+        // Sample first few pages for statistics (to avoid performance issues
+        // with large documents)
+        int pagesToSample = qMin(totalPages, 10);  // Sample up to 10 pages
+
+        for (int i = 0; i < pagesToSample; ++i) {
+            std::unique_ptr<Poppler::Page> page(document->page(i));
+            if (page) {
+                QString pageText = page->text(QRectF());
+                if (!pageText.isEmpty()) {
+                    // Count characters (excluding whitespace)
+                    QString textWithoutSpaces = pageText;
+                    textWithoutSpaces.remove(QRegularExpression("\\s"));
+                    totalChars += textWithoutSpaces.length();
+
+                    // Count words (split by whitespace)
+                    QStringList words = pageText.split(
+                        QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+                    totalWords += words.size();
+                }
+            }
+        }
+
+        // If we sampled pages, extrapolate to full document
+        if (pagesToSample > 0 && pagesToSample < totalPages) {
+            double avgWordsPerPage =
+                static_cast<double>(totalWords) / pagesToSample;
+            double avgCharsPerPage =
+                static_cast<double>(totalChars) / pagesToSample;
+            totalWords = static_cast<int>(avgWordsPerPage * totalPages);
+            totalChars = static_cast<int>(avgCharsPerPage * totalPages);
+        }
+
+        QMap<QString, QString> statistics;
+        statistics.insert("Pages", QString::number(totalPages));
+        statistics.insert("Words", QString::number(totalWords));
+        statistics.insert("Characters", QString::number(totalChars));
+        m_statusBar->setDocumentStatistics(statistics);
+
+        // Analyze actual PDF security information
+        bool isEncrypted = document->isEncrypted();
+        bool canCopy = !document->okToCopy();    // Poppler returns true if
+                                                 // copying is NOT allowed
+        bool canPrint = !document->okToPrint();  // Poppler returns true if
+                                                 // printing is NOT allowed
+
+        // Note: Poppler's okToCopy/okToPrint return true when the operation is
+        // FORBIDDEN So we need to invert the logic
+        QMap<QString, QString> security;
+        security.insert("Encrypted", isEncrypted ? tr("Yes") : tr("No"));
+        security.insert("Copy Allowed", canCopy ? tr("Yes") : tr("No"));
+        security.insert("Print Allowed", canPrint ? tr("Yes") : tr("No"));
+        m_statusBar->setDocumentSecurity(security);
     }
 
     LOG_DEBUG("StatusBar updated from document: {} ({} pages, {:.1f}% zoom)",

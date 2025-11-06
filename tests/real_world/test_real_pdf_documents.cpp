@@ -259,31 +259,32 @@ void TestRealPDFDocuments::testDocumentWithBothModes(const TestDocument& doc) {
 
     verifyDocumentProperties(document, doc);
 
-    m_viewer->setDocument(document);
+    std::shared_ptr<Poppler::Document> sharedDoc(document);
+    m_viewer->setDocument(sharedDoc);
     QVERIFY(m_viewer->hasDocument());
-    QCOMPARE(m_viewer->getPageCount(), doc.expectedPages);
+    QCOMPARE(m_viewer->pageCount(), doc.expectedPages);
 
     // Test traditional mode
     // m_viewer->setQGraphicsRenderingEnabled(false);
 
     // Test basic operations
-    m_viewer->goToPage(0);
-    QCOMPARE(m_viewer->getCurrentPage(), 0);
+    m_viewer->goToPage(1);
+    QCOMPARE(m_viewer->currentPage(), 1);
 
     if (doc.expectedPages > 1) {
-        m_viewer->nextPage();
-        QCOMPARE(m_viewer->getCurrentPage(), 1);
+        m_viewer->goToNextPage();
+        QCOMPARE(m_viewer->currentPage(), 2);
 
-        m_viewer->lastPage();
-        QCOMPARE(m_viewer->getCurrentPage(), doc.expectedPages - 1);
+        m_viewer->goToLastPage();
+        QCOMPARE(m_viewer->currentPage(), doc.expectedPages);
 
-        m_viewer->firstPage();
-        QCOMPARE(m_viewer->getCurrentPage(), 0);
+        m_viewer->goToFirstPage();
+        QCOMPARE(m_viewer->currentPage(), 1);
     }
 
     // Test zoom operations - use safe zoom with Qt PDF detection
     m_viewer->setZoom(1.0);
-    QCOMPARE(m_viewer->getCurrentZoom(), 1.0);
+    QCOMPARE(m_viewer->zoom(), 1.0);
 
     // Check if this is a Qt-generated PDF and adjust test expectations
     SafePDFRenderer& renderer = SafePDFRenderer::instance();
@@ -300,30 +301,30 @@ void TestRealPDFDocuments::testDocumentWithBothModes(const TestDocument& doc) {
         QTest::qWait(100);
     }
 
-    m_viewer->zoomToFit();
-    m_viewer->zoomToWidth();
+    m_viewer->fitToPage();
+    m_viewer->fitToWidth();
 
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
     // Test QGraphics mode
     m_viewer->setQGraphicsRenderingEnabled(true);
 
     // Repeat same tests
-    m_viewer->goToPage(0);
-    QCOMPARE(m_viewer->getCurrentPage(), 0);
+    m_viewer->goToPage(1);
+    QCOMPARE(m_viewer->currentPage(), 1);
 
     if (doc.expectedPages > 1) {
-        m_viewer->nextPage();
-        QCOMPARE(m_viewer->getCurrentPage(), 1);
+        m_viewer->goToNextPage();
+        QCOMPARE(m_viewer->currentPage(), 2);
 
-        m_viewer->lastPage();
-        QCOMPARE(m_viewer->getCurrentPage(), doc.expectedPages - 1);
+        m_viewer->goToLastPage();
+        QCOMPARE(m_viewer->currentPage(), doc.expectedPages);
 
-        m_viewer->firstPage();
-        QCOMPARE(m_viewer->getCurrentPage(), 0);
+        m_viewer->goToFirstPage();
+        QCOMPARE(m_viewer->currentPage(), 1);
     }
 
     m_viewer->setZoom(2.0);
-    QCOMPARE(m_viewer->getCurrentZoom(), 2.0);
+    QCOMPARE(m_viewer->zoom(), 2.0);
 #endif
 
     // Clear the document from viewer
@@ -397,7 +398,8 @@ void TestRealPDFDocuments::testMultiPageNavigation() {
     Poppler::Document* document = loadDocument(complexDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    std::shared_ptr<Poppler::Document> sharedDoc(document);
+    m_viewer->setDocument(sharedDoc);
 
     // Test navigation in both modes
     for (int mode = 0; mode < 2; ++mode) {
@@ -408,35 +410,35 @@ void TestRealPDFDocuments::testMultiPageNavigation() {
             break;  // Skip QGraphics mode if not available
 #endif
 
-        // Test sequential navigation
-        for (int page = 0; page < document->numPages(); ++page) {
+        // Test sequential navigation (pages are 1-based)
+        for (int page = 1; page <= document->numPages(); ++page) {
             m_viewer->goToPage(page);
-            QCOMPARE(m_viewer->getCurrentPage(), page);
+            QCOMPARE(m_viewer->currentPage(), page);
         }
 
         // Test reverse navigation
-        for (int page = document->numPages() - 1; page >= 0; --page) {
+        for (int page = document->numPages(); page >= 1; --page) {
             m_viewer->goToPage(page);
-            QCOMPARE(m_viewer->getCurrentPage(), page);
+            QCOMPARE(m_viewer->currentPage(), page);
         }
 
         // Test navigation methods
-        m_viewer->firstPage();
-        QCOMPARE(m_viewer->getCurrentPage(), 0);
+        m_viewer->goToFirstPage();
+        QCOMPARE(m_viewer->currentPage(), 1);
 
-        m_viewer->lastPage();
-        QCOMPARE(m_viewer->getCurrentPage(), document->numPages() - 1);
+        m_viewer->goToLastPage();
+        QCOMPARE(m_viewer->currentPage(), document->numPages());
 
         // Test next/previous
-        m_viewer->firstPage();
-        for (int i = 0; i < document->numPages() - 1; ++i) {
-            m_viewer->nextPage();
-            QCOMPARE(m_viewer->getCurrentPage(), i + 1);
+        m_viewer->goToFirstPage();
+        for (int i = 1; i < document->numPages(); ++i) {
+            m_viewer->goToNextPage();
+            QCOMPARE(m_viewer->currentPage(), i + 1);
         }
 
-        for (int i = document->numPages() - 1; i > 0; --i) {
-            m_viewer->previousPage();
-            QCOMPARE(m_viewer->getCurrentPage(), i - 1);
+        for (int i = document->numPages(); i > 1; --i) {
+            m_viewer->goToPreviousPage();
+            QCOMPARE(m_viewer->currentPage(), i - 1);
         }
     }
 
@@ -452,7 +454,8 @@ void TestRealPDFDocuments::testSearchInRealDocument() {
     Poppler::Document* document = loadDocument(complexDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    std::shared_ptr<Poppler::Document> sharedDoc(document);
+    m_viewer->setDocument(sharedDoc);
 
     // Test search functionality (basic test)
     // Note: Full search testing would require implementing search in the test
@@ -470,7 +473,8 @@ void TestRealPDFDocuments::testZoomingRealDocument() {
     Poppler::Document* document = loadDocument(simpleDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    std::shared_ptr<Poppler::Document> sharedDoc(document);
+    m_viewer->setDocument(sharedDoc);
 
     // Test various zoom levels in both modes
     QList<double> zoomLevels = {0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0};
@@ -485,17 +489,17 @@ void TestRealPDFDocuments::testZoomingRealDocument() {
 
         for (double zoom : zoomLevels) {
             m_viewer->setZoom(zoom);
-            QCOMPARE(m_viewer->getCurrentZoom(), zoom);
+            QCOMPARE(m_viewer->zoom(), zoom);
         }
 
         // Test zoom methods
         m_viewer->setZoom(1.0);
         m_viewer->zoomIn();
-        QVERIFY(m_viewer->getCurrentZoom() > 1.0);
+        QVERIFY(m_viewer->zoom() > 1.0);
 
         m_viewer->zoomOut();
-        m_viewer->zoomToFit();
-        m_viewer->zoomToWidth();
+        m_viewer->fitToPage();
+        m_viewer->fitToWidth();
     }
 
     m_viewer->clearDocument();
@@ -510,7 +514,8 @@ void TestRealPDFDocuments::testRotationRealDocument() {
     Poppler::Document* document = loadDocument(simpleDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    std::shared_ptr<Poppler::Document> sharedDoc(document);
+    m_viewer->setDocument(sharedDoc);
 
     // Test rotation in both modes
     for (int mode = 0; mode < 2; ++mode) {
@@ -521,18 +526,14 @@ void TestRealPDFDocuments::testRotationRealDocument() {
             break;
 #endif
 
-        // Test rotation angles
-        QList<int> rotations = {0, 90, 180, 270, 360};
-
-        for (int rotation : rotations) {
-            m_viewer->setRotation(rotation % 360);
-            // Note: Rotation testing might need adjustment based on
-            // implementation
-        }
-
-        // Test rotation methods
+        // Test rotation methods (PDFViewer doesn't have setRotation, only
+        // rotate methods)
         m_viewer->resetRotation();
         m_viewer->rotateRight();
+        m_viewer->rotateRight();
+        m_viewer->rotateRight();
+        m_viewer->rotateRight();  // Full rotation
+
         m_viewer->rotateLeft();
         m_viewer->resetRotation();
     }
@@ -549,10 +550,11 @@ void TestRealPDFDocuments::testRenderingQuality() {
     Poppler::Document* document = loadDocument(complexDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    std::shared_ptr<Poppler::Document> sharedDoc(document);
+    m_viewer->setDocument(sharedDoc);
 
     // Test that rendering completes without errors
-    for (int page = 0; page < document->numPages(); ++page) {
+    for (int page = 1; page <= document->numPages(); ++page) {
         m_viewer->goToPage(page);
 
         // Test different zoom levels
@@ -589,10 +591,11 @@ void TestRealPDFDocuments::testMemoryWithLargeDocument() {
     Poppler::Document* document = loadDocument(largeDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    std::shared_ptr<Poppler::Document> sharedDoc(document);
+    m_viewer->setDocument(sharedDoc);
 
     // Navigate through all pages to test memory usage
-    for (int page = 0; page < document->numPages(); ++page) {
+    for (int page = 1; page <= document->numPages(); ++page) {
         m_viewer->goToPage(page);
         m_viewer->setZoom(1.5);
         QCoreApplication::processEvents();

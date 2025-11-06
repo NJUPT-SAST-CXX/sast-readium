@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <QFileInfo>
 #include <QJsonParseError>
+#include <QTimer>
 #include <algorithm>
 
 // Bookmark serialization implementation
@@ -54,7 +55,13 @@ Bookmark Bookmark::fromJson(const QJsonObject& json) {
 BookmarkModel::BookmarkModel(QObject* parent)
     : QAbstractItemModel(parent), m_autoSave(true) {
     initializeStorage();
-    loadFromFile();
+
+    // PERFORMANCE FIX: Load bookmarks asynchronously to prevent UI freeze
+    // when switching tabs. The synchronous loadFromFile() was blocking
+    // the main thread, especially with large bookmark files.
+    // Using QTimer::singleShot(0) defers the loading to the next event loop
+    // iteration, allowing the UI to remain responsive.
+    QTimer::singleShot(0, this, [this]() { loadFromFile(); });
 
     // Connect to auto-save on data changes
     connect(this, &BookmarkModel::dataChanged, this,

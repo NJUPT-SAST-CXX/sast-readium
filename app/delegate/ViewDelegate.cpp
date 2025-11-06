@@ -13,6 +13,8 @@
 #include "../ui/core/ToolBar.h"
 #include "../ui/core/ViewWidget.h"
 
+#include "ElaTabWidget.h"
+
 // ViewDelegate Implementation class
 class ViewDelegate::Implementation {
 public:
@@ -543,7 +545,7 @@ void SideBarDelegate::showTab(const QString& name) {
         return;
     }
 
-    QTabWidget* tabWidget = d->sideBar->getTabWidget();
+    auto* tabWidget = d->sideBar->tabWidget();
     if (!tabWidget) {
         d->logger.warning("Cannot show tab: TabWidget is null");
         return;
@@ -578,7 +580,7 @@ void SideBarDelegate::enableTab(int index, bool enable) {
         return;
     }
 
-    QTabWidget* tabWidget = d->sideBar->getTabWidget();
+    auto* tabWidget = d->sideBar->tabWidget();
     if (!tabWidget) {
         d->logger.warning("Cannot enable/disable tab: TabWidget is null");
         return;
@@ -600,7 +602,7 @@ void SideBarDelegate::setTabVisible(int index, bool visible) {
         return;
     }
 
-    QTabWidget* tabWidget = d->sideBar->getTabWidget();
+    auto* tabWidget = d->sideBar->tabWidget();
     if (!tabWidget) {
         d->logger.warning("Cannot set tab visibility: TabWidget is null");
         return;
@@ -652,7 +654,7 @@ void SideBarDelegate::restoreState() {
 
     // Apply restored tab if sidebar has a tab widget
     if (d->sideBar) {
-        QTabWidget* tabWidget = d->sideBar->getTabWidget();
+        auto* tabWidget = d->sideBar->tabWidget();
         if (tabWidget && d->currentTab >= 0 &&
             d->currentTab < tabWidget->count()) {
             tabWidget->setCurrentIndex(d->currentTab);

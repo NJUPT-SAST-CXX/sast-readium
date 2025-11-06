@@ -1,115 +1,148 @@
-#pragma once
+﻿#ifndef STATUSBAR_H
+#define STATUSBAR_H
 
+#include <QColor>
 #include <QDateTime>
-#include <QFrame>
-#include <QHBoxLayout>
-#include <QIntValidator>
-#include <QKeyEvent>
-#include <QLabel>
-#include <QLineEdit>
-#include <QProgressBar>
-#include <QPropertyAnimation>
-#include <QPushButton>
+#include <QMap>
 #include <QStatusBar>
 #include <QString>
-#include <QTimer>
-#include <QVBoxLayout>
-#include <memory>
-#include "../../factory/WidgetFactory.h"
 
-class ExpandableInfoPanel : public QWidget {
-    Q_OBJECT
-
-public:
-    ExpandableInfoPanel(const QString& title, QWidget* parent = nullptr);
-    ~ExpandableInfoPanel() override;
-    void setContentWidget(QWidget* widget);
-    void setExpanded(bool expanded, bool animated = true);
-    bool isExpanded() const { return m_expanded; }
-
-signals:
-    void expandedChanged(bool expanded);
-
-private:
-    QPushButton* m_toggleButton;
-    QWidget* m_contentWidget;
-    QFrame* m_contentFrame;
-    QPropertyAnimation* m_animation;
-    bool m_expanded;
-
-    void updateToggleButton();
-    void applyTheme();
-};
+// Forward declarations
+class ElaText;
+class QWidget;
+class QHBoxLayout;
+class ElaLineEdit;
+class ElaProgressBar;
+class QTimer;
+class QPropertyAnimation;
+class ElaToolButton;
 
 /**
- * @brief Enhanced status bar with document information, progress tracking, and
- * expandable panels
+ * @brief ElaStatusBarWidget - 状态栏组件
  *
- * @details This status bar provides comprehensive document status information
- * including:
- * - File name, page info, and zoom level
- * - Document metadata (title, author, subject, keywords, dates)
- * - Document statistics (word count, character count, reading time)
- * - Security information (encryption, permissions)
- * - Search results display
- * - Loading progress tracking
- * - Quick action buttons
- *
- * **Minimal Mode:**
- * The status bar supports a minimal mode (enabled via constructor parameter)
- * designed for:
- * - Headless testing environments without Qt platform plugins
- * - Unit testing where UI widgets are not needed
- * - Reduced memory footprint scenarios
- *
- * When minimal mode is enabled:
- * - All widget pointers are initialized to nullptr
- * - All public methods perform null checks and return early if widgets don't
- * exist
- * - No UI elements are created or displayed
- * - The status bar acts as a no-op interface for testing purposes
- *
- * @note All public methods are safe to call in minimal mode - they will
- * gracefully handle nullptr widgets and return without error.
- *
- * @see ExpandableInfoPanel for the collapsible panel implementation
+ * 功能：
+ * - 显示文档基本信息（文件名、页码、缩放级别）
+ * - 显示消息和进度
+ * - 可展开面板显示详细信息
+ *   - 文档信息面板（标题、作者、主题、关键词、创建日期等）
+ *   - 统计信息面板（页数、文件大小、PDF 版本等）
+ *   - 安全信息面板（加密、权限等）
  */
 class StatusBar : public QStatusBar {
     Q_OBJECT
+
 public:
-    /**
-     * @brief Construct a new Status Bar object
-     * @param parent Parent widget (optional)
-     * @param minimalMode If true, creates a minimal status bar without UI
-     * widgets for testing (default: false)
-     */
-    explicit StatusBar(QWidget* parent = nullptr, bool minimalMode = false);
+    explicit StatusBar(QWidget* parent = nullptr);
+    // Backward-compatibility: minimalMode constructor
+    StatusBar(QWidget* parent, bool minimalMode);
+    ~StatusBar() override;
+
+    // ========================================================================
+    // 基本信息显示
+    // ========================================================================
 
     /**
-     * @brief Construct a new Status Bar object using WidgetFactory
-     * @param factory Widget factory for creating UI components
-     * @param parent Parent widget (optional)
+     * @brief 设置文件名
      */
-    StatusBar(WidgetFactory* factory, QWidget* parent = nullptr);
+    void setFileName(const QString& fileName);
 
     /**
-     * @brief Destroy the Status Bar object and clean up resources
+     * @brief 设置页面信息
      */
-    ~StatusBar();
+    void setPageInfo(int currentPage, int totalPages);
 
-    // 状态信息更新接口
+    /**
+     * @brief 设置缩放级别
+     */
+    void setZoomLevel(double zoomFactor);
+
+    /**
+     * @brief 设置视图模式
+     */
+    void setViewMode(const QString& mode);
+
+    // ========================================================================
+    // 消息和进度
+    // ========================================================================
+
+    // 消息优先级
+    enum class MessagePriority { Low = 0, Normal = 1, High = 2, Critical = 3 };
+
+    /**
+     * @brief 显示临时消息（带优先级）
+     */
+    void showMessage(const QString& message,
+                     MessagePriority priority = MessagePriority::Normal,
+                     int timeout = 3000);
+
+    /**
+     * @brief 显示错误消息
+     */
+    void setErrorMessage(const QString& message, int timeout = 5000);
+
+    /**
+     * @brief 显示成功消息
+     */
+    void setSuccessMessage(const QString& message, int timeout = 3000);
+
+    /**
+     * @brief 显示警告消息
+     */
+    void setWarningMessage(const QString& message, int timeout = 4000);
+
+    /**
+     * @brief 清除消息
+     */
+    void clearMessages(MessagePriority maxPriority = MessagePriority::Normal);
+
+    /**
+     * @brief 显示进度（带优先级）
+     * @param message 进度消息
+     * @param priority 优先级（默认5）
+     */
+    void showProgress(const QString& message, int priority = 5);
+
+    /** Backward-compatibility helpers expected by some tests */
+    void setMessage(const QString& message);           // -> showMessage
+    void showLoadingProgress(const QString& message);  // -> showProgress
+    void updateLoadingProgress(int progress);          // -> updateProgress
+    void hideLoadingProgress();                        // -> hideProgress
+
+    /**
+     * @brief 更新进度
+     * @param progress 进度值（0-100）
+     * @param message 可选的进度消息
+     */
+    void updateProgress(int progress, const QString& message = QString());
+
+    /**
+     * @brief 隐藏进度
+     */
+    void hideProgress();
+
+    // ========================================================================
+    // 文档信息
+    // ========================================================================
+
+    /**
+     * @brief 设置文档元数据
+     */
+    void setDocumentMetadata(const QMap<QString, QString>& metadata);
+
+    /**
+     * @brief 设置文档统计信息
+     */
+    void setDocumentStatistics(const QMap<QString, QString>& statistics);
+
+    /**
+     * @brief 设置文档安全信息
+     */
+
+    // -----------------------------------------------------------------------
+    // Backward-compatibility API expected by legacy tests
+    // -----------------------------------------------------------------------
     void setDocumentInfo(const QString& fileName, int currentPage,
                          int totalPages, double zoomLevel);
-    void setDocumentInfo(const QString& fileName, int currentPage,
-                         int totalPages, double zoomLevel, qint64 fileSize);
-    void setPageInfo(int current, int total);
-    void setZoomLevel(int percent);
-    void setZoomLevel(double percent);
-    void setFileName(const QString& fileName);
-    void setFileName(const QString& fileName, qint64 fileSize);
-    void setMessage(const QString& message);
-
-    // 扩展的文档元数据
     void setDocumentMetadata(const QString& title, const QString& author,
                              const QString& subject, const QString& keywords,
                              const QDateTime& created,
@@ -117,178 +150,168 @@ public:
     void setDocumentStatistics(int wordCount, int charCount, int pageCount);
     void setDocumentSecurity(bool encrypted, bool copyAllowed,
                              bool printAllowed);
-
-    // 消息显示增强
-    void setErrorMessage(const QString& message, int timeout = 5000);
-    void setSuccessMessage(const QString& message, int timeout = 3000);
-    void setWarningMessage(const QString& message, int timeout = 4000);
-
-    // Enhanced message system with priority
-    enum class MessagePriority { Low = 0, Normal = 1, High = 2, Critical = 3 };
-
-    void showMessage(const QString& message, MessagePriority priority,
-                     int timeout = 3000);
-    void clearMessages(MessagePriority maxPriority = MessagePriority::Normal);
-
-    // 搜索结果
     void setSearchResults(int currentMatch, int totalMatches);
     void clearSearchResults();
-
-    // 页码输入功能
     void enablePageInput(bool enabled);
-    void setPageInputRange(int min, int max);
-
-    // 可展开面板控制
+    void setPageInputRange(int minPage, int maxPage);
     void setCompactMode(bool compact);
     void expandAllPanels();
     void collapseAllPanels();
-
-    // 清空状态信息
+    void setLoadingMessage(const QString& message);
     void clearDocumentInfo();
 
-    // 加载进度相关方法
-    void showLoadingProgress(const QString& message = QString());
-    void updateLoadingProgress(int progress);
-    void setLoadingMessage(const QString& message);
-    void hideLoadingProgress();
+    void setDocumentSecurity(const QMap<QString, QString>& security);
 
-    // Enhanced progress indication with priority
-    void showProgress(const QString& message, int priority = 0);
-    void updateProgress(int progress, const QString& message = QString());
-    void hideProgress();
-    void setProgressPriority(int priority);
+    // ========================================================================
+    // 面板控制
+    // ========================================================================
+
+    /**
+     * @brief 显示文档信息面板
+     */
+    void showDocumentInfoPanel();
+
+    /**
+     * @brief 显示统计信息面板
+     */
+    void showStatisticsPanel();
+
+    /**
+     * @brief 显示安全信息面板
+     */
+    void showSecurityPanel();
+
+    /**
+     * @brief 隐藏所有面板
+     */
+    void hideAllPanels();
+
+    // ========================================================================
+    // 状态管理
+    // ========================================================================
+
+    /**
+     * @brief 清除所有信息
+     */
+    void clearAll();
+
+    /**
+     * @brief 启用/禁用状态栏
+     */
+    void setEnabled(bool enabled);
+
+signals:
+    /**
+     * @brief 面板显示状态改变
+     */
+    void panelVisibilityChanged(const QString& panelName, bool visible);
+
+    /**
+     * @brief 页面跳转请求
+     */
+    void pageJumpRequested(int pageNumber);
+
+    /**
+     * @brief 缩放级别改变请求
+     */
+    void zoomLevelChangeRequested(double zoomLevel);
 
 protected:
     void changeEvent(QEvent* event) override;
-    void resizeEvent(QResizeEvent* event) override;
-    bool eventFilter(QObject* watched, QEvent* event) override;
-
-signals:
-    void pageJumpRequested(int pageNumber);
-    void zoomLevelChangeRequested(double zoomLevel);
-    void searchRequested(const QString& text);
 
 private slots:
     void onPageInputReturnPressed();
-    void onPageInputEditingFinished();
-    void onPageInputTextChanged(const QString& text);
     void onZoomInputReturnPressed();
-    void onSearchInputReturnPressed();
-    void updateClock();
     void onMessageTimerTimeout();
 
 private:
-    void setupMainSection();
-    void setupDocumentInfoPanel();
-    void setupStatisticsPanel();
-    void setupSecurityPanel();
-    void setupQuickActionsPanel();
-    void applyEnhancedStyle();
+    // UI 组件 - 主要信息
+    ElaText* m_fileNameLabel;
+    ElaLineEdit* m_pageInputEdit;  // 交互式页面输入
+    ElaText* m_pageInfoLabel;      // 页面信息显示（总页数）
+    ElaLineEdit* m_zoomInputEdit;  // 交互式缩放输入
+    ElaText* m_viewModeLabel;
+
+    // 消息系统
+    ElaText* m_messageLabel;
+    QTimer* m_messageTimer;
+    QPropertyAnimation* m_messageAnimation;
+    MessagePriority m_currentMessagePriority;
+    QTimer* m_messagePriorityTimer;
+
+    // 进度系统
+    // 搜索结果显示（兼容旧测试）
+    ElaText* m_searchResultsLabel{nullptr};
+
+    // 兼容页码范围控制
+    int m_pageMinRange{1};
+    int m_pageMaxRange{0};
+
+    // 模式控制
+    bool m_minimalMode{false};
+    bool m_compactMode{false};
+
+    ElaProgressBar* m_loadingProgressBar;
+    ElaText* m_loadingMessageLabel;
+    QPropertyAnimation* m_progressAnimation;
+    bool m_progressVisible;
+    int m_currentProgressPriority;
+
+    // 面板按钮
+    ElaToolButton* m_docInfoBtn;
+    ElaToolButton* m_statisticsBtn;
+    ElaToolButton* m_securityBtn;
+
+    // 面板容器
+    QWidget* m_docInfoPanel;
+    QWidget* m_statisticsPanel;
+    QWidget* m_securityPanel;
+
+    // 数据
+    QString m_fileName;
+    int m_currentPage;
+    int m_totalPages;
+    double m_zoomFactor;
+    QString m_viewMode;
+    QMap<QString, QString> m_metadata;
+    QMap<QString, QString> m_statistics;
+    QMap<QString, QString> m_security;
+
+    // 当前显示的面板
+    QWidget* m_currentPanel;
+
+    // 初始化方法
+    void setupUi();
+    void setupMainInfo();
+    void setupPanelButtons();
+    void setupPanels();
+    void connectSignals();
+
+    // 面板创建
+    QWidget* createDocumentInfoPanel();
+    QWidget* createStatisticsPanel();
+    QWidget* createSecurityPanel();
+
+    // 面板更新
+    void updateDocumentInfoPanel();
+    void updateStatisticsPanel();
+    void updateSecurityPanel();
+
+    // 辅助方法
+    void showPanel(QWidget* panel);
+    void hidePanel(QWidget* panel);
     void retranslateUi();
-    QString formatFileSize(qint64 size) const;
-    QString formatDateTime(const QDateTime& dateTime) const;
-    QString formatFileName(const QString& fullPath) const;
-    bool validateAndJumpToPage(const QString& input);
-    void animateWidget(QWidget* widget, const QString& property,
-                       const QVariant& start, const QVariant& end,
-                       int duration = 200);
-    void applyFieldStyles();
-    void applyPanelTypography();
-    void applyQuickActionStyles();
-    void updateMessageAppearance(const QColor& background, const QColor& text);
-    void setLineEditInvalid(QLineEdit* edit, bool invalid);
+    void updateLabels();
+
+    // 消息系统辅助方法
     void displayTransientMessage(const QString& text, int timeout,
                                  const QColor& background,
                                  const QColor& foreground);
+    void updateMessageAppearance(const QColor& background, const QColor& text);
 
-    // 主要区域控件
-    QFrame* m_mainSection;
-    QLabel* m_fileNameLabel;
-    QLabel* m_pageLabel;
-    QLineEdit* m_pageInputEdit;
-    QLabel* m_zoomLabel;
-    QLineEdit* m_zoomInputEdit;
-    QLabel* m_clockLabel;
-    QTimer* m_clockTimer;
-
-    // 消息显示
-    QLabel* m_messageLabel;
-    QTimer* m_messageTimer;
-    QPropertyAnimation* m_messageAnimation;
-
-    // 加载进度
-    QProgressBar* m_loadingProgressBar;
-    QLabel* m_loadingMessageLabel;
-    QPropertyAnimation* m_progressAnimation;
-
-    // 搜索
-    QFrame* m_searchFrame;
-    QLineEdit* m_searchInput;
-    QLabel* m_searchResultsLabel;
-
-    // 可展开面板
-    ExpandableInfoPanel* m_documentInfoPanel;
-    ExpandableInfoPanel* m_statisticsPanel;
-    ExpandableInfoPanel* m_securityPanel;
-    ExpandableInfoPanel* m_quickActionsPanel;
-
-    // 文档信息控件
-    QLabel* m_titleLabel;
-    QLabel* m_authorLabel;
-    QLabel* m_subjectLabel;
-    QLabel* m_keywordsLabel;
-    QLabel* m_createdLabel;
-    QLabel* m_modifiedLabel;
-    QLabel* m_fileSizeLabel;
-
-    // 统计信息控件
-    QLabel* m_wordCountLabel;
-    QLabel* m_charCountLabel;
-    QLabel* m_pageCountLabel;
-    QLabel* m_avgWordsPerPageLabel;
-    QLabel* m_readingTimeLabel;
-
-    // 安全信息控件
-    QLabel* m_encryptionLabel;
-    QLabel* m_copyPermissionLabel;
-    QLabel* m_printPermissionLabel;
-    QLabel* m_modifyPermissionLabel;
-
-    // 快速操作按钮
-    QPushButton* m_bookmarkBtn;
-    QPushButton* m_annotateBtn;
-    QPushButton* m_shareBtn;
-    QPushButton* m_exportBtn;
-
-    // 状态变量
-    int m_currentTotalPages;
-    int m_currentPageNumber;
-    QString m_currentFileName;
-    bool m_compactMode;
-    bool m_lastEncrypted = false;
-    bool m_lastCopyAllowed = true;
-    bool m_lastPrintAllowed = true;
-
-    // Progress state management
-    int m_currentProgressPriority = 0;
-    bool m_progressVisible = false;
-
-    // Message state management
-    MessagePriority m_currentMessagePriority = MessagePriority::Low;
-    QTimer* m_messagePriorityTimer = nullptr;
-
-    // 保留兼容性的别名
-    QLabel*& fileNameLabel = m_fileNameLabel;
-    QLabel*& pageLabel = m_pageLabel;
-    QLineEdit*& pageInputEdit = m_pageInputEdit;
-    QLabel*& zoomLabel = m_zoomLabel;
-    QLabel* separatorLabel1;
-    QLabel* separatorLabel2;
-    QLabel* separatorLabel3;
-    QProgressBar*& loadingProgressBar = m_loadingProgressBar;
-    QLabel*& loadingMessageLabel = m_loadingMessageLabel;
-    QPropertyAnimation*& progressAnimation = m_progressAnimation;
-    int& currentTotalPages = m_currentTotalPages;
-    int& currentPageNumber = m_currentPageNumber;
-    QString& currentFileName = m_currentFileName;
+    // 输入验证
+    bool validateAndJumpToPage(const QString& input);
+    void setLineEditInvalid(ElaLineEdit* edit, bool invalid);
 };
+
+#endif  // STATUSBAR_H

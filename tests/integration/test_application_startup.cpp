@@ -11,8 +11,8 @@
 #include <memory>
 #include <vector>
 
-// Forward declaration for resource initialization
-extern void qInitResources_app();
+// Initialize Qt resources for app (ensures QSS/icons are available)
+#include <QResource>
 
 // Application components
 #include "../../app/MainWindow.h"
@@ -164,7 +164,7 @@ void ApplicationStartupTest::initTestCase() {
     qDebug() << "Testing comprehensive application initialization";
 
     // Initialize Qt resources (required for QSS files and other resources)
-    qInitResources_app();
+    Q_INIT_RESOURCE(app);
     qDebug() << "Qt resources initialized";
 
     // Set test mode environment variable to enable minimal UI mode

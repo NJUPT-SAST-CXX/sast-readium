@@ -17,10 +17,13 @@ struct RecentFileInfo {
     QString fileName;
     QDateTime lastOpened;
     qint64 fileSize;
+    int pageCount;  // PDF page count (-1 if not available)
+    bool isPinned;  // Whether file is pinned to top
 
-    RecentFileInfo() : fileSize(0) {}
+    RecentFileInfo() : fileSize(0), pageCount(-1), isPinned(false) {}
 
-    explicit RecentFileInfo(const QString& path) : filePath(path), fileSize(0) {
+    explicit RecentFileInfo(const QString& path)
+        : filePath(path), fileSize(0), pageCount(-1), isPinned(false) {
         QFileInfo info(path);
         fileName = info.fileName();
         lastOpened = QDateTime::currentDateTime();
@@ -55,6 +58,20 @@ public:
     [[nodiscard]] QStringList getRecentFilePaths() const;
     void clearRecentFiles();
     void removeRecentFile(const QString& filePath);
+
+    // Pin/Unpin operations
+    void pinFile(const QString& filePath);
+    void unpinFile(const QString& filePath);
+    void togglePinFile(const QString& filePath);
+    [[nodiscard]] bool isFilePinned(const QString& filePath) const;
+
+    // Sorting options
+    enum class SortOrder { ByDate, ByName, ByFileType, BySize };
+    [[nodiscard]] QList<RecentFileInfo> getSortedRecentFiles(
+        SortOrder order) const;
+
+    // Page count management
+    void updatePageCount(const QString& filePath, int pageCount);
 
     // 配置管理
     void setMaxRecentFiles(int maxFiles);

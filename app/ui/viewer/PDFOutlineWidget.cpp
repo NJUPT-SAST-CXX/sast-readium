@@ -8,6 +8,7 @@
 #include <QFont>
 #include <QKeyEvent>
 #include <QTreeWidgetItemIterator>
+#include "ElaMenu.h"
 
 // 自定义数据角色
 enum { PageNumberRole = Qt::UserRole + 1, NodePtrRole = Qt::UserRole + 2 };
@@ -59,7 +60,7 @@ void PDFOutlineWidget::setupUI() {
 }
 
 void PDFOutlineWidget::setupContextMenu() {
-    contextMenu = new QMenu(this);
+    contextMenu = new ElaMenu(this);
 
     expandAllAction = new QAction("展开全部", this);
     collapseAllAction = new QAction("折叠全部", this);

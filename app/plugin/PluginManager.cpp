@@ -1,6 +1,5 @@
 #include "PluginManager.h"
 #include <QApplication>
-#include <QDebug>
 #include <QDirIterator>
 #include <QElapsedTimer>
 #include <QFileInfo>
@@ -8,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <algorithm>
 #include "../logging/LoggingMacros.h"
 
 // Static instance
@@ -68,8 +68,8 @@ void PluginDependencyResolver::visitPlugin(
     }
 
     if (visited[pluginName] == 1) {
-        qWarning() << "Cyclic dependency detected involving plugin:"
-                   << pluginName;
+        LOG_WARNING("Cyclic dependency detected involving plugin '{}'",
+                    pluginName.toStdString());
         return;
     }
 
@@ -92,7 +92,7 @@ void PluginDependencyResolver::visitPlugin(
 
 // PluginManager Implementation
 PluginManager& PluginManager::instance() {
-    if (!s_instance) {
+    if (s_instance == nullptr) {
         s_instance = new PluginManager(qApp);
     }
     return *s_instance;
@@ -142,16 +142,17 @@ void PluginManager::scanForPlugins() {
     for (const QString& directory : m_pluginDirectories) {
         QDir pluginDir(directory);
         if (!pluginDir.exists()) {
-            qDebug() << "Plugin directory does not exist:" << directory;
+            LOG_WARNING("PluginManager: directory '{}' does not exist",
+                        directory.toStdString());
             continue;
         }
 
-        QDirIterator it(directory,
-                        QStringList() << "*.dll" << "*.so" << "*.dylib",
-                        QDir::Files, QDirIterator::Subdirectories);
+        QDirIterator directoryIterator(
+            directory, QStringList() << "*.dll" << "*.so" << "*.dylib",
+            QDir::Files, QDirIterator::Subdirectories);
 
-        while (it.hasNext()) {
-            QString filePath = it.next();
+        while (directoryIterator.hasNext()) {
+            const QString filePath = directoryIterator.next();
 
             if (validatePlugin(filePath)) {
                 QPluginLoader loader(filePath);
@@ -162,38 +163,43 @@ void PluginManager::scanForPlugins() {
                     m_pluginMetadata[metadata.name] = metadata;
                     pluginCount++;
 
-                    qDebug()
-                        << "Found plugin:" << metadata.name << "at" << filePath;
+                    LOG_INFO("PluginManager: found plugin '{}' at '{}'",
+                             metadata.name.toStdString(),
+                             filePath.toStdString());
                 }
             }
         }
     }
 
-    qDebug() << "Found" << pluginCount << "plugins";
+    LOG_INFO("PluginManager: discovered {} plugins", pluginCount);
     emit pluginsScanned(pluginCount);
 }
 
 bool PluginManager::loadPlugin(const QString& pluginName) {
     if (isPluginLoaded(pluginName)) {
-        qDebug() << "Plugin already loaded:" << pluginName;
+        LOG_DEBUG("PluginManager: plugin '{}' already loaded",
+                  pluginName.toStdString());
         return true;
     }
 
     if (!m_pluginMetadata.contains(pluginName)) {
-        qWarning() << "Plugin not found:" << pluginName;
+        LOG_WARNING("PluginManager: plugin '{}' not found",
+                    pluginName.toStdString());
         return false;
     }
 
     const PluginMetadata& metadata = m_pluginMetadata[pluginName];
 
     if (!metadata.isEnabled) {
-        qDebug() << "Plugin is disabled:" << pluginName;
+        LOG_INFO("PluginManager: plugin '{}' is disabled",
+                 pluginName.toStdString());
         return false;
     }
 
     // Check dependencies
     if (!checkDependencies(pluginName)) {
-        qWarning() << "Plugin dependencies not satisfied:" << pluginName;
+        LOG_WARNING("PluginManager: dependencies not satisfied for plugin '{}'",
+                    pluginName.toStdString());
         return false;
     }
 
@@ -207,8 +213,8 @@ bool PluginManager::loadPluginFromFile(const QString& filePath) {
     QPluginLoader* loader = new QPluginLoader(filePath, this);
 
     if (!loader->load()) {
-        qWarning() << "Failed to load plugin:" << filePath
-                   << loader->errorString();
+        LOG_ERROR("PluginManager: failed to load plugin '{}' ({})",
+                  filePath.toStdString(), loader->errorString().toStdString());
         m_pluginErrors[QFileInfo(filePath).baseName()].append(
             loader->errorString());
         delete loader;
@@ -216,17 +222,19 @@ bool PluginManager::loadPluginFromFile(const QString& filePath) {
     }
 
     QObject* pluginObject = loader->instance();
-    if (!pluginObject) {
-        qWarning() << "Failed to get plugin instance:" << filePath;
+    if (pluginObject == nullptr) {
+        LOG_ERROR("PluginManager: failed to get plugin instance '{}'",
+                  filePath.toStdString());
         loader->unload();
         delete loader;
         return false;
     }
 
     IPlugin* plugin = qobject_cast<IPlugin*>(pluginObject);
-    if (!plugin) {
-        qWarning() << "Plugin does not implement IPlugin interface:"
-                   << filePath;
+    if (plugin == nullptr) {
+        LOG_ERROR(
+            "PluginManager: plugin '{}' does not implement IPlugin interface",
+            filePath.toStdString());
         loader->unload();
         delete loader;
         return false;
@@ -234,13 +242,14 @@ bool PluginManager::loadPluginFromFile(const QString& filePath) {
 
     // Initialize plugin
     if (!plugin->initialize()) {
-        qWarning() << "Plugin initialization failed:" << plugin->name();
+        LOG_ERROR("PluginManager: initialization failed for plugin '{}'",
+                  plugin->name().toStdString());
         loader->unload();
         delete loader;
         return false;
     }
 
-    QString pluginName = plugin->name();
+    const QString pluginName = plugin->name();
     m_pluginLoaders[pluginName] = loader;
     m_loadedPlugins[pluginName] = plugin;
 
@@ -250,8 +259,8 @@ bool PluginManager::loadPluginFromFile(const QString& filePath) {
         m_pluginMetadata[pluginName].loadTime = timer.elapsed();
     }
 
-    qDebug() << "Successfully loaded plugin:" << pluginName << "in"
-             << timer.elapsed() << "ms";
+    LOG_INFO("Successfully loaded plugin '{}' in {} ms",
+             pluginName.toStdString(), timer.elapsed());
     emit pluginLoaded(pluginName);
 
     return true;
@@ -285,7 +294,7 @@ void PluginManager::unloadPluginInternal(const QString& pluginName) {
         m_pluginMetadata[pluginName].isLoaded = false;
     }
 
-    qDebug() << "Unloaded plugin:" << pluginName;
+    LOG_INFO("Unloaded plugin '{}'", pluginName.toStdString());
     emit pluginUnloaded(pluginName);
 }
 
@@ -364,7 +373,7 @@ QList<IPlugin*> PluginManager::getPluginsByType(
 
     for (IPlugin* plugin : m_loadedPlugins.values()) {
         QObject* obj = qobject_cast<QObject*>(plugin);
-        if (obj && obj->inherits(interfaceId.toUtf8().constData())) {
+        if (obj != nullptr && obj->inherits(interfaceId.toUtf8().constData())) {
             result.append(plugin);
         }
     }
@@ -377,7 +386,7 @@ QList<IDocumentPlugin*> PluginManager::getDocumentPlugins() const {
 
     for (IPlugin* plugin : m_loadedPlugins.values()) {
         IDocumentPlugin* docPlugin = qobject_cast<IDocumentPlugin*>(plugin);
-        if (docPlugin) {
+        if (docPlugin != nullptr) {
             result.append(docPlugin);
         }
     }
@@ -390,7 +399,7 @@ QList<IUIPlugin*> PluginManager::getUIPlugins() const {
 
     for (IPlugin* plugin : m_loadedPlugins.values()) {
         IUIPlugin* uiPlugin = qobject_cast<IUIPlugin*>(plugin);
-        if (uiPlugin) {
+        if (uiPlugin != nullptr) {
             result.append(uiPlugin);
         }
     }
@@ -407,7 +416,7 @@ QHash<QString, PluginMetadata> PluginManager::getAllPluginMetadata() const {
     return m_pluginMetadata;
 }
 
-PluginMetadata PluginManager::extractMetadata(QPluginLoader* loader) const {
+PluginMetadata PluginManager::extractMetadata(QPluginLoader* loader) {
     PluginMetadata metadata;
 
     QJsonObject metaData = loader->metaData().value("MetaData").toObject();
@@ -418,17 +427,17 @@ PluginMetadata PluginManager::extractMetadata(QPluginLoader* loader) const {
     metadata.author = metaData.value("author").toString();
 
     QJsonArray deps = metaData.value("dependencies").toArray();
-    for (const QJsonValue& dep : deps) {
+    for (const auto& dep : deps) {
         metadata.dependencies.append(dep.toString());
     }
 
     QJsonArray types = metaData.value("supportedTypes").toArray();
-    for (const QJsonValue& type : types) {
+    for (const auto& type : types) {
         metadata.supportedTypes.append(type.toString());
     }
 
     QJsonArray features = metaData.value("features").toArray();
-    for (const QJsonValue& feature : features) {
+    for (const auto& feature : features) {
         metadata.features.append(feature.toString());
     }
 
@@ -444,16 +453,13 @@ bool PluginManager::checkDependencies(const QString& pluginName) const {
 
     const PluginMetadata& metadata = m_pluginMetadata[pluginName];
 
-    for (const QString& dependency : metadata.dependencies) {
-        if (!isPluginLoaded(dependency)) {
-            return false;
-        }
-    }
-
-    return true;
+    return std::ranges::all_of(metadata.dependencies,
+                               [this](const QString& dependency) {
+                                   return isPluginLoaded(dependency);
+                               });
 }
 
-bool PluginManager::validatePlugin(const QString& filePath) const {
+bool PluginManager::validatePlugin(const QString& filePath) {
     QPluginLoader loader(filePath);
     QJsonObject metaData = loader.metaData();
 
@@ -471,7 +477,7 @@ QStringList PluginManager::getPluginErrors(const QString& pluginName) const {
 }
 
 void PluginManager::loadSettings() {
-    if (!m_settings) {
+    if (m_settings == nullptr) {
         return;
     }
 
@@ -488,7 +494,7 @@ void PluginManager::loadSettings() {
 }
 
 void PluginManager::saveSettings() {
-    if (!m_settings) {
+    if (m_settings == nullptr) {
         return;
     }
 
@@ -534,7 +540,8 @@ void PluginManager::checkForPluginChanges() {
         qint64 recordedModTime = m_pluginModificationTimes.value(it.key(), 0);
 
         if (currentModTime > recordedModTime) {
-            qDebug() << "Plugin file changed, reloading:" << it.key();
+            LOG_INFO("PluginManager: plugin file '{}' changed, reloading",
+                     it.key().toStdString());
 
             // Unload and reload the plugin
             if (isPluginLoaded(it.key())) {
@@ -562,7 +569,7 @@ void PluginManager::setPluginConfiguration(const QString& pluginName,
 
         // Apply configuration to loaded plugin
         IPlugin* plugin = getPlugin(pluginName);
-        if (plugin) {
+        if (plugin != nullptr) {
             plugin->setConfiguration(config);
         }
     }
@@ -603,7 +610,8 @@ bool PluginManager::isFeatureAvailable(const QString& feature) const {
 bool PluginManager::installPlugin(const QString& pluginPath) {
     QFileInfo fileInfo(pluginPath);
     if (!fileInfo.exists() || !validatePlugin(pluginPath)) {
-        qWarning() << "Invalid plugin file:" << pluginPath;
+        LOG_WARNING("PluginManager: invalid plugin file '{}'",
+                    pluginPath.toStdString());
         return false;
     }
 
@@ -612,12 +620,14 @@ bool PluginManager::installPlugin(const QString& pluginPath) {
     QString targetPath = targetDir + "/" + fileInfo.fileName();
 
     if (QFile::exists(targetPath)) {
-        qWarning() << "Plugin already exists:" << targetPath;
+        LOG_WARNING("PluginManager: plugin already exists at '{}'",
+                    targetPath.toStdString());
         return false;
     }
 
     if (!QFile::copy(pluginPath, targetPath)) {
-        qWarning() << "Failed to copy plugin to:" << targetPath;
+        LOG_ERROR("PluginManager: failed to copy plugin to '{}'",
+                  targetPath.toStdString());
         return false;
     }
 
@@ -644,7 +654,8 @@ bool PluginManager::uninstallPlugin(const QString& pluginName) {
     QString filePath = m_pluginMetadata[pluginName].filePath;
     if (QFile::exists(filePath)) {
         if (!QFile::remove(filePath)) {
-            qWarning() << "Failed to remove plugin file:" << filePath;
+            LOG_ERROR("PluginManager: failed to remove plugin file '{}'",
+                      filePath.toStdString());
             return false;
         }
     }
@@ -681,7 +692,8 @@ bool PluginManager::updatePlugin(const QString& pluginName,
     }
 
     if (!QFile::copy(newPluginPath, oldPath)) {
-        qWarning() << "Failed to update plugin file:" << oldPath;
+        LOG_ERROR("PluginManager: failed to update plugin file '{}'",
+                  oldPath.toStdString());
         return false;
     }
 
@@ -727,13 +739,9 @@ bool PluginManager::canUnloadPlugin(const QString& pluginName) const {
     // Check if other loaded plugins depend on this one
     QStringList dependents = getPluginsDependingOn(pluginName);
 
-    for (const QString& dependent : dependents) {
-        if (isPluginLoaded(dependent)) {
-            return false;
-        }
-    }
-
-    return true;
+    return std::ranges::all_of(dependents, [this](const QString& dependent) {
+        return !isPluginLoaded(dependent);
+    });
 }
 
 void PluginManager::reloadPlugin(const QString& pluginName) {
@@ -917,7 +925,7 @@ bool PluginManager::restorePluginConfiguration(const QString& filePath) {
 
     QJsonArray pluginsArray = backup["plugins"].toArray();
 
-    for (const QJsonValue& value : pluginsArray) {
+    for (const auto& value : pluginsArray) {
         QJsonObject pluginObj = value.toObject();
         QString pluginName = pluginObj["name"].toString();
 

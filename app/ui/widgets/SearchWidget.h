@@ -1,20 +1,22 @@
 #pragma once
 
-#include <QCheckBox>
 #include <QColorDialog>
-#include <QComboBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QLineEdit>
-#include <QListView>
-#include <QProgressBar>
-#include <QPushButton>
 #include <QRegularExpression>
-#include <QSpinBox>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
+
+// ElaWidgetTools forward declarations
+class ElaPushButton;
+class ElaCheckBox;
+class ElaListView;
+class ElaProgressBar;
+class ElaText;
+class ElaComboBox;
+class ElaSpinBox;
 #include "../../model/SearchModel.h"
 #include "../core/ContextMenuManager.h"
 
@@ -132,50 +134,51 @@ private:
     QHBoxLayout* m_infoLayout;
 
     // Search input and controls
-    QLineEdit* m_searchInput;
-    QPushButton* m_searchButton;
-    QPushButton* m_clearButton;
-    QPushButton* m_optionsButton;
-    QPushButton* m_closeButton;
+    QLineEdit*
+        m_searchInput;  // from ElaComboBox::lineEdit(); kept as QLineEdit
+    ElaPushButton* m_searchButton;
+    ElaPushButton* m_clearButton;
+    ElaPushButton* m_optionsButton;
+    ElaPushButton* m_closeButton;
 
     // Navigation controls
-    QPushButton* m_previousButton;
-    QPushButton* m_nextButton;
-    QLabel* m_resultInfoLabel;
+    ElaPushButton* m_previousButton;
+    ElaPushButton* m_nextButton;
+    ElaText* m_resultInfoLabel;
 
     // Search options
     QGroupBox* m_optionsGroup;
-    QCheckBox* m_caseSensitiveCheck;
-    QCheckBox* m_wholeWordsCheck;
-    QCheckBox* m_regexCheck;
-    QCheckBox* m_searchBackwardCheck;
+    ElaCheckBox* m_caseSensitiveCheck;
+    ElaCheckBox* m_wholeWordsCheck;
+    ElaCheckBox* m_regexCheck;
+    ElaCheckBox* m_searchBackwardCheck;
 
     // Advanced search options
-    QCheckBox* m_fuzzySearchCheck;
-    QSpinBox* m_fuzzyThresholdSpin;
-    QLabel* m_fuzzyThresholdLabel;
+    ElaCheckBox* m_fuzzySearchCheck;
+    ElaSpinBox* m_fuzzyThresholdSpin;
+    ElaText* m_fuzzyThresholdLabel;
 
     // Page range search
     QGroupBox* m_pageRangeGroup;
-    QCheckBox* m_pageRangeCheck;
-    QSpinBox* m_startPageSpin;
-    QSpinBox* m_endPageSpin;
-    QLabel* m_pageRangeLabel;
+    ElaCheckBox* m_pageRangeCheck;
+    ElaSpinBox* m_startPageSpin;
+    ElaSpinBox* m_endPageSpin;
+    ElaText* m_pageRangeLabel;
 
     // Search history
-    QComboBox* m_searchHistoryCombo;
-    QPushButton* m_clearHistoryButton;
+    ElaComboBox* m_searchHistoryCombo;
+    ElaPushButton* m_clearHistoryButton;
 
     // Results display
-    QListView* m_resultsView;
-    QLabel* m_statusLabel;
-    QProgressBar* m_progressBar;
+    ElaListView* m_resultsView;
+    ElaText* m_statusLabel;
+    ElaProgressBar* m_progressBar;
 
     // Enhanced UI elements
-    QLabel* m_searchProgressLabel;
-    QProgressBar* m_searchProgressBar;
-    QPushButton* m_highlightColorButton;
-    QPushButton* m_currentHighlightColorButton;
+    ElaText* m_searchProgressLabel;
+    ElaProgressBar* m_searchProgressBar;
+    ElaPushButton* m_highlightColorButton;
+    ElaPushButton* m_currentHighlightColorButton;
 
     // Data and state
     SearchModel* m_searchModel;

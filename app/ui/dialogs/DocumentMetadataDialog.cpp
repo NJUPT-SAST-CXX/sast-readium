@@ -16,6 +16,9 @@
 #include <stdexcept>
 #include "../../managers/StyleManager.h"
 #include "../widgets/ToastNotification.h"
+#include "ElaLineEdit.h"
+#include "ElaPushButton.h"
+#include "ElaText.h"
 
 DocumentMetadataDialog::DocumentMetadataDialog(QWidget* parent)
     : QDialog(parent) {
@@ -78,47 +81,47 @@ void DocumentMetadataDialog::createBasicInfoSection(
     m_basicInfoLayout->setVerticalSpacing(styleManager.spacingSM());
     m_basicInfoLayout->setColumnStretch(1, 1);
 
-    auto* fileNameLabel = new QLabel(tr("文件名:"), m_basicInfoGroup);
+    auto* fileNameLabel = new ElaText(tr("文件名:"), m_basicInfoGroup);
     m_basicInfoLayout->addWidget(fileNameLabel, 0, 0);
-    m_fileNameEdit = new QLineEdit(m_basicInfoGroup);
+    m_fileNameEdit = new ElaLineEdit(m_basicInfoGroup);
     m_fileNameEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_fileNameEdit, 0, 1);
 
-    auto* filePathLabel = new QLabel(tr("文件路径:"), m_basicInfoGroup);
+    auto* filePathLabel = new ElaText(tr("文件路径:"), m_basicInfoGroup);
     m_basicInfoLayout->addWidget(filePathLabel, 1, 0);
-    m_filePathEdit = new QLineEdit(m_basicInfoGroup);
+    m_filePathEdit = new ElaLineEdit(m_basicInfoGroup);
     m_filePathEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_filePathEdit, 1, 1);
 
-    auto* fileSizeLabel = new QLabel(tr("文件大小:"), m_basicInfoGroup);
+    auto* fileSizeLabel = new ElaText(tr("文件大小:"), m_basicInfoGroup);
     m_basicInfoLayout->addWidget(fileSizeLabel, 2, 0);
-    m_fileSizeEdit = new QLineEdit(m_basicInfoGroup);
+    m_fileSizeEdit = new ElaLineEdit(m_basicInfoGroup);
     m_fileSizeEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_fileSizeEdit, 2, 1);
 
-    auto* pageCountLabel = new QLabel(tr("页数:"), m_basicInfoGroup);
+    auto* pageCountLabel = new ElaText(tr("页数:"), m_basicInfoGroup);
     m_basicInfoLayout->addWidget(pageCountLabel, 3, 0);
-    m_pageCountEdit = new QLineEdit(m_basicInfoGroup);
+    m_pageCountEdit = new ElaLineEdit(m_basicInfoGroup);
     m_pageCountEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_pageCountEdit, 3, 1);
 
-    auto* pdfVersionLabel = new QLabel(tr("PDF版本:"), m_basicInfoGroup);
+    auto* pdfVersionLabel = new ElaText(tr("PDF版本:"), m_basicInfoGroup);
     m_basicInfoLayout->addWidget(pdfVersionLabel, 4, 0);
-    m_pdfVersionEdit = new QLineEdit(m_basicInfoGroup);
+    m_pdfVersionEdit = new ElaLineEdit(m_basicInfoGroup);
     m_pdfVersionEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_pdfVersionEdit, 4, 1);
 
     auto* creationDateFileLabel =
-        new QLabel(tr("文件创建时间:"), m_basicInfoGroup);
+        new ElaText(tr("文件创建时间:"), m_basicInfoGroup);
     m_basicInfoLayout->addWidget(creationDateFileLabel, 5, 0);
-    m_creationDateFileEdit = new QLineEdit(m_basicInfoGroup);
+    m_creationDateFileEdit = new ElaLineEdit(m_basicInfoGroup);
     m_creationDateFileEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_creationDateFileEdit, 5, 1);
 
     auto* modificationDateFileLabel =
-        new QLabel(tr("文件修改时间:"), m_basicInfoGroup);
+        new ElaText(tr("文件修改时间:"), m_basicInfoGroup);
     m_basicInfoLayout->addWidget(modificationDateFileLabel, 6, 0);
-    m_modificationDateFileEdit = new QLineEdit(m_basicInfoGroup);
+    m_modificationDateFileEdit = new ElaLineEdit(m_basicInfoGroup);
     m_modificationDateFileEdit->setReadOnly(true);
     m_basicInfoLayout->addWidget(m_modificationDateFileEdit, 6, 1);
 
@@ -137,52 +140,52 @@ void DocumentMetadataDialog::createPropertiesSection(
     m_propertiesLayout->setVerticalSpacing(styleManager.spacingSM());
     m_propertiesLayout->setColumnStretch(1, 1);
 
-    auto* titleLabel = new QLabel(tr("标题:"), m_propertiesGroup);
+    auto* titleLabel = new ElaText(tr("标题:"), m_propertiesGroup);
     m_propertiesLayout->addWidget(titleLabel, 0, 0);
-    m_titleEdit = new QLineEdit(m_propertiesGroup);
+    m_titleEdit = new ElaLineEdit(m_propertiesGroup);
     m_titleEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_titleEdit, 0, 1);
 
-    auto* authorLabel = new QLabel(tr("作者:"), m_propertiesGroup);
+    auto* authorLabel = new ElaText(tr("作者:"), m_propertiesGroup);
     m_propertiesLayout->addWidget(authorLabel, 1, 0);
-    m_authorEdit = new QLineEdit(m_propertiesGroup);
+    m_authorEdit = new ElaLineEdit(m_propertiesGroup);
     m_authorEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_authorEdit, 1, 1);
 
-    auto* subjectLabel = new QLabel(tr("主题:"), m_propertiesGroup);
+    auto* subjectLabel = new ElaText(tr("主题:"), m_propertiesGroup);
     m_propertiesLayout->addWidget(subjectLabel, 2, 0);
-    m_subjectEdit = new QLineEdit(m_propertiesGroup);
+    m_subjectEdit = new ElaLineEdit(m_propertiesGroup);
     m_subjectEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_subjectEdit, 2, 1);
 
-    auto* keywordsLabel = new QLabel(tr("关键词:"), m_propertiesGroup);
+    auto* keywordsLabel = new ElaText(tr("关键词:"), m_propertiesGroup);
     m_propertiesLayout->addWidget(keywordsLabel, 3, 0);
     m_keywordsEdit = new QTextEdit(m_propertiesGroup);
     m_keywordsEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_keywordsEdit, 3, 1);
 
-    auto* creatorLabel = new QLabel(tr("创建者:"), m_propertiesGroup);
+    auto* creatorLabel = new ElaText(tr("创建者:"), m_propertiesGroup);
     m_propertiesLayout->addWidget(creatorLabel, 4, 0);
-    m_creatorEdit = new QLineEdit(m_propertiesGroup);
+    m_creatorEdit = new ElaLineEdit(m_propertiesGroup);
     m_creatorEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_creatorEdit, 4, 1);
 
-    auto* producerLabel = new QLabel(tr("生成者:"), m_propertiesGroup);
+    auto* producerLabel = new ElaText(tr("生成者:"), m_propertiesGroup);
     m_propertiesLayout->addWidget(producerLabel, 5, 0);
-    m_producerEdit = new QLineEdit(m_propertiesGroup);
+    m_producerEdit = new ElaLineEdit(m_propertiesGroup);
     m_producerEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_producerEdit, 5, 1);
 
-    auto* creationDateLabel = new QLabel(tr("创建时间:"), m_propertiesGroup);
+    auto* creationDateLabel = new ElaText(tr("创建时间:"), m_propertiesGroup);
     m_propertiesLayout->addWidget(creationDateLabel, 6, 0);
-    m_creationDateEdit = new QLineEdit(m_propertiesGroup);
+    m_creationDateEdit = new ElaLineEdit(m_propertiesGroup);
     m_creationDateEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_creationDateEdit, 6, 1);
 
     auto* modificationDateLabel =
-        new QLabel(tr("修改时间:"), m_propertiesGroup);
+        new ElaText(tr("修改时间:"), m_propertiesGroup);
     m_propertiesLayout->addWidget(modificationDateLabel, 7, 0);
-    m_modificationDateEdit = new QLineEdit(m_propertiesGroup);
+    m_modificationDateEdit = new ElaLineEdit(m_propertiesGroup);
     m_modificationDateEdit->setReadOnly(true);
     m_propertiesLayout->addWidget(m_modificationDateEdit, 7, 1);
 
@@ -199,59 +202,59 @@ void DocumentMetadataDialog::createSecuritySection(StyleManager& styleManager) {
     m_securityLayout->setVerticalSpacing(styleManager.spacingSM());
     m_securityLayout->setColumnStretch(1, 1);
 
-    auto* encryptedLabel = new QLabel(tr("加密状态:"), m_securityGroup);
+    auto* encryptedLabel = new ElaText(tr("加密状态:"), m_securityGroup);
     m_securityLayout->addWidget(encryptedLabel, 0, 0);
-    m_encryptedEdit = new QLineEdit(m_securityGroup);
+    m_encryptedEdit = new ElaLineEdit(m_securityGroup);
     m_encryptedEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_encryptedEdit, 0, 1);
 
-    auto* encryptionMethodLabel = new QLabel(tr("加密方法:"), m_securityGroup);
+    auto* encryptionMethodLabel = new ElaText(tr("加密方法:"), m_securityGroup);
     m_securityLayout->addWidget(encryptionMethodLabel, 1, 0);
-    m_encryptionMethodEdit = new QLineEdit(m_securityGroup);
+    m_encryptionMethodEdit = new ElaLineEdit(m_securityGroup);
     m_encryptionMethodEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_encryptionMethodEdit, 1, 1);
 
-    auto* extractLabel = new QLabel(tr("可提取文本:"), m_securityGroup);
+    auto* extractLabel = new ElaText(tr("可提取文本:"), m_securityGroup);
     m_securityLayout->addWidget(extractLabel, 2, 0);
-    m_canExtractTextEdit = new QLineEdit(m_securityGroup);
+    m_canExtractTextEdit = new ElaLineEdit(m_securityGroup);
     m_canExtractTextEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canExtractTextEdit, 2, 1);
 
-    auto* printLabel = new QLabel(tr("可打印:"), m_securityGroup);
+    auto* printLabel = new ElaText(tr("可打印:"), m_securityGroup);
     m_securityLayout->addWidget(printLabel, 3, 0);
-    m_canPrintEdit = new QLineEdit(m_securityGroup);
+    m_canPrintEdit = new ElaLineEdit(m_securityGroup);
     m_canPrintEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canPrintEdit, 3, 1);
 
     auto* printHighResLabel =
-        new QLabel(tr("可高分辨率打印:"), m_securityGroup);
+        new ElaText(tr("可高分辨率打印:"), m_securityGroup);
     m_securityLayout->addWidget(printHighResLabel, 4, 0);
-    m_canPrintHighResEdit = new QLineEdit(m_securityGroup);
+    m_canPrintHighResEdit = new ElaLineEdit(m_securityGroup);
     m_canPrintHighResEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canPrintHighResEdit, 4, 1);
 
-    auto* modifyLabel = new QLabel(tr("可修改:"), m_securityGroup);
+    auto* modifyLabel = new ElaText(tr("可修改:"), m_securityGroup);
     m_securityLayout->addWidget(modifyLabel, 5, 0);
-    m_canModifyEdit = new QLineEdit(m_securityGroup);
+    m_canModifyEdit = new ElaLineEdit(m_securityGroup);
     m_canModifyEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canModifyEdit, 5, 1);
 
     auto* modifyAnnotationsLabel =
-        new QLabel(tr("可修改注释:"), m_securityGroup);
+        new ElaText(tr("可修改注释:"), m_securityGroup);
     m_securityLayout->addWidget(modifyAnnotationsLabel, 6, 0);
-    m_canModifyAnnotationsEdit = new QLineEdit(m_securityGroup);
+    m_canModifyAnnotationsEdit = new ElaLineEdit(m_securityGroup);
     m_canModifyAnnotationsEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canModifyAnnotationsEdit, 6, 1);
 
-    auto* fillFormsLabel = new QLabel(tr("可填写表单:"), m_securityGroup);
+    auto* fillFormsLabel = new ElaText(tr("可填写表单:"), m_securityGroup);
     m_securityLayout->addWidget(fillFormsLabel, 7, 0);
-    m_canFillFormsEdit = new QLineEdit(m_securityGroup);
+    m_canFillFormsEdit = new ElaLineEdit(m_securityGroup);
     m_canFillFormsEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canFillFormsEdit, 7, 1);
 
-    auto* assembleLabel = new QLabel(tr("可组装文档:"), m_securityGroup);
+    auto* assembleLabel = new ElaText(tr("可组装文档:"), m_securityGroup);
     m_securityLayout->addWidget(assembleLabel, 8, 0);
-    m_canAssembleEdit = new QLineEdit(m_securityGroup);
+    m_canAssembleEdit = new ElaLineEdit(m_securityGroup);
     m_canAssembleEdit->setReadOnly(true);
     m_securityLayout->addWidget(m_canAssembleEdit, 8, 1);
 
@@ -269,11 +272,11 @@ void DocumentMetadataDialog::createActionButtons() {
     m_buttonLayout = new QHBoxLayout();
     m_buttonLayout->addStretch();
 
-    m_exportButton = new QPushButton(tr("导出信息"));
+    m_exportButton = new ElaPushButton(tr("导出信息"));
     m_exportButton->setToolTip(tr("将文档信息导出到文本文件"));
     m_buttonLayout->addWidget(m_exportButton);
 
-    m_closeButton = new QPushButton(tr("关闭"));
+    m_closeButton = new ElaPushButton(tr("关闭"));
     m_closeButton->setDefault(true);
     m_buttonLayout->addWidget(m_closeButton);
 

@@ -1,6 +1,10 @@
 #include <poppler-qt6.h>
 #include <QApplication>
 #include <QElapsedTimer>
+#include <QPageSize>
+#include <QPainter>
+#include <QPdfWriter>
+#include <QStandardPaths>
 #include <QtTest/QtTest>
 #include "../../app/ui/viewer/PDFViewer.h"
 
@@ -79,7 +83,7 @@ void TestPDFOptimizations::testVirtualScrollingEnabled() {
 
     // Test navigation in virtual scrolling mode
     for (int i = 0; i < m_testDocument->numPages(); ++i) {
-        m_viewer->goToPage(i);
+        m_viewer->goToPage(i + 1);
         QCOMPARE(m_viewer->getCurrentPage(), i);
     }
 
@@ -106,7 +110,7 @@ void TestPDFOptimizations::testCacheManagement() {
 
     // Test cache operations
     for (int i = 0; i < m_testDocument->numPages(); ++i) {
-        m_viewer->goToPage(i);
+        m_viewer->goToPage(i + 1);
         m_viewer->setZoom(1.5);
         QCoreApplication::processEvents();
     }
@@ -143,7 +147,7 @@ void TestPDFOptimizations::testLazyLoadingStates() {
 
     // Navigate through pages to test lazy loading
     for (int i = 0; i < m_testDocument->numPages(); ++i) {
-        m_viewer->goToPage(i);
+        m_viewer->goToPage(i + 1);
         QCoreApplication::processEvents();
 
         // Verify we can get the current page

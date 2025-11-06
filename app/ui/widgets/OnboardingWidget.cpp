@@ -14,6 +14,9 @@
 #include <cmath>
 #include "../../managers/OnboardingManager.h"
 
+// ElaWidgetTools
+#include "ElaPushButton.h"
+#include "ElaText.h"
 // Static constants
 const qreal OnboardingWidget::MAX_OVERLAY_OPACITY = 0.8;
 
@@ -240,11 +243,11 @@ void OnboardingWidget::applyTheme() {
         "    border-radius: 8px;"
         "    padding: 16px;"
         "}"
-        "QLabel {"
+        "QLabel, ElaText {"
         "    background: transparent;"
         "    color: #333;"
         "}"
-        "QPushButton {"
+        "QPushButton, ElaPushButton {"
         "    background-color: #2196F3;"
         "    color: white;"
         "    border: none;"
@@ -252,13 +255,13 @@ void OnboardingWidget::applyTheme() {
         "    padding: 8px 16px;"
         "    font-size: 12px;"
         "}"
-        "QPushButton:hover {"
+        "QPushButton:hover, ElaPushButton:hover {"
         "    background-color: #1976D2;"
         "}"
-        "QPushButton:pressed {"
+        "QPushButton:pressed, ElaPushButton:pressed {"
         "    background-color: #0D47A1;"
         "}"
-        "QPushButton:disabled {"
+        "QPushButton:disabled, ElaPushButton:disabled {"
         "    background-color: #ccc;"
         "    color: #999;"
         "}";
@@ -430,24 +433,24 @@ void OnboardingWidget::initializeUI() {
     m_tooltipWidget->setFixedWidth(TOOLTIP_WIDTH);
 
     // Create labels
-    m_titleLabel = new QLabel(this);
+    m_titleLabel = new ElaText(this);
     m_titleLabel->setStyleSheet(
         "font-weight: bold; font-size: 16px; color: #333;");
     m_titleLabel->setWordWrap(true);
 
-    m_descriptionLabel = new QLabel(this);
+    m_descriptionLabel = new ElaText(this);
     m_descriptionLabel->setStyleSheet("font-size: 14px; color: #666;");
     m_descriptionLabel->setWordWrap(true);
 
-    m_stepIndicator = new QLabel(this);
+    m_stepIndicator = new ElaText(this);
     m_stepIndicator->setStyleSheet("font-size: 12px; color: #888;");
     m_stepIndicator->setAlignment(Qt::AlignCenter);
 
     // Create buttons
-    m_nextButton = new QPushButton("Next", this);
-    m_previousButton = new QPushButton("Previous", this);
-    m_skipButton = new QPushButton("Skip Tour", this);
-    m_closeButton = new QPushButton("×", this);
+    m_nextButton = new ElaPushButton("Next", this);
+    m_previousButton = new ElaPushButton("Previous", this);
+    m_skipButton = new ElaPushButton("Skip Tour", this);
+    m_closeButton = new ElaPushButton("×", this);
 
     m_closeButton->setFixedSize(24, 24);
     m_closeButton->setStyleSheet(

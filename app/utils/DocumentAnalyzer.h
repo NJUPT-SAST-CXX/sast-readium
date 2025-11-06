@@ -104,12 +104,21 @@ public:
                                      double threshold = 0.8);
 
     // Advanced analysis functions
-    QJsonObject performTextAnalysis(Poppler::Document* document);
-    QJsonObject performImageAnalysis(Poppler::Document* document);
-    QJsonObject performStructureAnalysis(Poppler::Document* document);
-    QJsonObject performSecurityAnalysis(Poppler::Document* document);
-    QJsonObject performQualityAnalysis(Poppler::Document* document);
-    QJsonObject performAccessibilityAnalysis(Poppler::Document* document);
+    // Backward-compatibility: static convenience wrappers
+    static QJsonObject performTextAnalysis(Poppler::Document* document);
+    static QJsonObject performImageAnalysis(Poppler::Document* document);
+    static QJsonObject performStructureAnalysis(Poppler::Document* document);
+    static QJsonObject performSecurityAnalysis(Poppler::Document* document);
+    static QJsonObject performQualityAnalysis(Poppler::Document* document);
+    static QJsonObject performAccessibilityAnalysis(
+        Poppler::Document* document);
+
+    QJsonObject performTextAnalysisImpl(Poppler::Document* document);
+    QJsonObject performImageAnalysisImpl(Poppler::Document* document);
+    QJsonObject performStructureAnalysisImpl(Poppler::Document* document);
+    QJsonObject performSecurityAnalysisImpl(Poppler::Document* document);
+    QJsonObject performQualityAnalysisImpl(Poppler::Document* document);
+    QJsonObject performAccessibilityAnalysisImpl(Poppler::Document* document);
 
     // Statistical functions
     QJsonObject generateDocumentStatistics(

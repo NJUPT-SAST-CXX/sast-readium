@@ -24,6 +24,14 @@
 #include "../../managers/StyleManager.h"
 #include "../core/UIErrorHandler.h"
 
+#include "ElaCheckBox.h"
+#include "ElaComboBox.h"
+#include "ElaListView.h"
+#include "ElaProgressBar.h"
+#include "ElaPushButton.h"
+#include "ElaSpinBox.h"
+#include "ElaText.h"
+
 SearchWidget::SearchWidget(QWidget* parent)
     : QWidget(parent),
       m_mainLayout(nullptr),
@@ -117,7 +125,7 @@ void SearchWidget::setupUI() {
     m_searchLayout = new QHBoxLayout();
 
     // Search history combo box
-    m_searchHistoryCombo = new QComboBox();
+    m_searchHistoryCombo = new ElaComboBox();
     m_searchHistoryCombo->setEditable(true);
     m_searchHistoryCombo->setInsertPolicy(QComboBox::NoInsert);
     m_searchHistoryCombo->lineEdit()->setPlaceholderText(
@@ -127,16 +135,16 @@ void SearchWidget::setupUI() {
     // Use the combo box line edit as our search input
     m_searchInput = m_searchHistoryCombo->lineEdit();
 
-    m_searchButton = new QPushButton(tr("Search"));
+    m_searchButton = new ElaPushButton(tr("Search"));
     m_searchButton->setDefault(true);
 
-    m_clearHistoryButton = new QPushButton(tr("Clear History"));
+    m_clearHistoryButton = new ElaPushButton(tr("Clear History"));
     m_clearHistoryButton->setToolTip(tr("Clear search history"));
 
-    m_optionsButton = new QPushButton(tr("Options"));
+    m_optionsButton = new ElaPushButton(tr("Options"));
     m_optionsButton->setCheckable(true);
 
-    m_closeButton = new QPushButton("×");
+    m_closeButton = new ElaPushButton("×");
     m_closeButton->setMaximumWidth(30);
     m_closeButton->setToolTip(tr("Close search"));
 
@@ -149,9 +157,9 @@ void SearchWidget::setupUI() {
     // Navigation layout
     m_navigationLayout = new QHBoxLayout();
 
-    m_previousButton = new QPushButton(tr("Previous"));
-    m_nextButton = new QPushButton(tr("Next"));
-    m_resultInfoLabel = new QLabel("0 / 0");
+    m_previousButton = new ElaPushButton(tr("Previous"));
+    m_nextButton = new ElaPushButton(tr("Next"));
+    m_resultInfoLabel = new ElaText("0 / 0");
 
     m_navigationLayout->addWidget(m_previousButton);
     m_navigationLayout->addWidget(m_nextButton);
@@ -163,10 +171,10 @@ void SearchWidget::setupUI() {
     auto* optionsLayout = new QVBoxLayout(m_optionsGroup);
 
     // Basic options
-    m_caseSensitiveCheck = new QCheckBox(tr("Case Sensitive"));
-    m_wholeWordsCheck = new QCheckBox(tr("Whole Words"));
-    m_regexCheck = new QCheckBox(tr("Regular Expression"));
-    m_searchBackwardCheck = new QCheckBox(tr("Search Backward"));
+    m_caseSensitiveCheck = new ElaCheckBox(tr("Case Sensitive"));
+    m_wholeWordsCheck = new ElaCheckBox(tr("Whole Words"));
+    m_regexCheck = new ElaCheckBox(tr("Regular Expression"));
+    m_searchBackwardCheck = new ElaCheckBox(tr("Search Backward"));
 
     optionsLayout->addWidget(m_caseSensitiveCheck);
     optionsLayout->addWidget(m_wholeWordsCheck);
@@ -174,9 +182,9 @@ void SearchWidget::setupUI() {
     optionsLayout->addWidget(m_searchBackwardCheck);
 
     // Advanced options
-    m_fuzzySearchCheck = new QCheckBox(tr("Fuzzy Search"));
-    m_fuzzyThresholdLabel = new QLabel(tr("Fuzzy Threshold:"));
-    m_fuzzyThresholdSpin = new QSpinBox();
+    m_fuzzySearchCheck = new ElaCheckBox(tr("Fuzzy Search"));
+    m_fuzzyThresholdLabel = new ElaText(tr("Fuzzy Threshold:"));
+    m_fuzzyThresholdSpin = new ElaSpinBox();
     m_fuzzyThresholdSpin->setRange(1, 5);
     m_fuzzyThresholdSpin->setValue(2);
     m_fuzzyThresholdSpin->setEnabled(false);
@@ -193,14 +201,15 @@ void SearchWidget::setupUI() {
     m_pageRangeGroup = new QGroupBox(tr("Page Range"));
     auto* pageRangeLayout = new QVBoxLayout(m_pageRangeGroup);
 
-    m_pageRangeCheck = new QCheckBox(tr("Limit Search Range"));
-    m_pageRangeLabel = new QLabel(tr("From Page:"));
-    m_startPageSpin = new QSpinBox();
+    m_pageRangeCheck = new ElaCheckBox(tr("Limit Search Range"));
+    m_pageRangeLabel = new ElaText(tr("From Page:"));
+    m_startPageSpin = new ElaSpinBox();
     m_startPageSpin->setMinimum(1);
     m_startPageSpin->setEnabled(false);
 
-    auto* toLabel = new QLabel(tr("To Page:"));
-    m_endPageSpin = new QSpinBox();
+    auto* toLabel = new ElaText(tr("To Page:"));
+    toLabel->setObjectName("toPageLabel");
+    m_endPageSpin = new ElaSpinBox();
     m_endPageSpin->setMinimum(1);
     m_endPageSpin->setEnabled(false);
 
@@ -217,31 +226,34 @@ void SearchWidget::setupUI() {
     optionsLayout->addWidget(m_pageRangeGroup);
 
     // Results view
-    m_resultsView = new QListView();
+    m_resultsView = new ElaListView();
     m_resultsView->setModel(m_searchModel);
     m_resultsView->setAlternatingRowColors(true);
     m_resultsView->setSelectionMode(QAbstractItemView::SingleSelection);
 
     // Status and progress
-    m_statusLabel = new QLabel(tr("Ready to search"));
-    m_progressBar = new QProgressBar();
+    m_statusLabel = new ElaText(tr("Ready to search"));
+    m_progressBar = new ElaProgressBar();
     m_progressBar->setVisible(false);
 
     // Enhanced UI elements
-    m_searchProgressLabel = new QLabel(tr("Search Progress:"));
-    m_searchProgressBar = new QProgressBar();
+    m_searchProgressLabel = new ElaText(tr("Search Progress:"));
+    m_searchProgressBar = new ElaProgressBar();
     m_searchProgressBar->setVisible(false);
 
     // Highlight color controls
     auto* colorLayout = new QHBoxLayout();
-    m_highlightColorButton = new QPushButton(tr("Highlight Color"));
+    m_highlightColorButton = new ElaPushButton(tr("Highlight Color"));
     m_highlightColorButton->setStyleSheet(
         "background-color: #FFFF00; color: black;");
-    m_currentHighlightColorButton = new QPushButton(tr("Current Result Color"));
+    m_currentHighlightColorButton =
+        new ElaPushButton(tr("Current Result Color"));
     m_currentHighlightColorButton->setStyleSheet(
         "background-color: #FF6600; color: white;");
 
-    colorLayout->addWidget(new QLabel(tr("Highlight Colors:")));
+    auto* highlightColorsLabel = new ElaText(tr("Highlight Colors:"));
+    highlightColorsLabel->setObjectName("highlightColorsLabel");
+    colorLayout->addWidget(highlightColorsLabel);
     colorLayout->addWidget(m_highlightColorButton);
     colorLayout->addWidget(m_currentHighlightColorButton);
     colorLayout->addStretch();
@@ -849,7 +861,7 @@ void SearchWidget::retranslateUi() {
     m_pageRangeCheck->setText(tr("Limit Search Range"));
     m_pageRangeLabel->setText(tr("From Page:"));
     // Find "To Page:" label and update it
-    auto* toLabel = m_pageRangeGroup->findChild<QLabel*>("toPageLabel");
+    auto* toLabel = m_pageRangeGroup->findChild<ElaText*>("toPageLabel");
     if (toLabel != nullptr) {
         toLabel->setText(tr("To Page:"));
     }
@@ -861,7 +873,7 @@ void SearchWidget::retranslateUi() {
     m_currentHighlightColorButton->setText(tr("Current Result Color"));
 
     // Update highlight color label if it exists
-    auto* colorLabel = findChild<QLabel*>("highlightColorsLabel");
+    auto* colorLabel = findChild<ElaText*>("highlightColorsLabel");
     if (colorLabel != nullptr) {
         colorLabel->setText(tr("Highlight Colors:"));
     }

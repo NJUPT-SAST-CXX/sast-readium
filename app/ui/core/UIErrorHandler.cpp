@@ -2,16 +2,18 @@
 #include <QApplication>
 #include <QDir>
 #include <QFileInfo>
-#include <QMessageBox>
 #include <QPainter>
 #include <QRegularExpression>
 #include <QStyle>
 #include <QStyleOption>
 #include <QTimer>
 #include <QToolTip>
+#include <QVBoxLayout>
 #include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
 #include "../widgets/ToastNotification.h"
+#include "ElaContentDialog.h"
+#include "ElaText.h"
 
 UIErrorHandler::UIErrorHandler()
     : QObject(nullptr), m_logger("UIErrorHandler") {
@@ -576,48 +578,76 @@ void UIErrorHandler::registerUIRecoveryAction(
 void UIErrorHandler::showErrorDialog(QWidget* parent, const QString& title,
                                      const QString& message,
                                      const QString& details) {
-    QMessageBox msgBox(parent);
-    msgBox.setWindowTitle(title);
-    msgBox.setText(message);
-    msgBox.setIcon(QMessageBox::Critical);
+    ElaContentDialog dlg(parent);
+
+    // Build simple content with title, message, and optional details
+    QWidget* content = new QWidget(&dlg);
+    QVBoxLayout* layout = new QVBoxLayout(content);
+    layout->setContentsMargins(16, 16, 16, 16);
+    layout->setSpacing(8);
+
+    ElaText* titleText = new ElaText(title, &dlg);
+    ElaText* msgText = new ElaText(message, &dlg);
+    layout->addWidget(titleText);
+    layout->addWidget(msgText);
 
     if (!details.isEmpty() && m_showDetailedErrors) {
-        msgBox.setDetailedText(details);
+        ElaText* detailsText = new ElaText(details, &dlg);
+        layout->addWidget(detailsText);
     }
 
-    msgBox.setStandardButtons(QMessageBox::Ok);
-    msgBox.setDefaultButton(QMessageBox::Ok);
+    dlg.setCentralWidget(content);
+    dlg.setRightButtonText(tr("OK"));
 
-    // Apply theme-appropriate styling
-    msgBox.setStyleSheet(
-        QString("QMessageBox { background-color: %1; color: %2; }"
-                "QMessageBox QPushButton { min-width: 80px; padding: 5px; }")
-            .arg(STYLE.backgroundColor().name(), STYLE.textColor().name()));
+    QObject::connect(&dlg, &ElaContentDialog::rightButtonClicked, &dlg,
+                     [&]() { dlg.close(); });
 
-    msgBox.exec();
+    dlg.exec();
 }
 
-void UIErrorHandler::showRecoveryDialog(QWidget* parent,
-                                        const ErrorHandling::ErrorInfo& error,
-                                        const QStringList& recoveryOptions) {
-    QMessageBox msgBox(parent);
-    msgBox.setWindowTitle(tr("Error Recovery"));
-    msgBox.setText(
+void UIErrorHandler::showRecoveryDialog(
+    QWidget* parent, const ErrorHandling::ErrorInfo& error,
+    const QStringList& /*recoveryOptions*/) {
+    ElaContentDialog dlg(parent);
+
+    // Dialog content
+    QWidget* content = new QWidget(&dlg);
+    QVBoxLayout* layout = new QVBoxLayout(content);
+    layout->setContentsMargins(16, 16, 16, 16);
+    layout->setSpacing(8);
+
+    ElaText* msgText = new ElaText(
         tr("An error occurred: %1\n\nWould you like to attempt recovery?")
-            .arg(error.message));
-    msgBox.setIcon(QMessageBox::Question);
+            .arg(error.message),
+        &dlg);
+    layout->addWidget(msgText);
 
-    QPushButton* retryButton =
-        msgBox.addButton(tr("Retry"), QMessageBox::ActionRole);
-    QPushButton* ignoreButton =
-        msgBox.addButton(tr("Ignore"), QMessageBox::RejectRole);
-    QPushButton* abortButton =
-        msgBox.addButton(tr("Abort"), QMessageBox::DestructiveRole);
+    dlg.setCentralWidget(content);
 
-    msgBox.setDefaultButton(retryButton);
-    msgBox.exec();
+    // Button layout: Left=Retry, Middle=Ignore, Right=Abort
+    dlg.setLeftButtonText(tr("Retry"));
+    dlg.setMiddleButtonText(tr("Ignore"));
+    dlg.setRightButtonText(tr("Abort"));
 
-    if (msgBox.clickedButton() == retryButton) {
+    enum class Selection { None, Retry, Ignore, Abort };
+    Selection selected = Selection::None;
+
+    QObject::connect(&dlg, &ElaContentDialog::leftButtonClicked, &dlg, [&]() {
+        selected = Selection::Retry;
+        dlg.close();
+    });
+    QObject::connect(&dlg, &ElaContentDialog::middleButtonClicked, &dlg, [&]() {
+        selected = Selection::Ignore;
+        dlg.close();
+    });
+    QObject::connect(&dlg, &ElaContentDialog::rightButtonClicked, &dlg, [&]() {
+        selected = Selection::Abort;
+        dlg.close();
+    });
+
+    dlg.exec();
+
+    if (selected == Selection::Retry) {
         attemptErrorRecovery(error, "UserChoice", parent);
     }
 }

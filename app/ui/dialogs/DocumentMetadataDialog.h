@@ -8,7 +8,7 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QLineEdit>
+
 #include <QObject>
 #include <QProgressBar>
 #include <QPushButton>
@@ -16,7 +16,6 @@
 #include <QString>
 #include <QTabWidget>
 #include <QTextEdit>
-#include <QToolButton>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
@@ -25,6 +24,9 @@
 
 class StyleManager;
 
+class ElaPushButton;
+class ElaToolButton;
+class ElaLineEdit;
 class DocumentMetadataDialog : public QDialog {
     Q_OBJECT
 
@@ -70,8 +72,8 @@ private:
     QWidget* m_headerWidget = nullptr;
     QHBoxLayout* m_headerLayout = nullptr;
     QLabel* m_iconLabel = nullptr;
-    QLabel* m_titleLabel = nullptr;
-    QToolButton* m_copyAllButton = nullptr;
+
+    ElaToolButton* m_copyAllButton = nullptr;
 
     // 基本信息标签页
     QWidget* m_basicTab = nullptr;
@@ -83,21 +85,21 @@ private:
     // 基本信息组
     QGroupBox* m_basicInfoGroup = nullptr;
     QGridLayout* m_basicInfoLayout = nullptr;
-    QLineEdit* m_fileNameEdit = nullptr;
-    QLineEdit* m_filePathEdit = nullptr;
-    QLineEdit* m_fileSizeEdit = nullptr;
-    QLineEdit* m_pageCountEdit = nullptr;
-    QLineEdit* m_pdfVersionEdit = nullptr;
-    QLineEdit* m_creationDateFileEdit = nullptr;
-    QLineEdit* m_modificationDateFileEdit = nullptr;
-    QToolButton* m_copyPathButton = nullptr;
+    ElaLineEdit* m_fileNameEdit = nullptr;
+    ElaLineEdit* m_filePathEdit = nullptr;
+    ElaLineEdit* m_fileSizeEdit = nullptr;
+    ElaLineEdit* m_pageCountEdit = nullptr;
+    ElaLineEdit* m_pdfVersionEdit = nullptr;
+    ElaLineEdit* m_creationDateFileEdit = nullptr;
+    ElaLineEdit* m_modificationDateFileEdit = nullptr;
+    ElaToolButton* m_copyPathButton = nullptr;
 
     // 页面信息组
     QGroupBox* m_pageInfoGroup = nullptr;
     QGridLayout* m_pageInfoLayout = nullptr;
-    QLineEdit* m_pageSizeEdit = nullptr;
-    QLineEdit* m_pageOrientationEdit = nullptr;
-    QLineEdit* m_pageRotationEdit = nullptr;
+    ElaLineEdit* m_pageSizeEdit = nullptr;
+    ElaLineEdit* m_pageOrientationEdit = nullptr;
+    ElaLineEdit* m_pageRotationEdit = nullptr;
 
     // 文档属性标签页
     QWidget* m_propertiesTab = nullptr;
@@ -109,14 +111,14 @@ private:
     // 文档属性组
     QGroupBox* m_propertiesGroup = nullptr;
     QGridLayout* m_propertiesLayout = nullptr;
-    QLineEdit* m_titleEdit = nullptr;
-    QLineEdit* m_authorEdit = nullptr;
-    QLineEdit* m_subjectEdit = nullptr;
+    ElaLineEdit* m_titleEdit = nullptr;
+    ElaLineEdit* m_authorEdit = nullptr;
+    ElaLineEdit* m_subjectEdit = nullptr;
     QTextEdit* m_keywordsEdit = nullptr;
-    QLineEdit* m_creatorEdit = nullptr;
-    QLineEdit* m_producerEdit = nullptr;
-    QLineEdit* m_creationDateEdit = nullptr;
-    QLineEdit* m_modificationDateEdit = nullptr;
+    ElaLineEdit* m_creatorEdit = nullptr;
+    ElaLineEdit* m_producerEdit = nullptr;
+    ElaLineEdit* m_creationDateEdit = nullptr;
+    ElaLineEdit* m_modificationDateEdit = nullptr;
 
     // 安全信息标签页
     QWidget* m_securityTab = nullptr;
@@ -125,15 +127,15 @@ private:
     // 安全信息组
     QGroupBox* m_securityGroup = nullptr;
     QGridLayout* m_securityLayout = nullptr;
-    QLineEdit* m_encryptedEdit = nullptr;
-    QLineEdit* m_encryptionMethodEdit = nullptr;
-    QLineEdit* m_canExtractTextEdit = nullptr;
-    QLineEdit* m_canPrintEdit = nullptr;
-    QLineEdit* m_canPrintHighResEdit = nullptr;
-    QLineEdit* m_canModifyEdit = nullptr;
-    QLineEdit* m_canModifyAnnotationsEdit = nullptr;
-    QLineEdit* m_canFillFormsEdit = nullptr;
-    QLineEdit* m_canAssembleEdit = nullptr;
+    ElaLineEdit* m_encryptedEdit = nullptr;
+    ElaLineEdit* m_encryptionMethodEdit = nullptr;
+    ElaLineEdit* m_canExtractTextEdit = nullptr;
+    ElaLineEdit* m_canPrintEdit = nullptr;
+    ElaLineEdit* m_canPrintHighResEdit = nullptr;
+    ElaLineEdit* m_canModifyEdit = nullptr;
+    ElaLineEdit* m_canModifyAnnotationsEdit = nullptr;
+    ElaLineEdit* m_canFillFormsEdit = nullptr;
+    ElaLineEdit* m_canAssembleEdit = nullptr;
 
     // 高级信息标签页
     QWidget* m_advancedTab = nullptr;
@@ -143,20 +145,19 @@ private:
     QGroupBox* m_fontGroup = nullptr;
     QVBoxLayout* m_fontLayout = nullptr;
     QTreeWidget* m_fontTree = nullptr;
-    QLabel* m_fontCountLabel = nullptr;
 
     // 其他信息组
     QGroupBox* m_advancedGroup = nullptr;
     QGridLayout* m_advancedLayout = nullptr;
-    QLineEdit* m_linearizedEdit = nullptr;
-    QLineEdit* m_hasFormsEdit = nullptr;
-    QLineEdit* m_hasJavaScriptEdit = nullptr;
-    QLineEdit* m_hasEmbeddedFilesEdit = nullptr;
+    ElaLineEdit* m_linearizedEdit = nullptr;
+    ElaLineEdit* m_hasFormsEdit = nullptr;
+    ElaLineEdit* m_hasJavaScriptEdit = nullptr;
+    ElaLineEdit* m_hasEmbeddedFilesEdit = nullptr;
 
     // 按钮
     QHBoxLayout* m_buttonLayout = nullptr;
-    QPushButton* m_exportButton = nullptr;
-    QPushButton* m_closeButton = nullptr;
+    ElaPushButton* m_exportButton = nullptr;
+    ElaPushButton* m_closeButton = nullptr;
 
     // 当前文档信息
     QString m_currentFilePath;

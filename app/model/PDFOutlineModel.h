@@ -56,7 +56,7 @@ class PDFOutlineModel : public QObject {
 
 public:
     explicit PDFOutlineModel(QObject* parent = nullptr);
-    ~PDFOutlineModel() = default;
+    ~PDFOutlineModel() override;
 
     // 解析PDF文档的目录
     bool parseOutline(Poppler::Document* document);

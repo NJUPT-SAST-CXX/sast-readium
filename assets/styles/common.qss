@@ -1,4 +1,26 @@
-/* Common shared UI refinements */
+/*
+ * ============================================================================
+ * SAST Readium - Common Stylesheet
+ * ============================================================================
+ *
+ * Purpose:     Theme-independent shared styles applied to both themes
+ * Theme:       Independent (works with both Light and Dark)
+ * Components:  Focus states, menu interactions, utility classes
+ * Loading:     Loaded by StyleManager after theme-specific stylesheet
+ *
+ * Contents:
+ *   - Focus visibility improvements
+ *   - Menu item pressed feedback
+ *   - StatusBar message pill styling
+ *
+ * Notes:
+ *   - These styles override theme-specific defaults
+ *   - Keep minimal - only truly shared, theme-independent rules
+ *   - Avoid color-specific rules (use theme files instead)
+ *
+ * Last Updated: 2025-10-29
+ * ============================================================================
+ */
 
 /* Improve focus visibility across interactive widgets */
 QToolButton:focus {
