@@ -21,15 +21,16 @@ env:
 
 jobs:
   build:
-    name: build on macos with system packages
+    name: build on macos-${{ matrix.arch }} with system packages
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
           include:
-            # - os: macos-latest
-            #   arch: arm64
+            - os: macos-15
+              arch: arm64
             - os: macos-15-intel
-              arch: x64
+              arch: x86_64
 
     steps:
       - name: Checkout code
@@ -108,7 +109,7 @@ jobs:
       - name: Build
         run: |
           cmake --build --preset=Release-Unix --parallel 4
-
+      
       - name: Deploy runtime
         run: |
           echo "Creating macOS .app bundle..."
@@ -136,26 +137,25 @@ jobs:
           [ -d "${BUILD_DIR}/app/styles" ] && cp -r "${BUILD_DIR}/app/styles" "${APP_BUNDLE}/Contents/Resources/"
           [ -d "assets" ] && cp -r assets "${APP_BUNDLE}/Contents/Resources/"
           
-          # Create app icon from PNG
+          # Create app icon
           if [ -f "assets/images/1024x1024.png" ]; then
             echo "Creating app icon..."
             mkdir -p icon.iconset
-            sips -z 16 16     assets/images/1024x1024.png --out icon.iconset/icon_16x16.png
-            sips -z 32 32     assets/images/1024x1024.png --out icon.iconset/icon_16x16@2x.png
-            sips -z 32 32     assets/images/1024x1024.png --out icon.iconset/icon_32x32.png
-            sips -z 64 64     assets/images/1024x1024.png --out icon.iconset/icon_32x32@2x.png
-            sips -z 128 128   assets/images/1024x1024.png --out icon.iconset/icon_128x128.png
-            sips -z 256 256   assets/images/256x256.png --out icon.iconset/icon_128x128@2x.png
-            sips -z 256 256   assets/images/256x256.png --out icon.iconset/icon_256x256.png
-            sips -z 512 512   assets/images/1024x1024.png --out icon.iconset/icon_256x256@2x.png
-            sips -z 512 512   assets/images/1024x1024.png --out icon.iconset/icon_512x512.png
-            sips -z 1024 1024 assets/images/1024x1024.png --out icon.iconset/icon_512x512@2x.png
+            sips -z 16 16     assets/images/1024x1024.png --out icon.iconset/icon_16x16.png 2>/dev/null
+            sips -z 32 32     assets/images/1024x1024.png --out icon.iconset/icon_16x16@2x.png 2>/dev/null
+            sips -z 32 32     assets/images/1024x1024.png --out icon.iconset/icon_32x32.png 2>/dev/null
+            sips -z 64 64     assets/images/1024x1024.png --out icon.iconset/icon_32x32@2x.png 2>/dev/null
+            sips -z 128 128   assets/images/1024x1024.png --out icon.iconset/icon_128x128.png 2>/dev/null
+            sips -z 256 256   assets/images/256x256.png --out icon.iconset/icon_128x128@2x.png 2>/dev/null
+            sips -z 256 256   assets/images/256x256.png --out icon.iconset/icon_256x256.png 2>/dev/null
+            sips -z 512 512   assets/images/1024x1024.png --out icon.iconset/icon_256x256@2x.png 2>/dev/null
+            sips -z 512 512   assets/images/1024x1024.png --out icon.iconset/icon_512x512.png 2>/dev/null
+            sips -z 1024 1024 assets/images/1024x1024.png --out icon.iconset/icon_512x512@2x.png 2>/dev/null
             iconutil -c icns icon.iconset -o "${APP_BUNDLE}/Contents/Resources/app.icns"
             rm -rf icon.iconset
           fi
           
           # Create Info.plist
-          echo "Creating Info.plist..."
           cat > "${APP_BUNDLE}/Contents/Info.plist" << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -207,32 +207,37 @@ jobs:
           export Qt6_DIR=$(brew --prefix qt@6)
           "${Qt6_DIR}/bin/macdeployqt" "${APP_BUNDLE}" -verbose=2
           
-          # Copy poppler and other libraries
-          echo "Copying additional libraries..."
-          for lib in /usr/local/lib/libpoppler*.dylib; do
-            if [ -f "$lib" ]; then
+          # Fix symlinks - replace with actual files
+          echo ""
+          echo "Fixing symlinks in Frameworks..."
+          for lib in "${APP_BUNDLE}/Contents/Frameworks"/*.dylib; do
+            if [ -L "$lib" ]; then
               lib_name=$(basename "$lib")
-              echo "Copying $lib_name..."
-              cp "$lib" "${APP_BUNDLE}/Contents/Frameworks/"
-              chmod +w "${APP_BUNDLE}/Contents/Frameworks/${lib_name}"
-              install_name_tool -id "@rpath/${lib_name}" "${APP_BUNDLE}/Contents/Frameworks/${lib_name}" 2>/dev/null || true
+              # Resolve the full chain of symlinks to get actual file
+              actual_file=$(readlink -f "$lib" 2>/dev/null || echo "")
+              
+              # If readlink -f doesn't work, manually resolve
+              if [ -z "$actual_file" ] || [ ! -f "$actual_file" ]; then
+                # Try to find in /usr/local/lib
+                actual_file=$(find /usr/local/lib -name "${lib_name%.dylib}*.dylib" -type f 2>/dev/null | head -1)
+              fi
+              
+              if [ -n "$actual_file" ] && [ -f "$actual_file" ]; then
+                actual_size=$(stat -f%z "$actual_file")
+                echo "Replacing symlink: $lib_name -> $(basename "$actual_file") ($(numfmt --to=iec-i --suffix=B $actual_size 2>/dev/null || echo "${actual_size} bytes"))"
+                rm "$lib"
+                cp "$actual_file" "$lib"
+                chmod +w "$lib"
+              fi
             fi
           done
+
+          rm -rf "${APP_BUNDLE}/Contents/Frameworks"/libpoppler-qt6.3.dylib
+          cp /usr/local/lib/libpoppler-qt6.3.8.0.dylib "${APP_BUNDLE}/Contents/Frameworks/libpoppler-qt6.3.dylib"
           
-          # Fix library paths in executable
-          echo "Fixing library paths..."
-          for dylib in "${APP_BUNDLE}/Contents/Frameworks"/*.dylib; do
-            if [ -f "$dylib" ]; then
-              dylib_name=$(basename "$dylib")
-              install_name_tool -change "/usr/local/lib/${dylib_name}" "@rpath/${dylib_name}" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
-            fi
-          done
-          
-          # Add rpath
-          install_name_tool -add_rpath "@executable_path/../Frameworks" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
-          
+          echo ""
           echo "App bundle created at: ${APP_BUNDLE}"
-          ls -lah "${APP_BUNDLE}/Contents/MacOS/"
+          du -sh "${APP_BUNDLE}"
 
       - name: Upload native build artifacts
         uses: actions/upload-artifact@v4
