@@ -115,6 +115,8 @@ void PerformanceLogger::setThreshold(int milliseconds) {
 ScopedLogLevel::ScopedLogLevel(Logger::LogLevel tempLevel)
     : m_originalConfig(LoggingManager::instance().getConfiguration()),
       m_levelOnly(true) {
+    // Capture the effective current logger level to ensure correct restoration
+    m_originalConfig.globalLogLevel = Logger::instance().getLogLevel();
     LoggingManager::instance().setGlobalLogLevel(tempLevel);
 }
 

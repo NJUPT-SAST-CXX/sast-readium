@@ -119,7 +119,7 @@ void MainWindow::initWindow() {
     SLOG_INFO("MainWindow: Initializing window properties");
 
     // Set window properties
-    setWindowTitle("SAST Readium");
+    setWindowTitle(tr("SAST Readium - ElaWidgetTools Edition"));
     setWindowIcon(QIcon(":/icons/app_icon"));
 
     // Set optimal window size (16:10 aspect ratio for reading)
@@ -141,14 +141,14 @@ void MainWindow::initWindow() {
     // Set user info card with better branding
     setUserInfoCardVisible(true);
     setUserInfoCardPixmap(QPixmap(":/icons/user_avatar"));
-    setUserInfoCardTitle("SAST Readium");
-    setUserInfoCardSubTitle("Modern PDF Reading Experience");
+    setUserInfoCardTitle(tr("SAST Readium"));
+    setUserInfoCardSubTitle(tr("Modern PDF Reader"));
 
     // Add central stack page (default page when no navigation selected)
-    ElaText* centralText = new ElaText("Welcome to SAST Readium", this);
-    centralText->setTextPixelSize(32);
-    centralText->setAlignment(Qt::AlignCenter);
-    addCentralWidget(centralText);
+    m_centralWelcomeText = new ElaText(tr("Welcome to SAST Readium"), this);
+    m_centralWelcomeText->setTextPixelSize(32);
+    m_centralWelcomeText->setAlignment(Qt::AlignCenter);
+    addCentralWidget(m_centralWelcomeText);
 
     SLOG_INFO("MainWindow: Window properties initialized");
 }
@@ -357,6 +357,10 @@ void MainWindow::retranslateUi() {
     // Update user info card
     setUserInfoCardTitle(tr("SAST Readium"));
     setUserInfoCardSubTitle(tr("Modern PDF Reader"));
+
+    if (m_centralWelcomeText != nullptr) {
+        m_centralWelcomeText->setText(tr("Welcome to SAST Readium"));
+    }
 
     // Update navigation node titles
     setNavigationNodeTitle(m_documentsKey, tr("Documents"));

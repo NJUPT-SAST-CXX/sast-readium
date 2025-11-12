@@ -3,15 +3,15 @@
 
 #include <QList>
 #include <QString>
-#include <QWidget>
+
+#include "ElaListView.h"
+#include "ElaWidget.h"
 
 // Forward declarations
 class ElaLineEdit;
 class ElaComboBox;
 class ElaCheckBox;
 class ElaPushButton;
-class ElaListView;
-class QListWidget;
 class SearchEngine;
 class SearchResult;
 
@@ -29,7 +29,7 @@ class SearchResult;
  * 复用现有业务逻辑：
  * - SearchEngine - 搜索引擎
  */
-class SearchPanel : public QWidget {
+class SearchPanel : public ElaWidget {
     Q_OBJECT
 
 public:
@@ -67,7 +67,7 @@ private:
     ElaCheckBox* m_caseSensitiveCheck;
     ElaCheckBox* m_wholeWordsCheck;
     ElaCheckBox* m_regexCheck;
-    QListWidget* m_resultsList;
+    ElaListView* m_resultsList;
     ElaPushButton* m_prevBtn;
     ElaPushButton* m_nextBtn;
 

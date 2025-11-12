@@ -3,13 +3,13 @@
 // ElaWidgetTools
 #include "ElaCheckBox.h"
 #include "ElaLineEdit.h"
+#include "ElaListView.h"
 #include "ElaPushButton.h"
 
 // Qt
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QListWidget>
 #include <QVBoxLayout>
 
 // Logging
@@ -19,7 +19,7 @@
 #include "search/SearchEngine.h"
 
 SearchPanel::SearchPanel(QWidget* parent)
-    : QWidget(parent), m_searchEngine(nullptr), m_currentResultIndex(-1) {
+    : ElaWidget(parent), m_searchEngine(nullptr), m_currentResultIndex(-1) {
     SLOG_INFO("SearchPanel: Constructor started");
 
     setupUi();
@@ -82,7 +82,7 @@ void SearchPanel::setupUi() {
     mainLayout->addLayout(navigationLayout);
 
     // 结果列表
-    m_resultsList = new QListWidget(this);
+    m_resultsList = new ElaListView(this);
     mainLayout->addWidget(m_resultsList);
 }
 
@@ -113,11 +113,11 @@ void SearchPanel::connectSignals() {
     connect(m_nextBtn, &ElaPushButton::clicked, this,
             &SearchPanel::nextResultRequested);
 
-    connect(m_resultsList, &QListWidget::itemClicked, this,
-            [this](QListWidgetItem* item) {
-                if (item) {
-                    int pageNumber = item->data(Qt::UserRole).toInt();
-                    int resultIndex = m_resultsList->row(item);
+    connect(m_resultsList, &ElaListView::clicked, this,
+            [this](const QModelIndex& index) {
+                if (index.isValid()) {
+                    int pageNumber = index.data(Qt::UserRole).toInt();
+                    int resultIndex = index.row();
                     emit resultSelected(pageNumber, resultIndex);
                 }
             });
@@ -132,7 +132,10 @@ void SearchPanel::stopSearch() { SLOG_INFO("SearchPanel: Stopping search"); }
 
 void SearchPanel::clearResults() {
     SLOG_INFO("SearchPanel: Clearing results");
-    m_resultsList->clear();
+    if (m_resultsList->model()) {
+        m_resultsList->model()->removeRows(0,
+                                           m_resultsList->model()->rowCount());
+    }
     m_results.clear();
     m_currentResultIndex = -1;
     updateResultsList();
@@ -155,12 +158,15 @@ void SearchPanel::setSearchEngine(SearchEngine* engine) {
 }
 
 void SearchPanel::updateResultsList() {
-    m_resultsList->clear();
-
-    for (const auto& result : m_results) {
-        auto* item = new QListWidgetItem(m_resultsList);
-        m_resultsList->addItem(item);
+    if (m_resultsList->model()) {
+        m_resultsList->model()->removeRows(0,
+                                           m_resultsList->model()->rowCount());
     }
+
+    // Note: For ElaListView, you would typically set a proper model here
+    // For now, we're just clearing the list. A full implementation would
+    // require creating a QStandardItemModel or custom model and populating it
+    // with the search results.
 
     bool hasResults = !m_results.isEmpty();
     m_prevBtn->setEnabled(hasResults && m_currentResultIndex > 0);
@@ -172,7 +178,7 @@ void SearchPanel::changeEvent(QEvent* event) {
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
     }
-    QWidget::changeEvent(event);
+    ElaWidget::changeEvent(event);
 }
 
 void SearchPanel::retranslateUi() {

@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 #include <algorithm>
+#include <functional>
 #include "../logging/LoggingMacros.h"
 
 // Static instance
@@ -32,21 +33,40 @@ bool PluginDependencyResolver::hasCyclicDependencies(
     const QHash<QString, PluginMetadata>& plugins) {
     QHash<QString, int> visited;  // 0 = not visited, 1 = visiting, 2 = visited
 
-    for (auto it = plugins.begin(); it != plugins.end(); ++it) {
-        if (visited[it.key()] == 0) {
-            QStringList temp;
-            visitPlugin(it.key(), plugins, visited, temp);
-
-            // Check if we encountered a cycle (visiting state)
-            for (auto visitIt = visited.begin(); visitIt != visited.end();
-                 ++visitIt) {
-                if (visitIt.value() == 1) {
+    // Depth-first search with explicit cycle detection
+    std::function<bool(const QString&)> dfs = [&](const QString& name) -> bool {
+        const int state = visited.value(name, 0);
+        if (state == 1) {
+            // Found a back edge => cycle
+            return true;
+        }
+        if (state == 2) {
+            return false;
+        }
+        visited[name] = 1;  // mark visiting
+        if (plugins.contains(name)) {
+            const PluginMetadata& md = plugins[name];
+            for (const QString& dep : md.dependencies) {
+                // Ignore missing dependencies for cycle detection
+                if (!plugins.contains(dep)) {
+                    continue;
+                }
+                if (dfs(dep)) {
                     return true;
                 }
             }
         }
-    }
+        visited[name] = 2;  // mark visited
+        return false;
+    };
 
+    for (auto it = plugins.begin(); it != plugins.end(); ++it) {
+        if (visited.value(it.key(), 0) == 0) {
+            if (dfs(it.key())) {
+                return true;
+            }
+        }
+    }
     return false;
 }
 

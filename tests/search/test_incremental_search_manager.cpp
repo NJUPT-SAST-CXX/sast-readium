@@ -14,7 +14,7 @@
 class IncrementalSearchManagerTest : public TestBase {
     Q_OBJECT
 
-protected:
+private slots:
     void initTestCase() override;
     void cleanupTestCase() override;
     void init() override;

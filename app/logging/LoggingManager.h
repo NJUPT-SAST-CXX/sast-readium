@@ -280,8 +280,8 @@ private:
     QString getDefaultLogDirectory() const;
     QString getLogFilePath() const;
     void updateLoggerConfiguration();
-    void connectSignals();
-    void disconnectSignals();
+    void connectSignals() const;
+    void disconnectSignals() const;
 
     class Implementation;
     std::unique_ptr<Implementation> d;

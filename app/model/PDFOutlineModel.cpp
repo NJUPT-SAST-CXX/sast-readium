@@ -1,6 +1,6 @@
 #include "PDFOutlineModel.h"
-#include <QDebug>
 #include <QStringList>
+#include "../logging/SimpleLogging.h"
 
 PDFOutlineModel::PDFOutlineModel(QObject* parent)
     : QObject(parent), totalItemCount(0) {}
@@ -17,14 +17,14 @@ bool PDFOutlineModel::parseOutline(Poppler::Document* document) {
     clear();
 
     if (!document) {
-        qWarning() << "PDFOutlineModel: Document is null";
+        SLOG_WARNING("PDFOutlineModel: Document is null");
         return false;
     }
 
     // 获取PDF文档的目录
     QList<Poppler::OutlineItem> outline = document->outline();
     if (outline.isEmpty()) {
-        qDebug() << "PDFOutlineModel: Document has no outline";
+        SLOG_DEBUG("PDFOutlineModel: Document has no outline");
         return false;
     }
 
@@ -37,12 +37,12 @@ bool PDFOutlineModel::parseOutline(Poppler::Document* document) {
 
         totalItemCount = countNodes(rootNodes);
 
-        qDebug() << "PDFOutlineModel: Parsed" << totalItemCount
-                 << "outline items";
+        SLOG_DEBUG_F("PDFOutlineModel: Parsed {} outline items",
+                     totalItemCount);
         emit outlineParsed();
         return true;
     } catch (const std::exception& e) {
-        qWarning() << "PDFOutlineModel: Error parsing outline:" << e.what();
+        SLOG_WARNING_F("PDFOutlineModel: Error parsing outline: {}", e.what());
         clear();
         return false;
     }
@@ -83,7 +83,7 @@ std::shared_ptr<PDFOutlineNode> PDFOutlineModel::parseOutlineItem(
     // 防止递归深度过大
     const int MAX_DEPTH = 50;
     if (level > MAX_DEPTH) {
-        qWarning() << "PDFOutlineModel: Maximum recursion depth reached";
+        SLOG_WARNING("PDFOutlineModel: Maximum recursion depth reached");
         return rootNode;
     }
 
@@ -102,17 +102,17 @@ std::shared_ptr<PDFOutlineNode> PDFOutlineModel::parseOutlineItem(
 }
 
 void PDFOutlineModel::parseOutlineItemRecursive(
-    const Poppler::OutlineItem& item, std::shared_ptr<PDFOutlineNode> node,
-    int level) {
+    const Poppler::OutlineItem& item,
+    const std::shared_ptr<PDFOutlineNode>& node, int level) {
     if (!node) {
-        qWarning() << "PDFOutlineModel: Node is null";
+        SLOG_WARNING("PDFOutlineModel: Node is null");
         return;
     }
 
     // 防止递归深度过大
     const int MAX_DEPTH = 50;
     if (level > MAX_DEPTH) {
-        qWarning() << "PDFOutlineModel: Maximum recursion depth reached";
+        SLOG_WARNING("PDFOutlineModel: Maximum recursion depth reached");
         return;
     }
 
@@ -130,8 +130,9 @@ void PDFOutlineModel::parseOutlineItemRecursive(
             }
         }
     } catch (const std::exception& e) {
-        qWarning() << "PDFOutlineModel: Error getting destination for item"
-                   << node->title << ":" << e.what();
+        SLOG_WARNING_F(
+            "PDFOutlineModel: Error getting destination for item {}: {}",
+            node->title, e.what());
     }
 
     // 递归处理子项
@@ -151,8 +152,9 @@ void PDFOutlineModel::parseOutlineItemRecursive(
                 }
             }
         } catch (const std::exception& e) {
-            qWarning() << "PDFOutlineModel: Error processing children for item"
-                       << node->title << ":" << e.what();
+            SLOG_WARNING_F(
+                "PDFOutlineModel: Error processing children for item {}: {}",
+                node->title, e.what());
         }
     }
 }

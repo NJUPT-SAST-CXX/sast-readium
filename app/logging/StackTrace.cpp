@@ -192,11 +192,11 @@ std::vector<StackFrame> captureStackTrace(int maxFrames, int skipFrames) {
         return frames;
     }
 
-    // Symbol buffer
-    const int maxNameLen = 1024;
-    char buffer[sizeof(SYMBOL_INFO) + maxNameLen];
-    SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>(buffer);
-    symbol->MaxNameLen = maxNameLen;
+    // Symbol buffer (allocate safely on the heap to avoid stack overrun)
+    constexpr DWORD kMaxNameLen = MAX_SYM_NAME;  // per DbgHelp docs
+    std::vector<char> symStorage(sizeof(SYMBOL_INFO) + kMaxNameLen);
+    SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>(symStorage.data());
+    symbol->MaxNameLen = kMaxNameLen;
     symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
 
     // Line info

@@ -54,7 +54,7 @@ HomePage::HomePage(QWidget* parent)
       m_copyrightText(nullptr),
       m_isInitialized(false) {
     // Set window title for navigation
-    setWindowTitle("Home");
+    setWindowTitle(tr("Home"));
 
     // Set title visibility (following example pattern)
     setTitleVisible(false);
@@ -434,6 +434,7 @@ void HomePage::onClearRecentFilesClicked() {
 
 void HomePage::retranslateUi() {
     // Update translatable strings
+    setWindowTitle(tr("Home"));
     if (m_subtitleText)
         m_subtitleText->setText(tr("Modern PDF Reader"));
     if (m_titleText)

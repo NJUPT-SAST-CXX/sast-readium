@@ -193,6 +193,45 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/test_command_prototype_registry.cp
     )
 endif()
 
+# Additional Factory Tests - New
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/test_command_factory.cpp)
+    create_test_target(test_command_factory
+        SOURCES factory/test_command_factory.cpp
+        TIMEOUT 300
+    )
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/test_widget_factory.cpp)
+    create_test_target(test_widget_factory
+        SOURCES factory/test_widget_factory.cpp
+        TIMEOUT 300
+    )
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/test_model_factory_concrete.cpp)
+    create_test_target(test_model_factory_concrete
+        SOURCES factory/test_model_factory_concrete.cpp
+        TIMEOUT 300
+    )
+endif()
+
+# ============================================================================
+# Plugin Tests - Plugin system core and base/context
+# ============================================================================
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin_manager_core.cpp)
+    create_test_target(test_plugin_manager_core
+        SOURCES plugin/test_plugin_manager_core.cpp
+        TIMEOUT 300
+    )
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin_base_and_context.cpp)
+    create_test_target(test_plugin_base_and_context
+        SOURCES plugin/test_plugin_base_and_context.cpp
+        TIMEOUT 300
+    )
+endif()
+
 # ============================================================================
 # Integration Tests - Multi-component integration tests
 # ============================================================================
@@ -301,6 +340,13 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/model/test_search_model.cpp)
         TIMEOUT 300
     )
 endif()
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/model/test_render_model.cpp)
+    create_test_target(test_render_model
+        SOURCES model/test_render_model.cpp
+        TIMEOUT 300
+    )
+endif()
+
 
 # ============================================================================
 # Performance Tests - Performance benchmarks and optimization tests
@@ -350,6 +396,13 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_engine.cpp)
         TIMEOUT 300
     )
 endif()
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_simple.cpp)
+    create_test_target(test_simple
+        SOURCES search/test_simple.cpp
+        TIMEOUT 120
+    )
+endif()
+
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/search/test_search_configuration.cpp)
     create_test_target(test_search_configuration

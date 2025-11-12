@@ -2,6 +2,7 @@
 
 #include <QHash>
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <functional>
 #include <memory>
@@ -101,8 +102,9 @@ private:
     void registerServiceInstance(const QString& typeName, QObject* instance);
     QObject* createService(const QString& typeName);
 
-    // Service storage
-    QHash<QString, QObject*> m_services;
+    // Service storage (use QPointer to avoid dangling pointers when services
+    // are destroyed elsewhere)
+    QHash<QString, QPointer<QObject>> m_services;
     QHash<QString, ServiceFactory> m_factories;
     QHash<QString, std::shared_ptr<void>> m_sharedServices;
 

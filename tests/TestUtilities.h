@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QEventLoop>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -9,13 +10,14 @@
 #include <QRandomGenerator>
 #include <QSignalSpy>
 #include <QTest>
+#include <QThread>
 #include <QTimer>
 #include <QVariantMap>
 #include <functional>
 #include <memory>
 
 // PDF generation utilities
-#include <poppler-qt6.h>
+#include <poppler/qt6/poppler-qt6.h>
 #include <QPainter>
 #include <QPdfWriter>
 #include <QStandardPaths>
@@ -44,14 +46,12 @@ protected:
 
     // Helper methods
     bool waitFor(std::function<bool()> condition, int timeout = 5000) {
-        QTimer timer;
-        timer.setSingleShot(true);
-        timer.start(timeout);
-
-        while (timer.isActive() && !condition()) {
+        QElapsedTimer elapsed;
+        elapsed.start();
+        while (elapsed.elapsed() < timeout && !condition()) {
             QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+            QThread::msleep(1);
         }
-
         return condition();
     }
 

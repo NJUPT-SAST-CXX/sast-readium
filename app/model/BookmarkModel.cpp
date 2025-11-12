@@ -1,9 +1,9 @@
 #include "BookmarkModel.h"
-#include <QDebug>
 #include <QFileInfo>
 #include <QJsonParseError>
 #include <QTimer>
 #include <algorithm>
+#include "../logging/SimpleLogging.h"
 
 // Bookmark serialization implementation
 QJsonObject Bookmark::toJson() const {
@@ -288,7 +288,7 @@ bool BookmarkModel::updateBookmark(const QString& bookmarkId,
 
     // Validate the updated bookmark
     if (!validateBookmark(updatedBookmark)) {
-        qWarning() << "Invalid updated bookmark data";
+        SLOG_WARNING("Invalid updated bookmark data");
         return false;
     }
 
@@ -510,8 +510,8 @@ bool BookmarkModel::saveToFile() {
 
     QFile file(m_storageFile);
     if (!file.open(QIODevice::WriteOnly)) {
-        qWarning() << "Failed to open bookmarks file for writing:"
-                   << m_storageFile;
+        SLOG_WARNING_F("Failed to open bookmarks file for writing: {}",
+                       m_storageFile);
         return false;
     }
 
@@ -520,8 +520,8 @@ bool BookmarkModel::saveToFile() {
 
     if (bytesWritten > 0) {
         emit bookmarksSaved(m_bookmarks.size());
-        qDebug() << "Saved" << m_bookmarks.size() << "bookmarks to"
-                 << m_storageFile;
+        SLOG_DEBUG_F("Saved {} bookmarks to {}", m_bookmarks.size(),
+                     m_storageFile);
         return true;
     }
 
@@ -531,13 +531,13 @@ bool BookmarkModel::saveToFile() {
 bool BookmarkModel::loadFromFile() {
     QFile file(m_storageFile);
     if (!file.exists()) {
-        qDebug() << "Bookmarks file does not exist, starting with empty list";
+        SLOG_DEBUG("Bookmarks file does not exist, starting with empty list");
         return true;  // Not an error for first run
     }
 
     if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "Failed to open bookmarks file for reading:"
-                   << m_storageFile;
+        SLOG_WARNING_F("Failed to open bookmarks file for reading: {}",
+                       m_storageFile);
         return false;
     }
 
@@ -548,8 +548,8 @@ bool BookmarkModel::loadFromFile() {
     QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
 
     if (parseError.error != QJsonParseError::NoError) {
-        qWarning() << "Failed to parse bookmarks JSON:"
-                   << parseError.errorString();
+        SLOG_WARNING_F("Failed to parse bookmarks JSON: {}",
+                       parseError.errorString());
         return false;
     }
 
@@ -572,8 +572,8 @@ bool BookmarkModel::loadFromFile() {
     endResetModel();
 
     emit bookmarksLoaded(m_bookmarks.size());
-    qDebug() << "Loaded" << m_bookmarks.size() << "bookmarks from"
-             << m_storageFile;
+    SLOG_DEBUG_F("Loaded {} bookmarks from {}", m_bookmarks.size(),
+                 m_storageFile);
 
     return true;
 }
@@ -617,7 +617,7 @@ void BookmarkModel::clearAllBookmarks() {
     }
 
     emit bookmarksCleared();
-    qDebug() << "All bookmarks cleared";
+    SLOG_DEBUG("All bookmarks cleared");
 }
 
 bool BookmarkModel::exportBookmarks(const QString& filePath) const {
@@ -637,7 +637,7 @@ bool BookmarkModel::exportBookmarks(const QString& filePath) const {
 
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly)) {
-        qWarning() << "Failed to open export file for writing:" << filePath;
+        SLOG_WARNING_F("Failed to open export file for writing: {}", filePath);
         return false;
     }
 
@@ -648,8 +648,8 @@ bool BookmarkModel::exportBookmarks(const QString& filePath) const {
         // Use const_cast to emit signal from const method
         const_cast<BookmarkModel*>(this)->bookmarksExported(m_bookmarks.size(),
                                                             filePath);
-        qDebug() << "Exported" << m_bookmarks.size() << "bookmarks to"
-                 << filePath;
+        SLOG_DEBUG_F("Exported {} bookmarks to {}", m_bookmarks.size(),
+                     filePath);
         return true;
     }
 
@@ -661,12 +661,12 @@ bool BookmarkModel::exportBookmarks(const QString& filePath) const {
 bool BookmarkModel::importBookmarks(const QString& filePath) {
     QFile file(filePath);
     if (!file.exists()) {
-        qWarning() << "Import file does not exist:" << filePath;
+        SLOG_WARNING_F("Import file does not exist: {}", filePath);
         return false;
     }
 
     if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "Failed to open import file for reading:" << filePath;
+        SLOG_WARNING_F("Failed to open import file for reading: {}", filePath);
         return false;
     }
 
@@ -677,8 +677,8 @@ bool BookmarkModel::importBookmarks(const QString& filePath) {
     QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
 
     if (parseError.error != QJsonParseError::NoError) {
-        qWarning() << "Failed to parse import JSON:"
-                   << parseError.errorString();
+        SLOG_WARNING_F("Failed to parse import JSON: {}",
+                       parseError.errorString());
         return false;
     }
 
@@ -714,40 +714,40 @@ bool BookmarkModel::importBookmarks(const QString& filePath) {
     }
 
     emit bookmarksImported(importedCount, skippedCount);
-    qDebug() << "Import completed:" << importedCount << "imported,"
-             << skippedCount << "skipped";
+    SLOG_DEBUG_F("Import completed: {} imported, {} skipped", importedCount,
+                 skippedCount);
     return importedCount > 0;
 }
 
 bool BookmarkModel::validateBookmark(const Bookmark& bookmark) const {
     // Check required fields
     if (bookmark.id.isEmpty()) {
-        qWarning() << "Bookmark validation failed: empty ID";
+        SLOG_WARNING("Bookmark validation failed: empty ID");
         return false;
     }
 
     if (bookmark.documentPath.isEmpty()) {
-        qWarning() << "Bookmark validation failed: empty document path";
+        SLOG_WARNING("Bookmark validation failed: empty document path");
         return false;
     }
 
     if (bookmark.pageNumber < 0) {
-        qWarning() << "Bookmark validation failed: invalid page number"
-                   << bookmark.pageNumber;
+        SLOG_WARNING_F("Bookmark validation failed: invalid page number {}",
+                       bookmark.pageNumber);
         return false;
     }
 
     if (bookmark.title.isEmpty()) {
-        qWarning() << "Bookmark validation failed: empty title";
+        SLOG_WARNING("Bookmark validation failed: empty title");
         return false;
     }
 
     // Check if document file exists (optional validation)
     QFileInfo fileInfo(bookmark.documentPath);
     if (!fileInfo.exists()) {
-        qWarning()
-            << "Bookmark validation warning: document file does not exist:"
-            << bookmark.documentPath;
+        SLOG_WARNING_F(
+            "Bookmark validation warning: document file does not exist: {}",
+            bookmark.documentPath);
         // Don't return false here as the file might be temporarily unavailable
     }
 

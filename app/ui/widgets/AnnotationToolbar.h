@@ -69,12 +69,16 @@ private slots:
     void onFontSizeChanged(int size);
     void onFontFamilyChanged(const QString& family);
 
+protected:
+    void changeEvent(QEvent* event) override;
+
 private:
     void setupUI();
     void setupConnections();
     void updateToolButtons();
     void updateColorButton();
     void updatePropertyControls();
+    void retranslateUi();
 
     // Tool selection
     QGroupBox* m_toolGroup;

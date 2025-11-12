@@ -23,6 +23,9 @@ class AboutPage;
 class DocumentAdapter;
 class ViewAdapter;
 
+// Forward declarations - UI helpers
+class ElaText;
+
 /**
  * @brief MainWindow - 主窗口（使用 ElaWidgetTools）
  *
@@ -126,6 +129,9 @@ private:
     int m_currentPage;
     int m_totalPages;
     double m_currentZoom;
+
+    // Central widgets needing retranslation
+    ElaText* m_centralWelcomeText{nullptr};
 };
 
 #endif  // MAINWINDOW_H

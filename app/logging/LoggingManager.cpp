@@ -14,7 +14,6 @@
 #include <QThread>
 #include <QTimer>
 #include <cstddef>
-#include <iostream>
 #include "Logger.h"
 #include "LoggingConfig.h"
 #include "LoggingMacros.h"
@@ -23,7 +22,7 @@
 // LoggingManager Implementation class
 class LoggingManager::Implementation {
 public:
-    explicit Implementation(LoggingManager* q) : q_ptr(q) {}
+    Implementation() = default;
     ~Implementation() = default;
 
     // Private data members
@@ -48,19 +47,17 @@ public:
 
     // Private methods
     void initializeAsyncLogging();
-    void initializeLogger();
-    void initializeLoggerFromModernConfig();  // New method for modern config
-    void initializeQtBridge();
+    void initializeLogger() const;
+    void initializeLoggerFromModernConfig()
+        const;  // New method for modern config
+    void initializeQtBridge() const;
     void setupPeriodicFlush();
-    void createLogDirectory();
-    QString getDefaultLogDirectory() const;
+    void createLogDirectory() const;
+    static QString getDefaultLogDirectory();
     QString getLogFilePath() const;
-    void updateLoggerConfiguration();
+    void updateLoggerConfiguration() const;
     void connectSignals();
     void disconnectSignals();
-
-private:
-    LoggingManager* q_ptr;
 };
 
 // ============================================================================
@@ -197,29 +194,52 @@ LoggingManager& LoggingManager::instance() {
 }
 
 // Constructor implementation for PIMPL
-LoggingManager::LoggingManager() : d(std::make_unique<Implementation>(this)) {}
+LoggingManager::LoggingManager() : d(std::make_unique<Implementation>()) {}
 
 LoggingManager::~LoggingManager() { shutdown(); }
 
 void LoggingManager::initialize(const LoggingConfiguration& config) {
-    std::cout << "[DEBUG] LoggingManager::initialize() - Entry" << std::endl;
-    std::cout.flush();
     QMutexLocker locker(&d->mutex);
-    std::cout << "[DEBUG] LoggingManager::initialize() - Mutex locked"
-              << std::endl;
-    std::cout.flush();
 
+    // Allow re-initialization to update configuration between tests/runs
     if (d->initialized) {
-        std::cout << "[DEBUG] LoggingManager::initialize() - Already "
-                     "initialized, returning"
-                  << std::endl;
-        std::cout.flush();
-        return;  // Already initialized
+        // Perform a graceful partial shutdown without re-entering the public
+        // shutdown() (which would attempt to lock this mutex again).
+        try {
+            flushLogs();
+        } catch (...) {
+            // ignore
+        }
+
+        // Disconnect signals and stop timers
+        d->disconnectSignals();
+        if (d->flushTimer != nullptr) {
+            d->flushTimer->stop();
+            d->flushTimer->deleteLater();
+            d->flushTimer = nullptr;
+        }
+        if (d->statisticsTimer != nullptr) {
+            d->statisticsTimer->stop();
+            d->statisticsTimer->deleteLater();
+            d->statisticsTimer = nullptr;
+        }
+
+        // Restore Qt message handler if it was redirected
+        if (d->config.enableQtMessageHandlerRedirection) {
+            QtSpdlogBridge::instance().restoreDefaultMessageHandler();
+        }
+
+        // Release all spdlog resources (including async thread pool)
+        try {
+            spdlog::shutdown();
+        } catch (...) {
+            // ignore
+        }
+
+        d->initialized = false;
+        d->asyncInitialized = false;
     }
 
-    std::cout << "[DEBUG] LoggingManager::initialize() - Setting config"
-              << std::endl;
-    std::cout.flush();
     d->config = config;
     d->statistics.initializationTime = QDateTime::currentDateTime();
 
@@ -227,54 +247,26 @@ void LoggingManager::initialize(const LoggingConfiguration& config) {
         // Initialize async logging if enabled (must be done before creating
         // loggers)
         if (d->config.enableAsyncLogging) {
-            std::cout << "[DEBUG] LoggingManager::initialize() - Initializing "
-                         "async logging"
-                      << std::endl;
-            std::cout.flush();
             d->initializeAsyncLogging();
         }
 
         // Create log directory if needed
-        std::cout
-            << "[DEBUG] LoggingManager::initialize() - Creating log directory"
-            << std::endl;
-        std::cout.flush();
         d->createLogDirectory();
 
         // Initialize the core logger
-        std::cout
-            << "[DEBUG] LoggingManager::initialize() - Initializing logger"
-            << std::endl;
-        std::cout.flush();
         d->initializeLogger();
-        std::cout << "[DEBUG] LoggingManager::initialize() - Logger initialized"
-                  << std::endl;
-        std::cout.flush();
 
         // Initialize Qt bridge if enabled
         if (d->config.enableQtMessageHandlerRedirection) {
-            std::cout << "[DEBUG] LoggingManager::initialize() - Initializing "
-                         "Qt bridge"
-                      << std::endl;
-            std::cout.flush();
             d->initializeQtBridge();
         }
 
         // Setup periodic operations
-        std::cout << "[DEBUG] LoggingManager::initialize() - Setting up "
-                     "periodic flush"
-                  << std::endl;
-        std::cout.flush();
         d->setupPeriodicFlush();
 
-        // Connect internal signals
-        // CRITICAL FIX: Skip signal connections before event loop starts
+        // Connect internal signals: intentionally skipped before event loop
         // d->connectSignals();
 
-        std::cout
-            << "[DEBUG] LoggingManager::initialize() - Marking as initialized"
-            << std::endl;
-        std::cout.flush();
         d->initialized = true;
 
         // Log successful initialization
@@ -310,8 +302,43 @@ void LoggingManager::initialize(const LoggingConfiguration& config) {
 void LoggingManager::initialize(const LoggingConfig& config) {
     QMutexLocker locker(&d->mutex);
 
+    // Allow re-initialization to update configuration between tests/runs
     if (d->initialized) {
-        return;  // Already initialized
+        // Perform a graceful partial shutdown without re-entering the public
+        // shutdown() (which would attempt to lock this mutex again).
+        try {
+            flushLogs();
+        } catch (...) {
+            // ignore
+        }
+
+        // Disconnect signals and stop timers
+        d->disconnectSignals();
+        if (d->flushTimer != nullptr) {
+            d->flushTimer->stop();
+            d->flushTimer->deleteLater();
+            d->flushTimer = nullptr;
+        }
+        if (d->statisticsTimer != nullptr) {
+            d->statisticsTimer->stop();
+            d->statisticsTimer->deleteLater();
+            d->statisticsTimer = nullptr;
+        }
+
+        // Restore Qt message handler if it was redirected
+        if (d->config.enableQtMessageHandlerRedirection) {
+            QtSpdlogBridge::instance().restoreDefaultMessageHandler();
+        }
+
+        // Release all spdlog resources (including async thread pool)
+        try {
+            spdlog::shutdown();
+        } catch (...) {
+            // ignore
+        }
+
+        d->initialized = false;
+        d->asyncInitialized = false;
     }
 
     // Convert modern config to legacy format for internal use
@@ -342,12 +369,8 @@ void LoggingManager::initialize(const LoggingConfig& config) {
         // Setup periodic operations
         d->setupPeriodicFlush();
 
-        // Connect internal signals
-        d->connectSignals();
-
-        d->initialized = true;
-
-        // Log successful initialization
+        // Log successful initialization (before connecting signals to avoid
+        // re-entrancy while mutex is held)
         LOG_INFO("LoggingManager initialized successfully (modern config)");
         LOG_INFO("Log level: {}", static_cast<int>(d->config.globalLogLevel));
         LOG_INFO("Console logging: {}",
@@ -356,6 +379,11 @@ void LoggingManager::initialize(const LoggingConfig& config) {
                  d->config.enableFileLogging ? "enabled" : "disabled");
         LOG_INFO("Qt widget logging: {}",
                  d->config.enableQtWidgetLogging ? "enabled" : "disabled");
+
+        // Connect internal signals AFTER logging to avoid deadlock
+        d->connectSignals();
+
+        d->initialized = true;
 
         emit loggingInitialized();
 
@@ -379,13 +407,16 @@ void LoggingManager::initialize(const LoggingConfig& config) {
 }
 
 void LoggingManager::shutdown() {
+    qDebug() << "LoggingManager::shutdown begin";
     QMutexLocker locker(&d->mutex);
 
     if (!d->initialized) {
+        qDebug() << "LoggingManager::shutdown skipped (not initialized)";
         return;
     }
 
-    LOG_INFO("Shutting down LoggingManager");
+    // Avoid logging while holding mutex: it can deadlock via onLogMessage()
+    // LOG_INFO("Shutting down LoggingManager");
 
     // Disconnect signals
     d->disconnectSignals();
@@ -422,6 +453,7 @@ void LoggingManager::shutdown() {
     d->initialized = false;
     d->asyncInitialized = false;
     emit loggingShutdown();
+    qDebug() << "LoggingManager::shutdown end";
 }
 
 bool LoggingManager::isInitialized() const {
@@ -476,32 +508,18 @@ void LoggingManager::Implementation::initializeAsyncLogging() {
 }
 
 void LoggingManager::initializeLogger() {
-    Logger::LoggerConfig loggerConfig;
-    loggerConfig.level = d->config.globalLogLevel;
-    loggerConfig.pattern = d->config.logPattern;
-    loggerConfig.enableConsole = d->config.enableConsoleLogging;
-    loggerConfig.enableFile = d->config.enableFileLogging;
-    loggerConfig.enableQtWidget = d->config.enableQtWidgetLogging;
-    loggerConfig.qtWidget = d->qtLogWidget;
-    loggerConfig.logFileName = getLogFilePath();
-    loggerConfig.maxFileSize = d->config.maxFileSize;
-    loggerConfig.maxFiles = d->config.maxFiles;
-
-    Logger::instance().initialize(loggerConfig);
+    QMutexLocker locker(&d->mutex);
+    d->initializeLogger();
 }
 
 void LoggingManager::initializeLoggerFromModernConfig() {
-    // Since we can't store the LoggingConfig directly (QObject inheritance),
-    // we use the converted legacy config for now. In a future enhancement,
-    // we could redesign LoggingConfig to be copyable or use a different
-    // approach.
-    initializeLogger();
+    QMutexLocker locker(&d->mutex);
+    d->initializeLoggerFromModernConfig();
 }
 
 void LoggingManager::initializeQtBridge() {
-    QtSpdlogBridge& bridge = QtSpdlogBridge::instance();
-    bridge.initialize();
-    bridge.setQtCategoryFilteringEnabled(d->config.enableQtCategoryFiltering);
+    QMutexLocker locker(&d->mutex);
+    d->initializeQtBridge();
 }
 
 void LoggingManager::setupPeriodicFlush() {
@@ -520,28 +538,18 @@ void LoggingManager::setupPeriodicFlush() {
 }
 
 void LoggingManager::createLogDirectory() {
-    QString logDir = d->config.logDirectory.isEmpty()
-                         ? d->getDefaultLogDirectory()
-                         : d->config.logDirectory;
-    QDir dir;
-    if (!dir.exists(logDir)) {
-        if (!dir.mkpath(logDir)) {
-            throw std::runtime_error("Failed to create log directory: " +
-                                     logDir.toStdString());
-        }
-    }
+    QMutexLocker locker(&d->mutex);
+    d->createLogDirectory();
 }
 
 QString LoggingManager::getDefaultLogDirectory() const {
-    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
-           "/logs";
+    QMutexLocker locker(&d->mutex);
+    return Implementation::getDefaultLogDirectory();
 }
 
 QString LoggingManager::getLogFilePath() const {
-    QString logDir = d->config.logDirectory.isEmpty()
-                         ? d->getDefaultLogDirectory()
-                         : d->config.logDirectory;
-    return logDir + "/" + d->config.logFileName;
+    QMutexLocker locker(&d->mutex);
+    return d->getLogFilePath();
 }
 
 void LoggingManager::setConfiguration(const LoggingConfiguration& config) {
@@ -584,9 +592,8 @@ void LoggingManager::updateLoggerConfiguration() {
 void LoggingManager::setGlobalLogLevel(Logger::LogLevel level) {
     QMutexLocker locker(&d->mutex);
     d->config.globalLogLevel = level;
-    if (d->initialized) {
-        Logger::instance().setLogLevel(level);
-    }
+    // Always propagate to Logger if it exists, regardless of manager init state
+    Logger::instance().setLogLevel(level);
 }
 
 void LoggingManager::setQtLogWidget(QTextEdit* widget) {
@@ -604,20 +611,20 @@ QTextEdit* LoggingManager::getQtLogWidget() const {
 }
 
 void LoggingManager::flushLogs() {
-    if (d->initialized) {
-        spdlog::apply_all(
-            [](std::shared_ptr<spdlog::logger> logger) { logger->flush(); });
-    }
+    // Flush all known spdlog loggers regardless of LoggingManager init state
+    spdlog::apply_all([](const std::shared_ptr<spdlog::logger>& activeLogger) {
+        activeLogger->flush();
+    });
 }
 
 void LoggingManager::rotateLogFiles() {
     if (d->initialized && d->config.enableFileLogging) {
-        // Force log rotation by flushing and recreating file sink
-        flushLogs();
-        // Implementation would depend on spdlog's rotating file sink
-        // capabilities
-        LOG_INFO("Log files rotated");
-        emit logFileRotated(getCurrentLogFilePath());
+        if (Logger::instance().rotateFileSinks()) {
+            LOG_INFO("Log files rotated");
+            emit logFileRotated(getCurrentLogFilePath());
+        } else {
+            LOG_WARNING("No rotating file sinks available for manual rotation");
+        }
     }
 }
 
@@ -630,14 +637,17 @@ QStringList LoggingManager::getLogFileList() const {
     QStringList logFiles;
 
     if (d->config.enableFileLogging) {
-        QString logDir = d->config.logDirectory.isEmpty()
-                             ? d->getDefaultLogDirectory()
-                             : d->config.logDirectory;
-        QDirIterator it(logDir, QStringList() << "*.log*", QDir::Files);
+        const QFileInfo logInfo(d->getLogFilePath());
+        const QString directoryPath = logInfo.absolutePath();
+        if (!directoryPath.isEmpty()) {
+            const QString pattern =
+                QStringLiteral("%1*").arg(logInfo.fileName());
+            QDirIterator fileIterator(directoryPath, QStringList() << pattern,
+                                      QDir::Files);
 
-        while (it.hasNext()) {
-            it.next();
-            logFiles.append(it.filePath());
+            while (fileIterator.hasNext()) {
+                logFiles.append(fileIterator.next());
+            }
         }
     }
 
@@ -649,15 +659,18 @@ qint64 LoggingManager::getTotalLogFileSize() const {
     qint64 totalSize = 0;
 
     if (d->config.enableFileLogging) {
-        QString logDir = d->config.logDirectory.isEmpty()
-                             ? d->getDefaultLogDirectory()
-                             : d->config.logDirectory;
-        QDirIterator it(logDir, QStringList() << "*.log*", QDir::Files);
+        const QFileInfo logInfo(d->getLogFilePath());
+        const QString directoryPath = logInfo.absolutePath();
+        if (!directoryPath.isEmpty()) {
+            const QString pattern =
+                QStringLiteral("%1*").arg(logInfo.fileName());
+            QDirIterator fileIterator(directoryPath, QStringList() << pattern,
+                                      QDir::Files);
 
-        while (it.hasNext()) {
-            it.next();
-            QFileInfo info = it.fileInfo();
-            totalSize += info.size();
+            while (fileIterator.hasNext()) {
+                const QFileInfo fileInfo(fileIterator.next());
+                totalSize += fileInfo.size();
+            }
         }
     }
 
@@ -671,24 +684,26 @@ LoggingManager::LoggingStatistics LoggingManager::getStatistics() const {
     LoggingStatistics stats = d->statistics;
 
     if (d->config.enableFileLogging) {
-        QFileInfo fileInfo(getCurrentLogFilePath());
-        if (fileInfo.exists()) {
-            stats.currentLogFileSize = fileInfo.size();
+        const QFileInfo currentFileInfo(getCurrentLogFilePath());
+        if (currentFileInfo.exists()) {
+            stats.currentLogFileSize = currentFileInfo.size();
         }
 
-        // Calculate total log files size
-        QString logDir = d->config.logDirectory.isEmpty()
-                             ? d->getDefaultLogDirectory()
-                             : d->config.logDirectory;
-        QDirIterator it(logDir, QStringList() << "*.log*", QDir::Files);
-        stats.totalLogFilesSize = 0;
-        stats.activeLogFiles = 0;
+        const QFileInfo logInfo(d->getLogFilePath());
+        const QString directoryPath = logInfo.absolutePath();
+        if (!directoryPath.isEmpty()) {
+            const QString pattern =
+                QStringLiteral("%1*").arg(logInfo.fileName());
+            QDirIterator fileIterator(directoryPath, QStringList() << pattern,
+                                      QDir::Files);
+            stats.totalLogFilesSize = 0;
+            stats.activeLogFiles = 0;
 
-        while (it.hasNext()) {
-            it.next();
-            QFileInfo info = it.fileInfo();
-            stats.totalLogFilesSize += info.size();
-            stats.activeLogFiles++;
+            while (fileIterator.hasNext()) {
+                const QFileInfo fileEntry(fileIterator.next());
+                stats.totalLogFilesSize += fileEntry.size();
+                stats.activeLogFiles++;
+            }
         }
     }
 
@@ -749,13 +764,13 @@ void LoggingManager::updateStatistics() {
     emit statisticsUpdated(getStatistics());
 }
 
-void LoggingManager::connectSignals() {
+void LoggingManager::connectSignals() const {
     // Connect logger signals if needed
     connect(&Logger::instance(), &Logger::logMessage, this,
             &LoggingManager::onLogMessage);
 }
 
-void LoggingManager::disconnectSignals() {
+void LoggingManager::disconnectSignals() const {
     // Disconnect all signals
     disconnect(&Logger::instance(), nullptr, this, nullptr);
 }
@@ -834,7 +849,8 @@ void LoggingManager::removeLoggingCategory(const QString& category) {
     }
 
     // Remove category if it exists
-    if (d->categoryLevels.remove(category) > 0) {
+    const auto removed = d->categoryLevels.remove(category);
+    if (removed) {
         // Remove from Qt logging system if Qt integration is enabled
         if (d->config.enableQtCategoryFiltering) {
             QtSpdlogBridge::instance().removeCategoryMapping(category);
@@ -855,8 +871,8 @@ Logger::LogLevel LoggingManager::getLoggingCategoryLevel(
         return Logger::LogLevel::Info;  // Default level for invalid category
     }
 
-    // Return category level if it exists, otherwise return global level
-    return d->categoryLevels.value(category, d->config.globalLogLevel);
+    // Return category level if it exists; otherwise default to Info
+    return d->categoryLevels.value(category, Logger::LogLevel::Info);
 }
 
 QStringList LoggingManager::getLoggingCategories() const {
@@ -870,36 +886,73 @@ QStringList LoggingManager::getLoggingCategories() const {
 // LoggingManager::Implementation method implementations
 // ============================================================================
 
-void LoggingManager::Implementation::createLogDirectory() {
-    QString logDir = getDefaultLogDirectory();
-    QDir dir;
-    if (!dir.exists(logDir)) {
-        dir.mkpath(logDir);
+void LoggingManager::Implementation::createLogDirectory() const {
+    if (!config.enableFileLogging) {
+        return;
+    }
+
+    QFileInfo logInfo(getLogFilePath());
+    const QString targetDir = logInfo.absolutePath();
+    if (!targetDir.isEmpty()) {
+        QDir().mkpath(targetDir);
     }
 }
 
-QString LoggingManager::Implementation::getDefaultLogDirectory() const {
+QString LoggingManager::Implementation::getDefaultLogDirectory() {
     return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
            "/logs";
 }
 
-void LoggingManager::Implementation::initializeLogger() {
-    // Initialize the main logger with current configuration
+QString LoggingManager::Implementation::getLogFilePath() const {
+    QString fileName = config.logFileName;
+    if (fileName.isEmpty()) {
+        fileName = QStringLiteral("sast-readium.log");
+    }
+
+    QFileInfo fileInfo(fileName);
+    if (fileInfo.isAbsolute()) {
+        return fileInfo.absoluteFilePath();
+    }
+
+    QString logDir = config.logDirectory.isEmpty() ? getDefaultLogDirectory()
+                                                   : config.logDirectory;
+
+    if (logDir.isEmpty()) {
+        return QFileInfo(fileName).absoluteFilePath();
+    }
+
+    return QDir(logDir).filePath(fileName);
+}
+
+void LoggingManager::Implementation::initializeLogger() const {
     Logger::LoggerConfig loggerConfig;
     loggerConfig.level = config.globalLogLevel;
     loggerConfig.pattern = config.logPattern;
+    loggerConfig.enableConsole = config.enableConsoleLogging;
+    loggerConfig.enableFile = config.enableFileLogging;
+    loggerConfig.enableQtWidget = config.enableQtWidgetLogging;
+    loggerConfig.qtWidget = qtLogWidget;
+    loggerConfig.logFileName = getLogFilePath();
+    loggerConfig.maxFileSize = config.maxFileSize;
+    loggerConfig.maxFiles = config.maxFiles;
+
     Logger::instance().initialize(loggerConfig);
+
+    if (config.rotateOnStartup && loggerConfig.enableFile) {
+        Logger::instance().rotateFileSinks();
+    }
 }
 
-void LoggingManager::Implementation::initializeLoggerFromModernConfig() {
+void LoggingManager::Implementation::initializeLoggerFromModernConfig() const {
     // This method would initialize from LoggingConfig instead of
     // LoggingConfiguration For now, delegate to the standard initialization
     initializeLogger();
 }
 
-void LoggingManager::Implementation::initializeQtBridge() {
-    // Initialize Qt message handler bridge
-    QtSpdlogBridge::instance().initialize();
+void LoggingManager::Implementation::initializeQtBridge() const {
+    QtSpdlogBridge& bridge = QtSpdlogBridge::instance();
+    bridge.initialize();
+    bridge.setQtCategoryFilteringEnabled(config.enableQtCategoryFiltering);
 }
 
 void LoggingManager::Implementation::setupPeriodicFlush() {
@@ -942,7 +995,7 @@ void LoggingManager::Implementation::disconnectSignals() {
     // For now, this is a no-op as there are no signals to disconnect
 }
 
-void LoggingManager::Implementation::updateLoggerConfiguration() {
+void LoggingManager::Implementation::updateLoggerConfiguration() const {
     // Update logger configuration with current settings
     Logger::instance().setLogLevel(config.globalLogLevel);
     Logger::instance().setPattern(config.logPattern);

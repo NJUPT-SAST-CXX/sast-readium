@@ -11,6 +11,9 @@ class ElaSlider;
 class ElaPushButton;
 class ElaLineEdit;
 class QGroupBox;
+class QFormLayout;
+class QLabel;
+class ElaText;
 class I18nManager;
 class StyleManager;
 
@@ -79,6 +82,18 @@ private:
     I18nManager* m_i18nManager;
     StyleManager* m_styleManager;
 
+    // 分组引用（用于重翻译）
+    QGroupBox* m_appearanceGroup{nullptr};
+    QFormLayout* m_appearanceFormLayout{nullptr};
+    QGroupBox* m_viewerGroup{nullptr};
+    QFormLayout* m_viewerFormLayout{nullptr};
+    QGroupBox* m_performanceGroup{nullptr};
+    QFormLayout* m_performanceFormLayout{nullptr};
+    QGroupBox* m_advancedGroup{nullptr};
+    QFormLayout* m_advancedFormLayout{nullptr};
+    ElaText* m_autoSaveIntervalLabel{nullptr};
+    ElaText* m_autoSaveIntervalUnitLabel{nullptr};
+
     void setupUi();
     void setupAppearanceSection();
     void setupViewerSection();
@@ -93,6 +108,12 @@ private:
     QGroupBox* createViewerGroup();
     QGroupBox* createPerformanceGroup();
     QGroupBox* createAdvancedGroup();
+
+    void updateAppearanceTexts();
+    void updateViewerTexts();
+    void updatePerformanceTexts();
+    void updateAdvancedTexts();
+    void updateButtonTexts();
 };
 
 #endif  // SETTINGSPAGE_H

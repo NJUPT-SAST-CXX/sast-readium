@@ -96,15 +96,16 @@ bool SystemTrayManager::isSystemTrayAvailable() {
     static bool hasLoggedAvailability = false;
     if (!hasLoggedAvailability) {
         if (available) {
-            qDebug() << "SystemTrayManager: System tray is available on this "
-                        "platform";
+            SLOG_DEBUG(
+                "SystemTrayManager: System tray is available on this platform");
         } else {
-            qDebug() << "SystemTrayManager: System tray is NOT available on "
-                        "this platform";
-            qDebug() << "SystemTrayManager: This may be due to:";
-            qDebug() << "  - Desktop environment without system tray support";
-            qDebug() << "  - System tray disabled in desktop settings";
-            qDebug() << "  - Running in a headless environment";
+            SLOG_DEBUG(
+                "SystemTrayManager: System tray is NOT available on this "
+                "platform");
+            SLOG_DEBUG("SystemTrayManager: This may be due to:");
+            SLOG_DEBUG("  - Desktop environment without system tray support");
+            SLOG_DEBUG("  - System tray disabled in desktop settings");
+            SLOG_DEBUG("  - Running in a headless environment");
         }
         hasLoggedAvailability = true;
     }

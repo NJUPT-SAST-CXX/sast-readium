@@ -4,8 +4,9 @@
 #include <QColor>
 #include <QDateTime>
 #include <QMap>
-#include <QStatusBar>
 #include <QString>
+
+#include "ElaStatusBar.h"
 
 // Forward declarations
 class ElaText;
@@ -28,7 +29,7 @@ class ElaToolButton;
  *   - 统计信息面板（页数、文件大小、PDF 版本等）
  *   - 安全信息面板（加密、权限等）
  */
-class StatusBar : public QStatusBar {
+class StatusBar : public ElaStatusBar {
     Q_OBJECT
 
 public:

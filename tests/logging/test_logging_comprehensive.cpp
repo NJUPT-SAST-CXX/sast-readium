@@ -34,6 +34,8 @@ private slots:
     void testLoggerInitialization();
     void testLoggerLevels();
     void testLoggerSinkManagement();
+    void testLoggerRotateFileSinks();
+    void testLoggerRotateFileSinksWithoutRotatingSink();
     void testLoggerThreadSafety();
 
     // LoggingManager tests
@@ -41,6 +43,7 @@ private slots:
     void testLoggingManagerInitialization();
     void testLoggingManagerAsyncLogging();
     void testLoggingManagerCategoryManagement();
+    void testLoggingManagerRotateLogFiles();
     void testLoggingManagerShutdown();
 
     // QtSpdlogBridge tests
@@ -73,11 +76,13 @@ private slots:
 
 private:
     QTemporaryDir* m_tempDir;
+    QString m_tempBaseDir;
     QString m_logFilePath;
 
     // Helper methods
     void waitForLogFlush();
     bool logFileContains(const QString& text);
+    bool fileContains(const QString& path, const QString& text);
     void cleanupLogFiles();
 };
 
@@ -85,25 +90,45 @@ void LoggingComprehensiveTest::initTestCase() {
     qDebug() << "Starting comprehensive logging tests";
     m_tempDir = new QTemporaryDir();
     QVERIFY(m_tempDir->isValid());
-    m_logFilePath = m_tempDir->path() + "/test.log";
+    m_tempBaseDir = m_tempDir->path();
+    m_logFilePath = m_tempBaseDir + "/test.log";
+    qDebug() << "initTestCase log path:" << m_logFilePath;
 }
 
 void LoggingComprehensiveTest::cleanupTestCase() {
     cleanupLogFiles();
     delete m_tempDir;
+    m_tempDir = nullptr;
     qDebug() << "Comprehensive logging tests completed";
 }
 
 void LoggingComprehensiveTest::init() {
-    // Ensure clean state before each test
-    LoggingManager::instance().shutdown();
+    QWARN("init() begin");
+    // Ensure clean state before each test (avoid explicit shutdown here to
+    // prevent deadlocks) LoggingManager::instance().shutdown();
+
+    // Recompute base dir without touching QTemporaryDir (avoid potential
+    // corruption)
+    if (m_tempBaseDir.isEmpty()) {
+        m_tempBaseDir = QDir::temp().filePath(
+            "sast_readium_logtest_" +
+            QString::number(QCoreApplication::applicationPid()));
+        QDir().mkpath(m_tempBaseDir);
+    }
+    // Always refresh log file path to avoid stale/empty value due to prior
+    // corruption
+    m_logFilePath = m_tempBaseDir + "/test.log";
+
     cleanupLogFiles();
+    QWARN("init() end");
 }
 
 void LoggingComprehensiveTest::cleanup() {
-    // Clean up after each test
-    LoggingManager::instance().shutdown();
+    QWARN("cleanup() begin");
+    // Clean up after each test (avoid explicit shutdown here; individual tests
+    // manage lifecycle) LoggingManager::instance().shutdown();
     cleanupLogFiles();
+    QWARN("cleanup() end");
 }
 
 // ============================================================================
@@ -118,6 +143,18 @@ void LoggingComprehensiveTest::testLoggerSingleton() {
 }
 
 void LoggingComprehensiveTest::testLoggerInitialization() {
+    qDebug() << "testLoggerInitialization: begin";
+    // Ensure log path is available
+    if (m_tempBaseDir.isEmpty() || m_logFilePath.isEmpty()) {
+        m_tempBaseDir = QDir::temp().filePath(
+            "sast_readium_logtest_" +
+            QString::number(QCoreApplication::applicationPid()));
+        QDir().mkpath(m_tempBaseDir);
+        m_logFilePath = m_tempBaseDir + "/test.log";
+    }
+    qDebug() << "testLoggerInitialization: path ready";
+    qDebug() << "testLoggerInitialization using log path:" << m_logFilePath;
+
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.pattern = "[%Y-%m-%d %H:%M:%S.%e] [%l] %v";
@@ -125,16 +162,30 @@ void LoggingComprehensiveTest::testLoggerInitialization() {
     config.enableFile = true;
     config.logFileName = m_logFilePath;
 
+    qDebug() << "testLoggerInitialization: before initialize";
     Logger::instance().initialize(config);
+    qDebug() << "testLoggerInitialization: after initialize";
 
     // Note: Logger doesn't have isInitialized() method
     // We verify initialization by checking that logging works
     Logger::instance().info("Initialization test");
+    qDebug() << "testLoggerInitialization: after info";
     waitForLogFlush();
-    QVERIFY(logFileContains("Initialization test"));
+    qDebug() << "testLoggerInitialization: after flush";
+    const bool contains = logFileContains("Initialization test");
+    qDebug() << "testLoggerInitialization: contains check done";
+    QVERIFY(contains);
 }
 
 void LoggingComprehensiveTest::testLoggerLevels() {
+    if (m_tempBaseDir.isEmpty() || m_logFilePath.isEmpty()) {
+        m_tempBaseDir = QDir::temp().filePath(
+            "sast_readium_logtest_" +
+            QString::number(QCoreApplication::applicationPid()));
+        QDir().mkpath(m_tempBaseDir);
+        m_logFilePath = m_tempBaseDir + "/test.log";
+    }
+
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Info;
     config.enableConsole = true;
@@ -163,6 +214,14 @@ void LoggingComprehensiveTest::testLoggerLevels() {
 }
 
 void LoggingComprehensiveTest::testLoggerSinkManagement() {
+    if (m_tempBaseDir.isEmpty() || m_logFilePath.isEmpty()) {
+        m_tempBaseDir = QDir::temp().filePath(
+            "sast_readium_logtest_" +
+            QString::number(QCoreApplication::applicationPid()));
+        QDir().mkpath(m_tempBaseDir);
+        m_logFilePath = m_tempBaseDir + "/test.log";
+    }
+
     Logger::LoggerConfig config;
     config.level = Logger::LogLevel::Debug;
     config.enableConsole = true;
@@ -191,7 +250,77 @@ void LoggingComprehensiveTest::testLoggerSinkManagement() {
             !logFileContains("Another message"));
 }
 
+void LoggingComprehensiveTest::testLoggerRotateFileSinks() {
+    Logger::LoggerConfig config;
+    config.level = Logger::LogLevel::Debug;
+    config.enableConsole = true;
+    config.enableFile = true;
+    config.logFileName = m_logFilePath;
+
+    Logger::instance().initialize(config);
+
+    // Ensure a rotating sink is present and active
+    Logger::instance().removeSink(Logger::SinkType::RotatingFile);
+    Logger::instance().addRotatingFileSink(m_logFilePath, 1024 * 1024 * 10, 3);
+    QVERIFY(Logger::instance().rotateFileSinks());
+
+    const QString beforeRotationMessage = "Message before rotation";
+    Logger::instance().info(beforeRotationMessage);
+    waitForLogFlush();
+    QVERIFY(logFileContains(beforeRotationMessage));
+
+    const QString rotatedPath = m_logFilePath + ".1";
+    QFile::remove(rotatedPath);
+
+    QVERIFY(Logger::instance().rotateFileSinks());
+
+    QVERIFY(waitFor([&]() { return QFile::exists(rotatedPath); }));
+    QVERIFY(fileContains(rotatedPath, beforeRotationMessage));
+
+    const QString afterRotationMessage = "Message after rotation";
+    Logger::instance().info(afterRotationMessage);
+    waitForLogFlush();
+    QVERIFY(logFileContains(afterRotationMessage));
+}
+
+void LoggingComprehensiveTest::testLoggerRotateFileSinksWithoutRotatingSink() {
+    Logger::LoggerConfig config;
+    config.level = Logger::LogLevel::Debug;
+    config.enableConsole = true;
+    config.enableFile = true;
+    config.logFileName = m_logFilePath;
+
+    Logger::instance().initialize(config);
+
+    // Start with a known rotating sink state
+    Logger::instance().removeSink(Logger::SinkType::RotatingFile);
+    Logger::instance().addRotatingFileSink(m_logFilePath, 1024 * 1024 * 10, 3);
+    QVERIFY(Logger::instance().rotateFileSinks());
+
+    Logger::instance().removeSink(Logger::SinkType::RotatingFile);
+
+    const bool rotatedWithoutSink = Logger::instance().rotateFileSinks();
+    QVERIFY(!rotatedWithoutSink);
+
+    Logger::instance().addRotatingFileSink(m_logFilePath, 1024 * 1024 * 10, 3);
+    const bool restored = Logger::instance().rotateFileSinks();
+    QVERIFY(restored);
+
+    Logger::instance().info("Rotation sink restored");
+    waitForLogFlush();
+    QVERIFY(logFileContains("Rotation sink restored"));
+}
+
 void LoggingComprehensiveTest::testLoggerThreadSafety() {
+    // Ensure log path is available
+    if (m_tempBaseDir.isEmpty() || m_logFilePath.isEmpty()) {
+        m_tempBaseDir = QDir::temp().filePath(
+            "sast_readium_logtest_" +
+            QString::number(QCoreApplication::applicationPid()));
+        QDir().mkpath(m_tempBaseDir);
+        m_logFilePath = m_tempBaseDir + "/test.log";
+    }
+
     // Verify log file path is valid
     QVERIFY(!m_logFilePath.isEmpty());
 
@@ -241,11 +370,20 @@ void LoggingComprehensiveTest::testLoggingManagerSingleton() {
 }
 
 void LoggingComprehensiveTest::testLoggingManagerInitialization() {
+    // Avoid touching QTemporaryDir here; rely on cached base dir
+    if (m_tempBaseDir.isEmpty()) {
+        m_tempBaseDir = QDir::temp().filePath(
+            "sast_readium_logtest_" +
+            QString::number(QCoreApplication::applicationPid()));
+        QDir().mkpath(m_tempBaseDir);
+        m_logFilePath = m_tempBaseDir + "/test.log";
+    }
+
     LoggingManager::LoggingConfiguration config;
     config.globalLogLevel = Logger::LogLevel::Debug;
     config.enableConsoleLogging = true;
     config.enableFileLogging = true;
-    config.logDirectory = m_tempDir->path();
+    config.logDirectory = m_tempBaseDir;
     config.logFileName = "test.log";
 
     LoggingManager::instance().initialize(config);
@@ -258,7 +396,7 @@ void LoggingComprehensiveTest::testLoggingManagerAsyncLogging() {
     config.globalLogLevel = Logger::LogLevel::Debug;
     config.enableConsoleLogging = true;
     config.enableFileLogging = true;
-    config.logDirectory = m_tempDir->path();
+    config.logDirectory = m_tempBaseDir;
     config.logFileName = "async_test.log";
     config.enableAsyncLogging = true;
     config.asyncQueueSize = 8192;
@@ -275,7 +413,7 @@ void LoggingComprehensiveTest::testLoggingManagerAsyncLogging() {
     LoggingManager::instance().flushLogs();
     waitForLogFlush();
 
-    QString asyncLogPath = m_tempDir->path() + "/async_test.log";
+    QString asyncLogPath = m_tempBaseDir + "/async_test.log";
     QFile logFile(asyncLogPath);
     QVERIFY(logFile.exists());
 }
@@ -300,6 +438,40 @@ void LoggingComprehensiveTest::testLoggingManagerCategoryManagement() {
 
     QCOMPARE(LoggingManager::instance().getLoggingCategoryLevel("TestCategory"),
              Logger::LogLevel::Info);
+}
+
+void LoggingComprehensiveTest::testLoggingManagerRotateLogFiles() {
+    LoggingManager::LoggingConfiguration config;
+    config.globalLogLevel = Logger::LogLevel::Debug;
+    config.enableConsoleLogging = true;
+    config.enableFileLogging = true;
+    config.logDirectory = m_tempBaseDir;
+    config.logFileName = "manager_rotate.log";
+    config.maxFiles = 3;
+
+    LoggingManager::instance().initialize(config);
+
+    const QString logPath = m_tempBaseDir + "/manager_rotate.log";
+    const QString rotatedPath = logPath + ".1";
+    QFile::remove(rotatedPath);
+
+    LOG_INFO("Manager rotation baseline");
+    LoggingManager::instance().flushLogs();
+    QVERIFY(waitFor([&]() { return QFile::exists(logPath); }));
+
+    QSignalSpy rotationSpy(&LoggingManager::instance(),
+                           &LoggingManager::logFileRotated);
+
+    LoggingManager::instance().rotateLogFiles();
+
+    if (rotationSpy.isEmpty()) {
+        rotationSpy.wait(1000);
+    }
+    QCOMPARE(rotationSpy.count(), 1);
+    QVERIFY(waitFor([&]() { return QFile::exists(rotatedPath); }));
+    QVERIFY(fileContains(rotatedPath, "Manager rotation baseline"));
+
+    LoggingManager::instance().shutdown();
 }
 
 void LoggingComprehensiveTest::testLoggingManagerShutdown() {
@@ -564,7 +736,7 @@ void LoggingComprehensiveTest::testSimpleLoggingInterface() {
     config.level = SastLogging::Level::Debug;
     config.console = true;
     config.file = true;
-    config.logDir = m_tempDir->path();
+    config.logDir = m_tempBaseDir;
     config.logFile = "simple_test.log";
 
     SastLogging::init(config);
@@ -574,7 +746,7 @@ void LoggingComprehensiveTest::testSimpleLoggingInterface() {
     SastLogging::flush();
     QThread::msleep(100);
 
-    QString simpleLogPath = m_tempDir->path() + "/simple_test.log";
+    QString simpleLogPath = m_tempBaseDir + "/simple_test.log";
     QFile logFile(simpleLogPath);
     QVERIFY(logFile.exists());
 
@@ -617,7 +789,7 @@ void LoggingComprehensiveTest::testEndToEndLogging() {
     config.globalLogLevel = Logger::LogLevel::Debug;
     config.enableConsoleLogging = true;
     config.enableFileLogging = true;
-    config.logDirectory = m_tempDir->path();
+    config.logDirectory = m_tempBaseDir;
     config.logFileName = "integration_test.log";
     config.enableQtMessageHandlerRedirection = true;
 
@@ -631,7 +803,7 @@ void LoggingComprehensiveTest::testEndToEndLogging() {
     LoggingManager::instance().flushLogs();
     QThread::msleep(100);
 
-    QString integrationLogPath = m_tempDir->path() + "/integration_test.log";
+    QString integrationLogPath = m_tempBaseDir + "/integration_test.log";
     QFile logFile(integrationLogPath);
     QVERIFY(logFile.exists());
 
@@ -703,12 +875,43 @@ bool LoggingComprehensiveTest::logFileContains(const QString& text) {
     return content.contains(text);
 }
 
-void LoggingComprehensiveTest::cleanupLogFiles() {
-    QFile::remove(m_logFilePath);
-    QFile::remove(m_tempDir->path() + "/async_test.log");
-    QFile::remove(m_tempDir->path() + "/simple_test.log");
-    QFile::remove(m_tempDir->path() + "/integration_test.log");
+bool LoggingComprehensiveTest::fileContains(const QString& path,
+                                            const QString& text) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+
+    QTextStream stream(&file);
+    const QString content = stream.readAll();
+    file.close();
+
+    return content.contains(text);
 }
 
-QTEST_MAIN(LoggingComprehensiveTest)
+void LoggingComprehensiveTest::cleanupLogFiles() {
+    QFile::remove(m_logFilePath);
+    QFile::remove(m_logFilePath + ".1");
+    QFile::remove(m_logFilePath + ".2");
+    QFile::remove(m_logFilePath + ".3");
+    {
+        QString base = m_tempBaseDir;
+        if (base.isEmpty()) {
+            base = QDir::temp().filePath(
+                "sast_readium_logtest_" +
+                QString::number(QCoreApplication::applicationPid()));
+            QDir().mkpath(base);
+        }
+        QFile::remove(base + "/async_test.log");
+        QFile::remove(base + "/simple_test.log");
+        QFile::remove(base + "/integration_test.log");
+        QFile::remove(base + "/integration_test.log.1");
+        QFile::remove(base + "/manager_rotate.log");
+        QFile::remove(base + "/manager_rotate.log.1");
+        QFile::remove(base + "/manager_rotate.log.2");
+        QFile::remove(base + "/manager_rotate.log.3");
+    }
+}
+
+QTEST_APPLESS_MAIN(LoggingComprehensiveTest)
 #include "test_logging_comprehensive.moc"

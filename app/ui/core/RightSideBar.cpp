@@ -175,7 +175,7 @@ void RightSideBar::changeEvent(QEvent* event) {
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
     }
-    QWidget::changeEvent(event);
+    ElaDockWidget::changeEvent(event);
 }
 
 void RightSideBar::retranslateUi() {

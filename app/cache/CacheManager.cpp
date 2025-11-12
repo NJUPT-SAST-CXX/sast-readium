@@ -1,11 +1,11 @@
 #include "CacheManager.h"
 #include <QCoreApplication>
-#include <QDebug>
 #include <QMutexLocker>
 #include <QProcess>
 #include <QThread>
 #include <QTimer>
 #include <algorithm>
+#include "logging/SimpleLogging.h"
 
 using enum CacheType;
 
@@ -328,8 +328,8 @@ void CacheManager::registerCache(CacheType type, QObject* cache) {
 
     auto cacheComponent = dynamic_cast<ICacheComponent*>(cache);
     if (cacheComponent == nullptr) {
-        qWarning()
-            << "Cache object does not implement ICacheComponent interface";
+        SLOG_WARNING(
+            "Cache object does not implement ICacheComponent interface");
         return;
     }
 
@@ -341,7 +341,7 @@ void CacheManager::registerCache(CacheType type, QObject* cache) {
         cacheComponent->setMaxMemoryLimit(limit);
     }
 
-    qDebug() << "Registered cache type:" << static_cast<int>(type);
+    SLOG_DEBUG_F("Registered cache type: {}", static_cast<int>(type));
 }
 
 void CacheManager::unregisterCache(CacheType type) {

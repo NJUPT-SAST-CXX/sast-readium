@@ -51,6 +51,8 @@ void CommandFactory::initializeActionMap() {
     // View mode operations
     m_actionMap["setSinglePageMode"] = ActionMap::setSinglePageMode;
     m_actionMap["setContinuousScrollMode"] = ActionMap::setContinuousScrollMode;
+    m_actionMap["setTwoPagesMode"] = ActionMap::setTwoPagesMode;
+    m_actionMap["setBookViewMode"] = ActionMap::setBookViewMode;
 
     // Page navigation operations
     m_actionMap["firstPage"] = ActionMap::firstPage;
@@ -84,6 +86,10 @@ void CommandFactory::initializeActionMap() {
     // Recent files operations
     m_actionMap["openRecentFile"] = ActionMap::openRecentFile;
     m_actionMap["clearRecentFiles"] = ActionMap::clearRecentFiles;
+    // Settings and application operations
+    m_actionMap["showSettings"] = ActionMap::showSettings;
+    m_actionMap["quit"] = ActionMap::quit;
+    m_actionMap["showHelp"] = ActionMap::showHelp;
 
     // Fullscreen operation
     m_actionMap["fullScreen"] = ActionMap::fullScreen;

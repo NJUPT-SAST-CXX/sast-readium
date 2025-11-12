@@ -22,4 +22,4 @@ void SimpleSuggestionTest::testCopyConstructor() {
 }
 
 QTEST_MAIN(SimpleSuggestionTest)
-#include "simple_test.moc"
+#include "test_simple.moc"

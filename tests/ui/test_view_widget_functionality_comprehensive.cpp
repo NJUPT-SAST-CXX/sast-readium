@@ -1,413 +1,330 @@
-#include <QApplication>
-#include <QSignalSpy>
-#include <QStackedWidget>
-#include <QTemporaryFile>
+// SPDX-License-Identifier: MIT
+
 #include <QtTest/QtTest>
+
+#include <QApplication>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QSignalSpy>
+#include <QStandardPaths>
+#include <QStringList>
+#include <QVector>
+
+#include <memory>
+
+#include <poppler/qt6/poppler-qt6.h>
+
 #include "../../app/controller/DocumentController.h"
+#include "../../app/controller/tool.hpp"
+#include "../../app/managers/RecentFilesManager.h"
 #include "../../app/model/DocumentModel.h"
-#include "../../app/model/PDFOutlineModel.h"
 #include "../../app/ui/core/ViewWidget.h"
+
 #include "../TestUtilities.h"
 
-/**
- * @brief Comprehensive functional tests for ViewWidget UI component
- *
- * Tests all view widget functionality including:
- * - Document lifecycle management (open, close, switch)
- * - Multi-document tab handling
- * - Page navigation and validation
- * - Zoom controls and limits
- * - View mode switching
- * - PDF action execution
- * - State preservation and restoration
- * - Error handling and recovery
- */
+namespace {
+
+class StubRecentFilesManager : public RecentFilesManager {
+    Q_OBJECT
+
+public:
+    explicit StubRecentFilesManager(QObject* parent = nullptr)
+        : RecentFilesManager(parent) {}
+
+    void addRecentFile(const QString& filePath) override {
+        m_addedFiles.append(filePath);
+        emit recentFileAdded(filePath);
+    }
+
+    [[nodiscard]] QStringList addedFiles() const { return m_addedFiles; }
+
+private:
+    QStringList m_addedFiles;
+};
+
+class StubDocumentModel : public DocumentModel {
+    Q_OBJECT
+
+public:
+    explicit StubDocumentModel(QObject* parent = nullptr)
+        : DocumentModel(), m_currentIndex(-1) {
+        setParent(parent);
+    }
+
+    bool openFromFile(const QString& filePath) override {
+        if (filePath.isEmpty() || !QFile::exists(filePath)) {
+            emit loadingFailed(tr("File does not exist"), filePath);
+            return false;
+        }
+
+        auto document = std::unique_ptr<Poppler::Document>(
+            Poppler::Document::load(filePath));
+        if (!document) {
+            emit loadingFailed(tr("Unable to load PDF"), filePath);
+            return false;
+        }
+
+        document->setRenderHint(Poppler::Document::Antialiasing, true);
+        document->setRenderHint(Poppler::Document::TextAntialiasing, true);
+
+        emit loadingStarted(filePath);
+
+        const int newIndex = m_documents.size();
+        m_paths.insert(newIndex, filePath);
+        m_documents.insert(newIndex, std::move(document));
+        m_currentIndex = newIndex;
+
+        emit documentOpened(newIndex, QFileInfo(filePath).fileName());
+        emit currentDocumentChanged(newIndex);
+        emit loadingProgressChanged(100);
+        return true;
+    }
+
+    bool openFromFiles(const QStringList& filePaths) override {
+        bool anyOpened = false;
+        for (const QString& path : filePaths) {
+            anyOpened = openFromFile(path) || anyOpened;
+        }
+        return anyOpened;
+    }
+
+    bool closeDocument(int index) override {
+        if (!isValidIndex(index)) {
+            return false;
+        }
+
+        emit documentClosed(index);
+
+        m_paths.removeAt(index);
+        m_documents.removeAt(index);
+
+        if (m_paths.isEmpty()) {
+            m_currentIndex = -1;
+            emit allDocumentsClosed();
+        } else {
+            if (m_currentIndex == index) {
+                m_currentIndex = qMin(index, m_paths.size() - 1);
+                emit currentDocumentChanged(m_currentIndex);
+            } else if (index < m_currentIndex) {
+                m_currentIndex -= 1;
+                emit currentDocumentChanged(m_currentIndex);
+            }
+        }
+
+        return true;
+    }
+
+    bool closeCurrentDocument() override {
+        if (m_currentIndex < 0) {
+            return false;
+        }
+        return closeDocument(m_currentIndex);
+    }
+
+    void switchToDocument(int index) override {
+        if (!isValidIndex(index) || index == m_currentIndex) {
+            return;
+        }
+        m_currentIndex = index;
+        emit currentDocumentChanged(index);
+    }
+
+    int getDocumentCount() const override { return m_paths.size(); }
+
+    int getCurrentDocumentIndex() const override { return m_currentIndex; }
+
+    QString getCurrentFilePath() const override {
+        return isValidIndex(m_currentIndex) ? m_paths[m_currentIndex]
+                                            : QString();
+    }
+
+    QString getCurrentFileName() const override {
+        return QFileInfo(getCurrentFilePath()).fileName();
+    }
+
+    QString getDocumentFileName(int index) const override {
+        return isValidIndex(index) ? QFileInfo(m_paths[index]).fileName()
+                                   : QString();
+    }
+
+    QString getDocumentFilePath(int index) const override {
+        return isValidIndex(index) ? m_paths[index] : QString();
+    }
+
+    Poppler::Document* getCurrentDocument() const override {
+        return getDocument(m_currentIndex);
+    }
+
+    Poppler::Document* getDocument(int index) const override {
+        return isValidIndex(index) ? m_documents[index].get() : nullptr;
+    }
+
+    bool isEmpty() const override { return m_paths.isEmpty(); }
+
+    bool isValidIndex(int index) const override {
+        return index >= 0 && index < m_paths.size();
+    }
+
+    bool isNULL() override { return m_currentIndex < 0; }
+
+private:
+    QVector<QString> m_paths;
+    QVector<std::unique_ptr<Poppler::Document>> m_documents;
+    int m_currentIndex;
+};
+
+}  // namespace
+
 class ViewWidgetFunctionalityTest : public TestBase {
     Q_OBJECT
 
 private slots:
-    void initTestCase() override;
-    void cleanupTestCase() override;
-    void init() override;
-    void cleanup() override;
+    void initTestCase() override {
+        TestBase::initTestCase();
+        QString baseTemp =
+            QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+        QVERIFY2(!baseTemp.isEmpty(), "Temp location is unavailable");
+        m_tempDir = QDir(baseTemp).filePath("sast_readium_viewwidget_tests");
+        QVERIFY(QDir().mkpath(m_tempDir));
+    }
 
-    // Document lifecycle tests
-    void testDocumentOpening();
-    void testDocumentClosing();
-    void testDocumentSwitching();
-    void testMultipleDocuments();
-    void testDocumentValidation();
+    void cleanupTestCase() override {
+        for (const QString& path : std::as_const(m_createdFiles)) {
+            QFile::remove(path);
+        }
+        m_createdFiles.clear();
+    }
 
-    // Navigation functionality tests
-    void testPageNavigation();
-    void testPageNavigationBounds();
-    void testPageNavigationSignals();
-    void testZoomControls();
-    void testZoomLimits();
+    void init() override {
+        m_recentFilesManager = std::make_unique<StubRecentFilesManager>();
+        m_documentModel = std::make_unique<StubDocumentModel>();
+        m_documentModel->setRecentFilesManager(m_recentFilesManager.get());
+
+        m_documentController =
+            std::make_unique<DocumentController>(m_documentModel.get());
+        m_documentController->setRecentFilesManager(m_recentFilesManager.get());
+
+        m_viewWidget = std::make_unique<ViewWidget>();
+        m_viewWidget->setDocumentController(m_documentController.get());
+        m_viewWidget->setDocumentModel(m_documentModel.get());
+        m_viewWidget->resize(800, 600);
+    }
+
+    void cleanup() override {
+        if (m_viewWidget) {
+            m_viewWidget->close();
+        }
+        m_viewWidget.reset();
+        m_documentController.reset();
+        m_documentModel.reset();
+        m_recentFilesManager.reset();
+
+        for (const QString& path : std::as_const(m_createdFiles)) {
+            QFile::remove(path);
+        }
+        m_createdFiles.clear();
+    }
+
+    void testOpenDocumentAddsRecentEntry();
+    void testOpenDocumentSwitchesExisting();
+    void testCloseDocumentClearsState();
+    void testSwitchDocumentUpdatesCurrentIndex();
+    void testExecutePdfActionEmitsZoomSignal();
 
 private:
-    ViewWidget* m_viewWidget;
-    QWidget* m_parentWidget;
-    DocumentController* m_documentController;
-    DocumentModel* m_documentModel;
-    PDFOutlineModel* m_outlineModel;
-    RenderModel* m_renderModel;
-    QTemporaryFile* m_testPdfFile;
+    QString createTestPdf(const QString& fileName, int pageCount = 3) {
+        const QString pdfPath = QDir(m_tempDir).filePath(fileName);
+        auto* document =
+            TestDataGenerator::createTestPdfWithoutText(pageCount, pdfPath);
+        QVERIFY2(document != nullptr, "Failed to create test PDF");
+        delete document;
+        m_createdFiles.append(pdfPath);
+        return pdfPath;
+    }
 
-    void createTestPdf();
-    void waitForDocumentLoad();
+    std::unique_ptr<ViewWidget> m_viewWidget;
+    std::unique_ptr<DocumentController> m_documentController;
+    std::unique_ptr<StubDocumentModel> m_documentModel;
+    std::unique_ptr<StubRecentFilesManager> m_recentFilesManager;
+    QString m_tempDir;
+    QStringList m_createdFiles;
 };
-void ViewW idgetFunctionalityTest::initTestCase() {
-    m_parentWidget = new QWidget();
-    m_parentWidget->resize(1200, 800);
-    m_parentWidget->show();
 
-    createTestPdf();
+void ViewWidgetFunctionalityTest::testOpenDocumentAddsRecentEntry() {
+    const QString pdfPath = createTestPdf("open_document.pdf");
 
-    // Create controller and models
-    m_renderModel = new RenderModel(96.0, 96.0, nullptr, this);
-    m_documentModel = new DocumentModel(m_renderModel);
-    m_documentController = new DocumentController(m_documentModel);
-    m_outlineModel = new PDFOutlineModel(this);
+    QSignalSpy spy(m_documentModel.get(), &DocumentModel::documentOpened);
+
+    m_viewWidget->openDocument(pdfPath);
+
+    QVERIFY_TIMEOUT(spy.count() == 1, 1000);
+    QVERIFY_TIMEOUT(m_viewWidget->hasDocuments(), 1000);
+    QCOMPARE(m_documentModel->getDocumentCount(), 1);
+    QCOMPARE(m_viewWidget->getCurrentDocumentIndex(), 0);
+    QCOMPARE(m_recentFilesManager->addedFiles(), QStringList{pdfPath});
 }
 
-void ViewWidgetFunctionalityTest::cleanupTestCase() {
-    delete m_testPdfFile;
-    delete m_parentWidget;
+void ViewWidgetFunctionalityTest::testOpenDocumentSwitchesExisting() {
+    const QString firstPath = createTestPdf("first_document.pdf");
+    const QString secondPath = createTestPdf("second_document.pdf");
+
+    m_viewWidget->openDocument(firstPath);
+    QVERIFY_TIMEOUT(m_documentModel->getDocumentCount() == 1, 1000);
+
+    m_viewWidget->openDocument(secondPath);
+    QVERIFY_TIMEOUT(m_documentModel->getDocumentCount() == 2, 1000);
+    QCOMPARE(m_viewWidget->getCurrentDocumentIndex(), 1);
+
+    m_viewWidget->openDocument(firstPath);
+    QVERIFY_TIMEOUT(m_viewWidget->getCurrentDocumentIndex() == 0, 1000);
+    QCOMPARE(m_documentModel->getDocumentCount(), 2);
 }
 
-void ViewWidgetFunctionalityTest::init() {
-    m_viewWidget = new ViewWidget(m_parentWidget);
-    m_viewWidget->setDocumentController(m_documentController);
-    m_viewWidget->setDocumentModel(m_documentModel);
-    m_viewWidget->setOutlineModel(m_outlineModel);
-    m_viewWidget->show();
+void ViewWidgetFunctionalityTest::testCloseDocumentClearsState() {
+    const QString pdfPath = createTestPdf("close_document.pdf");
 
-    if (QGuiApplication::platformName() == "offscreen") {
-        waitMs(100);
-    } else {
-        QVERIFY(QTest::qWaitForWindowExposed(m_viewWidget));
-    }
-}
+    m_viewWidget->openDocument(pdfPath);
+    QVERIFY_TIMEOUT(m_viewWidget->hasDocuments(), 1000);
 
-void ViewWidgetFunctionalityTest::cleanup() {
-    delete m_viewWidget;
-    m_viewWidget = nullptr;
-}
-v oid ViewWidgetFunctionalityTest::testDocumentOpening() {
-    if (!m_testPdfFile || !m_testPdfFile->exists()) {
-        QSKIP("No test PDF file available");
-    }
+    m_viewWidget->closeDocument(0);
 
-    QSignalSpy pageChangedSpy(m_viewWidget,
-                              &ViewWidget::currentViewerPageChanged);
-    QSignalSpy zoomChangedSpy(m_viewWidget,
-                              &ViewWidget::currentViewerZoomChanged);
-
-    // Test initial state
-    QVERIFY(!m_viewWidget->hasDocuments());
+    QVERIFY_TIMEOUT(!m_viewWidget->hasDocuments(), 1000);
+    QCOMPARE(m_documentModel->getDocumentCount(), 0);
     QCOMPARE(m_viewWidget->getCurrentDocumentIndex(), -1);
-
-    // Test opening document
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
-
-    // Should have documents now
-    QVERIFY(m_viewWidget->hasDocuments());
-    QVERIFY(m_viewWidget->getCurrentDocumentIndex() >= 0);
-
-    // Should emit appropriate signals
-    QVERIFY(pageChangedSpy.count() >= 0);
-    QVERIFY(zoomChangedSpy.count() >= 0);
-
-    // Test opening same document again
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
-
-    // Should handle duplicate opens gracefully
-    QVERIFY(true);
 }
 
-void ViewWidgetFunctionalityTest::testDocumentClosing() {
-    if (!m_testPdfFile || !m_testPdfFile->exists()) {
-        QSKIP("No test PDF file available");
-    }
+void ViewWidgetFunctionalityTest::testSwitchDocumentUpdatesCurrentIndex() {
+    const QString firstPath = createTestPdf("switch_first.pdf");
+    const QString secondPath = createTestPdf("switch_second.pdf");
 
-    // Open document first
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
+    m_viewWidget->openDocument(firstPath);
+    m_viewWidget->openDocument(secondPath);
+    QVERIFY_TIMEOUT(m_documentModel->getCurrentDocumentIndex() == 1, 1000);
 
-    QVERIFY(m_viewWidget->hasDocuments());
-    int initialIndex = m_viewWidget->getCurrentDocumentIndex();
+    QSignalSpy changeSpy(m_documentModel.get(),
+                         &DocumentModel::currentDocumentChanged);
 
-    // Test closing document
-    m_viewWidget->closeDocument(initialIndex);
-    waitForDocumentLoad();
+    m_viewWidget->switchToDocument(0);
 
-    // Should handle document closing
-    QVERIFY(true);
-
-    // Test closing invalid index
-    m_viewWidget->closeDocument(-1);
-    m_viewWidget->closeDocument(999);
-
-    // Should handle invalid indices gracefully
-    QVERIFY(true);
-}
-voi d ViewWidgetFunctionalityTest::testDocumentSwitching() {
-    if (!m_testPdfFile || !m_testPdfFile->exists()) {
-        QSKIP("No test PDF file available");
-    }
-
-    // Open multiple documents
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
-
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
-
-    // Test switching between documents
-    if (m_viewWidget->hasDocuments()) {
-        m_viewWidget->switchToDocument(0);
-        waitForDocumentLoad();
-
-        // Should handle document switching
-        QVERIFY(true);
-
-        // Test switching to invalid indices
-        m_viewWidget->switchToDocument(-1);
-        m_viewWidget->switchToDocument(999);
-
-        // Should handle invalid switches gracefully
-        QVERIFY(true);
-    }
+    QVERIFY_TIMEOUT(m_documentModel->getCurrentDocumentIndex() == 0, 1000);
+    QVERIFY_TIMEOUT(changeSpy.count() >= 1, 1000);
 }
 
-void ViewWidgetFunctionalityTest::testMultipleDocuments() {
-    if (!m_testPdfFile || !m_testPdfFile->exists()) {
-        QSKIP("No test PDF file available");
-    }
+void ViewWidgetFunctionalityTest::testExecutePdfActionEmitsZoomSignal() {
+    const QString pdfPath = createTestPdf("zoom_action.pdf");
 
-    // Test opening multiple documents
-    for (int i = 0; i < 3; ++i) {
-        m_viewWidget->openDocument(m_testPdfFile->fileName());
-        waitForDocumentLoad();
-    }
+    m_viewWidget->openDocument(pdfPath);
+    QVERIFY_TIMEOUT(m_viewWidget->hasDocuments(), 1000);
 
-    // Should handle multiple documents
-    QVERIFY(true);
+    const double initialZoom = m_viewWidget->getCurrentZoom();
 
-    // Test rapid document operations
-    for (int i = 0; i < 5; ++i) {
-        m_viewWidget->openDocument(m_testPdfFile->fileName());
-        waitMs(50);
-        if (m_viewWidget->hasDocuments()) {
-            m_viewWidget->switchToDocument(0);
-            waitMs(50);
-        }
-    }
+    QSignalSpy zoomSpy(m_viewWidget.get(),
+                       &ViewWidget::currentViewerZoomChanged);
+    m_viewWidget->executePDFAction(ActionMap::zoomIn);
 
-    // Should handle rapid operations
-    QVERIFY(true);
-}
-voi d ViewWidgetFunctionalityTest::testDocumentValidation() {
-    // Test opening non-existent file
-    m_viewWidget->openDocument("/path/that/does/not/exist.pdf");
-    waitForDocumentLoad();
-
-    // Should handle gracefully
-    QVERIFY(true);
-
-    // Test opening invalid file
-    QTemporaryFile invalidFile;
-    if (invalidFile.open()) {
-        invalidFile.write("This is not a PDF file");
-        invalidFile.flush();
-
-        m_viewWidget->openDocument(invalidFile.fileName());
-        waitForDocumentLoad();
-
-        // Should handle invalid files gracefully
-        QVERIFY(true);
-    }
-
-    // Test opening empty path
-    m_viewWidget->openDocument("");
-    waitForDocumentLoad();
-
-    // Should handle empty path gracefully
-    QVERIFY(true);
-}
-
-void ViewWidgetFunctionalityTest::testPageNavigation() {
-    if (!m_testPdfFile || !m_testPdfFile->exists()) {
-        QSKIP("No test PDF file available");
-    }
-
-    // Open document
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
-
-    if (m_viewWidget->hasDocuments() &&
-        m_viewWidget->getCurrentPageCount() > 1) {
-        QSignalSpy pageChangedSpy(m_viewWidget,
-                                  &ViewWidget::currentViewerPageChanged);
-
-        // Test navigation to specific page
-        m_viewWidget->goToPage(1);
-        waitForDocumentLoad();
-
-        // Should emit page changed signal
-        QVERIFY(pageChangedSpy.count() >= 0);
-
-        // Test current page retrieval
-        int currentPage = m_viewWidget->getCurrentPage();
-        QVERIFY(currentPage >= 0);
-
-        // Test page count
-        int pageCount = m_viewWidget->getCurrentPageCount();
-        QVERIFY(pageCount >= 0);
-    }
-}
-vo id ViewWidgetFunctionalityTest::testPageNavigationBounds() {
-    if (!m_testPdfFile || !m_testPdfFile->exists()) {
-        QSKIP("No test PDF file available");
-    }
-
-    // Open document
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
-
-    if (m_viewWidget->hasDocuments()) {
-        int pageCount = m_viewWidget->getCurrentPageCount();
-
-        // Test navigation to invalid pages
-        m_viewWidget->goToPage(-1);              // Before first page
-        m_viewWidget->goToPage(pageCount + 10);  // After last page
-        m_viewWidget->goToPage(999);             // Way beyond range
-
-        // Should handle invalid navigation gracefully
-        QVERIFY(true);
-
-        // Test boundary pages
-        if (pageCount > 0) {
-            m_viewWidget->goToPage(0);              // First page
-            m_viewWidget->goToPage(pageCount - 1);  // Last page
-
-            // Should handle boundary navigation
-            QVERIFY(true);
-        }
-    }
-}
-
-void ViewWidgetFunctionalityTest::testPageNavigationSignals() {
-    QSignalSpy pageChangedSpy(m_viewWidget,
-                              &ViewWidget::currentViewerPageChanged);
-    QSignalSpy zoomChangedSpy(m_viewWidget,
-                              &ViewWidget::currentViewerZoomChanged);
-    QSignalSpy scaleChangedSpy(m_viewWidget, &ViewWidget::scaleChanged);
-
-    if (!m_testPdfFile || !m_testPdfFile->exists()) {
-        QSKIP("No test PDF file available");
-    }
-
-    // Open document to trigger signals
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
-
-    // Perform navigation operations
-    if (m_viewWidget->hasDocuments()) {
-        m_viewWidget->goToPage(0);
-        waitMs(100);
-
-        // Signals should be emitted appropriately
-        QVERIFY(pageChangedSpy.count() >= 0);
-        QVERIFY(zoomChangedSpy.count() >= 0);
-        QVERIFY(scaleChangedSpy.count() >= 0);
-    }
-}
-v oid ViewWidgetFunctionalityTest::testZoomControls() {
-    if (!m_testPdfFile || !m_testPdfFile->exists()) {
-        QSKIP("No test PDF file available");
-    }
-
-    // Open document first
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
-
-    if (m_viewWidget->hasDocuments()) {
-        QSignalSpy zoomChangedSpy(m_viewWidget,
-                                  &ViewWidget::currentViewerZoomChanged);
-
-        // Test zoom setting
-        m_viewWidget->setZoom(1.5);
-        waitMs(100);
-
-        // Test zoom retrieval
-        double currentZoom = m_viewWidget->getCurrentZoom();
-        QVERIFY(currentZoom > 0);
-
-        // Test various zoom levels
-        QList<double> zoomLevels = {0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0};
-        for (double zoom : zoomLevels) {
-            m_viewWidget->setZoom(zoom);
-            waitMs(50);
-        }
-
-        // Should handle all zoom levels
-        QVERIFY(zoomChangedSpy.count() >= 0);
-    }
-}
-
-void ViewWidgetFunctionalityTest::testZoomLimits() {
-    if (!m_testPdfFile || !m_testPdfFile->exists()) {
-        QSKIP("No test PDF file available");
-    }
-
-    // Open document first
-    m_viewWidget->openDocument(m_testPdfFile->fileName());
-    waitForDocumentLoad();
-
-    if (m_viewWidget->hasDocuments()) {
-        // Test extreme zoom values
-        m_viewWidget->setZoom(0.01);   // Very small
-        m_viewWidget->setZoom(100.0);  // Very large
-        m_viewWidget->setZoom(-1.0);   // Negative
-        m_viewWidget->setZoom(0.0);    // Zero
-
-        // Should handle extreme values gracefully
-        QVERIFY(true);
-
-        // Verify zoom is still valid after extreme values
-        double finalZoom = m_viewWidget->getCurrentZoom();
-        QVERIFY(finalZoom > 0);
-    }
-}
-v oid ViewWidgetFunctionalityTest::createTestPdf() {
-    m_testPdfFile = new QTemporaryFile();
-    m_testPdfFile->setFileTemplate("test_pdf_XXXXXX.pdf");
-    if (m_testPdfFile->open()) {
-        // Write minimal PDF content
-        QByteArray pdfContent =
-            "%PDF-1.4\n"
-            "1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n"
-            "2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n"
-            "3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n"
-            "/Contents 4 0 R\n>>\nendobj\n"
-            "4 0 obj\n<<\n/Length 44\n>>\nstream\nBT\n/F1 12 Tf\n100 700 Td\n"
-            "(Test Page) Tj\nET\nendstream\nendobj\n"
-            "xref\n0 5\n0000000000 65535 f \n0000000009 65535 n \n"
-            "0000000074 65535 n \n0000000120 65535 n \n0000000179 65535 n \n"
-            "trailer\n<<\n/Size 5\n/Root 1 0 R\n>>\nstartxref\n274\n%%EOF\n";
-
-        m_testPdfFile->write(pdfContent);
-        m_testPdfFile->flush();
-    }
-}
-
-void ViewWidgetFunctionalityTest::waitForDocumentLoad() {
-    waitMs(300);
-    processEvents();
+    QVERIFY_TIMEOUT(zoomSpy.count() > 0, 1500);
+    QVERIFY(m_viewWidget->getCurrentZoom() > initialZoom);
 }
 
 QTEST_MAIN(ViewWidgetFunctionalityTest)

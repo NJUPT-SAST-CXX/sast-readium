@@ -26,6 +26,7 @@
 // Note: LoggingManager.h is included here to provide access to configuration
 // management for scoped logging classes and category-based logging.
 
+#include <fmt/format.h>
 #include <QString>
 #include <chrono>
 #include <memory>

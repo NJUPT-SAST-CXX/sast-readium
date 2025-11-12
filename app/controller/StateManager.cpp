@@ -640,7 +640,7 @@ void StateManager::setState(const State& newState, const QString& reason) {
 
     State oldState = m_currentState;
     if (m_debugMode) {
-        qDebug() << "StateManager::setState begin" << reason;
+        SLOG_DEBUG_F("StateManager::setState begin {}", reason);
     }
 
     // Apply middleware
@@ -652,7 +652,7 @@ void StateManager::setState(const State& newState, const QString& reason) {
     }
 
     if (m_debugMode) {
-        qDebug() << "StateManager::setState beforeStateChange";
+        SLOG_DEBUG("StateManager::setState beforeStateChange");
     }
     emit beforeStateChange(oldState, processedState);
 
@@ -689,7 +689,7 @@ void StateManager::setState(const State& newState, const QString& reason) {
     }
 
     if (m_debugMode) {
-        qDebug() << "StateManager::setState notifyObservers";
+        SLOG_DEBUG("StateManager::setState notifyObservers");
     }
     // Notify observers
     notifyObservers(change);
@@ -724,7 +724,7 @@ void StateManager::setState(const State& newState, const QString& reason) {
 
     if (m_debugMode) {
         m_logger.debug(QString("State changed: %1").arg(reason));
-        qDebug() << "StateManager::setState end";
+        SLOG_DEBUG("StateManager::setState end");
     }
 }
 
@@ -734,7 +734,7 @@ void StateManager::notifyObservers(const StateChange& change) {
     locker.unlock();
 
     if (m_debugMode) {
-        qDebug() << "StateManager::notifyObservers begin";
+        SLOG_DEBUG("StateManager::notifyObservers begin");
     }
     // Try to avoid heavy diff computation when possible by extracting
     // the single changed path from the reason (common Set/Remove cases).
@@ -771,9 +771,10 @@ void StateManager::notifyObservers(const StateChange& change) {
                 .arg(subs.size())
                 .arg(!singlePath.isEmpty())
                 .arg(changedPaths.size()));
-        qDebug() << "StateManager::notifyObservers subs" << subs.size()
-                 << "hasSinglePath" << !singlePath.isEmpty()
-                 << "changedPaths.size" << changedPaths.size();
+        SLOG_DEBUG_F(
+            "StateManager::notifyObservers subs={} hasSinglePath={} "
+            "changedPaths.size={}",
+            subs.size(), !singlePath.isEmpty(), changedPaths.size());
     }
 
     auto patternMatches = [](const QString& pattern,
@@ -805,24 +806,27 @@ void StateManager::notifyObservers(const StateChange& change) {
             continue;
         }
 
-        bool shouldNotify = false;
+        const bool pathIsCatchAll = sub.path.isEmpty() || sub.path == "*";
+        const bool pathHasWildcard = sub.path.contains('*');
+        bool wildcardMatch = false;
 
-        if (sub.path.isEmpty() || sub.path == "*") {
-            shouldNotify = true;
-        } else if (sub.path.contains('*')) {
+        if (pathHasWildcard) {
             if (!singlePath.isEmpty()) {
-                shouldNotify = patternMatches(sub.path, singlePath);
+                wildcardMatch = patternMatches(sub.path, singlePath);
             } else {
                 for (const QString& path : changedPaths) {
                     if (patternMatches(sub.path, path)) {
-                        shouldNotify = true;
+                        wildcardMatch = true;
                         break;
                     }
                 }
             }
-        } else if (change.hasChanged(sub.path)) {
-            shouldNotify = true;
         }
+
+        const bool directMatch =
+            !pathHasWildcard && change.hasChanged(sub.path);
+        const bool shouldNotify =
+            pathIsCatchAll || wildcardMatch || directMatch;
 
         if (!shouldNotify) {
             continue;
@@ -832,8 +836,9 @@ void StateManager::notifyObservers(const StateChange& change) {
                 QString("notifyObservers: calling observer #%1 for path '%2'")
                     .arg(idx)
                     .arg(sub.path));
-            qDebug() << "StateManager::notifyObservers calling observer" << idx
-                     << "path" << sub.path;
+            SLOG_DEBUG_F(
+                "StateManager::notifyObservers calling observer {} path {}",
+                idx, sub.path);
         }
 
         // Extra defensive guard: avoid invoking default-constructed or
@@ -854,13 +859,13 @@ void StateManager::notifyObservers(const StateChange& change) {
         if (m_debugMode) {
             m_logger.debug(
                 QString("notifyObservers: observer #%1 completed").arg(idx));
-            qDebug() << "StateManager::notifyObservers observer completed"
-                     << idx;
+            SLOG_DEBUG_F("StateManager::notifyObservers observer completed {}",
+                         idx);
         }
         ++idx;
     }
     if (m_debugMode) {
-        qDebug() << "StateManager::notifyObservers end";
+        SLOG_DEBUG("StateManager::notifyObservers end");
     }
 }
 
@@ -934,10 +939,9 @@ State StateStore::applyReducers(const State& state, const Action& action) {
         try {
             result = it.value()(result, action);
         } catch (const std::exception& e) {
-            qWarning() << "Exception in reducer:" << it.key() << "-"
-                       << e.what();
+            SLOG_WARNING_F("Exception in reducer: {} - {}", it.key(), e.what());
         } catch (...) {
-            qWarning() << "Unknown exception in reducer:" << it.key();
+            SLOG_WARNING_F("Unknown exception in reducer: {}", it.key());
         }
     }
 
@@ -949,9 +953,9 @@ void StateStore::notifyObservers(const Action& action) {
         try {
             observer(m_state, action);
         } catch (const std::exception& e) {
-            qWarning() << "Exception in store observer:" << e.what();
+            SLOG_WARNING_F("Exception in store observer: {}", e.what());
         } catch (...) {
-            qWarning() << "Unknown exception in store observer";
+            SLOG_WARNING("Unknown exception in store observer");
         }
     }
 }

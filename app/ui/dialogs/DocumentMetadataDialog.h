@@ -62,7 +62,11 @@ private:
     void createPropertiesSection(StyleManager& styleManager);
     void createSecuritySection(StyleManager& styleManager);
     void createActionButtons();
+    void retranslateUi();
     Q_SLOT void onThemeChanged();
+
+protected:
+    void changeEvent(QEvent* event) override;
 
     // UI组件
     QVBoxLayout* m_mainLayout = nullptr;

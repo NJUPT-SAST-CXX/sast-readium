@@ -1,4 +1,5 @@
 #include "QtSpdlogBridge.h"
+#include <QByteArray>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QLoggingCategory>
@@ -10,6 +11,7 @@
 #include <QSize>
 #include <QTextStream>
 #include <QThread>
+#include <cstring>
 #include "Logger.h"
 
 // Note: Implementation classes are defined in the header for PIMPL pattern
@@ -117,14 +119,14 @@ QString QtSpdlogBridge::Implementation::formatQtMessage(
     QString formatted = message;
 
     // Add context information if available
-    if (context.category && strlen(context.category) > 0 &&
-        strcmp(context.category, "default") != 0) {
+    if (context.category != nullptr && std::strlen(context.category) > 0 &&
+        std::strcmp(context.category, "default") != 0) {
         formatted = QString("[%1] %2").arg(context.category, message);
     }
 
     // Add file/line information in debug builds
 #ifdef QT_DEBUG
-    if (context.file && context.line > 0) {
+    if (context.file != nullptr && context.line > 0) {
         QString filename =
             QString(context.file).split('/').last().split('\\').last();
         formatted += QString(" (%1:%2)").arg(filename).arg(context.line);
@@ -254,7 +256,7 @@ SpdlogQDebug& SpdlogQDebug::operator<<(const void* pointer) {
 }
 
 SpdlogQDebug& SpdlogQDebug::operator<<(const QObject* object) {
-    if (object) {
+    if (object != nullptr) {
         d->stream << object->objectName() << "("
                   << object->metaObject()->className() << ")";
     } else {

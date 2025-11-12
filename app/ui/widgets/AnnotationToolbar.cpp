@@ -1,8 +1,10 @@
 #include "AnnotationToolbar.h"
 #include <QApplication>
 #include <QDebug>
+#include <QEvent>
 #include <QFontDatabase>
 #include <QStyle>
+#include "../../managers/I18nManager.h"
 
 AnnotationToolbar::AnnotationToolbar(QWidget* parent)
     : QWidget(parent),
@@ -45,6 +47,12 @@ AnnotationToolbar::AnnotationToolbar(QWidget* parent)
     setupUI();
     setupConnections();
     resetToDefaults();
+
+    // Connect to language change signal (disambiguate overloaded signal)
+    connect(&I18nManager::instance(),
+            static_cast<void (I18nManager::*)(I18nManager::Language)>(
+                &I18nManager::languageChanged),
+            this, [this](I18nManager::Language) { retranslateUi(); });
 }
 
 void AnnotationToolbar::setupUI() {
@@ -53,64 +61,64 @@ void AnnotationToolbar::setupUI() {
     mainLayout->setSpacing(8);
 
     // Tool selection group
-    m_toolGroup = new QGroupBox("注释工具", this);
+    m_toolGroup = new QGroupBox(tr("Annotation Tools"), this);
     m_toolLayout = new QHBoxLayout(m_toolGroup);
     m_toolButtonGroup = new QButtonGroup(this);
 
     // Create tool buttons
-    m_highlightBtn = new ElaPushButton("高亮");
+    m_highlightBtn = new ElaPushButton(tr("Highlight"));
     m_highlightBtn->setCheckable(true);
-    m_highlightBtn->setToolTip("文本高亮");
+    m_highlightBtn->setToolTip(tr("Highlight text"));
     m_highlightBtn->setProperty("tool",
                                 static_cast<int>(AnnotationType::Highlight));
 
-    m_noteBtn = new ElaPushButton("便签");
+    m_noteBtn = new ElaPushButton(tr("Note"));
     m_noteBtn->setCheckable(true);
-    m_noteBtn->setToolTip("添加便签");
+    m_noteBtn->setToolTip(tr("Add note"));
     m_noteBtn->setProperty("tool", static_cast<int>(AnnotationType::Note));
 
-    m_freeTextBtn = new ElaPushButton("文本");
+    m_freeTextBtn = new ElaPushButton(tr("Text"));
     m_freeTextBtn->setCheckable(true);
-    m_freeTextBtn->setToolTip("自由文本");
+    m_freeTextBtn->setToolTip(tr("Free text"));
     m_freeTextBtn->setProperty("tool",
                                static_cast<int>(AnnotationType::FreeText));
 
-    m_underlineBtn = new ElaPushButton("下划线");
+    m_underlineBtn = new ElaPushButton(tr("Underline"));
     m_underlineBtn->setCheckable(true);
-    m_underlineBtn->setToolTip("文本下划线");
+    m_underlineBtn->setToolTip(tr("Underline text"));
     m_underlineBtn->setProperty("tool",
                                 static_cast<int>(AnnotationType::Underline));
 
-    m_strikeOutBtn = new ElaPushButton("删除线");
+    m_strikeOutBtn = new ElaPushButton(tr("Strikeout"));
     m_strikeOutBtn->setCheckable(true);
-    m_strikeOutBtn->setToolTip("文本删除线");
+    m_strikeOutBtn->setToolTip(tr("Strikeout text"));
     m_strikeOutBtn->setProperty("tool",
                                 static_cast<int>(AnnotationType::StrikeOut));
 
-    m_rectangleBtn = new ElaPushButton("矩形");
+    m_rectangleBtn = new ElaPushButton(tr("Rectangle"));
     m_rectangleBtn->setCheckable(true);
-    m_rectangleBtn->setToolTip("绘制矩形");
+    m_rectangleBtn->setToolTip(tr("Draw rectangle"));
     m_rectangleBtn->setProperty("tool",
                                 static_cast<int>(AnnotationType::Rectangle));
 
-    m_circleBtn = new ElaPushButton("圆形");
+    m_circleBtn = new ElaPushButton(tr("Circle"));
     m_circleBtn->setCheckable(true);
-    m_circleBtn->setToolTip("绘制圆形");
+    m_circleBtn->setToolTip(tr("Draw circle"));
     m_circleBtn->setProperty("tool", static_cast<int>(AnnotationType::Circle));
 
-    m_lineBtn = new ElaPushButton("直线");
+    m_lineBtn = new ElaPushButton(tr("Line"));
     m_lineBtn->setCheckable(true);
-    m_lineBtn->setToolTip("绘制直线");
+    m_lineBtn->setToolTip(tr("Draw line"));
     m_lineBtn->setProperty("tool", static_cast<int>(AnnotationType::Line));
 
-    m_arrowBtn = new ElaPushButton("箭头");
+    m_arrowBtn = new ElaPushButton(tr("Arrow"));
     m_arrowBtn->setCheckable(true);
-    m_arrowBtn->setToolTip("绘制箭头");
+    m_arrowBtn->setToolTip(tr("Draw arrow"));
     m_arrowBtn->setProperty("tool", static_cast<int>(AnnotationType::Arrow));
 
-    m_inkBtn = new ElaPushButton("手绘");
+    m_inkBtn = new ElaPushButton(tr("Ink"));
     m_inkBtn->setCheckable(true);
-    m_inkBtn->setToolTip("自由手绘");
+    m_inkBtn->setToolTip(tr("Freehand drawing"));
     m_inkBtn->setProperty("tool", static_cast<int>(AnnotationType::Ink));
 
     // Add buttons to group and layout
@@ -128,12 +136,12 @@ void AnnotationToolbar::setupUI() {
     m_highlightBtn->setChecked(true);  // Default selection
 
     // Properties group
-    m_propertiesGroup = new QGroupBox("属性", this);
+    m_propertiesGroup = new QGroupBox(tr("Properties"), this);
     m_propertiesLayout = new QVBoxLayout(m_propertiesGroup);
 
     // Color selection
     auto* colorLayout = new QHBoxLayout();
-    colorLayout->addWidget(new ElaText("颜色:"));
+    colorLayout->addWidget(new ElaText(tr("Color:")));
     m_colorButton = new ElaPushButton();
     m_colorButton->setMinimumSize(40, 25);
     m_colorButton->setMaximumSize(40, 25);
@@ -144,7 +152,7 @@ void AnnotationToolbar::setupUI() {
 
     // Opacity control
     auto* opacityLayout = new QHBoxLayout();
-    m_opacityLabel = new ElaText("透明度: 70%");
+    m_opacityLabel = new ElaText(tr("Opacity: 70%"));
     opacityLayout->addWidget(m_opacityLabel);
     m_opacitySlider = new ElaSlider(Qt::Horizontal);
     m_opacitySlider->setRange(10, 100);
@@ -154,7 +162,7 @@ void AnnotationToolbar::setupUI() {
 
     // Line width control
     auto* lineWidthLayout = new QHBoxLayout();
-    m_lineWidthLabel = new ElaText("线宽:");
+    m_lineWidthLabel = new ElaText(tr("Line Width:"));
     lineWidthLayout->addWidget(m_lineWidthLabel);
     m_lineWidthSpinBox = new ElaSpinBox();
     m_lineWidthSpinBox->setRange(1, 10);
@@ -166,7 +174,7 @@ void AnnotationToolbar::setupUI() {
 
     // Font size control
     auto* fontSizeLayout = new QHBoxLayout();
-    m_fontSizeLabel = new ElaText("字号:");
+    m_fontSizeLabel = new ElaText(tr("Font Size:"));
     fontSizeLayout->addWidget(m_fontSizeLabel);
     m_fontSizeSpinBox = new ElaSpinBox();
     m_fontSizeSpinBox->setRange(8, 72);
@@ -178,7 +186,7 @@ void AnnotationToolbar::setupUI() {
 
     // Font family control
     auto* fontFamilyLayout = new QHBoxLayout();
-    m_fontFamilyLabel = new ElaText("字体:");
+    m_fontFamilyLabel = new ElaText(tr("Font:"));
     fontFamilyLayout->addWidget(m_fontFamilyLabel);
     m_fontFamilyCombo = new ElaComboBox();
     m_fontFamilyCombo->addItems(QFontDatabase::families());
@@ -187,23 +195,23 @@ void AnnotationToolbar::setupUI() {
     m_propertiesLayout->addLayout(fontFamilyLayout);
 
     // Actions group
-    m_actionsGroup = new QGroupBox("操作", this);
+    m_actionsGroup = new QGroupBox(tr("Actions"), this);
     m_actionsLayout = new QHBoxLayout(m_actionsGroup);
 
-    m_clearAllBtn = new ElaPushButton("清除全部");
+    m_clearAllBtn = new ElaPushButton(tr("Clear All"));
     m_clearAllBtn->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_DialogDiscardButton));
-    m_clearAllBtn->setToolTip("清除所有注释");
+    m_clearAllBtn->setToolTip(tr("Clear all annotations"));
 
-    m_saveBtn = new ElaPushButton("保存");
+    m_saveBtn = new ElaPushButton(tr("Save"));
     m_saveBtn->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_DialogSaveButton));
-    m_saveBtn->setToolTip("保存注释到文档");
+    m_saveBtn->setToolTip(tr("Save annotations to document"));
 
-    m_loadBtn = new ElaPushButton("加载");
+    m_loadBtn = new ElaPushButton(tr("Load"));
     m_loadBtn->setIcon(
         QApplication::style()->standardIcon(QStyle::SP_DialogOpenButton));
-    m_loadBtn->setToolTip("从文档加载注释");
+    m_loadBtn->setToolTip(tr("Load annotations from document"));
 
     m_actionsLayout->addWidget(m_clearAllBtn);
     m_actionsLayout->addWidget(m_saveBtn);
@@ -270,7 +278,7 @@ void AnnotationToolbar::setCurrentOpacity(double opacity) {
         m_currentOpacity = opacity;
         m_opacitySlider->setValue(static_cast<int>(opacity * 100));
         m_opacityLabel->setText(
-            QString("透明度: %1%").arg(static_cast<int>(opacity * 100)));
+            tr("Opacity: %1%").arg(static_cast<int>(opacity * 100)));
         emit opacityChanged(opacity);
     }
 }
@@ -386,4 +394,95 @@ void AnnotationToolbar::updatePropertyControls() {
     m_fontSizeSpinBox->setVisible(showFontControls);
     m_fontFamilyLabel->setVisible(showFontControls);
     m_fontFamilyCombo->setVisible(showFontControls);
+}
+
+void AnnotationToolbar::changeEvent(QEvent* event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange) {
+        retranslateUi();
+    }
+}
+
+void AnnotationToolbar::retranslateUi() {
+    // Update group box titles
+    if (m_toolGroup) {
+        m_toolGroup->setTitle(tr("Annotation Tools"));
+    }
+    if (m_propertiesGroup) {
+        m_propertiesGroup->setTitle(tr("Properties"));
+    }
+    if (m_actionsGroup) {
+        m_actionsGroup->setTitle(tr("Actions"));
+    }
+
+    // Update tool button texts and tooltips
+    if (m_highlightBtn) {
+        m_highlightBtn->setText(tr("Highlight"));
+        m_highlightBtn->setToolTip(tr("Highlight text"));
+    }
+    if (m_noteBtn) {
+        m_noteBtn->setText(tr("Note"));
+        m_noteBtn->setToolTip(tr("Add note"));
+    }
+    if (m_freeTextBtn) {
+        m_freeTextBtn->setText(tr("Text"));
+        m_freeTextBtn->setToolTip(tr("Free text"));
+    }
+    if (m_underlineBtn) {
+        m_underlineBtn->setText(tr("Underline"));
+        m_underlineBtn->setToolTip(tr("Underline text"));
+    }
+    if (m_strikeOutBtn) {
+        m_strikeOutBtn->setText(tr("Strikeout"));
+        m_strikeOutBtn->setToolTip(tr("Strikeout text"));
+    }
+    if (m_rectangleBtn) {
+        m_rectangleBtn->setText(tr("Rectangle"));
+        m_rectangleBtn->setToolTip(tr("Draw rectangle"));
+    }
+    if (m_circleBtn) {
+        m_circleBtn->setText(tr("Circle"));
+        m_circleBtn->setToolTip(tr("Draw circle"));
+    }
+    if (m_lineBtn) {
+        m_lineBtn->setText(tr("Line"));
+        m_lineBtn->setToolTip(tr("Draw line"));
+    }
+    if (m_arrowBtn) {
+        m_arrowBtn->setText(tr("Arrow"));
+        m_arrowBtn->setToolTip(tr("Draw arrow"));
+    }
+    if (m_inkBtn) {
+        m_inkBtn->setText(tr("Ink"));
+        m_inkBtn->setToolTip(tr("Freehand drawing"));
+    }
+
+    // Update property labels
+    if (m_opacityLabel) {
+        m_opacityLabel->setText(
+            tr("Opacity: %1%").arg(static_cast<int>(m_currentOpacity * 100)));
+    }
+    if (m_lineWidthLabel) {
+        m_lineWidthLabel->setText(tr("Line Width:"));
+    }
+    if (m_fontSizeLabel) {
+        m_fontSizeLabel->setText(tr("Font Size:"));
+    }
+    if (m_fontFamilyLabel) {
+        m_fontFamilyLabel->setText(tr("Font:"));
+    }
+
+    // Update action button texts and tooltips
+    if (m_clearAllBtn) {
+        m_clearAllBtn->setText(tr("Clear All"));
+        m_clearAllBtn->setToolTip(tr("Clear all annotations"));
+    }
+    if (m_saveBtn) {
+        m_saveBtn->setText(tr("Save"));
+        m_saveBtn->setToolTip(tr("Save annotations to document"));
+    }
+    if (m_loadBtn) {
+        m_loadBtn->setText(tr("Load"));
+        m_loadBtn->setToolTip(tr("Load annotations from document"));
+    }
 }

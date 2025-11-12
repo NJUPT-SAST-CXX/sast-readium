@@ -16,16 +16,18 @@ The project uses CMake 3.28+ with automatic source discovery and multiple build 
 
 ```bash
 # Linux/macOS with system packages
-cmake --preset=Release-Unix
-cmake --build --preset=Release-Unix
+cmake --preset=Debug-Unix        # or Release-Unix
+cmake --build --preset=Debug-Unix
 
-# Windows with MSYS2 (Recommended for Windows)
-./scripts/build-msys2.sh -d    # Install deps and build
+# Windows with MSYS2 (Recommended for Windows, run in MSYS2 MINGW64 terminal)
+./scripts/build-msys2.sh -d      # Install deps and build
+# Or use presets directly:
+cmake --preset=Debug-MSYS2
+cmake --build --preset=Debug-MSYS2
 
 # Cross-platform with vcpkg (Alternative)
-cmake --preset=Release-Windows     # Windows
-cmake --preset=Release-Linux-vcpkg # Linux
-cmake --build --preset=Release-Windows
+cmake --preset=Debug-Windows     # Windows (also: Debug-Linux-vcpkg, Debug-macOS-vcpkg)
+cmake --build --preset=Debug-Windows
 ```
 
 **Development Commands:**
@@ -34,17 +36,24 @@ cmake --build --preset=Release-Windows
 # List all available presets
 cmake --list-presets=configure
 
-# Debug builds
-cmake --preset=Debug-Unix
-cmake --build --preset=Debug-Unix
+# Run all tests
+ctest --test-dir build -V        # Verbose output with test details
+ctest --test-dir build --output-on-failure  # Show output only for failures
 
-# Run tests
-ctest --test-dir build -V
-./scripts/run_tests.ps1    # Windows
-./scripts/run_tests.py     # Python test runner
+# Run specific test categories (Windows PowerShell)
+.\scripts\run_tests.ps1 -TestType Unit
+.\scripts\run_tests.ps1 -TestType Integration
+.\scripts\run_tests.ps1 -TestType Smoke
+.\scripts\run_tests.ps1 -TestType All -Parallel -Report  # Parallel with HTML report
 
-# clangd configuration (automatic with cmake, manual available)
-./scripts/update-clangd-config.sh --auto
+# Run single test executable directly
+./build/Debug-MSYS2/tests/test_cache_manager.exe  # Windows MSYS2
+./build/Debug-Unix/tests/test_cache_manager        # Linux/macOS
+
+# clangd configuration (auto-updated during cmake configuration)
+./scripts/update-clangd-config.sh --auto    # Linux/macOS/MSYS2
+.\scripts\update-clangd-config.ps1 -Auto    # Windows PowerShell
+./scripts/update-clangd-config.sh --list    # List available configs
 ```
 
 **Makefile Support (Linux/macOS):**
@@ -55,6 +64,7 @@ make configure   # Configure Debug build
 make build       # Build project
 make test        # Run tests
 make clangd-auto # Update clangd config
+make dev         # Setup development environment (installs pre-commit hooks)
 ```
 
 ## Architecture
@@ -129,6 +139,125 @@ Dependencies are configured in `cmake/Dependencies.cmake` with automatic platfor
 
 Automatic clangd configuration is handled by CMake. The `.clangd` file is auto-generated to point to the correct build directory's `compile_commands.json`. This ensures consistent IDE support without manual configuration drift.
 
+## Development Patterns
+
+### Command Pattern (Undo/Redo)
+
+All user actions must be implemented as commands in `app/command/`:
+
+```cpp
+// Example: Adding a new command
+class MyCommand : public QUndoCommand {
+public:
+    void undo() override { /* revert action */ }
+    void redo() override { /* perform action */ }
+};
+
+// Register with CommandManager
+CommandManager::instance().executeCommand(new MyCommand());
+```
+
+See existing commands: `DocumentCommands.cpp`, `NavigationCommands.cpp`, `InitializationCommand.cpp`
+
+### Service Locator (Dependency Injection)
+
+Central access to services via `ServiceLocator` in `app/controller/ServiceLocator.h`:
+
+```cpp
+// Register service during initialization
+ServiceLocator::instance().registerService<MyService>([] { return new MyService(); });
+
+// Retrieve service
+auto* service = ServiceLocator::instance().getService<DocumentController>();
+```
+
+### Event Bus (Decoupled Communication)
+
+Publish-subscribe pattern via `EventBus` in `app/controller/EventBus.h`:
+
+```cpp
+// Subscribe to events
+EventBus::instance().subscribe("document_opened", this, [](const QVariant& data) {
+    QString filename = data.toString();
+    // Handle event
+});
+
+// Publish events
+EventBus::instance().publish("document_opened", filename);
+```
+
+### Logging System
+
+Use `app/logging/SimpleLogging.h` for logging:
+
+```cpp
+// Initialize logging (in main.cpp)
+SastLogging::init();
+
+// Use logging macros
+SLOG_INFO("Document opened: %1").arg(path);
+SLOG_ERROR("Failed to load: %1").arg(error);
+
+// Or direct API
+SastLogging::info("Operation completed");
+```
+
+Runtime configuration via JSON files in `config/logging*.json`. See `docs/logging-system.md` for details.
+
+### Adding New Components
+
+**New Command:**
+
+1. Create command class in `app/command/`
+2. Implement `undo()` and `redo()` methods
+3. Register with `CommandManager`
+4. Bind to UI/shortcuts
+
+**New Service:**
+
+1. Define interface/implementation
+2. Register with `ServiceLocator` during initialization
+3. Retrieve via `getService<T>()` where needed
+
+**New Test:**
+
+1. Create `test_*.cpp` in appropriate `tests/` subdirectory
+2. CMake automatically discovers and creates test target
+3. Use `TestUtilities` library for common test infrastructure
+4. Run with `ctest` or `run_tests.ps1`
+
+## Key Files to Reference
+
+When working on the codebase, these files provide essential context:
+
+**Entry Points:**
+
+- `app/main.cpp` - Application entry point with initialization sequence
+- `app/MainWindow.h/.cpp` - Main window and UI coordination
+
+**Core Patterns:**
+
+- `app/command/CommandManager.h` - Command pattern for undo/redo
+- `app/controller/ServiceLocator.h` - Dependency injection
+- `app/controller/EventBus.h` - Event-driven communication
+- `app/factory/ModelFactory.h` - Model creation and configuration
+- `app/factory/WidgetFactory.h` - Widget creation with auto-wiring
+
+**Key Subsystems:**
+
+- `app/cache/CacheManager.h` - Caching infrastructure
+- `app/search/SearchEngine.h` - PDF text search
+- `app/logging/SimpleLogging.h` - Logging API
+- `app/model/DocumentModel.h` - PDF document state
+
+**Documentation:**
+
+- `docs/architecture.md` - Detailed architecture documentation
+- `docs/logging-system.md` - Logging system guide
+- `tests/README.md` - Testing framework documentation
+- `cmake/README.md` - CMake modules documentation
+- `.cursor/rules/` - Cursor AI rules for coding standards
+
 ## Development Notes
 
 - Source discovery is automatic via `discover_app_sources()` in `TargetUtils.cmake`
@@ -136,3 +265,7 @@ Automatic clangd configuration is handled by CMake. The `.clangd` file is auto-g
 - Library separation: `app_lib` contains all application code except `main.cpp` for testability
 - Platform-specific configuration is handled in `ProjectConfig.cmake`
 - C++20 standard is required with full compiler compliance checks
+- Pre-commit hooks enforce code formatting (clang-format), static analysis (clang-tidy), and documentation (markdownlint)
+  - Install with: `pip install pre-commit && pre-commit install`
+  - Run manually: `pre-commit run --all-files`
+- Project documentation system maintained in `llmdoc/` with master index at `llmdoc/index.md`

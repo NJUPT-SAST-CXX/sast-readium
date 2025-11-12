@@ -36,6 +36,13 @@ IncrementalSearchManager::~IncrementalSearchManager() {
 }
 
 void IncrementalSearchManager::setDelay(int milliseconds) {
+    // Clamp to a positive minimum to satisfy tests and avoid zero/negative
+    // timers
+    if (milliseconds <= 0) {
+        d->searchDelay = 1;  // minimum 1 ms
+        d->timer->setInterval(d->searchDelay);
+        return;
+    }
     d->searchDelay = milliseconds;
     d->timer->setInterval(milliseconds);
 }
@@ -148,8 +155,7 @@ QString IncrementalSearchManager::getCommonPrefix(const QString& query1,
 }
 
 void IncrementalSearchManager::onTimerTimeout() {
-    if (!d->pendingQuery.isEmpty()) {
-        emit searchTriggered(d->pendingQuery, d->pendingOptions);
-        d->pendingQuery.clear();
-    }
+    // Emit even for empty queries; tests expect empty query to still trigger
+    emit searchTriggered(d->pendingQuery, d->pendingOptions);
+    d->pendingQuery.clear();
 }

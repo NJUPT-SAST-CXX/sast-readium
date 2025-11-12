@@ -1,8 +1,8 @@
 #include "AsyncDocumentLoader.h"
 #include <QDateTime>
-#include <QDebug>
 #include <QFileInfo>
 #include <QMutexLocker>
+#include "../logging/SimpleLogging.h"
 
 AsyncDocumentLoader::AsyncDocumentLoader(QObject* parent)
     : QObject(parent),
@@ -105,9 +105,9 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath) {
                 if (threadToCleanup) {
                     threadToCleanup->quit();
                     if (!threadToCleanup->wait(3000)) {
-                        qWarning()
-                            << "AsyncDocumentLoader: Thread cleanup timeout "
-                               "after success, terminating";
+                        SLOG_WARNING(
+                            "AsyncDocumentLoader: Thread cleanup timeout after "
+                            "success, terminating");
                         threadToCleanup->terminate();
                         threadToCleanup->wait(1000);
                     }
@@ -162,9 +162,9 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath) {
                 if (threadToCleanup) {
                     threadToCleanup->quit();
                     if (!threadToCleanup->wait(3000)) {
-                        qWarning()
-                            << "AsyncDocumentLoader: Thread cleanup timeout "
-                               "after failure, terminating";
+                        SLOG_WARNING(
+                            "AsyncDocumentLoader: Thread cleanup timeout after "
+                            "failure, terminating");
                         threadToCleanup->terminate();
                         threadToCleanup->wait(1000);
                     }
@@ -225,8 +225,8 @@ void AsyncDocumentLoader::cancelLoading() {
     if (threadToCleanup) {
         threadToCleanup->quit();
         if (!threadToCleanup->wait(3000)) {
-            qWarning()
-                << "AsyncDocumentLoader: Thread cleanup timeout, terminating";
+            SLOG_WARNING(
+                "AsyncDocumentLoader: Thread cleanup timeout, terminating");
             threadToCleanup->terminate();
             threadToCleanup->wait(1000);
         }
@@ -275,8 +275,8 @@ void AsyncDocumentLoader::queueDocuments(const QStringList& filePaths) {
             }
         }
 
-        qDebug() << "Added" << filePaths.size()
-                 << "documents to queue. Queue size:" << m_documentQueue.size();
+        SLOG_DEBUG_F("Added {} documents to queue. Queue size: {}",
+                     filePaths.size(), m_documentQueue.size());
 
         // Check if we should start loading
         shouldStartLoading = !m_documentQueue.isEmpty();
@@ -299,8 +299,8 @@ void AsyncDocumentLoader::processNextInQueue() {
     {
         QMutexLocker locker(&m_stateMutex);
         if (m_state == LoadingState::Loading) {
-            qDebug()
-                << "AsyncDocumentLoader: Cannot process queue while loading";
+            SLOG_DEBUG(
+                "AsyncDocumentLoader: Cannot process queue while loading");
             return;  // Already loading, don't start another
         }
     }
@@ -317,7 +317,7 @@ void AsyncDocumentLoader::processNextInQueue() {
     }
 
     // 加载下一个文档
-    qDebug() << "Loading next document from queue:" << nextFilePath;
+    SLOG_DEBUG_F("Loading next document from queue: {}", nextFilePath);
     loadDocument(nextFilePath);
 }
 
@@ -392,9 +392,10 @@ void AsyncDocumentLoader::setTimeoutConfiguration(int defaultTimeoutMs,
     m_configuredMaxTimeout = maxTimeoutMs;
     m_useCustomTimeoutConfig = true;
 
-    qDebug() << "AsyncDocumentLoader: Timeout configuration set - Default:"
-             << defaultTimeoutMs << "Min:" << minTimeoutMs
-             << "Max:" << maxTimeoutMs;
+    SLOG_DEBUG_F(
+        "AsyncDocumentLoader: Timeout configuration set - Default: {} Min: {} "
+        "Max: {}",
+        defaultTimeoutMs, minTimeoutMs, maxTimeoutMs);
 }
 
 void AsyncDocumentLoader::resetTimeoutConfiguration() {
@@ -403,7 +404,7 @@ void AsyncDocumentLoader::resetTimeoutConfiguration() {
     m_configuredMinTimeout = 0;
     m_configuredMaxTimeout = 0;
 
-    qDebug() << "AsyncDocumentLoader: Timeout configuration reset to defaults";
+    SLOG_DEBUG("AsyncDocumentLoader: Timeout configuration reset to defaults");
 }
 
 // AsyncDocumentLoaderWorker 实现
@@ -439,8 +440,9 @@ void AsyncDocumentLoaderWorker::doLoad() {
         connect(m_timeoutTimer, &QTimer::timeout, this,
                 &AsyncDocumentLoaderWorker::onLoadTimeout);
 
-        qDebug() << "AsyncDocumentLoaderWorker: Timer created in worker thread:"
-                 << QThread::currentThread();
+        SLOG_DEBUG_F(
+            "AsyncDocumentLoaderWorker: Timer created in worker thread: {}",
+            static_cast<void*>(QThread::currentThread()));
     }
 
     // Calculate timeout based on file size
@@ -450,10 +452,13 @@ void AsyncDocumentLoaderWorker::doLoad() {
     // Start timeout timer (now works correctly in same thread)
     m_timeoutTimer->start(timeoutMs);
 
-    qDebug() << "AsyncDocumentLoaderWorker: Starting load with timeout:"
-             << timeoutMs << "ms for file:" << m_filePath;
-    qDebug() << "AsyncDocumentLoaderWorker: Timer and worker both in thread:"
-             << QThread::currentThread();
+    SLOG_DEBUG_F(
+        "AsyncDocumentLoaderWorker: Starting load with timeout: {} ms for "
+        "file: {}",
+        timeoutMs, m_filePath);
+    SLOG_DEBUG_F(
+        "AsyncDocumentLoaderWorker: Timer and worker both in thread: {}",
+        static_cast<void*>(QThread::currentThread()));
 
     try {
         // Check for cancellation before loading
@@ -471,8 +476,9 @@ void AsyncDocumentLoaderWorker::doLoad() {
         {
             QMutexLocker locker(&m_stateMutex);
             if (m_cancelled) {
-                qDebug() << "AsyncDocumentLoaderWorker: Loading cancelled "
-                            "after Poppler::Document::load()";
+                SLOG_DEBUG(
+                    "AsyncDocumentLoaderWorker: Loading cancelled after "
+                    "Poppler::Document::load()");
                 // Document will be automatically cleaned up when unique_ptr
                 // goes out of scope
                 return;  // Loading was cancelled during
@@ -483,8 +489,9 @@ void AsyncDocumentLoaderWorker::doLoad() {
         // Stop timeout timer - loading completed successfully
         if (m_timeoutTimer) {
             m_timeoutTimer->stop();
-            qDebug() << "AsyncDocumentLoaderWorker: Timer stopped - loading "
-                        "completed successfully";
+            SLOG_DEBUG(
+                "AsyncDocumentLoaderWorker: Timer stopped - loading completed "
+                "successfully");
         }
 
         if (!document) {
@@ -558,9 +565,10 @@ void AsyncDocumentLoaderWorker::retryLoad(int extendedTimeoutMs) {
 
     locker.unlock();
 
-    qDebug() << "AsyncDocumentLoaderWorker: Retrying load for file:"
-             << m_filePath << "with extended timeout:" << extendedTimeoutMs
-             << "ms";
+    SLOG_DEBUG_F(
+        "AsyncDocumentLoaderWorker: Retrying load for file: {} with extended "
+        "timeout: {} ms",
+        m_filePath, extendedTimeoutMs);
 
     // Call doLoad to retry
     doLoad();
@@ -576,13 +584,16 @@ void AsyncDocumentLoaderWorker::onLoadTimeout() {
         QMutexLocker locker(&m_stateMutex);
 
         if (!m_loadingInProgress || m_cancelled) {
-            qDebug() << "AsyncDocumentLoaderWorker: Timeout ignored - already "
-                        "finished or cancelled";
+            SLOG_DEBUG(
+                "AsyncDocumentLoaderWorker: Timeout ignored - already finished "
+                "or cancelled");
             return;  // Already finished or cancelled
         }
 
-        qDebug() << "AsyncDocumentLoaderWorker: Load timeout for file:"
-                 << m_filePath << "in thread:" << QThread::currentThread();
+        SLOG_DEBUG_F(
+            "AsyncDocumentLoaderWorker: Load timeout for file: {} in thread: "
+            "{}",
+            m_filePath, static_cast<void*>(QThread::currentThread()));
 
         // Set cancellation flag - this will be checked by the loading operation
         m_cancelled = true;
@@ -605,8 +616,8 @@ void AsyncDocumentLoaderWorker::onLoadTimeout() {
                                      1))
                 .arg(calculateTimeoutForFile(fileInfo.size()) / 1000);
 
-        qDebug() << "AsyncDocumentLoaderWorker: Emitting timeout error:"
-                 << timeoutMessage;
+        SLOG_DEBUG_F("AsyncDocumentLoaderWorker: Emitting timeout error: {}",
+                     timeoutMessage);
         emit loadFailed(timeoutMessage);
 
         // Perform cleanup - this is now thread-safe

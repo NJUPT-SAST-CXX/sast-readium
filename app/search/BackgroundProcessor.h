@@ -46,11 +46,14 @@ signals:
 private:
     class Implementation;
     std::unique_ptr<Implementation> d;
+
+    // Accessor to internal thread pool for templates
+    QThreadPool& threadPool() const;
 };
 
 // Template implementation
 template <typename Result>
 QFuture<Result> BackgroundProcessor::execute(std::function<Result()> task) {
     emit taskStarted();
-    return QtConcurrent::run(task);
+    return QtConcurrent::run(&threadPool(), std::move(task));
 }

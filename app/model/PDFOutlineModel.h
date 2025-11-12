@@ -102,9 +102,9 @@ private:
         const QList<Poppler::OutlineItem>& items, int level = 0);
 
     // 递归解析单个目录项
-    void parseOutlineItemRecursive(const Poppler::OutlineItem& item,
-                                   std::shared_ptr<PDFOutlineNode> parentNode,
-                                   int level);
+    void parseOutlineItemRecursive(
+        const Poppler::OutlineItem& item,
+        const std::shared_ptr<PDFOutlineNode>& parentNode, int level);
 
     // 计算目录项总数
     int countNodes(const QList<std::shared_ptr<PDFOutlineNode>>& nodes) const;

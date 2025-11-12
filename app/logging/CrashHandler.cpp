@@ -117,12 +117,21 @@ void CrashHandler::shutdown() {
     QMutexLocker locker(&d->mutex);
 
     if (!d->initialized) {
+        // Still clear transient state to be safe between tests
+        d->callbacks.clear();
+        d->contextData.clear();
+        d->lastOperation.clear();
         return;
     }
 
     uninstallSignalHandlers();
     uninstallExceptionHandlers();
     StackTraceUtils::cleanup();
+
+    // Clear transient state and user-provided callbacks to avoid dangling refs
+    d->callbacks.clear();
+    d->contextData.clear();
+    d->lastOperation.clear();
 
     d->initialized = false;
 }
@@ -256,7 +265,9 @@ void CrashHandler::handleCrash(const QString& exceptionType,
 }
 
 QString CrashHandler::writeCrashLog(const CrashInfo& info) {
-    QString timestamp = info.timestamp.toString("yyyy-MM-dd_HH-mm-ss");
+    // Include milliseconds to avoid filename collisions in rapid successive
+    // crashes
+    QString timestamp = info.timestamp.toString("yyyy-MM-dd_HH-mm-ss_zzz");
     QString filename = QString("crash_%1.log").arg(timestamp);
     QString filepath = d->crashLogDir + "/" + filename;
 

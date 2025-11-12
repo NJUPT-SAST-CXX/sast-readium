@@ -14,6 +14,10 @@
 class QLoggingCategory;
 class QDebug;
 class QTextStream;
+class QByteArray;
+class QRect;
+class QSize;
+class QPoint;
 
 /**
  * @brief Bridge class that integrates Qt's logging system with spdlog

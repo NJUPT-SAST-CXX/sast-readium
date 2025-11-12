@@ -2,13 +2,13 @@
 #include <poppler-annotation.h>
 #include <QColor>
 #include <QDateTime>
-#include <QDebug>
 #include <QHash>
 #include <QJsonDocument>
 #include <QPointF>
 #include <QRandomGenerator>
 #include <QtCore>
 #include <algorithm>
+#include "../logging/SimpleLogging.h"
 
 // PDFAnnotation serialization implementation
 QJsonObject PDFAnnotation::toJson() const {
@@ -323,19 +323,19 @@ QHash<int, QByteArray> AnnotationModel::roleNames() const {
 bool AnnotationModel::addAnnotation(const PDFAnnotation& annotation) {
     // Validate annotation
     if (annotation.id.isEmpty()) {
-        qWarning() << "Cannot add annotation with empty ID";
+        SLOG_WARNING("Cannot add annotation with empty ID");
         return false;
     }
 
     if (annotation.pageNumber < 0) {
-        qWarning() << "Cannot add annotation with invalid page number:"
-                   << annotation.pageNumber;
+        SLOG_WARNING_F("Cannot add annotation with invalid page number: {}",
+                       annotation.pageNumber);
         return false;
     }
 
     // Check for duplicate ID
     if (findAnnotationIndex(annotation.id) >= 0) {
-        qWarning() << "Annotation with ID" << annotation.id << "already exists";
+        SLOG_WARNING_F("Annotation with ID {} already exists", annotation.id);
         return false;
     }
 
@@ -366,20 +366,20 @@ bool AnnotationModel::removeAnnotation(const QString& annotationId) {
 bool AnnotationModel::updateAnnotation(const QString& annotationId,
                                        const PDFAnnotation& updatedAnnotation) {
     if (annotationId.isEmpty()) {
-        qWarning() << "Cannot update annotation with empty ID";
+        SLOG_WARNING("Cannot update annotation with empty ID");
         return false;
     }
 
     int index = findAnnotationIndex(annotationId);
     if (index < 0) {
-        qWarning() << "Annotation with ID" << annotationId << "not found";
+        SLOG_WARNING_F("Annotation with ID {} not found", annotationId);
         return false;
     }
 
     // Validate updated annotation
     if (updatedAnnotation.pageNumber < 0) {
-        qWarning() << "Cannot update annotation with invalid page number:"
-                   << updatedAnnotation.pageNumber;
+        SLOG_WARNING_F("Cannot update annotation with invalid page number: {}",
+                       updatedAnnotation.pageNumber);
         return false;
     }
 
@@ -512,8 +512,8 @@ bool AnnotationModel::loadAnnotationsFromDocument() {
                     loadedCount++;
                 }
             } catch (const std::exception& e) {
-                qWarning() << "Failed to load annotation from page" << pageNum
-                           << ":" << e.what();
+                SLOG_WARNING_F("Failed to load annotation from page {}: {}",
+                               pageNum, e.what());
             }
         }
     }
@@ -522,7 +522,7 @@ bool AnnotationModel::loadAnnotationsFromDocument() {
     endResetModel();
 
     emit annotationsLoaded(loadedCount);
-    qDebug() << "Loaded" << loadedCount << "annotations from document";
+    SLOG_DEBUG_F("Loaded {} annotations from document", loadedCount);
 
     return true;
 }
@@ -561,14 +561,14 @@ bool AnnotationModel::saveAnnotationsToDocument() {
                     savedCount++;
                 }
             } catch (const std::exception& e) {
-                qWarning() << "Failed to save annotation to page" << pageNum
-                           << ":" << e.what();
+                SLOG_WARNING_F("Failed to save annotation to page {}: {}",
+                               pageNum, e.what());
             }
         }
     }
 
     emit annotationsSaved(savedCount);
-    qDebug() << "Saved" << savedCount << "annotations to document";
+    SLOG_DEBUG_F("Saved {} annotations to document", savedCount);
 
     return savedCount > 0;
 }
@@ -763,8 +763,8 @@ Poppler::Annotation* PDFAnnotation::toPopplerAnnotation() const {
             }
 
             default:
-                qWarning() << "Unsupported annotation type for conversion:"
-                           << static_cast<int>(type);
+                SLOG_WARNING_F("Unsupported annotation type for conversion: {}",
+                               static_cast<int>(type));
                 return nullptr;
         }
 
@@ -797,7 +797,7 @@ Poppler::Annotation* PDFAnnotation::toPopplerAnnotation() const {
         }
 
     } catch (const std::exception& e) {
-        qWarning() << "Failed to create Poppler annotation:" << e.what();
+        SLOG_WARNING_F("Failed to create Poppler annotation: {}", e.what());
         if (annotation) {
             delete annotation;
             annotation = nullptr;
@@ -949,8 +949,8 @@ PDFAnnotation PDFAnnotation::fromPopplerAnnotation(
 
             default:
                 result.type = AnnotationType::Highlight;
-                qWarning() << "Unknown annotation type:"
-                           << static_cast<int>(annotation->subType());
+                SLOG_WARNING_F("Unknown annotation type: {}",
+                               static_cast<int>(annotation->subType()));
                 break;
         }
 
@@ -963,7 +963,7 @@ PDFAnnotation PDFAnnotation::fromPopplerAnnotation(
         }
 
     } catch (const std::exception& e) {
-        qWarning() << "Failed to convert Poppler annotation:" << e.what();
+        SLOG_WARNING_F("Failed to convert Poppler annotation: {}", e.what());
         // Return a default annotation in case of error
         result.type = AnnotationType::Highlight;
         result.pageNumber = pageNum;

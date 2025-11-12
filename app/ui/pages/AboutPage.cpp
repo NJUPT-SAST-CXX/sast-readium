@@ -186,7 +186,7 @@ void AboutPage::changeEvent(QEvent* event) {
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
     }
-    QWidget::changeEvent(event);
+    ElaDialog::changeEvent(event);
 }
 
 void AboutPage::retranslateUi() {

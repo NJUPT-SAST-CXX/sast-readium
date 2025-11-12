@@ -1,6 +1,5 @@
 #include "AccessibilityManager.h"
-#include <QDebug>
-#include <QTextToSpeech>
+#include "logging/SimpleLogging.h"
 
 AccessibilityManager::AccessibilityManager(QObject* parent)
     : QObject(parent),
@@ -13,14 +12,14 @@ AccessibilityManager::AccessibilityManager(QObject* parent)
 void AccessibilityManager::enableScreenReaderMode(bool enable) {
     if (m_screenReaderEnabled != enable) {
         m_screenReaderEnabled = enable;
-        qDebug() << "Screen reader mode:" << (enable ? "enabled" : "disabled");
+        SLOG_DEBUG_F("Screen reader mode: {}", enable ? "enabled" : "disabled");
         emit screenReaderModeChanged(enable);
     }
 }
 
 void AccessibilityManager::announceText(const QString& text) {
     if (m_screenReaderEnabled) {
-        qDebug() << "Announcing:" << text;
+        SLOG_DEBUG_F("Announcing: {}", text);
         // Integration with platform screen reader APIs
         startTextToSpeech(text);
     }
@@ -55,7 +54,7 @@ QColor AccessibilityManager::getHighlightColor() const {
 
 void AccessibilityManager::startTextToSpeech(const QString& text) {
     // Qt TextToSpeech integration
-    qDebug() << "TTS starting:" << text.left(50);
+    SLOG_DEBUG_F("TTS starting: {}", text.left(50));
     m_ttsActive = true;
     emit textToSpeechStateChanged(true);
     // Actual QTextToSpeech implementation would go here
@@ -68,13 +67,13 @@ void AccessibilityManager::stopTextToSpeech() {
 
 void AccessibilityManager::pauseTextToSpeech() const {
     if (m_ttsActive) {
-        qDebug() << "TTS paused";
+        SLOG_DEBUG("TTS paused");
     }
 }
 
 void AccessibilityManager::resumeTextToSpeech() const {
     if (m_ttsActive) {
-        qDebug() << "TTS resumed";
+        SLOG_DEBUG("TTS resumed");
     }
 }
 

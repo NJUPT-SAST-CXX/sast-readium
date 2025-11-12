@@ -1,5 +1,8 @@
 #pragma once
 
+#ifndef SAST_LOGGING_LOGGER_H
+#define SAST_LOGGING_LOGGER_H
+
 #include <spdlog/spdlog.h>
 #include <QObject>
 #include <QString>
@@ -76,14 +79,16 @@ public:
 
     void setLogLevel(LogLevel level);
     void setPattern(const QString& pattern);
+    LogLevel getLogLevel() const;
 
     // Sink management
     void addConsoleSink();
     void addFileSink(const QString& filename);
     void addRotatingFileSink(const QString& filename, size_t maxSize,
-                             size_t maxFiles);
+                             size_t maxFiles, bool rotateOnOpen = false);
     void addQtWidgetSink(QTextEdit* widget);
     void removeSink(SinkType type);
+    bool rotateFileSinks();
 
     // Qt widget integration
     void setQtWidget(QTextEdit* widget);
@@ -326,3 +331,5 @@ inline void Logger::critical(const std::string& format, Args&&... args) {
 */
 
 // Qt-style compatibility macros removed to avoid conflicts with Qt's own macros
+
+#endif  // SAST_LOGGING_LOGGER_H

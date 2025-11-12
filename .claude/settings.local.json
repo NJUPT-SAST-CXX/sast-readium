@@ -92,7 +92,13 @@
       "Bash(build/Debug-MSYS2/test_smoke.exe:*)",
       "Bash(build/Debug-MSYS2/test_service_locator.exe)",
       "Bash(build/Debug-MSYS2/test_cache_manager.exe:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(if [ -d build/Debug-MSYS2 ])",
+      "Bash(then echo 'Build directory exists')",
+      "Bash(else echo \"Build directory does not exist\")",
+      "Bash(if [ -d build/Debug-MSYS2/tests ])",
+      "Bash(then echo 'Tests directory exists')",
+      "Bash(else echo \"Tests directory does not exist - need to build tests\")"
     ],
     "deny": [],
     "ask": []

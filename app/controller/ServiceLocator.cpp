@@ -43,13 +43,13 @@ void ServiceLocator::registerServiceInstance(const QString& typeName,
 
     // Remove old service if exists
     if (m_services.contains(typeName)) {
-        QObject* oldService = m_services[typeName];
+        QObject* oldService = m_services[typeName].data();
         if (oldService && oldService->parent() == this) {
             oldService->deleteLater();
         }
     }
 
-    m_services[typeName] = instance;
+    m_services[typeName] = QPointer<QObject>(instance);
     m_logger.info(QString("Registered service instance: %1").arg(typeName));
     emit serviceRegistered(typeName);
 }
@@ -59,14 +59,19 @@ QObject* ServiceLocator::getServiceInstance(const QString& typeName) {
 
     // Check if service already exists
     if (m_services.contains(typeName)) {
-        return m_services[typeName];
+        if (!m_services[typeName].isNull()) {
+            return m_services[typeName].data();
+        } else {
+            // Clean up dangling pointer entry
+            m_services.remove(typeName);
+        }
     }
 
     // Try to create service if lazy loading is enabled
     if (m_lazyLoading && m_factories.contains(typeName)) {
         QObject* service = createService(typeName);
         if (service) {
-            m_services[typeName] = service;
+            m_services[typeName] = QPointer<QObject>(service);
             return service;
         }
     }
@@ -110,7 +115,8 @@ bool ServiceLocator::hasService(const QString& typeName) const {
 
 void ServiceLocator::removeService(const QString& typeName) {
     if (m_services.contains(typeName)) {
-        QObject* service = m_services.take(typeName);
+        QPointer<QObject> ptr = m_services.take(typeName);
+        QObject* service = ptr.data();
         if (service && service->parent() == this) {
             service->deleteLater();
         }
@@ -132,8 +138,9 @@ void ServiceLocator::clearServices() {
 
     // Delete services we own
     for (auto it = m_services.begin(); it != m_services.end(); ++it) {
-        if (it.value() && it.value()->parent() == this) {
-            it.value()->deleteLater();
+        QObject* svc = it.value().data();
+        if (svc && svc->parent() == this) {
+            svc->deleteLater();
         }
     }
 
@@ -148,8 +155,9 @@ void ServiceLocator::clearServicesUnsafe() {
 
     // Delete services we own
     for (auto it = m_services.begin(); it != m_services.end(); ++it) {
-        if (it.value() && it.value()->parent() == this) {
-            it.value()->deleteLater();
+        QObject* svc = it.value().data();
+        if (svc && svc->parent() == this) {
+            svc->deleteLater();
         }
     }
 

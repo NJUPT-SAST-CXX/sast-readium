@@ -32,7 +32,7 @@
 // ============================================================================
 
 StatusBar::StatusBar(QWidget* parent)
-    : QStatusBar(parent),
+    : ElaStatusBar(parent),
       m_currentPage(0),
       m_totalPages(0),
       m_zoomFactor(1.0),
@@ -314,7 +314,7 @@ void StatusBar::showMessage(const QString& message, MessagePriority priority,
     }
 
     displayTransientMessage(message, timeout, backgroundColor, textColor);
-    QStatusBar::showMessage(message, timeout);
+    ElaStatusBar::showMessage(message, timeout);
 }
 
 void StatusBar::setErrorMessage(const QString& message, int timeout) {
@@ -325,7 +325,7 @@ void StatusBar::setSuccessMessage(const QString& message, int timeout) {
     QColor backgroundColor("#28a745");  // Green
     QColor textColor("#ffffff");
     displayTransientMessage(message, timeout, backgroundColor, textColor);
-    QStatusBar::showMessage(message, timeout);
+    ElaStatusBar::showMessage(message, timeout);
 }
 
 void StatusBar::setWarningMessage(const QString& message, int timeout) {
@@ -358,7 +358,7 @@ void StatusBar::clearMessages(MessagePriority maxPriority) {
             m_messageLabel->hide();
             m_messageLabel->clear();
         }
-        QStatusBar::clearMessage();
+        ElaStatusBar::clearMessage();
         m_currentMessagePriority = MessagePriority::Low;
     }
 }
@@ -625,7 +625,7 @@ void StatusBar::clearAll() {
 }
 
 void StatusBar::setEnabled(bool enabled) {
-    QStatusBar::setEnabled(enabled);
+    ElaStatusBar::setEnabled(enabled);
 
     m_docInfoBtn->setEnabled(enabled);
     m_statisticsBtn->setEnabled(enabled);
@@ -640,7 +640,7 @@ void StatusBar::changeEvent(QEvent* event) {
     if (event->type() == QEvent::LanguageChange) {
         retranslateUi();
     }
-    QStatusBar::changeEvent(event);
+    ElaStatusBar::changeEvent(event);
 }
 
 // ============================================================================

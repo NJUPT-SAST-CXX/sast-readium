@@ -1,4 +1,5 @@
 #include <QAtomicInt>
+#include <QElapsedTimer>
 #include <QFuture>
 #include <QFutureWatcher>
 #include <QMutex>
@@ -19,7 +20,7 @@
 class BackgroundProcessorTest : public TestBase {
     Q_OBJECT
 
-protected:
+private slots:
     void initTestCase() override;
     void cleanupTestCase() override;
     void init() override;
@@ -85,23 +86,22 @@ void BackgroundProcessorTest::cleanupTestCase() {
 }
 
 void BackgroundProcessorTest::init() {
+    qInfo() << "Test init: creating m_processor";
     m_processor = new BackgroundProcessor(this);
+    qInfo() << "Test init: created m_processor";
     m_taskCounter.storeRelease(0);
     m_results.clear();
 }
 
 void BackgroundProcessorTest::cleanup() {
     if (m_processor) {
+        qInfo() << "Test cleanup: cancelAll";
         m_processor->cancelAll();
+        qInfo() << "Test cleanup: waitForDone";
         m_processor->waitForDone(5000);  // Increased timeout
-        // Also wait for global thread pool to ensure all tasks complete
-        QThreadPool::globalInstance()->waitForDone();
-
-        // Process any pending deleteLater() calls
-        QCoreApplication::processEvents();
-        QTest::qWait(100);
-
+        qInfo() << "Test cleanup: deleting m_processor";
         delete m_processor;
+        qInfo() << "Test cleanup: deleted m_processor";
         m_processor = nullptr;
     }
 }
@@ -148,14 +148,21 @@ void BackgroundProcessorTest::testSetThreadPriority() {
 }
 
 void BackgroundProcessorTest::testExecuteAsync() {
+    qInfo() << "Test testExecuteAsync: begin";
     QSignalSpy taskStartedSpy(m_processor, &BackgroundProcessor::taskStarted);
     QSignalSpy taskFinishedSpy(m_processor, &BackgroundProcessor::taskFinished);
 
     bool taskExecuted = false;
     m_processor->executeAsync([&taskExecuted]() { taskExecuted = true; });
 
-    // Wait for task completion
-    QVERIFY(waitForSignal(m_processor, SIGNAL(taskFinished()), 1000));
+    // Deterministic wait using BackgroundProcessor API
+    m_processor->waitForDone(2000);
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+
+    qInfo() << "Test testExecuteAsync: spyCount after waitForDone"
+            << taskFinishedSpy.count();
+    QVERIFY(taskFinishedSpy.count() > 0);
+    qInfo() << "Test testExecuteAsync: end";
 
     QVERIFY(taskExecuted);
     QCOMPARE(taskStartedSpy.count(), 1);

@@ -2,7 +2,6 @@
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QDateTime>
-#include <QDebug>
 #include <QElapsedTimer>
 #include <QFont>
 #include <QHash>
@@ -17,6 +16,7 @@
 #include <QStyleOptionViewItem>
 #include <QTimer>
 #include <atomic>
+#include "../logging/SimpleLogging.h"
 #include "../managers/StyleManager.h"
 #include "../model/ThumbnailModel.h"
 
@@ -1133,12 +1133,12 @@ void ThumbnailDelegate::Implementation::updatePerformanceStats() const {
     sampleCounter++;
 
     if (sampleCounter % static_cast<int>(1.0 / PERFORMANCE_SAMPLE_RATE) == 0) {
-        qDebug() << "ThumbnailDelegate Performance Stats:";
-        qDebug() << "  Paint calls:" << performanceStats.paintCalls.load();
-        qDebug() << "  Avg paint time:" << performanceStats.averagePaintTime()
-                 << "ms";
-        qDebug() << "  Cache hit rate:"
-                 << (performanceStats.cacheHitRate() * 100) << "%";
-        qDebug() << "  Cache size:" << renderCache.size();
+        SLOG_DEBUG("ThumbnailDelegate Performance Stats:");
+        SLOG_DEBUG_F("  Paint calls: {}", performanceStats.paintCalls.load());
+        SLOG_DEBUG_F("  Avg paint time: {} ms",
+                     performanceStats.averagePaintTime());
+        SLOG_DEBUG_F("  Cache hit rate: {}%",
+                     performanceStats.cacheHitRate() * 100);
+        SLOG_DEBUG_F("  Cache size: {}", renderCache.size());
     }
 }
