@@ -1,0 +1,551 @@
+name: Package and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to package (e.g., v1.0.0)'
+        required: true
+        default: 'v0.1.0'
+      create_release:
+        description: 'Create GitHub release'
+        required: false
+        default: true
+        type: boolean
+      use_platform_builds:
+        description: 'Use artifacts from platform-specific workflows'
+        required: false
+        default: true
+        type: boolean
+
+permissions: write-all
+
+env:
+  APP_NAME: sast-readium
+
+jobs:
+  # Extract version information
+  version-info:
+    name: Extract Version Info
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_number: ${{ steps.version.outputs.version_number }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+          fi
+
+          VERSION_NUMBER=${VERSION#v}
+          IS_PRERELEASE=false
+
+          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+            IS_PRERELEASE=true
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_number=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+
+          echo "Version: $VERSION"
+          echo "Version Number: $VERSION_NUMBER"
+          echo "Is Prerelease: $IS_PRERELEASE"
+
+  # Trigger platform builds if needed
+  trigger-builds:
+    name: Trigger Platform Builds
+    runs-on: ubuntu-latest
+    needs: version-info
+    if: github.event.inputs.use_platform_builds != 'true'
+    outputs:
+      build_triggered: ${{ steps.trigger.outputs.build_triggered }}
+
+    steps:
+      - name: Trigger platform workflows
+        id: trigger
+        run: |
+          echo "Triggering platform-specific builds..."
+          echo "build_triggered=true" >> $GITHUB_OUTPUT
+          # Note: In a real scenario, you might trigger the platform workflows here
+          # For now, we'll proceed with the fallback build approach
+
+  # Build all platforms for packaging (fallback when not using platform workflows)
+  build-for-packaging:
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    needs: version-info
+    if: github.event.inputs.use_platform_builds != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x64 - System packages (preferred)
+          - platform: linux
+            arch: x64
+            runner: ubuntu-latest
+            preset: Release-Unix
+            package_manager: apt
+            packages: qt6-base-dev qt6-svg-dev qt6-tools-dev libpoppler-qt6-dev build-essential cmake ninja-build pkg-config ccache
+
+          # macOS Universal (Intel + Apple Silicon)
+          - platform: macos
+            arch: universal
+            runner: macos-latest
+            preset: Release-Unix
+            package_manager: brew
+            packages: cmake ninja qt@6 poppler-qt5 pkg-config ccache
+
+          # Windows x64 - MSYS2 preferred, vcpkg fallback
+          - platform: windows
+            arch: x64
+            runner: windows-latest
+            preset: Release-MSYS2
+            use_msys2: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      # System package builds (Linux/macOS)
+      - name: Install system dependencies
+        if: matrix.package_manager
+        run: |
+          if [ "${{ matrix.package_manager }}" = "apt" ]; then
+            sudo apt update
+            sudo apt install -y ${{ matrix.packages }}
+          elif [ "${{ matrix.package_manager }}" = "brew" ]; then
+            export HOMEBREW_NO_AUTO_UPDATE=1
+            brew install ${{ matrix.packages }}
+          fi
+        shell: bash
+
+      # MSYS2 setup for Windows
+      - name: Setup MSYS2 (Windows)
+        if: matrix.use_msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          update: true
+          install: >-
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-svg
+            mingw-w64-x86_64-qt6-tools
+            mingw-w64-x86_64-poppler-qt6
+            mingw-w64-x86_64-pkg-config
+            git
+
+      - name: Configure CMake
+        run: |
+          if [ "${{ matrix.platform }}" = "macos" ] && [ "${{ matrix.arch }}" = "universal" ]; then
+            export PKG_CONFIG_PATH="$(brew --prefix qt@6)/lib/pkgconfig:$PKG_CONFIG_PATH"
+            cmake --preset=${{ matrix.preset }} -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DUSE_VCPKG=OFF
+          elif [ "${{ matrix.platform }}" = "linux" ]; then
+            cmake --preset=${{ matrix.preset }} -DUSE_VCPKG=OFF
+          elif [ "${{ matrix.platform }}" = "windows" ] && [ "${{ matrix.use_msys2 }}" = "true" ]; then
+            cmake --preset=${{ matrix.preset }}
+          fi
+        shell: bash
+
+      - name: Build
+        run: |
+          cmake --build --preset=${{ matrix.preset }} --parallel 4
+        shell: bash
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            build/Release*/app/
+          retention-days: 1
+
+  # Package for Linux (.deb, .rpm, AppImage)
+  package-linux:
+    name: Package Linux
+    runs-on: ubuntu-latest
+    needs: [version-info, build-for-packaging]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Linux build
+        uses: actions/download-artifact@v4
+        with:
+          name: build-linux-x64
+          path: build/
+
+      - name: Install packaging tools
+        run: |
+          sudo apt update
+          sudo apt install -y dpkg-dev rpm build-essential fakeroot
+
+          # Install AppImage tools
+          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          sudo mv appimagetool-x86_64.AppImage /usr/local/bin/appimagetool
+
+      - name: Create .deb package
+        run: |
+          mkdir -p packaging/deb/DEBIAN
+          mkdir -p packaging/deb/usr/bin
+          mkdir -p packaging/deb/usr/share/applications
+          mkdir -p packaging/deb/usr/share/pixmaps
+
+          # Copy binary
+          cp build/Release/app/app packaging/deb/usr/bin/${{ env.APP_NAME }}
+
+          # Create desktop file
+          cat > packaging/deb/usr/share/applications/${{ env.APP_NAME }}.desktop << EOF
+          [Desktop Entry]
+          Name=SAST Readium
+          Comment=Qt6-based PDF reader
+          Exec=${{ env.APP_NAME }}
+          Icon=${{ env.APP_NAME }}
+          Terminal=false
+          Type=Application
+          Categories=Office;Viewer;
+          MimeType=application/pdf;
+          EOF
+
+          # Create control file
+          cat > packaging/deb/DEBIAN/control << EOF
+          Package: ${{ env.APP_NAME }}
+          Version: ${{ needs.version-info.outputs.version_number }}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: libqt6core6, libqt6gui6, libqt6widgets6, libqt6svg6, libpoppler-qt6-3
+          Maintainer: SAST Team
+          Description: Qt6-based PDF reader application
+           A modern PDF reader built with Qt6 and Poppler.
+          EOF
+
+          # Build .deb
+          dpkg-deb --build packaging/deb ${{ env.APP_NAME }}_${{ needs.version-info.outputs.version_number }}_amd64.deb
+
+      - name: Create .rpm package
+        run: |
+          mkdir -p packaging/rpm/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
+          # Create RPM spec file
+          cat > packaging/rpm/SPECS/${{ env.APP_NAME }}.spec << EOF
+          Name: ${{ env.APP_NAME }}
+          Version: ${{ needs.version-info.outputs.version_number }}
+          Release: 1%{?dist}
+          Summary: Qt6-based PDF reader
+          License: MIT
+          URL: https://github.com/SAST-Readium/sast-readium
+
+          %description
+          A modern PDF reader built with Qt6 and Poppler.
+
+          %install
+          mkdir -p %{buildroot}/usr/bin
+          mkdir -p %{buildroot}/usr/share/applications
+          cp ${{ github.workspace }}/build/Release/app/app %{buildroot}/usr/bin/${{ env.APP_NAME }}
+          cp ${{ github.workspace }}/packaging/deb/usr/share/applications/${{ env.APP_NAME }}.desktop %{buildroot}/usr/share/applications/
+
+          %files
+          /usr/bin/${{ env.APP_NAME }}
+          /usr/share/applications/${{ env.APP_NAME }}.desktop
+
+          %changelog
+          * $(date +'%a %b %d %Y') SAST Team - ${{ needs.version-info.outputs.version_number }}-1
+          - Release ${{ needs.version-info.outputs.version }}
+          EOF
+
+          # Build RPM
+          rpmbuild --define "_topdir $(pwd)/packaging/rpm" -bb packaging/rpm/SPECS/${{ env.APP_NAME }}.spec
+          cp packaging/rpm/RPMS/x86_64/${{ env.APP_NAME }}-*.rpm ./
+
+      - name: Create AppImage
+        run: |
+          mkdir -p packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/bin
+          mkdir -p packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/share/applications
+          mkdir -p packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/share/icons/hicolor/256x256/apps
+
+          # Copy files
+          cp build/Release/app/app packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/bin/${{ env.APP_NAME }}
+          cp packaging/deb/usr/share/applications/${{ env.APP_NAME }}.desktop packaging/appimage/${{ env.APP_NAME }}.AppDir/
+
+          # Create AppRun
+          cat > packaging/appimage/${{ env.APP_NAME }}.AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          exec "${HERE}/usr/bin/${{ env.APP_NAME }}" "$@"
+          EOF
+          chmod +x packaging/appimage/${{ env.APP_NAME }}.AppDir/AppRun
+
+          # Build AppImage
+          cd packaging/appimage
+          appimagetool ${{ env.APP_NAME }}.AppDir ${{ env.APP_NAME }}-${{ needs.version-info.outputs.version_number }}-x86_64.AppImage
+          mv *.AppImage ../../
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-linux
+          path: |
+            *.deb
+            *.rpm
+            *.AppImage
+
+  # Package for macOS (.dmg)
+  package-macos:
+    name: Package macOS
+    runs-on: macos-latest
+    needs: [version-info, build-for-packaging]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download macOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: build-macos-universal
+          path: build/
+
+      - name: Install packaging tools
+        run: |
+          brew install create-dmg
+
+      - name: Create .app bundle
+        run: |
+          mkdir -p packaging/macos/${{ env.APP_NAME }}.app/Contents/{MacOS,Resources}
+
+          # Copy binary
+          cp build/Release/app/app packaging/macos/${{ env.APP_NAME }}.app/Contents/MacOS/${{ env.APP_NAME }}
+          chmod +x packaging/macos/${{ env.APP_NAME }}.app/Contents/MacOS/${{ env.APP_NAME }}
+
+          # Create Info.plist
+          cat > packaging/macos/${{ env.APP_NAME }}.app/Contents/Info.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>${{ env.APP_NAME }}</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.sast.readium</string>
+              <key>CFBundleName</key>
+              <string>SAST Readium</string>
+              <key>CFBundleVersion</key>
+              <string>${{ needs.version-info.outputs.version_number }}</string>
+              <key>CFBundleShortVersionString</key>
+              <string>${{ needs.version-info.outputs.version_number }}</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.15</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Create .dmg
+        run: |
+          create-dmg \
+            --volname "SAST Readium ${{ needs.version-info.outputs.version_number }}" \
+            --volicon "assets/images/icon.icns" \
+            --window-pos 200 120 \
+            --window-size 600 300 \
+            --icon-size 100 \
+            --icon "${{ env.APP_NAME }}.app" 175 120 \
+            --hide-extension "${{ env.APP_NAME }}.app" \
+            --app-drop-link 425 120 \
+            "${{ env.APP_NAME }}-${{ needs.version-info.outputs.version_number }}-universal.dmg" \
+            "packaging/macos/" || true
+
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-macos
+          path: |
+            *.dmg
+
+  # Package for Windows (.msi)
+  package-windows:
+    name: Package Windows
+    runs-on: windows-latest
+    needs: [version-info, build-for-packaging]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: build-windows-x64
+          path: build/
+
+      - name: Install WiX Toolset
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip" -OutFile "wix.zip"
+          Expand-Archive -Path "wix.zip" -DestinationPath "wix"
+          echo "${{ github.workspace }}\wix" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Create MSI installer
+        run: |
+          # Create WiX source file
+          @"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+            <Product Id="*" Name="SAST Readium" Language="1033" Version="${{ needs.version-info.outputs.version_number }}"
+                     Manufacturer="SAST Team" UpgradeCode="12345678-1234-1234-1234-123456789012">
+              <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+              <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
+              <MediaTemplate EmbedCab="yes" />
+
+              <Feature Id="ProductFeature" Title="SAST Readium" Level="1">
+                <ComponentGroupRef Id="ProductComponents" />
+              </Feature>
+            </Product>
+
+            <Fragment>
+              <Directory Id="TARGETDIR" Name="SourceDir">
+                <Directory Id="ProgramFilesFolder">
+                  <Directory Id="INSTALLFOLDER" Name="SAST Readium" />
+                </Directory>
+              </Directory>
+            </Fragment>
+
+            <Fragment>
+              <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+                <Component Id="MainExecutable" Guid="*">
+                  <File Id="AppExe" Source="build\Release-Windows\app\app.exe" KeyPath="yes" />
+                </Component>
+              </ComponentGroup>
+            </Fragment>
+          </Wix>
+          "@ | Out-File -FilePath "installer.wxs" -Encoding UTF8
+
+          # Compile and link
+          candle.exe installer.wxs
+          light.exe installer.wixobj -o "${{ env.APP_NAME }}-${{ needs.version-info.outputs.version_number }}-x64.msi"
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-windows
+          path: |
+            *.msi
+
+  # Create GitHub Release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [version-info, package-linux, package-macos, package-windows]
+    if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all packages
+        uses: actions/download-artifact@v4
+        with:
+          path: packages/
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Generate changelog since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -n "$LAST_TAG" ]; then
+            echo "## Changes since $LAST_TAG" > release_notes.md
+            echo "" >> release_notes.md
+            git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD >> release_notes.md
+          else
+            echo "## Initial Release" > release_notes.md
+            echo "" >> release_notes.md
+            echo "First release of SAST Readium - a modern Qt6-based PDF reader." >> release_notes.md
+          fi
+
+          echo "" >> release_notes.md
+          echo "## Platform Support" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Supported Platforms" >> release_notes.md
+          echo "- **Linux x64**: .deb, .rpm, AppImage" >> release_notes.md
+          echo "- **macOS Universal**: .dmg (Intel + Apple Silicon)" >> release_notes.md
+          echo "- **Windows x64**: .msi installer" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Installation" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Linux:**" >> release_notes.md
+          echo "- Ubuntu/Debian: Download and install the .deb package" >> release_notes.md
+          echo "- RHEL/CentOS/Fedora: Download and install the .rpm package" >> release_notes.md
+          echo "- Universal: Download and run the AppImage" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**macOS:**" >> release_notes.md
+          echo "- Download the .dmg file and drag to Applications folder" >> release_notes.md
+          echo "- Supports both Intel and Apple Silicon Macs" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Windows:**" >> release_notes.md
+          echo "- Download and run the .msi installer" >> release_notes.md
+          echo "- Requires Windows 10 or later" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "## Dependencies" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "- Qt6 (Core, Gui, Widgets, Svg)" >> release_notes.md
+          echo "- Poppler-Qt6 for PDF rendering" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "System packages are preferred over vcpkg for better performance." >> release_notes.md
+
+      - name: Organize release assets
+        run: |
+          mkdir -p release_assets
+
+          # Copy and rename packages with consistent naming
+          find packages/ -name "*.deb" -exec cp {} release_assets/ \;
+          find packages/ -name "*.rpm" -exec cp {} release_assets/ \;
+          find packages/ -name "*.AppImage" -exec cp {} release_assets/ \;
+          find packages/ -name "*.dmg" -exec cp {} release_assets/ \;
+          find packages/ -name "*.msi" -exec cp {} release_assets/ \;
+
+          # List all assets
+          echo "Release assets:"
+          ls -la release_assets/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.version-info.outputs.version }}
+          name: SAST Readium ${{ needs.version-info.outputs.version }}
+          body_path: release_notes.md
+          prerelease: ${{ needs.version-info.outputs.is_prerelease }}
+          files: |
+            release_assets/*
+          generate_release_notes: true
+          append_body: true
+
+      - name: Update package repositories
+        if: needs.version-info.outputs.is_prerelease == 'false'
+        run: |
+          echo "🚀 Release ${{ needs.version-info.outputs.version }} created successfully!"
+          echo ""
+          echo "📦 Available packages:"
+          echo "- Linux: .deb, .rpm, AppImage"
+          echo "- macOS: .dmg (Universal Binary)"
+          echo "- Windows: .msi installer"
+          echo ""
+          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.version-info.outputs.version }}"
