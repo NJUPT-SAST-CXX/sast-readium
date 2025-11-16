@@ -474,11 +474,11 @@ int AnnotationModel::findAnnotationIndex(const QString& annotationId) const {
 
 void AnnotationModel::sortAnnotations() {
     std::sort(m_annotations.begin(), m_annotations.end(),
-              [](const PDFAnnotation& a, const PDFAnnotation& b) {
-                  if (a.pageNumber != b.pageNumber) {
-                      return a.pageNumber < b.pageNumber;
+              [](const PDFAnnotation& lhs, const PDFAnnotation& rhs) {
+                  if (lhs.pageNumber != rhs.pageNumber) {
+                      return lhs.pageNumber < rhs.pageNumber;
                   }
-                  return a.createdTime > b.createdTime;
+                  return lhs.createdTime > rhs.createdTime;
               });
 }
 
@@ -629,8 +629,8 @@ QList<PDFAnnotation> AnnotationModel::getRecentAnnotations(int count) const {
 
     QList<PDFAnnotation> sorted = m_annotations;
     std::sort(sorted.begin(), sorted.end(),
-              [](const PDFAnnotation& a, const PDFAnnotation& b) {
-                  return a.modifiedTime > b.modifiedTime;
+              [](const PDFAnnotation& lhs, const PDFAnnotation& rhs) {
+                  return lhs.modifiedTime > rhs.modifiedTime;
               });
 
     if (sorted.size() > count) {
@@ -941,12 +941,9 @@ PDFAnnotation PDFAnnotation::fromPopplerAnnotation(
             }
 
             case Poppler::Annotation::AStamp:
-                result.type =
-                    AnnotationType::Note;  // Map stamp to note for simplicity
-                break;
-
             case Poppler::Annotation::ACaret:
-                result.type = AnnotationType::Note;  // Map caret to note
+                result.type =
+                    AnnotationType::Note;  // Map stamp and caret to note
                 break;
 
             default:
