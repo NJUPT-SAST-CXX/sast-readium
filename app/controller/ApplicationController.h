@@ -128,6 +128,7 @@ private:
     void connectControllerSignals();
     void connectViewSignals();
     void setupErrorHandling();
+    void applyRenderingSettingsFromConfig();
 
     // Main window reference
     QPointer<QMainWindow> m_mainWindow;

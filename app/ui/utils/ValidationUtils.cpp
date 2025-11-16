@@ -217,15 +217,17 @@ void ValidationUtils::setValidationState(QWidget* widget, bool isValid,
 }
 
 bool ValidationUtils::getValidationState(QWidget* widget) {
-    if (!widget)
+    if (!widget) {
         return false;
+    }
 
     return widget->property("validationState").toBool();
 }
 
 void ValidationUtils::clearAllValidationStates(QWidget* parent) {
-    if (!parent)
+    if (!parent) {
         return;
+    }
 
     // Find all child widgets and clear their validation states
     auto children = parent->findChildren<QWidget*>();
@@ -240,8 +242,9 @@ void ValidationUtils::clearAllValidationStates(QWidget* parent) {
 
 void ValidationUtils::applyValidationStyling(
     QWidget* widget, UIErrorHandler::ValidationResult result) {
-    if (!widget)
+    if (!widget) {
         return;
+    }
 
     QString styleClass;
     switch (result) {
@@ -250,6 +253,9 @@ void ValidationUtils::applyValidationStyling(
             break;
         case UIErrorHandler::ValidationResult::Invalid:
             styleClass = "invalid-input";
+            break;
+        case UIErrorHandler::ValidationResult::Warning:
+            styleClass = "warning-input";
             break;
         case UIErrorHandler::ValidationResult::Critical:
             styleClass = "critical-input";
@@ -283,8 +289,9 @@ ValidationStateGuard::~ValidationStateGuard() {
 }
 
 void ValidationStateGuard::addWidget(QWidget* widget) {
-    if (!widget)
+    if (!widget) {
         return;
+    }
 
     m_widgets.append(widget);
     m_originalStates[widget] = ValidationUtils::getValidationState(widget);

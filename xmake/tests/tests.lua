@@ -195,8 +195,8 @@ if has_config("enable_tests") then
 
     if has_package("gtest") then
     create_test_target("test_windows_path", "$(projectdir)/tests/managers/test_windows_path.cpp", 300, {packages = {"gtest"}})
-    else
-        print("Google Test not found, skipping test_windows_path")
+    elseif not has_config("quiet") then
+        cprint("${yellow}Google Test not found, skipping test_windows_path${clear}")
     end
 
     create_test_target("test_search_model", "$(projectdir)/tests/model/test_search_model.cpp", 300)
@@ -204,8 +204,8 @@ if has_config("enable_tests") then
     create_test_target("test_rendering_performance", "$(projectdir)/tests/performance/test_rendering_performance.cpp", 600)
     if has_config("enable_qgraphics_pdf") then
     create_test_target("test_qgraphics_rendering_performance", "$(projectdir)/tests/performance/test_qgraphics_rendering_performance.cpp", 600)
-    else
-        print("QGraphics PDF support disabled, skipping test_qgraphics_rendering_performance")
+    elseif not has_config("quiet") then
+        cprint("${dim}QGraphics PDF support disabled, skipping test_qgraphics_rendering_performance${clear}")
     end
     create_test_target("test_search_optimizations", "$(projectdir)/tests/performance/test_search_optimizations.cpp", 600)
 
@@ -256,9 +256,11 @@ if has_config("enable_tests") then
     create_test_target("test_pdf_optimizations", "$(projectdir)/tests/utils/test_pdf_optimizations.cpp", 300)
     if has_package("gtest") then
         create_test_target("test_thread_safety", "tests/utils/test_thread_safety.cpp", 600, {packages = {"gtest"}})
-    else
-        print("Google Test not found, skipping test_thread_safety")
+    elseif not has_config("quiet") then
+        cprint("${yellow}Google Test not found, skipping test_thread_safety${clear}")
     end
 
-    print("Comprehensive test support enabled with 73+ test targets")
+    if not has_config("quiet") then
+        cprint("${green}Comprehensive test support enabled with 73+ test targets${clear}")
+    end
 end

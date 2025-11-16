@@ -7,10 +7,12 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QList>
+#include <QMap>
 #include <QObject>
 #include <QRandomGenerator>
 #include <QRectF>
 #include <QString>
+#include <QStringList>
 
 /**
  * Annotation types supported by the system

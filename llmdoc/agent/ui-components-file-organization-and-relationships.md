@@ -291,9 +291,11 @@ WelcomeScreenManager
 ## File Groups and Responsibilities
 
 ### Main Window Group (1 file pair)
+
 - `MainWindow` - Application entry point and main container
 
 ### Core UI Components (12 file pairs)
+
 - `MenuBar` - Menu management
 - `ToolBar` - Toolbar management with file, navigation, zoom, view, tools operations
 - `StatusBar` - Status display with expandable panels
@@ -308,11 +310,13 @@ WelcomeScreenManager
 - `UIConsistencyManager` - UI consistency enforcement
 
 ### Dialogs (3 file pairs)
+
 - `DocumentMetadataDialog` - Metadata display dialog
 - `DocumentComparison` - Document comparison dialog
 - `SettingsDialog` - Settings dialog
 
 ### Widgets (14 file pairs)
+
 - `DocumentTabWidget` - Multi-document tab management
 - `SearchWidget` - Search interface
 - `WelcomeWidget` - Welcome screen
@@ -329,6 +333,7 @@ WelcomeScreenManager
 - `EnhancedFocusIndicator` - Focus indicator
 
 ### Viewers (6 file pairs)
+
 - `PDFViewer` - Main PDF viewer
 - `PDFPrerenderer` - Asynchronous page prerendering
 - `PDFAnimations` - Animation support
@@ -337,15 +342,18 @@ WelcomeScreenManager
 - `SplitViewManager` - Split view management
 
 ### Thumbnails (4 file pairs)
+
 - `ThumbnailListView` - Thumbnail list with virtual scrolling
 - `ThumbnailGenerator` - Thumbnail generation
 - `ThumbnailWidget` - Thumbnail container
 - `ThumbnailContextMenu` - Thumbnail context menu
 
 ### Managers (1 file pair)
+
 - `WelcomeScreenManager` - Welcome screen state management
 
 ### Theme/Utils (2 file pairs)
+
 - `ReadingModeManager` - Reading mode and theme management
 - `ValidationUtils` - UI input validation utilities
 
@@ -387,11 +395,13 @@ WelcomeScreenManager
 ### Signal/Slot Connections
 
 1. **Menu Actions → Document Operations**
+
    ```
    MenuBar::onExecuted() → ApplicationController::onActionRequested()
    ```
 
 2. **Document Changes → UI Updates**
+
    ```
    DocumentModel::documentOpened() → ViewWidget::onDocumentOpened()
    DocumentModel::documentOpened() → SideBar::setDocument()
@@ -399,6 +409,7 @@ WelcomeScreenManager
    ```
 
 3. **Page Navigation → Viewer Updates**
+
    ```
    ToolBar::pageJumpRequested() → ViewWidget::goToPage()
    StatusBar::pageJumpRequested() → ViewWidget::goToPage()
@@ -407,12 +418,14 @@ WelcomeScreenManager
    ```
 
 4. **Search Operations → Highlighting**
+
    ```
    SearchWidget::searchRequested() → PDFViewer::performSearch()
    SearchWidget::navigateToResult() → PDFViewer::scrollToResult()
    ```
 
 5. **State Changes → Persistence**
+
    ```
    ViewWidget::currentViewerPageChanged() → UIStateManager::setState()
    SideBar::widthChanged() → UIStateManager::setState()
@@ -420,12 +433,14 @@ WelcomeScreenManager
    ```
 
 6. **Error Handling → User Feedback**
+
    ```
    DocumentController::error() → UIErrorHandler::handleSystemError()
    UIErrorHandler::showFeedback() → ToastNotification display
    ```
 
 7. **Resource Management → Cleanup**
+
    ```
    UIResourceManager tracks all widgets
    UIResourceManager::cleanupTimer() → periodically clean expired resources
@@ -644,21 +659,25 @@ MainWindow (ownership root)
 ## Performance Considerations
 
 ### Virtual Scrolling
+
 - `ThumbnailListView` uses virtual scrolling to handle large documents efficiently
 - Lazy loading of thumbnails
 - Preloading margin configurable (default: 3 pages)
 
 ### Asynchronous Rendering
+
 - `PDFPrerenderer` renders pages in background
 - `PDFPageWidget` tracks render state (NotRendered, Rendering, Rendered, RenderError)
 - DPI optimization for different screen resolutions
 
 ### Caching
+
 - Search results cached in `SearchResultCache`
 - Page text cached in `PageTextCache`
 - Thumbnail pixmaps cached in QPixmapCache
 
 ### State Optimization
+
 - `UIStateManager` supports state compression (configurable)
 - State serialization optimized for size
 - Batch updates for multiple state changes
@@ -668,16 +687,19 @@ MainWindow (ownership root)
 ## Testing Considerations
 
 ### Minimal Mode Support
+
 - `StatusBar` supports minimal mode for headless testing
 - All widgets safely handle nullptr in minimal configurations
 - Defensive null checks in update methods
 
 ### Mockable Components
+
 - All managers use abstract interfaces or factory injection
 - Components accept injected models for testing
 - Signals can be monitored for verification
 
 ### Isolated Testing
+
 - Each component can be instantiated and tested independently
 - Singleton managers provide instance() method for testing override
 

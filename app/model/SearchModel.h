@@ -31,7 +31,7 @@ public:
     };
 
     explicit SearchModel(QObject* parent = nullptr);
-    ~SearchModel() = default;
+    ~SearchModel() override = default;
 
     // QAbstractListModel interface
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;

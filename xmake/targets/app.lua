@@ -111,7 +111,9 @@ target("sast-readium")
 #define PROJECT_VER_PATCH "0"
 ]]
         io.writefile(path.join(os.projectdir(), "app/config.h"), config_content)
-        print("Generated config.h")
+        if not has_config("quiet") then
+            cprint("${dim}Generated config.h${clear}")
+        end
     end)
 
     -- Include directories
@@ -233,7 +235,9 @@ target("sast-readium")
     after_build(function (target)
         local targetdir = target:targetdir()
         os.cp(path.join(os.projectdir(), "assets/styles"), path.join(targetdir, "styles"))
-        print("Copied assets/styles to %s", path.join(targetdir, "styles"))
+        if not has_config("quiet") then
+            cprint("${dim}Copied assets/styles to %s${clear}", path.join(targetdir, "styles"))
+        end
     end)
 
 target_end()

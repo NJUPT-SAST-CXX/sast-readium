@@ -24,6 +24,7 @@ ViewWidget::ViewWidget(QWidget* parent)
       emptyWidget(nullptr),
       documentController(nullptr),
       documentModel(nullptr),
+      renderModel(nullptr),
       outlineModel(nullptr),
       lastActiveIndex(-1) {
     // Initialize context menu manager
@@ -134,6 +135,21 @@ void ViewWidget::setDocumentModel(DocumentModel* model) {
                 &ViewWidget::onDocumentLoadingProgress);
         connect(documentModel, &DocumentModel::loadingFailed, this,
                 &ViewWidget::onDocumentLoadingFailed);
+    }
+}
+
+void ViewWidget::setRenderModel(RenderModel* model) {
+    // Disconnect previous render model signals
+    if (renderModel) {
+        disconnect(renderModel, &RenderModel::renderPageDone, this,
+                   &ViewWidget::onRenderPageDone);
+    }
+
+    renderModel = model;
+
+    if (renderModel) {
+        connect(renderModel, &RenderModel::renderPageDone, this,
+                &ViewWidget::onRenderPageDone);
     }
 }
 
@@ -668,6 +684,11 @@ void ViewWidget::onTabMoved(int from, int to) {
 
 PDFViewer* ViewWidget::createPDFViewer() {
     auto* viewer = new PDFViewer(this);
+
+    // 将共享的 RenderModel 注入到 PDFViewer（如果可用）
+    if (renderModel != nullptr) {
+        viewer->setRenderModel(renderModel);
+    }
 
     // 连接PDF查看器的信号
     connect(viewer, &PDFViewer::pageChanged, this,

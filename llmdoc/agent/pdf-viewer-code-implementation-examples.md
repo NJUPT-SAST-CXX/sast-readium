@@ -54,6 +54,7 @@ try {
 ```
 
 **Key Implementation Details:**
+
 - **Error Recovery:** SafePDFRenderer wraps rendering with exception handling
 - **DPI Optimization:** Conservative 150 DPI for problematic PDFs
 - **Device Awareness:** Device pixel ratio applied for high-DPI displays
@@ -118,6 +119,7 @@ if (asyncRenderingEnabled && pageNumber >= 0) {
 ```
 
 **Key Features:**
+
 - **Cache-First:** Checks prerenderer cache before queuing
 - **Exponential Backoff:** Retries with increasing delays (100ms, 200ms, 300ms)
 - **Exception Safety:** Catches std::exception and generic exceptions separately
@@ -170,6 +172,7 @@ void PDFViewer::updateVirtualScrolling() {
 ```
 
 **Optimization Techniques:**
+
 - **Position Cache:** `pagePositions` vector avoids recalculation
 - **Scroll Direction:** Tracked for intelligent prerendering
 - **Lazy Update:** Cache only updated when invalidated
@@ -235,6 +238,7 @@ void PDFViewer::destroyPageWidget(int pageNumber) {
 ```
 
 **Resource Management:**
+
 - **On-Demand Creation:** Widgets created only when needed
 - **Lazy Destruction:** Uses `deleteLater()` for safe cleanup
 - **Height Tracking:** Cache page heights for position calculation
@@ -320,6 +324,7 @@ void evictLeastImportantItems() {
 ```
 
 **Cache Efficiency:**
+
 - **64-Bit Keys:** Efficient integer keys from (page, zoom, rotation)
 - **Importance Scoring:** Balances recency (40%), proximity (40%), frequency (20%)
 - **O(1) Operations:** LRU doubly-linked list for fast removals
@@ -370,6 +375,7 @@ void PDFPrerenderer::requestPrerender(int pageNumber, double scaleFactor,
 ```
 
 **Queue Optimization:**
+
 - **Duplicate Detection:** Avoids redundant rendering requests
 - **Priority Queue:** RenderRequest orders by priority then timestamp
 - **Cache-First:** Skips queue if already cached
@@ -451,6 +457,7 @@ void PDFPageWidget::drawSearchHighlights(QPainter& painter) {
 ```
 
 **Optimization Benefits:**
+
 - **Pre-Rendered Layer:** Highlights rendered once, drawn many times
 - **Dirty Flag:** Only regenerates when search results change
 - **Transparent Layer:** Composited over page for smooth appearance
@@ -536,6 +543,7 @@ void PDFPageWidget::touchEvent(QTouchEvent* event) {
 ```
 
 **Touch Interaction Features:**
+
 - **Pinch Zoom:** Two-finger pinch to zoom in/out
 - **Pan:** Single-finger drag to pan
 - **Swipe:** Multi-page swipe navigation
@@ -585,6 +593,7 @@ connect(addBookmarkShortcut, &QShortcut::activated, this, &PDFViewer::addBookmar
 ```
 
 **Shortcut Management:**
+
 - **QKeySequence:** Standard shortcuts (ZoomIn, ZoomOut, Find, FindNext)
 - **Custom Shortcuts:** Numeric zoom levels (25%, 50%, 75%, etc.)
 - **Navigation:** Page Up/Down, Home, End
@@ -622,6 +631,7 @@ if (!renderInfo.success || image.isNull()) {
 ```
 
 **Error Resilience:**
+
 - **SafePDFRenderer:** Exception-safe wrapper around Poppler
 - **Success Flag:** Explicit success tracking separate from null check
 - **Error Messages:** User-facing error descriptions
@@ -655,6 +665,7 @@ enum class PrerenderStrategy {
 ```
 
 **Intelligent Prerendering:**
+
 - **Pattern Tracking:** Records page view duration and navigation paths
 - **Reader Classification:** Detects sequential vs random access patterns
 - **Prediction:** Uses history to predict next pages

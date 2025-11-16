@@ -1,4 +1,5 @@
 #include "PageModel.h"
+#include "../cache/PDFCacheManager.h"
 #include "../logging/LoggingMacros.h"
 #include "RenderModel.h"
 
@@ -7,6 +8,8 @@ PageModel::PageModel(int totalPages, QObject* parent)
       _totalPages(totalPages),
       _currentPage(1),
       _renderModel(nullptr),
+      _pdfCacheManager(new PDFCacheManager(this)),
+      _document(nullptr),
       _preloadTimer(new QTimer(this)),
       _lastPageChangeTime(QDateTime::currentDateTime()) {
     // Initialize preload timer
@@ -14,17 +17,33 @@ PageModel::PageModel(int totalPages, QObject* parent)
     _preloadTimer->setInterval(500);  // 500ms delay for preloading
     connect(_preloadTimer, &QTimer::timeout, this,
             &PageModel::onPreloadTimerTimeout);
+
+    _preloadEnabled = true;
+    _preloadRadius = 2;
+
+    connect(_pdfCacheManager, &PDFCacheManager::preloadRequested, this,
+            &PageModel::onPdfCachePreloadRequested);
 
     initializeMetadata();
     clearError();
     LOG_DEBUG("PageModel: Initialized with {} pages", _totalPages);
 }
 
+void PageModel::onPdfCachePreloadRequested(int pageNumber, CacheItemType type) {
+    Q_UNUSED(pageNumber)
+    Q_UNUSED(type)
+    if (_pdfCacheManager && _document) {
+        _pdfCacheManager->executePreload(_document);
+    }
+}
+
 PageModel::PageModel(RenderModel* renderModel, QObject* parent)
     : QObject(parent),
-      _renderModel(renderModel),
-      _currentPage(1),
       _totalPages(0),
+      _currentPage(1),
+      _renderModel(renderModel),
+      _pdfCacheManager(new PDFCacheManager(this)),
+      _document(nullptr),
       _preloadTimer(new QTimer(this)),
       _lastPageChangeTime(QDateTime::currentDateTime()) {
     // Initialize preload timer
@@ -33,15 +52,23 @@ PageModel::PageModel(RenderModel* renderModel, QObject* parent)
     connect(_preloadTimer, &QTimer::timeout, this,
             &PageModel::onPreloadTimerTimeout);
 
+    _preloadEnabled = true;
+    _preloadRadius = 2;
+
     if (_renderModel) {
         _totalPages = _renderModel->getPageCount();
         connect(_renderModel, &RenderModel::documentChanged, this,
                 &PageModel::onRenderModelChanged);
+        connect(_renderModel, &RenderModel::documentChanged, this,
+                &PageModel::updateInfo);
         LOG_DEBUG("PageModel: Initialized with RenderModel, {} pages",
                   _totalPages);
     } else {
         LOG_WARNING("PageModel: Initialized with null RenderModel");
     }
+
+    connect(_pdfCacheManager, &PDFCacheManager::preloadRequested, this,
+            &PageModel::onPdfCachePreloadRequested);
 
     initializeMetadata();
     clearError();
@@ -315,8 +342,24 @@ void PageModel::clearPageFromCache(int pageNum) {
     emit cacheUpdated(_preloadedPages.size());
 }
 
+void PageModel::setPreloadEnabled(bool enabled) {
+    _preloadEnabled = enabled;
+    if (!_preloadEnabled) {
+        stopPreloadTimer();
+    }
+}
+
+bool PageModel::isPreloadEnabled() const { return _preloadEnabled; }
+
+void PageModel::setPreloadRadius(int radius) {
+    _preloadRadius = qMax(0, radius);
+}
+
+int PageModel::preloadRadius() const { return _preloadRadius; }
+
 void PageModel::updateInfo(Poppler::Document* document) {
     int oldTotalPages = _totalPages;
+    _document = document;
     _totalPages = document->numPages();
     _currentPage = 1;
 
@@ -324,7 +367,6 @@ void PageModel::updateInfo(Poppler::Document* document) {
     initializeMetadata();
 
     if (_renderModel && _totalPages > 0) {
-        // 文档加载后，自动渲染首页
         _renderModel->renderPage(
             _currentPage -
             1);  // poppler::document从0开始计数，但为方便page从1开始计数，此处需要-1
@@ -351,6 +393,8 @@ void PageModel::setRenderModel(RenderModel* renderModel) {
         // Disconnect from old render model
         disconnect(_renderModel, &RenderModel::documentChanged, this,
                    &PageModel::onRenderModelChanged);
+        disconnect(_renderModel, &RenderModel::asyncRenderCompleted, this,
+                   &PageModel::onRenderCompleted);
     }
 
     _renderModel = renderModel;
@@ -359,6 +403,10 @@ void PageModel::setRenderModel(RenderModel* renderModel) {
         // Connect to new render model
         connect(_renderModel, &RenderModel::documentChanged, this,
                 &PageModel::onRenderModelChanged);
+        connect(_renderModel, &RenderModel::documentChanged, this,
+                &PageModel::updateInfo);
+        connect(_renderModel, &RenderModel::asyncRenderCompleted, this,
+                &PageModel::onRenderCompleted);
 
         // Update total pages if document is already loaded
         if (_renderModel->isDocumentValid()) {
@@ -480,7 +528,7 @@ void PageModel::emitPageChanged(int newPage, int oldPage) {
 }
 
 void PageModel::startPreloadTimer() {
-    if (_preloadTimer && !_preloadTimer->isActive()) {
+    if (_preloadTimer && _preloadEnabled && !_preloadTimer->isActive()) {
         _preloadTimer->start();
     }
 }
@@ -494,9 +542,23 @@ void PageModel::stopPreloadTimer() {
 // Private slots
 void PageModel::onPreloadTimerTimeout() {
     // Preload adjacent pages when timer expires
-    if (_currentPage > 0 && _totalPages > 0) {
-        preloadAdjacentPages(_currentPage,
-                             2);  // Preload 2 pages before and after current
+    if (_currentPage > 0 && _totalPages > 0 && _preloadEnabled) {
+        int radius = qMax(0, _preloadRadius);
+        preloadAdjacentPages(_currentPage, radius);
+        if (_pdfCacheManager && _document) {
+            QList<int> pagesToPreload;
+            for (int i = -radius; i <= radius; ++i) {
+                int zeroBased = (_currentPage - 1) + i;
+                if (i != 0 && zeroBased >= 0 && zeroBased < _totalPages) {
+                    pagesToPreload.append(zeroBased);
+                }
+            }
+            _pdfCacheManager->preloadPages(pagesToPreload,
+                                           CacheItemType::Thumbnail);
+            _pdfCacheManager->preloadPages(pagesToPreload,
+                                           CacheItemType::TextContent);
+            _pdfCacheManager->executePreload(_document);
+        }
     }
 }
 

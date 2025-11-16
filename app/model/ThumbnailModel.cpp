@@ -4,6 +4,8 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QMutexLocker>
+#include <algorithm>
+#include <climits>
 #include "../logging/LoggingMacros.h"
 #include "../ui/thumbnail/ThumbnailGenerator.h"
 
@@ -39,6 +41,13 @@ ThumbnailModel::ThumbnailModel(QObject* parent)
 
     initializeModel();
     initializeAdvancedFeatures();
+
+    // 默认启用硬件加速（如果底层支持的话），具体可通过设置覆盖
+    m_hardwareAccelerationEnabled = true;
+    if (m_generator) {
+        m_generator->setGpuAccelerationEnabled(true);
+        m_generator->setRenderMode(ThumbnailGenerator::RenderMode::Hybrid);
+    }
 }
 
 ThumbnailModel::~ThumbnailModel() {
@@ -1130,6 +1139,24 @@ void ThumbnailModel::enableMemoryCompression(bool enabled) {
 
 void ThumbnailModel::enablePredictiveLoading(bool enabled) {
     m_predictiveLoadingEnabled = enabled;
+}
+
+void ThumbnailModel::setHardwareAccelerationEnabled(bool enabled) {
+    if (m_hardwareAccelerationEnabled == enabled) {
+        return;
+    }
+
+    m_hardwareAccelerationEnabled = enabled;
+
+    if (m_generator) {
+        m_generator->setGpuAccelerationEnabled(enabled);
+
+        if (enabled) {
+            m_generator->setRenderMode(ThumbnailGenerator::RenderMode::Hybrid);
+        } else {
+            m_generator->setRenderMode(ThumbnailGenerator::RenderMode::CpuOnly);
+        }
+    }
 }
 
 double ThumbnailModel::compressionRatio() const {

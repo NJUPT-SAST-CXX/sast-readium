@@ -47,10 +47,9 @@ void CircuitBreaker::recordFailure() {
     m_failureCount++;
     m_lastFailureTime = std::chrono::steady_clock::now();
 
-    if (m_state == CircuitState::Closed &&
-        m_failureCount >= m_failureThreshold) {
-        transitionToOpen();
-    } else if (m_state == CircuitState::HalfOpen) {
+    if ((m_state == CircuitState::Closed &&
+         m_failureCount >= m_failureThreshold) ||
+        m_state == CircuitState::HalfOpen) {
         transitionToOpen();
     }
 }
@@ -63,7 +62,6 @@ void CircuitBreaker::reset() {
 }
 
 void CircuitBreaker::transitionToOpen() {
-    auto oldState = m_state.load();
     m_state = CircuitState::Open;
     Logger::instance().warning(
         "Circuit breaker transitioned to OPEN state (failures: {})",
@@ -71,13 +69,11 @@ void CircuitBreaker::transitionToOpen() {
 }
 
 void CircuitBreaker::transitionToHalfOpen() {
-    auto oldState = m_state.load();
     m_state = CircuitState::HalfOpen;
     Logger::instance().info("Circuit breaker transitioned to HALF-OPEN state");
 }
 
 void CircuitBreaker::transitionToClosed() {
-    auto oldState = m_state.load();
     m_state = CircuitState::Closed;
     m_failureCount = 0;
     Logger::instance().info("Circuit breaker transitioned to CLOSED state");

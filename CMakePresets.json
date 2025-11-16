@@ -9,7 +9,9 @@
             "binaryDir": "${sourceDir}/build/Debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "USE_VCPKG": "OFF"
+                "USE_VCPKG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON"
             }
         },
         {
@@ -20,7 +22,10 @@
             "binaryDir": "${sourceDir}/build/Release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "USE_VCPKG": "OFF"
+                "USE_VCPKG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON",
+                "SAST_ENABLE_LTO": "ON"
             }
         },
         {
@@ -48,7 +53,10 @@
                 "USE_VCPKG": "ON",
                 "CMAKE_CXX_FLAGS": "/Zc:__cplusplus /EHsc /utf-8",
                 "BUILD_TESTING": "OFF",
-                "ENABLE_CLANGD_CONFIG": "OFF"
+                "ENABLE_CLANGD_CONFIG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON",
+                "SAST_ENABLE_LTO": "ON"
             }
         },
         {
@@ -62,7 +70,9 @@
                 "USE_VCPKG": "OFF",
                 "ENABLE_PACKAGING": "ON",
                 "PACKAGE_PORTABLE": "ON",
-                "DEPLOY_QT_PLUGINS": "ON"
+                "DEPLOY_QT_PLUGINS": "ON",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON"
             }
         },
         {
@@ -76,7 +86,10 @@
                 "USE_VCPKG": "OFF",
                 "ENABLE_PACKAGING": "ON",
                 "PACKAGE_PORTABLE": "ON",
-                "DEPLOY_QT_PLUGINS": "ON"
+                "DEPLOY_QT_PLUGINS": "ON",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON",
+                "SAST_ENABLE_LTO": "ON"
             }
         },
         {
@@ -91,7 +104,9 @@
                 "USE_VCPKG": "ON",
                 "VCPKG_TARGET_TRIPLET": "x64-linux",
                 "BUILD_TESTING": "OFF",
-                "ENABLE_CLANGD_CONFIG": "OFF"
+                "ENABLE_CLANGD_CONFIG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON"
             }
         },
         {
@@ -106,7 +121,10 @@
                 "USE_VCPKG": "ON",
                 "VCPKG_TARGET_TRIPLET": "x64-linux",
                 "BUILD_TESTING": "OFF",
-                "ENABLE_CLANGD_CONFIG": "OFF"
+                "ENABLE_CLANGD_CONFIG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON",
+                "SAST_ENABLE_LTO": "ON"
             }
         },
         {
@@ -121,7 +139,9 @@
                 "USE_VCPKG": "ON",
                 "VCPKG_TARGET_TRIPLET": "x64-osx",
                 "BUILD_TESTING": "OFF",
-                "ENABLE_CLANGD_CONFIG": "OFF"
+                "ENABLE_CLANGD_CONFIG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON"
             }
         },
         {
@@ -136,7 +156,10 @@
                 "USE_VCPKG": "ON",
                 "VCPKG_TARGET_TRIPLET": "x64-osx",
                 "BUILD_TESTING": "OFF",
-                "ENABLE_CLANGD_CONFIG": "OFF"
+                "ENABLE_CLANGD_CONFIG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON",
+                "SAST_ENABLE_LTO": "ON"
             }
         },
         {
@@ -151,7 +174,9 @@
                 "USE_VCPKG": "ON",
                 "VCPKG_TARGET_TRIPLET": "arm64-osx",
                 "BUILD_TESTING": "OFF",
-                "ENABLE_CLANGD_CONFIG": "OFF"
+                "ENABLE_CLANGD_CONFIG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON"
             }
         },
         {
@@ -166,7 +191,10 @@
                 "USE_VCPKG": "ON",
                 "VCPKG_TARGET_TRIPLET": "arm64-osx",
                 "BUILD_TESTING": "OFF",
-                "ENABLE_CLANGD_CONFIG": "OFF"
+                "ENABLE_CLANGD_CONFIG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON",
+                "SAST_ENABLE_LTO": "ON"
             }
         }
     ],

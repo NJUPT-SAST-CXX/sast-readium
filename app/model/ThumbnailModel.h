@@ -161,6 +161,12 @@ public:
         return m_predictiveLoadingEnabled;
     }
 
+    // 硬件加速控制（用于控制缩略图生成是否尝试使用GPU加速）
+    void setHardwareAccelerationEnabled(bool enabled);
+    bool isHardwareAccelerationEnabled() const {
+        return m_hardwareAccelerationEnabled;
+    }
+
     // 统计信息
     int cacheHitCount() const { return m_cacheHits; }
     int cacheMissCount() const { return m_cacheMisses; }
@@ -388,6 +394,9 @@ private:
     QElapsedTimer m_performanceTimer;
     QList<qint64> m_accessTimes;
     mutable QMutex m_performanceMutex;
+
+    // 硬件加速开关状态（当前主要用于控制 ThumbnailGenerator 的 GPU 相关选项）
+    bool m_hardwareAccelerationEnabled = true;
 
     // 常量
     static constexpr int DEFAULT_THUMBNAIL_WIDTH = 120;

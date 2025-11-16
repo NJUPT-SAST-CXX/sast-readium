@@ -79,7 +79,7 @@ public:
     };
 
     explicit BookmarkModel(QObject* parent = nullptr);
-    ~BookmarkModel() = default;
+    ~BookmarkModel() override = default;
 
     // QAbstractItemModel interface
     QModelIndex index(int row, int column,

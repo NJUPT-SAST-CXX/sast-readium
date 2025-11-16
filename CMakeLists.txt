@@ -1,6 +1,21 @@
 cmake_minimum_required(VERSION 3.28)
 project(sast-readium LANGUAGES CXX VERSION 0.1.0.0)
 
+cmake_policy(SET CMP0091 NEW)
+option(SAST_QUIET "Reduce CMake output verbosity" ON)
+if(SAST_QUIET)
+    set(CMAKE_MESSAGE_LOG_LEVEL NOTICE)
+endif()
+list(APPEND CMAKE_MESSAGE_CONTEXT "SAST")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type")
+endif()
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 # Add cmake modules to path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 

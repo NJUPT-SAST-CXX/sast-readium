@@ -1,6 +1,7 @@
 ﻿#include "PDFViewer.h"
 
 // Business logic
+#include "PDFPrerenderer.h"
 #include "model/DocumentModel.h"
 #include "model/PageModel.h"
 #include "model/RenderModel.h"
@@ -15,6 +16,7 @@
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPixmap>
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QTimer>
@@ -135,6 +137,9 @@ public:
     std::shared_ptr<Poppler::Document> document;
     RenderModel* renderModel = nullptr;
     PageModel* pageModel = nullptr;
+    bool qgraphicsRenderingEnabled = false;
+    bool qgraphicsHighQualityEnabled = false;
+    PDFPrerenderer* prerenderer = nullptr;
 
     // 视图状态
     int currentPage = 1;
@@ -208,6 +213,8 @@ PDFViewer::PDFViewer(QWidget* parent)
 
     setWidget(m_impl->contentWidget);
 
+    m_impl->prerenderer = new PDFPrerenderer(this);
+
     SLOG_INFO("PDFViewer: Constructor completed");
 }
 
@@ -251,6 +258,11 @@ bool PDFViewer::setDocument(std::shared_ptr<Poppler::Document> document) {
 
     SLOG_INFO_F("PDFViewer: Document loaded with {} pages", m_impl->totalPages);
 
+    if (m_impl->prerenderer) {
+        m_impl->prerenderer->setDocument(m_impl->document.get());
+        m_impl->prerenderer->startPrerendering();
+    }
+
     // 渲染当前页面
     renderCurrentPages();
 
@@ -262,6 +274,11 @@ bool PDFViewer::setDocument(std::shared_ptr<Poppler::Document> document) {
 
 void PDFViewer::clearDocument() {
     SLOG_INFO("PDFViewer: Clearing document");
+
+    if (m_impl->prerenderer) {
+        m_impl->prerenderer->stopPrerendering();
+        m_impl->prerenderer->setDocument(nullptr);
+    }
 
     // 清除布局
     clearLayout();
@@ -352,15 +369,17 @@ void PDFViewer::setZoom(double zoomFactor) {
 
 void PDFViewer::zoomIn() {
     double newZoom = m_impl->zoomFactor * 1.25;
-    if (newZoom > 5.0)
+    if (newZoom > 5.0) {
         newZoom = 5.0;
+    }
     setZoom(newZoom);
 }
 
 void PDFViewer::zoomOut() {
     double newZoom = m_impl->zoomFactor / 1.25;
-    if (newZoom < 0.1)
+    if (newZoom < 0.1) {
         newZoom = 0.1;
+    }
     setZoom(newZoom);
 }
 
@@ -601,6 +620,30 @@ void PDFViewer::setPageModel(PageModel* model) {
     SLOG_INFO("PDFViewer: PageModel set");
 }
 
+void PDFViewer::setQGraphicsRenderingEnabled(bool enabled) {
+    if (m_impl->qgraphicsRenderingEnabled == enabled) {
+        return;
+    }
+
+    m_impl->qgraphicsRenderingEnabled = enabled;
+    SLOG_INFO_F("PDFViewer: QGraphics rendering %s",
+                enabled ? "enabled" : "disabled");
+}
+
+bool PDFViewer::isQGraphicsRenderingEnabled() const {
+    return m_impl->qgraphicsRenderingEnabled;
+}
+
+void PDFViewer::setQGraphicsHighQualityRendering(bool enabled) {
+    if (m_impl->qgraphicsHighQualityEnabled == enabled) {
+        return;
+    }
+
+    m_impl->qgraphicsHighQualityEnabled = enabled;
+    SLOG_INFO_F("PDFViewer: QGraphics high-quality rendering %s",
+                enabled ? "enabled" : "disabled");
+}
+
 // ============================================================================
 // 事件处理
 // ============================================================================
@@ -676,31 +719,90 @@ void PDFViewer::renderPage(int pageNumber) {
 
     SLOG_DEBUG_F("PDFViewer: Rendering page {}", pageNumber);
 
-    // 检查缓存
+    // 检查本地缓存
     QImage cachedImage = m_impl->getFromCache(pageNumber);
     if (!cachedImage.isNull()) {
         SLOG_DEBUG_F("PDFViewer: Using cached image for page {}", pageNumber);
+
+        if (pageNumber - 1 < m_impl->pageWidgets.size()) {
+            PageWidget* widget = m_impl->pageWidgets[pageNumber - 1];
+            if (widget) {
+                widget->setImage(cachedImage);
+                widget->setRotation(m_impl->rotation);
+
+                if (m_impl->searchHighlights.contains(pageNumber)) {
+                    widget->setSearchHighlights(
+                        m_impl->searchHighlights.value(pageNumber));
+                }
+            }
+        }
+
+        emit pageRendered(pageNumber);
         return;
     }
 
-    // 使用 RenderModel 渲染（如果可用）
-    if (m_impl->renderModel) {
-        // 通过 RenderModel 渲染
-        // 这里需要连接 RenderModel 的信号来接收渲染结果
+    if (m_impl->prerenderer) {
+        int zeroBasedIndex = pageNumber - 1;
+        double scaleFactor = m_impl->zoomFactor;
+        int rotation = m_impl->rotation;
+        QPixmap prerendered = m_impl->prerenderer->getCachedPage(
+            zeroBasedIndex, scaleFactor, rotation);
+        if (!prerendered.isNull()) {
+            QImage imageFromPrerender = prerendered.toImage();
+            m_impl->addToCache(pageNumber, imageFromPrerender);
+
+            if (pageNumber - 1 < m_impl->pageWidgets.size()) {
+                PageWidget* widget = m_impl->pageWidgets[pageNumber - 1];
+                if (widget) {
+                    widget->setImage(imageFromPrerender);
+                    widget->setRotation(m_impl->rotation);
+
+                    if (m_impl->searchHighlights.contains(pageNumber)) {
+                        widget->setSearchHighlights(
+                            m_impl->searchHighlights.value(pageNumber));
+                    }
+                }
+            }
+
+            emit pageRendered(pageNumber);
+            return;
+        }
+    }
+
+    QImage image;
+
+    // 优先使用 RenderModel 进行渲染
+    if (m_impl->renderModel && m_impl->renderModel->isDocumentValid()) {
+        const double devicePixelRatio = devicePixelRatioF();
+        const double effectiveDpiX = m_impl->renderModel->getEffectiveDpiX(
+            m_impl->zoomFactor, devicePixelRatio);
+        const double effectiveDpiY = m_impl->renderModel->getEffectiveDpiY(
+            m_impl->zoomFactor, devicePixelRatio);
+
         SLOG_DEBUG_F(
-            "PDFViewer: Requesting render from RenderModel for page {}",
-            pageNumber);
-        // m_impl->renderModel->renderPage(pageNumber, m_impl->zoomFactor);
-    } else {
+            "PDFViewer: Rendering via RenderModel page {} at dpiX={} dpiY={}",
+            pageNumber, effectiveDpiX, effectiveDpiY);
+
+        // RenderModel 使用 0-based 页码
+        try {
+            image = m_impl->renderModel->renderPage(
+                pageNumber - 1, effectiveDpiX, effectiveDpiY);
+        } catch (const std::exception& e) {
+            SLOG_ERROR_F(
+                "PDFViewer: Exception while rendering page {} via RenderModel: "
+                "{}",
+                pageNumber, e.what());
+        }
+    }
+
+    // 如果 RenderModel 不可用或渲染失败，退回到直接 Poppler 渲染
+    if (image.isNull()) {
         // SAFETY CHECK: Verify document is still valid before accessing
-        // This protects against race conditions if document is cleared during
-        // rendering
         if (!m_impl->document) {
             SLOG_WARNING("PDFViewer: Document became null during renderPage");
             return;
         }
 
-        // 直接使用 Poppler 渲染
         std::unique_ptr<Poppler::Page> page(
             m_impl->document->page(pageNumber - 1));
         if (!page) {
@@ -709,12 +811,9 @@ void PDFViewer::renderPage(int pageNumber) {
             return;
         }
 
-        // 计算渲染尺寸
-        QSizeF pageSize = page->pageSizeF();
         double dpi = 72.0 * m_impl->zoomFactor;
 
-        // 渲染页面
-        QImage image = page->renderToImage(dpi, dpi);
+        image = page->renderToImage(dpi, dpi);
 
         if (image.isNull()) {
             SLOG_ERROR_F("PDFViewer: Failed to render page {} to image",
@@ -722,25 +821,48 @@ void PDFViewer::renderPage(int pageNumber) {
             emit renderError(tr("Failed to render page %1").arg(pageNumber));
             return;
         }
+    }
 
-        // 添加到缓存
-        m_impl->addToCache(pageNumber, image);
+    // 更新本地缓存
+    m_impl->addToCache(pageNumber, image);
 
-        // 更新对应的 PageWidget
-        if (pageNumber - 1 < m_impl->pageWidgets.size()) {
-            PageWidget* widget = m_impl->pageWidgets[pageNumber - 1];
+    // 更新对应的 PageWidget
+    if (pageNumber - 1 < m_impl->pageWidgets.size()) {
+        PageWidget* widget = m_impl->pageWidgets[pageNumber - 1];
+        if (widget) {
             widget->setImage(image);
             widget->setRotation(m_impl->rotation);
 
             // 应用搜索高亮
             if (m_impl->searchHighlights.contains(pageNumber)) {
                 widget->setSearchHighlights(
-                    m_impl->searchHighlights[pageNumber]);
+                    m_impl->searchHighlights.value(pageNumber));
             }
         }
-
-        emit pageRendered(pageNumber);
     }
+
+    if (m_impl->prerenderer) {
+        int rotation = m_impl->rotation;
+        double scaleFactor = m_impl->zoomFactor;
+        auto requestNeighbor = [this, pageNumber, rotation,
+                                scaleFactor](int logicalPage) {
+            if (logicalPage < 1 || logicalPage > m_impl->totalPages) {
+                return;
+            }
+            int zeroBasedIndex = logicalPage - 1;
+            if (!m_impl->prerenderer->hasPrerenderedPage(
+                    zeroBasedIndex, scaleFactor, rotation)) {
+                int priority = qAbs(logicalPage - pageNumber);
+                m_impl->prerenderer->requestPrerender(
+                    zeroBasedIndex, scaleFactor, rotation, priority);
+            }
+        };
+
+        requestNeighbor(pageNumber - 1);
+        requestNeighbor(pageNumber + 1);
+    }
+
+    emit pageRendered(pageNumber);
 }
 
 void PDFViewer::updateLayout() {
@@ -878,10 +1000,12 @@ double PDFViewer::calculateFitWidthZoom() {
     double zoom = (availableWidth / pageWidth) * (72.0 / 72.0);
 
     // 限制范围
-    if (zoom < 0.1)
+    if (zoom < 0.1) {
         zoom = 0.1;
-    if (zoom > 5.0)
+    }
+    if (zoom > 5.0) {
         zoom = 5.0;
+    }
 
     return zoom;
 }
@@ -923,10 +1047,12 @@ double PDFViewer::calculateFitPageZoom() {
     double zoom = qMin(zoomWidth, zoomHeight);
 
     // 限制范围
-    if (zoom < 0.1)
+    if (zoom < 0.1) {
         zoom = 0.1;
-    if (zoom > 5.0)
+    }
+    if (zoom > 5.0) {
         zoom = 5.0;
+    }
 
     return zoom;
 }
@@ -964,10 +1090,12 @@ double PDFViewer::calculateFitHeightZoom() {
     double zoom = (availableHeight / pageHeight) * (72.0 / 72.0);
 
     // 限制范围
-    if (zoom < 0.1)
+    if (zoom < 0.1) {
         zoom = 0.1;
-    if (zoom > 5.0)
+    }
+    if (zoom > 5.0) {
         zoom = 5.0;
+    }
 
     return zoom;
 }

@@ -10,7 +10,7 @@ configure_file(config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 file(GLOB UIs "${CMAKE_CURRENT_SOURCE_DIR}/*.ui")
 
 # Discover application sources automatically
-message(STATUS "Discovering application sources...")
+message(VERBOSE "Discovering application sources...")
 discover_app_sources(APP_SOURCES)
 
 # Build resources as a dedicated STATIC library to avoid MSVC OBJECT linking
@@ -35,7 +35,7 @@ validate_discovered_sources("${APP_SOURCES}"
 
 # Verify source discovery worked correctly
 list(LENGTH APP_SOURCES source_count)
-message(STATUS "Discovered ${source_count} application sources")
+message(VERBOSE "Discovered ${source_count} application sources")
 
 # Separate main.cpp from other sources for library creation
 list(REMOVE_ITEM APP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
@@ -96,7 +96,7 @@ target_precompile_headers(app_lib PRIVATE
 # Main Executable (ElaWidgetTools UI)
 # ==============================================================================
 
-message(STATUS "Building main executable: sast-readium")
+message(VERBOSE "Building main executable: sast-readium")
 
 # Create executable with platform-specific configuration
 if(WIN32)
@@ -144,7 +144,7 @@ setup_install_targets(sast-readium)
 # Setup Qt deployment for installation (generates deployment script)
 setup_qt_deployment(sast-readium)
 
-message(STATUS "Main executable configured: sast-readium")
+message(NOTICE "Main executable configured: sast-readium")
 
 # ==============================================================================
 # Legacy Executable (Optional)
@@ -152,7 +152,7 @@ message(STATUS "Main executable configured: sast-readium")
 
 # Create legacy executable only if BUILD_LEGACY_UI is enabled
 if(BUILD_LEGACY_UI)
-    message(STATUS "Building legacy UI executable: app-legacy")
+    message(VERBOSE "Building legacy UI executable: app-legacy")
 
     # Create executable with platform-specific configuration
     if(WIN32)
@@ -197,7 +197,7 @@ if(BUILD_LEGACY_UI)
     # Setup Qt deployment for installation (generates deployment script)
     setup_qt_deployment(app-legacy)
 
-    message(STATUS "Legacy UI executable configured: app-legacy")
+    message(VERBOSE "Legacy UI executable configured: app-legacy")
 else()
-    message(STATUS "Legacy UI executable disabled (BUILD_LEGACY_UI=OFF)")
+    message(VERBOSE "Legacy UI executable disabled (BUILD_LEGACY_UI=OFF)")
 endif()

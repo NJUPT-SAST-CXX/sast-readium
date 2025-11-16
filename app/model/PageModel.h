@@ -8,6 +8,7 @@
 #include <QSizeF>
 #include <QStack>
 #include <QTimer>
+#include "../cache/PDFCacheManager.h"
 #include "RenderModel.h"
 
 // Forward declarations
@@ -82,6 +83,10 @@ public:
     void preloadAdjacentPages(int centerPage, int radius = 2);
     void clearPageCache();
     void clearPageFromCache(int pageNum);
+    void setPreloadEnabled(bool enabled);
+    bool isPreloadEnabled() const;
+    void setPreloadRadius(int radius);
+    int preloadRadius() const;
 
     // Render model integration
     void setRenderModel(RenderModel* renderModel);
@@ -99,12 +104,13 @@ public:
     QList<int> getPreloadedPages() const;
     double getAveragePageLoadTime() const;
 
-    ~PageModel(){};
+    ~PageModel() override;
 
 public slots:
     void updateInfo(Poppler::Document* document);
     void onRenderModelChanged();
     void onPagePreloadRequested(int pageNum);
+    void onPdfCachePreloadRequested(int pageNumber, CacheItemType type);
 
 signals:
     void pageUpdate(int currentPage, int totalPages);
@@ -122,11 +128,15 @@ protected:
     int _totalPages;
     int _currentPage;
     RenderModel* _renderModel;
+    PDFCacheManager* _pdfCacheManager;
+    Poppler::Document* _document;
 
     // Enhanced features
     QList<PageMetadata> _pageMetadata;
     QList<int> _preloadedPages;
     QTimer* _preloadTimer;
+    bool _preloadEnabled;
+    int _preloadRadius;
 
     // Performance tracking
     QDateTime _lastPageChangeTime;

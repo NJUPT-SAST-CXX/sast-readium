@@ -24,7 +24,7 @@ void DocumentModel::initializeErrorRecovery() {
 
 // 添加支持RenderModel的构造函数
 DocumentModel::DocumentModel(RenderModel* _renderModel)
-    : renderModel(_renderModel), currentDocumentIndex(-1) {
+    : currentDocumentIndex(-1), renderModel(_renderModel) {
     LOG_DEBUG("DocumentModel created with RenderModel");
 
     // Register error recovery actions
@@ -44,7 +44,8 @@ DocumentModel::DocumentModel(RenderModel* _renderModel)
             &DocumentModel::loadingFailed);
 }
 
-DocumentModel::DocumentModel() : currentDocumentIndex(-1) {
+DocumentModel::DocumentModel()
+    : currentDocumentIndex(-1), renderModel(nullptr) {
     // Register error recovery actions
     initializeErrorRecovery();
 
@@ -216,6 +217,10 @@ void DocumentModel::onDocumentLoaded(Poppler::Document* document,
     int newIndex = static_cast<int>(documents.size() - 1);
     currentDocumentIndex = newIndex;
 
+    if (renderModel) {
+        renderModel->setDocument(documents[newIndex]->document.get());
+    }
+
     LOG_INFO("Async loaded successfully: {}", filePath.toStdString());
     emit documentOpened(newIndex, documents[newIndex]->fileName);
     emit currentDocumentChanged(newIndex);
@@ -245,11 +250,18 @@ bool DocumentModel::closeDocument(int index) {
     if (documents.empty()) {
         currentDocumentIndex = -1;
         emit allDocumentsClosed();
+        if (renderModel) {
+            renderModel->setDocument(nullptr);
+        }
     } else if (index <= currentDocumentIndex) {
         if (currentDocumentIndex >= static_cast<int>(documents.size())) {
             currentDocumentIndex = static_cast<int>(documents.size()) - 1;
         }
         emit currentDocumentChanged(currentDocumentIndex);
+        if (renderModel && isValidIndex(currentDocumentIndex)) {
+            renderModel->setDocument(
+                documents[currentDocumentIndex]->document.get());
+        }
     }
 
     return true;
@@ -262,6 +274,9 @@ bool DocumentModel::closeCurrentDocument() {
 void DocumentModel::switchToDocument(int index) {
     if (isValidIndex(index) && index != currentDocumentIndex) {
         currentDocumentIndex = index;
+        if (renderModel) {
+            renderModel->setDocument(documents[index]->document.get());
+        }
         emit currentDocumentChanged(index);
     }
 }
@@ -324,4 +339,8 @@ bool DocumentModel::isValidIndex(int index) const {
 
 bool DocumentModel::isNULL() {
     return false;  // DocumentModel is not null when this method is called
+}
+
+void DocumentModel::setRecentFilesManager(RecentFilesManager* manager) {
+    recentFilesManager = manager;
 }

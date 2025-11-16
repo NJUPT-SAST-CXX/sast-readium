@@ -23,7 +23,7 @@ public:
     RenderModel(double dpiX = 72.0, double dpiY = 72.0,
                 Poppler::Document* _document = nullptr,
                 QObject* parent = nullptr);
-    ~RenderModel();
+    ~RenderModel() override;
 
     // Basic rendering (existing)
     QImage renderPage(int pageNum = 0, double xres = 72.0, double yres = 72.0,

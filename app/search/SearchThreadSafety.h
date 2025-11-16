@@ -236,8 +236,9 @@ public:
             }
 
             bool tryLock() {
-                if (!canAcquire())
+                if (!canAcquire()) {
                     return false;
+                }
                 if (m_mutex.tryLock()) {
                     setCurrentLevel(m_level);
                     return true;
@@ -279,8 +280,8 @@ public:
 
         ~MultiLockGuard() {
             // Unlock in reverse order
-            for (auto it = m_lockers.rbegin(); it != m_lockers.rend(); ++it) {
-                (*it)->unlock();
+            for (auto& locker : std::ranges::reverse_view(m_lockers)) {
+                locker->unlock();
             }
         }
 

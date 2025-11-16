@@ -8,8 +8,10 @@
 #include <QSize>
 #include <QSizeF>
 #include <QTransform>
+#include <QVector>
 #include <QtGlobal>
 #include <cmath>
+#include <memory>
 
 SearchModel::SearchModel(QObject* parent)
     : QAbstractListModel(parent),

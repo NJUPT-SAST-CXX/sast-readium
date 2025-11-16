@@ -9,6 +9,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 1. Main Window Component
 
 ### MainWindow
+
 - **Files:** `app/MainWindow.h`, `app/MainWindow.cpp`
 - **Base Class:** QMainWindow
 - **Purpose:** Application entry point and main window container
@@ -28,6 +29,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 2. Core UI Components (app/ui/core/)
 
 ### MenuBar
+
 - **Files:** `app/ui/core/MenuBar.h`, `app/ui/core/MenuBar.cpp`
 - **Base Class:** QMenuBar
 - **Purpose:** Main menu bar with File, Tabs, View, Settings menus
@@ -54,6 +56,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `onClearRecentFilesTriggered()`
 
 ### ToolBar
+
 - **Files:** `app/ui/core/ToolBar.h`, `app/ui/core/ToolBar.cpp`
 - **Base Class:** QToolBar
 - **Purpose:** Enhanced toolbar with file operations, navigation, zoom, view, and tools
@@ -85,6 +88,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `setCompactMode(bool compact)`
 
 ### CollapsibleSection (ToolBar helper)
+
 - **Base Class:** QWidget
 - **Purpose:** Collapsible sections in toolbar (preserved for future use, not currently used)
 - **Methods:**
@@ -94,6 +98,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 - **Signals:** `expandedChanged(bool expanded)`
 
 ### StatusBar
+
 - **Files:** `app/ui/core/StatusBar.h`, `app/ui/core/StatusBar.cpp`
 - **Base Class:** QStatusBar
 - **Purpose:** Enhanced status bar with document info, progress tracking, expandable panels
@@ -134,6 +139,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `setCompactMode(bool compact)`
 
 ### ExpandableInfoPanel (StatusBar helper)
+
 - **Base Class:** QWidget
 - **Purpose:** Expandable collapsible panels in status bar
 - **Methods:**
@@ -143,6 +149,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 - **Signals:** `expandedChanged(bool expanded)`
 
 ### SideBar
+
 - **Files:** `app/ui/core/SideBar.h`, `app/ui/core/SideBar.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Left sidebar with thumbnails and bookmarks tabs
@@ -176,6 +183,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `removeBookmark(...)`
 
 ### RightSideBar
+
 - **Files:** `app/ui/core/RightSideBar.h`, `app/ui/core/RightSideBar.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Right sidebar with properties, tools, annotations, search, and debug panels
@@ -207,6 +215,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `restoreState()`
 
 ### ViewWidget
+
 - **Files:** `app/ui/core/ViewWidget.h`, `app/ui/core/ViewWidget.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Main document viewing widget with multi-tab PDF viewer support
@@ -261,6 +270,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `hasUnsavedChanges(int index) const`
 
 ### ContextMenuManager
+
 - **Files:** `app/ui/core/ContextMenuManager.h`, `app/ui/core/ContextMenuManager.cpp`
 - **Base Class:** QObject
 - **Purpose:** Centralized context menu management for all UI components
@@ -301,6 +311,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `clearMenuCache()`
 
 ### UIStateManager
+
 - **Files:** `app/ui/core/UIStateManager.h`, `app/ui/core/UIStateManager.cpp`
 - **Base Class:** QObject (Singleton)
 - **Purpose:** Comprehensive UI state management system with automatic persistence
@@ -337,6 +348,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `importState(const QJsonObject& stateData, StateScope scope)`
 
 ### UIErrorHandler
+
 - **Files:** `app/ui/core/UIErrorHandler.h`, `app/ui/core/UIErrorHandler.cpp`
 - **Base Class:** QObject (Singleton)
 - **Purpose:** Comprehensive UI error handling and user feedback manager
@@ -371,6 +383,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `attemptErrorRecovery(const ErrorHandling::ErrorInfo& error, const QString& component, QWidget* parent)`
 
 ### UIResourceManager
+
 - **Files:** `app/ui/core/UIResourceManager.h`, `app/ui/core/UIResourceManager.cpp`
 - **Base Class:** QObject (Singleton)
 - **Purpose:** Comprehensive UI resource management and cleanup system
@@ -402,11 +415,13 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `validateResources()`
 
 ### UIRecoveryManager
+
 - **Files:** `app/ui/core/UIRecoveryManager.h`, `app/ui/core/UIRecoveryManager.cpp`
 - **Base Class:** QObject
 - **Purpose:** UI-specific error recovery and state restoration
 
 ### UIConsistencyManager
+
 - **Files:** `app/ui/core/UIConsistencyManager.h`, `app/ui/core/UIConsistencyManager.cpp`
 - **Base Class:** QObject
 - **Purpose:** Ensures consistent UI behavior and styling across components
@@ -416,6 +431,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 3. Dialog Components (app/ui/dialogs/)
 
 ### DocumentMetadataDialog
+
 - **Files:** `app/ui/dialogs/DocumentMetadataDialog.h`, `app/ui/dialogs/DocumentMetadataDialog.cpp`
 - **Base Class:** QDialog
 - **Purpose:** Comprehensive PDF document metadata display dialog
@@ -437,6 +453,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `setDocument(Poppler::Document* document, const QString& filePath)`
 
 ### SettingsDialog
+
 - **Files:** `app/ui/dialogs/SettingsDialog.h`, `app/ui/dialogs/SettingsDialog.cpp`
 - **Base Class:** QDialog
 - **Purpose:** Comprehensive application settings interface
@@ -456,6 +473,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `restoreDefaults()`
 
 ### DocumentComparison
+
 - **Files:** `app/ui/dialogs/DocumentComparison.h`, `app/ui/dialogs/DocumentComparison.cpp`
 - **Base Class:** QDialog
 - **Purpose:** Document comparison dialog for analyzing multiple PDFs
@@ -465,6 +483,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 4. Widget Components (app/ui/widgets/)
 
 ### DocumentTabWidget
+
 - **Files:** `app/ui/widgets/DocumentTabWidget.h`, `app/ui/widgets/DocumentTabWidget.cpp`
 - **Base Class:** QTabWidget
 - **Purpose:** Multi-document tab management with drag-drop support
@@ -489,10 +508,12 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `getTabCount() const`
 
 ### DocumentTabBar (DocumentTabWidget helper)
+
 - **Base Class:** QTabBar
 - **Purpose:** Custom tab bar with drag-drop and move support
 
 ### SearchWidget
+
 - **Files:** `app/ui/widgets/SearchWidget.h`, `app/ui/widgets/SearchWidget.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Comprehensive search widget with options and results display
@@ -536,6 +557,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `validateSearchInput(const QString& query) const`
 
 ### WelcomeWidget
+
 - **Files:** `app/ui/widgets/WelcomeWidget.h`, `app/ui/widgets/WelcomeWidget.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Enhanced welcome screen with onboarding and productivity features
@@ -575,6 +597,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `resetState()`
 
 ### DocumentPropertiesPanel
+
 - **Files:** `app/ui/widgets/DocumentPropertiesPanel.h`, `app/ui/widgets/DocumentPropertiesPanel.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Compact document properties panel for sidebar display
@@ -590,6 +613,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `clearProperties()`
 
 ### BookmarkWidget
+
 - **Files:** `app/ui/widgets/BookmarkWidget.h`, `app/ui/widgets/BookmarkWidget.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Comprehensive bookmark management widget
@@ -615,6 +639,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `getBookmarkModel() const`
 
 ### DebugLogPanel
+
 - **Files:** `app/ui/widgets/DebugLogPanel.h`, `app/ui/widgets/DebugLogPanel.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Comprehensive debug logging panel with filtering and export
@@ -636,41 +661,49 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `searchLogs(const QString& searchText)`
 
 ### TutorialCard
+
 - **Files:** `app/ui/widgets/TutorialCard.h`, `app/ui/widgets/TutorialCard.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Interactive tutorial card for onboarding
 
 ### AnnotationToolbar
+
 - **Files:** `app/ui/widgets/AnnotationToolbar.h`, `app/ui/widgets/AnnotationToolbar.cpp`
 - **Base Class:** QToolBar
 - **Purpose:** Toolbar for annotation tools (highlight, underline, strikethrough, notes)
 
 ### ToastNotification
+
 - **Files:** `app/ui/widgets/ToastNotification.h`, `app/ui/widgets/ToastNotification.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Toast-style notification widget for transient messages
 
 ### NotificationHelper
+
 - **Files:** `app/ui/widgets/NotificationHelper.h`, `app/ui/widgets/NotificationHelper.cpp`
 - **Base Class:** QObject
 - **Purpose:** Helper class for managing notification display
 
 ### RecentFileListWidget
+
 - **Files:** `app/ui/widgets/RecentFileListWidget.h`, `app/ui/widgets/RecentFileListWidget.cpp`
 - **Base Class:** QListWidget
 - **Purpose:** List widget for displaying recent files with preview
 
 ### OnboardingWidget
+
 - **Files:** `app/ui/widgets/OnboardingWidget.h`, `app/ui/widgets/OnboardingWidget.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Onboarding tutorial sequence for first-time users
 
 ### SkeletonWidget
+
 - **Files:** `app/ui/widgets/SkeletonWidget.h`, `app/ui/widgets/SkeletonWidget.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Loading skeleton/placeholder widget while documents are loading
 
 ### EnhancedFocusIndicator
+
 - **Files:** `app/ui/widgets/EnhancedFocusIndicator.h`, `app/ui/widgets/EnhancedFocusIndicator.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Visual focus indicator for accessibility support
@@ -680,6 +713,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 5. Viewer Components (app/ui/viewer/)
 
 ### PDFViewer
+
 - **Files:** `app/ui/viewer/PDFViewer.h`, `app/ui/viewer/PDFViewer.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Main PDF document viewer with comprehensive features
@@ -697,6 +731,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - Drag-and-drop support
 
 ### PDFPageWidget
+
 - **Files:** `app/ui/viewer/PDFViewer.h`
 - **Base Class:** QLabel
 - **Purpose:** Individual PDF page rendering widget
@@ -708,16 +743,19 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 - **States:** NotRendered, Rendering, Rendered, RenderError
 
 ### PDFPrerenderer
+
 - **Files:** `app/ui/viewer/PDFPrerenderer.h`, `app/ui/viewer/PDFPrerenderer.cpp`
 - **Base Class:** QObject
 - **Purpose:** Asynchronous PDF page prerendering system
 
 ### PDFAnimations
+
 - **Files:** `app/ui/viewer/PDFAnimations.h`, `app/ui/viewer/PDFAnimations.cpp`
 - **Base Class:** QObject
 - **Purpose:** Animation support for viewer transitions and effects
 
 ### PDFOutlineWidget
+
 - **Files:** `app/ui/viewer/PDFOutlineWidget.h`, `app/ui/viewer/PDFOutlineWidget.cpp`
 - **Base Class:** QTreeWidget
 - **Purpose:** PDF document outline/bookmarks tree widget
@@ -742,16 +780,19 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `getCurrentSelectedPage() const`
 
 ### QGraphicsPDFViewer
+
 - **Files:** `app/ui/viewer/QGraphicsPDFViewer.h`, `app/ui/viewer/QGraphicsPDFViewer.cpp`
 - **Base Class:** QGraphicsView
 - **Purpose:** Graphics view-based PDF viewer (optional, with ENABLE_QGRAPHICS_PDF_SUPPORT)
 
 ### PDFViewerComponents
+
 - **Files:** `app/ui/viewer/PDFViewerComponents.h`, `app/ui/viewer/PDFViewerComponents.cpp`
 - **Base Class:** N/A (utility components)
 - **Purpose:** Reusable components for PDF viewer functionality
 
 ### SplitViewManager
+
 - **Files:** `app/ui/viewer/SplitViewManager.h`, `app/ui/viewer/SplitViewManager.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Split view management for side-by-side document comparison
@@ -761,6 +802,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 6. Thumbnail Components (app/ui/thumbnail/)
 
 ### ThumbnailListView
+
 - **Files:** `app/ui/thumbnail/ThumbnailListView.h`, `app/ui/thumbnail/ThumbnailListView.cpp`
 - **Base Class:** QListView
 - **Purpose:** Chrome-style PDF thumbnail list view with virtual scrolling
@@ -799,16 +841,19 @@ This document provides a comprehensive catalog of all UI components in the SAST 
   - `setContextMenuEnabled(bool enabled)`
 
 ### ThumbnailGenerator
+
 - **Files:** `app/ui/thumbnail/ThumbnailGenerator.h`, `app/ui/thumbnail/ThumbnailGenerator.cpp`
 - **Base Class:** QObject
 - **Purpose:** Asynchronous thumbnail generation for PDF pages
 
 ### ThumbnailWidget
+
 - **Files:** `app/ui/thumbnail/ThumbnailWidget.h`, `app/ui/thumbnail/ThumbnailWidget.cpp`
 - **Base Class:** QWidget
 - **Purpose:** Container widget for thumbnail display
 
 ### ThumbnailContextMenu
+
 - **Files:** `app/ui/thumbnail/ThumbnailContextMenu.h`, `app/ui/thumbnail/ThumbnailContextMenu.cpp`
 - **Base Class:** QMenu
 - **Purpose:** Context menu for thumbnail operations
@@ -818,6 +863,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 7. Manager Components (app/ui/managers/)
 
 ### WelcomeScreenManager
+
 - **Files:** `app/ui/managers/WelcomeScreenManager.h`, `app/ui/managers/WelcomeScreenManager.cpp`
 - **Base Class:** QObject
 - **Purpose:** Manages welcome screen display state and settings persistence
@@ -851,6 +897,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 8. Theme/Styling Components (app/ui/theme/)
 
 ### ReadingModeManager
+
 - **Files:** `app/ui/theme/ReadingModeManager.h`, `app/ui/theme/ReadingModeManager.cpp`
 - **Base Class:** QObject
 - **Purpose:** Reading mode and theme management
@@ -860,6 +907,7 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 9. Utility Components (app/ui/utils/)
 
 ### ValidationUtils
+
 - **Files:** `app/ui/utils/ValidationUtils.h`, `app/ui/utils/ValidationUtils.cpp`
 - **Base Class:** Utility class (static methods)
 - **Purpose:** Common validation utilities for UI input
@@ -869,26 +917,31 @@ This document provides a comprehensive catalog of all UI components in the SAST 
 ## 10. Helper Classes
 
 ### ComponentStateGuard
+
 - **Location:** UIStateManager
 - **Base Class:** Utility class (RAII)
 - **Purpose:** RAII helper for automatic state saving/restoration
 
 ### StateBinding
+
 - **Location:** UIStateManager
 - **Base Class:** QObject
 - **Purpose:** Automatic state synchronization between UI and state manager
 
 ### InputValidator
+
 - **Location:** UIErrorHandler
 - **Base Class:** Utility class
 - **Purpose:** Input validation for common UI patterns
 
 ### ResourceGuard
+
 - **Location:** UIResourceManager
 - **Base Class:** Utility class (RAII)
 - **Purpose:** Automatic resource cleanup on scope exit
 
 ### ManagedWidgetFactory
+
 - **Location:** UIResourceManager
 - **Base Class:** Factory (template class)
 - **Purpose:** Memory-aware widget creation with automatic tracking

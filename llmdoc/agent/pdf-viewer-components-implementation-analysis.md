@@ -14,11 +14,12 @@ The PDF Viewer system in SAST Readium consists of 7 major components with varyin
 **Lines:** Header: 1-589, Implementation: Substantial (>2800 lines)
 **Status:** Substantially Complete
 
-#### Key Implementation Details:
+#### Key Implementation Details
 
 **Header Declaration Analysis:**
 
 The PDFViewer class contains:
+
 - Document management: `setDocument()`, `clearDocument()` (lines 184-185)
 - Page navigation: `goToPage()`, `nextPage()`, `previousPage()`, `firstPage()`, `lastPage()` with validation (lines 188-193)
 - Zoom operations: `zoomIn()`, `zoomOut()`, `zoomToFit()`, `zoomToWidth()`, `zoomToHeight()`, `setZoom()` (lines 196-203)
@@ -33,6 +34,7 @@ The PDFViewer class contains:
 **Rendering Pipeline:**
 
 PDFPageWidget class (base render unit):
+
 - RenderState enum: NotRendered, Rendering, Rendered, RenderError (line 72)
 - Async rendering enabled: `setAsyncRenderingEnabled()`, `setPrerenderer()` (lines 84-85)
 - DPI optimization: `setDPICalculator()` (line 91)
@@ -44,6 +46,7 @@ PDFPageWidget class (base render unit):
 **Virtual Scrolling Implementation:**
 
 The viewer implements true virtual scrolling (lines 295-310):
+
 - `setupVirtualScrolling()`, `updateVirtualScrolling()` methods
 - Page position caching: `pagePositions` vector (line 433)
 - Placeholder widgets for non-visible pages: `placeholderWidgets` hash (line 427)
@@ -53,6 +56,7 @@ The viewer implements true virtual scrolling (lines 295-310):
 **Cache Management:**
 
 Enhanced LRU cache implementation (lines 513-540):
+
 - Cache key: 64-bit integer combining page number, zoom factor, rotation
 - PageCacheItem struct with memory tracking (lines 497-510)
 - LRU list pointers for O(1) operations
@@ -63,6 +67,7 @@ Enhanced LRU cache implementation (lines 513-540):
 **Lazy Loading:**
 
 Lazy loading system (lines 312-319):
+
 - `setupLazyLoading()`, `scheduleLazyLoad()`, `processLazyLoads()` methods
 - PageLoadState tracking: NotLoaded, Loading, Loaded, LoadError (line 178)
 - Pending loads queue: `pendingLoads` set (line 442)
@@ -72,6 +77,7 @@ Lazy loading system (lines 312-319):
 **Constructor Implementation (lines 39-109 in .cpp):**
 
 PDFPageWidget initialization:
+
 - QLabel-based page widget with center alignment
 - Shadow effect applied (drop shadow 15px blur radius)
 - Gesture recognition enabled (pinch, swipe, pan)
@@ -80,11 +86,13 @@ PDFPageWidget initialization:
 - Search highlight colors initialized: yellow (255,255,0) for normal, orange (255,165,0) for current
 
 PDFViewer setup calls:
+
 - `setupUI()`, `setupConnections()`, `setupShortcuts()` (lines 273-275)
 
 **View Mode Switching (lines 282-288):**
 
 The implementation includes:
+
 - `setupViewModes()` - Initialize view mode components
 - `switchToSinglePageMode()` - Single page view setup
 - `switchToContinuousMode()` - Continuous scroll setup
@@ -94,6 +102,7 @@ The implementation includes:
 **Keyboard Shortcuts (lines 450-494):**
 
 25 shortcuts implemented:
+
 - Zoom shortcuts: Ctrl++, Ctrl+-, Ctrl+0, Ctrl+1, etc.
 - Navigation: Page Down, Page Up, Home, End, etc.
 - View modes: Fullscreen, sidebar toggle, presentation mode
@@ -110,6 +119,7 @@ The implementation includes:
 **Rendering Implementation (lines 160-299 in .cpp):**
 
 Dual-mode rendering system:
+
 1. Asynchronous path (lines 168-234):
    - Uses PDFPrerenderer for background rendering
    - Retry mechanism: up to 3 attempts (MAX_ASYNC_RETRY_COUNT)
@@ -126,6 +136,7 @@ Dual-mode rendering system:
 **Search Highlighting:**
 
 Implemented optimizations (lines 161-167):
+
 - `renderSearchHighlightsToLayer()` - Pre-render highlights to pixmap
 - `invalidateSearchHighlights()` - Mark highlights dirty
 - `updateSearchHighlightLayer()` - Regenerate highlight layer
@@ -135,6 +146,7 @@ Implemented optimizations (lines 161-167):
 **Event Handling:**
 
 Complete implementation:
+
 - Mouse panning: `mousePressEvent()`, `mouseMoveEvent()`, `mouseReleaseEvent()` (lines 104-106)
 - Gestures: Pinch zoom, swipe navigation, pan (lines 108-112)
 - Touch support: Multi-touch event handling (line 112)
@@ -180,6 +192,7 @@ Three classes defined:
 **Implementation Status (lines 1-100 in .cpp):**
 
 Partial implementation exists:
+
 - QGraphicsPDFPageItem constructor with render timer and watcher setup (lines 15-41)
 - `setPage()` implementation with async rendering trigger (lines 43-55)
 - Scale/rotation setters with bounds checking (lines 57-71)
@@ -229,18 +242,21 @@ Four major classes:
 **Implementation (lines 1-120 in .cpp):**
 
 PDFPrerenderer constructor (lines 17-52):
+
 - Worker thread setup: `QThread::idealThreadCount()` threads
 - Cache configuration: 100 items max, 512MB memory
 - Adaptive timer: 30-second intervals for pattern analysis
 - Scroll direction tracking initialization
 
 `setDocument()` implementation (lines 59-81):
+
 - Deadlock fix: Updates workers outside of mutex to prevent deadlocks
 - Document configuration: Uses `RenderModel::configureDocumentRenderHints()`
 - Cache clearing on document change
 - Safe mutex locking pattern
 
 `requestPrerender()` implementation (lines 87-119):
+
 - Queue duplicate detection
 - Priority-based request ordering
 - Bounds checking on page numbers
@@ -256,6 +272,7 @@ PDFPrerenderer constructor (lines 17-52):
 **Header (lines 1-120 in .h):**
 
 Core functionality:
+
 - Outline model integration: `setOutlineModel()` (line 24)
 - Display control: `refreshOutline()`, `clearOutline()`, `highlightPageItem()` (lines 27-33)
 - Tree navigation: `expandAll()`, `collapseAll()`, `expandToLevel()` (lines 36-42)
@@ -266,25 +283,30 @@ Core functionality:
 **Implementation (lines 1-100+ in .cpp):**
 
 Setup methods:
+
 - `setupUI()` (lines 24-59): Tree widget configuration, styles, empty state
 - `setupContextMenu()` (lines 61-72): Expand all, collapse all, copy title actions
 - `setupConnections()` (lines 74-88): Signal/slot connections
 
 Tree building:
+
 - `buildOutlineTree()` - Recursive outline construction
 - `addOutlineNodes()` - Add node hierarchy (line 85)
 - `createOutlineItem()` - Item factory from outline nodes (lines 89-91)
 - `setItemStyle()` - Apply item styling (lines 94-95)
 
 Navigation:
+
 - `findItemByPage()` - Locate item by page number (lines 98-99)
 - `highlightItem()`, `clearHighlight()` - Visual emphasis (lines 102-103)
 - `getItemPageNumber()` - Extract page from item (line 106)
 
 Search:
+
 - `searchItemsRecursive()` - Full-text search with recursion (lines 109-110)
 
 State Management:
+
 - `saveExpandedState()`, `restoreExpandedState()` - Persistence (lines 113-114)
 - `getExpandedItems()`, `setExpandedItems()` - State serialization (lines 115-117)
 
@@ -335,17 +357,20 @@ Five major classes:
 **Implementation (lines 1-100+ in .cpp):**
 
 PDFAnimationManager constructor (lines 18-22):
+
 - Default duration: 300ms
 - Default easing: OutCubic
 - Active animations counter initialization
 
 Animation setup (lines 26-47):
+
 - Zoom animation with property binding
 - Signal connection to cleanup method
 - Animation list tracking and counter increment
 - Emission of animationStarted signal
 
 Page transition (lines 49-91):
+
 - Parallel animation group for simultaneous effects
 - Fade out source widget (duration/2)
 - Fade in target widget (duration/2)
@@ -361,6 +386,7 @@ Page transition (lines 49-91):
 **Header (lines 1-44 in .h):**
 
 Minimal interface:
+
 - SplitMode enum: None, Horizontal, Vertical (lines 14-18)
 - Constructor: `SplitViewManager(QWidget* parentWidget, QObject* parent = nullptr)` (line 20)
 - Split mode control: `setSplitMode()`, `getSplitMode()` (lines 23-24)
@@ -371,18 +397,21 @@ Minimal interface:
 **Implementation (lines 1-44 in .cpp):**
 
 Constructor (lines 3-11):
+
 - Initializes split mode to None
 - Stores parent widget reference
 - Initializes document indices to -1
 - Sync scroll disabled by default
 
 `setSplitMode()` (lines 13-33):
+
 - Mode change detection
 - Splitter creation on demand
 - Orientation setting: Horizontal or Vertical Qt orientation
 - Signal emission
 
 `setLeftDocument()` and `setRightDocument()` (lines 35-43):
+
 - Simple index storage
 - Signal emission with both indices
 
@@ -421,13 +450,15 @@ Three utility classes:
 **Implementation (lines 1-180 in .cpp):**
 
 PDFRenderCache (lines 8-68):
+
 - CacheKey operators (lines 9-26): Equality based on page, scale (±0.01 tolerance), rotation, quality
 - Hash function: `qHashMulti` with scaled factors (lines 28-32)
 - Constructor: Default QCache with 100 max cost (lines 39-41)
 - Thread-safe get/set/contains/clear operations with QMutexLocker
-- Memory calculation: width * height * 4 bytes per pixel (line 45)
+- Memory calculation: width *height* 4 bytes per pixel (line 45)
 
 PDFPerformanceMonitor (lines 70-121):
+
 - Statistics tracking with limit to 100 measurements (lines 82-84)
 - Cache hit/miss recording (lines 87-95)
 - Average calculation: sum / count (lines 103-107)
@@ -435,10 +466,11 @@ PDFPerformanceMonitor (lines 70-121):
 - Reset capability for fresh monitoring
 
 PDFRenderUtils (lines 123-179):
+
 - `configureRenderHints()`: Sets antialiasing, text antialiasing, smooth pixmap transform (lines 125-131)
 - `renderPageHighQuality()`: Uses 150 DPI base + scale + device ratio (lines 133-149)
 - `renderPageFast()`: Uses 72 DPI base (lines 151-166)
-- `calculateOptimalDPI()`: Formula = (baseDPI * scaleFactor * devicePixelRatio) (lines 168-173)
+- `calculateOptimalDPI()`: Formula = (baseDPI *scaleFactor* devicePixelRatio) (lines 168-173)
 - `optimizeDocument()`: Delegates to RenderModel::configureDocumentRenderHints() (lines 175-178)
 
 ---
@@ -516,6 +548,7 @@ PDFRenderUtils (lines 123-179):
 ### 2. Rendering Pipeline Quality
 
 **Synchronous Rendering Path:**
+
 - Uses SafePDFRenderer for crash protection
 - DPI clamped to 150-300 range for stability
 - Compatibility detection for Qt-generated PDFs
@@ -523,6 +556,7 @@ PDFRenderUtils (lines 123-179):
 - Error state tracking and detailed logging
 
 **Asynchronous Rendering Path:**
+
 - Background thread via PDFPrerenderer
 - Exponential backoff retry mechanism (up to 3 attempts)
 - Cache lookup before queue insertion
@@ -532,13 +566,15 @@ PDFRenderUtils (lines 123-179):
 ### 3. Performance Optimizations
 
 **Cache Optimization:**
+
 - LRU replacement with importance scoring
-- 64-bit integer keys (page * scale * rotation) for speed
+- 64-bit integer keys (page *scale* rotation) for speed
 - Memory tracking per item
 - Zoom factor integer mapping cache
 - Dynamic eviction based on current page context
 
 **Virtual Scrolling:**
+
 - Placeholder widgets for non-visible pages
 - Page position caching for O(log n) lookups
 - Dynamic creation/destruction reduces memory
@@ -546,12 +582,14 @@ PDFRenderUtils (lines 123-179):
 - Estimated total document height calculation
 
 **Lazy Loading:**
+
 - Concurrent load limits (`maxConcurrentLoads`)
 - Viewport-based priority scheduling
 - Loading state tracking (NotLoaded, Loading, Loaded, LoadError)
 - Debounced processing timer
 
 **Search Optimization:**
+
 - Pre-rendered highlight layer (m_searchHighlightLayer)
 - Dirty flag tracking to avoid regeneration
 - Coordinate caching for zoom/rotation changes
@@ -560,6 +598,7 @@ PDFRenderUtils (lines 123-179):
 ### 4. User Interaction Handling
 
 **Input Methods Supported:**
+
 - Mouse: Click, drag pan, wheel zoom
 - Touch: Multi-touch pinch zoom
 - Gestures: Qt gestures (pinch, swipe, pan)
@@ -567,6 +606,7 @@ PDFRenderUtils (lines 123-179):
 - Drag-drop: PDF file support with validation
 
 **Visual Feedback:**
+
 - Shadow effects on pages
 - Highlight with distinct colors
 - Animation effects during transitions
@@ -576,6 +616,7 @@ PDFRenderUtils (lines 123-179):
 ### 5. State Management
 
 **View State Persistence:**
+
 - Zoom level saving/loading
 - Scroll position tracking
 - Current page tracking
@@ -583,6 +624,7 @@ PDFRenderUtils (lines 123-179):
 - View mode selection (single page, continuous)
 
 **Document State:**
+
 - Page load states tracked per page
 - Navigation patterns recorded for prerendering
 - Reading duration metrics collected
@@ -591,45 +633,53 @@ PDFRenderUtils (lines 123-179):
 ### 6. Integration Points
 
 **With DocumentModel:**
+
 - Document passing via `setDocument()` calls
 - Lifecycle management through DocumentController
 - Multi-document support via tab widget (ViewWidget)
 
 **With RenderModel:**
+
 - DPI calculation delegation
 - Render hints configuration
 - Device pixel ratio support
 - Document optimization
 
 **With PDFOutlineModel:**
+
 - Outline structure navigation
 - Page linking from outline items
 - Bookmark management coordination
 
 **With SearchModel:**
+
 - Search result display
 - Multi-page highlighting
 - Result navigation
 
 **With CacheManager:**
+
 - Potential cache integration (SafePDFRenderer uses it)
 - Memory management coordination
 
 ### 7. Error Handling
 
 **Rendering Failures:**
+
 - RenderError state in PDFPageWidget
 - Error messages displayed in page widget
 - Retry mechanism with exponential backoff
 - Detailed logging of attempt counts and compatibility info
 
 **Document Issues:**
+
 - Qt-generated PDF compatibility detection
 - Conservative DPI adjustment for problem PDFs
 - SafePDFRenderer fallback mechanisms
 - Exception catching with retry logic
 
 **Resource Constraints:**
+
 - Memory usage tracking and limits
 - Cache eviction on memory threshold
 - Concurrent load limiting
@@ -638,6 +688,7 @@ PDFRenderUtils (lines 123-179):
 ### 8. Code Quality Observations
 
 **Strengths:**
+
 - No TODO/FIXME/HACK markers found
 - Complete implementation of core features
 - Proper Qt parent-child memory management
@@ -645,6 +696,7 @@ PDFRenderUtils (lines 123-179):
 - Deadlock-prevention patterns (documented in PDFPrerenderer)
 
 **Architecture Patterns:**
+
 - Singleton pattern: PDFRenderCache, PDFPerformanceMonitor
 - Factory pattern: Page widget creation
 - Observer pattern: Qt signal/slot connections
@@ -654,12 +706,14 @@ PDFRenderUtils (lines 123-179):
 ### 9. Missing or Incomplete Features
 
 **QGraphicsPDFViewer:**
+
 - Conditional compilation indicates feature toggle
 - Framework exists but interaction loop incomplete
 - No integration with main viewer system
 - Appears to be experimental/alternative implementation
 
 **SplitViewManager:**
+
 - Complete stub - no actual implementation
 - Splitter created but not populated
 - No synchronization logic
@@ -693,6 +747,7 @@ SplitViewManager
 ### 11. Configuration and Customization
 
 **Prerenderer Configuration:**
+
 - Strategy selection: Conservative/Balanced/Aggressive
 - Worker threads: Auto-scaled to `QThread::idealThreadCount()`
 - Cache size: 100 items default
@@ -700,12 +755,14 @@ SplitViewManager
 - Scroll direction tracking: Directional prerendering optimization
 
 **Animation Configuration:**
+
 - Default duration: 300ms (customizable)
 - Easing curves: OutCubic default (customizable)
 - Animation types: 9 different types
 - Duration presets: Fast (150ms), Normal (300ms), Slow (500ms)
 
 **Cache Configuration:**
+
 - Maximum cache items: configurable
 - Memory limits: configurable with byte-level precision
 - DPI caching for zoom factors

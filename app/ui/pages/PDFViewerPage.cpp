@@ -23,8 +23,8 @@
 #include "controller/PageController.h"
 #include "delegate/ViewDelegate.h"
 #include "managers/I18nManager.h"
-#include "model/DocumentModel.h"
 #include "model/PDFOutlineModel.h"
+#include "model/RenderModel.h"
 #include "search/SearchEngine.h"
 
 // Poppler
@@ -380,18 +380,22 @@ void PDFViewerPage::connectToolBarSignals() {
                 SLOG_INFO_F("PDFViewerPage: Reading mode toggled: {}", enabled);
                 if (enabled) {
                     // Hide sidebars and toolbars for distraction-free reading
-                    if (m_leftSideBar)
+                    if (m_leftSideBar) {
                         m_leftSideBar->hide(true);
-                    if (m_rightSideBar)
+                    }
+                    if (m_rightSideBar) {
                         m_rightSideBar->hide(true);
+                    }
                     m_toolBar->hide();
                     m_statusBar->hide();
                 } else {
                     // Restore UI elements
-                    if (m_leftSideBar)
+                    if (m_leftSideBar) {
                         m_leftSideBar->show(true);
-                    if (m_rightSideBar)
+                    }
+                    if (m_rightSideBar) {
                         m_rightSideBar->show(true);
+                    }
                     m_toolBar->show();
                     m_statusBar->show();
                 }
@@ -615,6 +619,11 @@ bool PDFViewerPage::openFile(const QString& filePath) {
         viewer->deleteLater();
         return false;
     }
+
+    double dpiX = logicalDpiX();
+    double dpiY = logicalDpiY();
+    auto* renderModel = new RenderModel(dpiX, dpiY, document.get(), viewer);
+    viewer->setRenderModel(renderModel);
 
     // 添加到查看器列表
     m_pdfViewers.append(viewer);

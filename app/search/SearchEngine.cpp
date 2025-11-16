@@ -309,13 +309,7 @@ public:
         if (backgroundProcessingEnabled.isSet()) {
             // Asynchronous search
             backgroundProcessor->executeAsync([this, query, options, timer]() {
-                QList<SearchResult> results;
-                QMetaObject::invokeMethod(
-                    q_ptr,
-                    [this, &results, &query, &options]() {
-                        results = executeFullSearch(query, options);
-                    },
-                    Qt::BlockingQueuedConnection);
+                QList<SearchResult> results = executeFullSearch(query, options);
 
                 SearchMetrics::Metric metric;
                 metric.query = query;

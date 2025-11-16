@@ -33,6 +33,30 @@ option("enable_tests")
     set_showmenu(true)
 option_end()
 
+option("quiet")
+    set_default(true)
+    set_description("Reduce build output verbosity")
+    set_showmenu(true)
+option_end()
+
+option("warnings_as_errors")
+    set_default(false)
+    set_description("Treat compiler warnings as errors")
+    set_showmenu(true)
+option_end()
+
+option("enable_hardening")
+    set_default(true)
+    set_description("Enable security hardening flags")
+    set_showmenu(true)
+option_end()
+
+option("enable_lto")
+    set_default(false)
+    set_description("Enable Link Time Optimization (release only)")
+    set_showmenu(true)
+option_end()
+
 -- Global requirements
 add_requires("pkgconfig::poppler-qt6")
 add_requires("spdlog")

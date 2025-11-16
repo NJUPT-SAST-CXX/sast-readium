@@ -45,6 +45,7 @@ private:
     QString currentFilePath;
     std::unique_ptr<Poppler::Document> document;
     RenderModel* renderModel;
+    RecentFilesManager* recentFilesManager = nullptr;
 
 private slots:
     void onDocumentLoaded(Poppler::Document* document, const QString& filePath);

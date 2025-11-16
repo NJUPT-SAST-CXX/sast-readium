@@ -4,9 +4,11 @@
 #include <QDataStream>
 #include <QDateTime>
 #include <QFile>
+#include <QImage>
 #include <QMutexLocker>
 #include <QPixmap>
 #include <chrono>
+#include <limits>
 
 #include "../logging/LoggingMacros.h"
 
@@ -74,13 +76,14 @@ void PreloadTask::run() {
         switch (m_type) {
             case CacheItemType::RenderedPage: {
                 QImage image = page->renderToImage(150.0, 150.0);
-                result = QPixmap::fromImage(image);
+                result = image;
                 break;
             }
             case CacheItemType::Thumbnail: {
-                QImage image = page->renderToImage(72.0, 72.0);
-                result = QPixmap::fromImage(image).scaled(
-                    128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                QImage image = page->renderToImage(72.0, 72.0)
+                                   .scaled(128, 128, Qt::KeepAspectRatio,
+                                           Qt::SmoothTransformation);
+                result = image;
                 break;
             }
             case CacheItemType::TextContent: {
@@ -91,9 +94,10 @@ void PreloadTask::run() {
                 return;
         }
 
-        // Signal completion back to cache manager
-        QMetaObject::invokeMethod(m_target, "onPreloadTaskCompleted",
-                                  Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            m_target, "onPreloadTaskCompleted", Qt::QueuedConnection,
+            Q_ARG(int, m_pageNumber), Q_ARG(int, static_cast<int>(m_type)),
+            Q_ARG(QVariant, result));
 
     } catch (...) {
         LOG_WARNING("PreloadTask: Exception during preload of page {}",
@@ -497,10 +501,15 @@ QVariant PDFCacheManager::get(const QString& key) {
         m_pimpl->updateStatistics(true);
 
         auto endTime = std::chrono::high_resolution_clock::now();
-        auto accessTime = std::chrono::duration_cast<std::chrono::microseconds>(
-                              endTime - startTime)
-                              .count();
-        emit cacheHit(key, accessTime);
+        auto accessTimeMs =
+            std::chrono::duration_cast<std::chrono::milliseconds>(endTime -
+                                                                  startTime)
+                .count();
+        {
+            QMutexLocker statsLocker(&m_pimpl->statsMutex);
+            m_pimpl->totalAccessTime += accessTimeMs;
+        }
+        emit cacheHit(key, accessTimeMs);
         return it->data;
     }
 
@@ -610,6 +619,27 @@ void PDFCacheManager::setPreloadingStrategy(const QString& strategy) {
               strategy.toStdString());
 }
 
+void PDFCacheManager::executePreload(Poppler::Document* document) {
+    if (!m_pimpl->preloadingEnabled || document == nullptr) {
+        return;
+    }
+
+    while (!m_pimpl->preloadQueue.isEmpty()) {
+        auto taskInfo = m_pimpl->preloadQueue.dequeue();
+        int pageNumber = taskInfo.first;
+        CacheItemType type = taskInfo.second;
+
+        if (type == CacheItemType::Thumbnail ||
+            type == CacheItemType::TextContent) {
+            auto* task = new PreloadTask(document, pageNumber, type, this);
+            m_pimpl->preloadThreadPool->start(task);
+        } else {
+            QString k = m_pimpl->generateKey(pageNumber, type);
+            m_pimpl->preloadingItems.remove(k);
+        }
+    }
+}
+
 void PDFCacheManager::performMaintenance() {
     cleanupExpiredItems();
 
@@ -620,9 +650,44 @@ void PDFCacheManager::performMaintenance() {
     }
 }
 
-void PDFCacheManager::onPreloadTaskCompleted() {
-    // Handle preload task completion
-    // This would be called by PreloadTask when it finishes
+void PDFCacheManager::onPreloadTaskCompleted(int pageNumber, int typeValue,
+                                             QVariant value) {
+    CacheItemType type = static_cast<CacheItemType>(typeValue);
+
+    QString baseKey = m_pimpl->generateKey(pageNumber, type);
+    m_pimpl->preloadingItems.remove(baseKey);
+
+    switch (type) {
+        case CacheItemType::Thumbnail: {
+            QPixmap pix;
+            if (value.canConvert<QImage>()) {
+                pix = QPixmap::fromImage(value.value<QImage>());
+            } else if (value.canConvert<QPixmap>()) {
+                pix = value.value<QPixmap>();
+            }
+            if (!pix.isNull()) {
+                QString key =
+                    m_pimpl->generateKey(pageNumber, CacheItemType::Thumbnail);
+                insert(key, pix, CacheItemType::Thumbnail, CachePriority::High,
+                       pageNumber);
+                emit preloadCompleted(pageNumber, CacheItemType::Thumbnail);
+            }
+            break;
+        }
+        case CacheItemType::TextContent: {
+            QString text = value.toString();
+            if (!text.isEmpty()) {
+                QString key = m_pimpl->generateKey(pageNumber,
+                                                   CacheItemType::TextContent);
+                insert(key, text, CacheItemType::TextContent,
+                       CachePriority::Normal, pageNumber);
+                emit preloadCompleted(pageNumber, CacheItemType::TextContent);
+            }
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 void PDFCacheManager::setMaxMemoryUsage(qint64 bytes) {
@@ -750,6 +815,29 @@ CacheStatistics PDFCacheManager::getStatistics() const {
         int typeIndex = static_cast<int>(item.type);
         if (typeIndex >= 0 && typeIndex < 6) {
             stats.itemsByType[typeIndex]++;
+        }
+    }
+
+    if (m_pimpl->accessCount > 0) {
+        stats.averageAccessTime =
+            m_pimpl->totalAccessTime / m_pimpl->accessCount;
+    }
+
+    if (!m_pimpl->cache.isEmpty()) {
+        qint64 now = QDateTime::currentMSecsSinceEpoch();
+        qint64 minTs = std::numeric_limits<qint64>::max();
+        qint64 maxTs = 0;
+        for (const auto& item : m_pimpl->cache) {
+            if (item.timestamp < minTs)
+                minTs = item.timestamp;
+            if (item.timestamp > maxTs)
+                maxTs = item.timestamp;
+        }
+        if (minTs != std::numeric_limits<qint64>::max()) {
+            stats.oldestItemAge = now - minTs;
+        }
+        if (maxTs != 0) {
+            stats.newestItemAge = now - maxTs;
         }
     }
 

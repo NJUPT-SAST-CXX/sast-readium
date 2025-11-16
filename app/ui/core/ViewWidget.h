@@ -57,6 +57,7 @@ public:
     // 设置控制器和模型
     void setDocumentController(DocumentController* controller);
     void setDocumentModel(DocumentModel* model);
+    void setRenderModel(RenderModel* model);
     void setOutlineModel(PDFOutlineModel* model);
 
     // 文档操作
@@ -169,6 +170,7 @@ private:
     // 数据和控制
     DocumentController* documentController;
     DocumentModel* documentModel;
+    RenderModel* renderModel;
     PDFOutlineModel* outlineModel;
     QList<PDFViewer*> pdfViewers;           // 每个文档对应一个PDFViewer
     QList<PDFOutlineModel*> outlineModels;  // 每个文档对应一个目录模型

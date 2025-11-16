@@ -1,5 +1,6 @@
 #include "AsyncDocumentLoader.h"
 #include <QDateTime>
+#include <QFile>
 #include <QFileInfo>
 #include <QMutexLocker>
 #include "../logging/SimpleLogging.h"
@@ -102,7 +103,7 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath) {
 
                 // Cleanup worker and thread synchronously to avoid deleteLater
                 // at shutdown
-                if (threadToCleanup) {
+                if (threadToCleanup != nullptr) {
                     threadToCleanup->quit();
                     if (!threadToCleanup->wait(3000)) {
                         SLOG_WARNING(
@@ -112,7 +113,7 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath) {
                         threadToCleanup->wait(1000);
                     }
                 }
-                if (workerToCleanup) {
+                if (workerToCleanup != nullptr) {
                     // Move worker to current thread after its thread stopped,
                     // then delete
                     if (workerToCleanup->thread() &&
@@ -247,8 +248,9 @@ void AsyncDocumentLoader::cancelLoading() {
         delete threadToCleanup;
     }
 
-    if (emitCancelled)
+    if (emitCancelled) {
         emit loadingCancelled(filePath);
+    }
 }
 
 AsyncDocumentLoader::LoadingState AsyncDocumentLoader::currentState() const {
@@ -434,7 +436,7 @@ void AsyncDocumentLoaderWorker::doLoad() {
     }
 
     // Create timeout timer in worker thread (fixes thread affinity issue)
-    if (!m_timeoutTimer) {
+    if (m_timeoutTimer == nullptr) {
         m_timeoutTimer = new QTimer();  // No parent = current thread affinity
         m_timeoutTimer->setSingleShot(true);
         connect(m_timeoutTimer, &QTimer::timeout, this,
@@ -487,7 +489,7 @@ void AsyncDocumentLoaderWorker::doLoad() {
         }
 
         // Stop timeout timer - loading completed successfully
-        if (m_timeoutTimer) {
+        if (m_timeoutTimer != nullptr) {
             m_timeoutTimer->stop();
             SLOG_DEBUG(
                 "AsyncDocumentLoaderWorker: Timer stopped - loading completed "
@@ -639,7 +641,8 @@ int AsyncDocumentLoaderWorker::calculateTimeoutForFile(qint64 fileSize) const {
 
     // Apply retry multiplier if this is a retry attempt
     int baseTimeout =
-        MIN_TIMEOUT_MS + (fileSize / (1024 * 1024)) * 2000;  // 2 seconds per MB
+        MIN_TIMEOUT_MS + static_cast<int>((fileSize / (1024 * 1024)) *
+                                          2000);  // 2 seconds per MB
     if (m_retryCount > 0) {
         baseTimeout *= EXTENDED_TIMEOUT_MULTIPLIER;
     }
@@ -655,7 +658,7 @@ void AsyncDocumentLoaderWorker::cleanup() {
         // Prefer direct delete when target thread has no event loop
         QThread* timerThread = m_timeoutTimer->thread();
         if (timerThread == QThread::currentThread() ||
-            (timerThread && !timerThread->isRunning())) {
+            (timerThread != nullptr && !timerThread->isRunning())) {
             delete m_timeoutTimer;
         } else {
             m_timeoutTimer->deleteLater();

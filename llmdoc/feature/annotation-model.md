@@ -9,6 +9,7 @@ The AnnotationModel manages PDF annotations within the application, providing a 
 ### Core Data Structure
 
 PDFAnnotation struct represents a single annotation with:
+
 - **Identity**: id (unique identifier), type (AnnotationType enum)
 - **Location**: pageNumber, boundingRect (QRectF)
 - **Content**: content (text), author, isVisible flag
@@ -25,32 +26,38 @@ PDFAnnotation struct represents a single annotation with:
 ### Model Operations
 
 **CRUD Operations**:
+
 - `addAnnotation()` - Add new annotation, returns bool success status
 - `getAnnotation()` - Retrieve by ID
 - `updateAnnotation()` - Modify existing annotation
 - `removeAnnotation()` - Delete annotation by ID
 
 **Page Operations**:
+
 - `getAnnotationsForPage()` - List all annotations on specific page
 - `removeAnnotationsForPage()` - Delete all annotations on page
 - `getAnnotationCountForPage()` - Count annotations on page
 
 **Serialization**:
+
 - `toJson()` / `fromJson()` - Convert to/from QJsonObject for persistence
 - `loadAnnotationsFromDocument()` - Load from Poppler document
 - `saveAnnotationsToDocument()` - Persist to Poppler document
 
 **Search & Filter**:
+
 - `searchAnnotations()` - Search by content (case-insensitive)
 - `getAnnotationsByType()` - Filter by annotation type
 - `getAnnotationsByAuthor()` - Filter by author
 - `getRecentAnnotations()` - Retrieve most recently modified
 
 **Sticky Notes**:
+
 - `addStickyNote()` - Helper for quick note creation
 - `getStickyNotesForPage()` - Get notes for specific page
 
 **Statistics**:
+
 - `getTotalAnnotationCount()` - Total annotations in document
 - `getAnnotationCountByType()` - Distribution by type
 - `getAuthors()` - List unique annotation authors
@@ -58,6 +65,7 @@ PDFAnnotation struct represents a single annotation with:
 ### Critical Build Fixes Applied
 
 **Field Name Consistency**: Fixed mismatches between struct definition and implementation:
+
 - `boundary` → `boundingRect` (3 occurrences in serialization/deserialization)
 - `creationDate` → `createdTime` (2 occurrences)
 - `modificationDate` → `modifiedTime` (1 occurrence)
@@ -67,6 +75,7 @@ These fixes ensure field names in both `.cpp` implementation and `.h` struct def
 ### Qt Model Integration
 
 Implements QAbstractListModel interface:
+
 - `rowCount()` - Returns annotation count
 - `data()` - Returns annotation data for display roles
 - `setData()` - Updates annotation properties

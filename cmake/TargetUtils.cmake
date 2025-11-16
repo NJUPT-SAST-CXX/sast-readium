@@ -33,7 +33,7 @@ function(discover_app_sources output_var)
         set(base_dir ${CMAKE_CURRENT_SOURCE_DIR})
     endif()
 
-    message(STATUS "Discovering application sources in: ${base_dir}")
+    message(VERBOSE "Discovering application sources in: ${base_dir}")
 
     # Define standard application components
     set(app_components
@@ -62,7 +62,7 @@ function(discover_app_sources output_var)
             if(component_sources)
                 list(APPEND discovered_sources ${component_sources})
                 list(LENGTH component_sources source_count)
-                message(STATUS "  Found ${source_count} sources in ${component}")
+                message(VERBOSE "  Found ${source_count} sources in ${component}")
             endif()
         endif()
     endforeach()
@@ -80,11 +80,11 @@ function(discover_app_sources output_var)
     if(base_sources)
         list(APPEND discovered_sources ${base_sources})
         list(LENGTH base_sources source_count)
-        message(STATUS "  Found ${source_count} sources in base directory")
+        message(VERBOSE "  Found ${source_count} sources in base directory")
     endif()
 
     list(LENGTH discovered_sources total_count)
-    message(STATUS "Total application sources discovered: ${total_count}")
+    message(VERBOSE "Total application sources discovered: ${total_count}")
 
     set(${output_var} ${discovered_sources} PARENT_SCOPE)
 endfunction()
@@ -146,7 +146,7 @@ function(validate_discovered_sources source_list)
         endforeach()
     endif()
 
-    message(STATUS "Source validation passed")
+    message(VERBOSE "Source validation passed")
 endfunction()
 
 #[=======================================================================[.rst:
@@ -188,7 +188,7 @@ function(setup_target target_name)
         set(TARGET_CXX_STANDARD 20)
     endif()
 
-    message(STATUS "Setting up target: ${target_name} (${TARGET_TYPE})")
+    message(VERBOSE "Setting up target: ${target_name} (${TARGET_TYPE})")
 
     # Create target
     if(TARGET_TYPE STREQUAL "EXECUTABLE")
@@ -225,7 +225,7 @@ function(setup_target target_name)
     get_common_libraries(common_libs)
     target_link_libraries(${target_name} PRIVATE ${common_libs})
 
-    message(STATUS "Target ${target_name} configured successfully")
+    message(VERBOSE "Target ${target_name} configured successfully")
 endfunction()
 
 #[=======================================================================[.rst:
@@ -245,7 +245,7 @@ This function:
 
 #]=======================================================================]
 function(setup_testing_environment)
-    message(STATUS "Setting up testing environment...")
+    message(VERBOSE "Setting up testing environment...")
 
     # Note: enable_testing() must be called at top level, not in function
     # This is handled in the root CMakeLists.txt
@@ -255,7 +255,7 @@ function(setup_testing_environment)
     set(CMAKE_AUTORCC ON PARENT_SCOPE)
     set(CMAKE_AUTOUIC ON PARENT_SCOPE)
 
-    message(STATUS "Testing environment configured")
+    message(VERBOSE "Testing environment configured")
 endfunction()
 
 #[=======================================================================[.rst:
@@ -288,7 +288,7 @@ function(create_test_target test_name)
         return()
     endif()
 
-    message(STATUS "Creating test target: ${test_name}")
+    message(VERBOSE "Creating test target: ${test_name}")
 
     # Create test executable
     add_executable(${test_name} ${TEST_SOURCES})
@@ -299,6 +299,11 @@ function(create_test_target test_name)
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
     )
+
+    # Reduce GNU ld memory footprint when linking large test binaries on MinGW
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_link_options(${test_name} PRIVATE "-Wl,--no-keep-memory" "-Wl,--reduce-memory-overheads")
+    endif()
 
     # Add include directories for tests to access app sources
     target_include_directories(${test_name} PRIVATE
@@ -419,5 +424,5 @@ function(create_test_target test_name)
         endif()
     endif()
 
-    message(STATUS "Test ${test_name} registered with CTest")
+    message(VERBOSE "Test ${test_name} registered with CTest")
 endfunction()

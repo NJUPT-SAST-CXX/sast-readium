@@ -28,6 +28,7 @@
 **COMPLETE - Dual Path System**
 
 **Synchronous Rendering:**
+
 - Location: PDFViewer.cpp lines 236-295
 - Uses SafePDFRenderer for stability
 - DPI optimization: Clamped to 150-300 range
@@ -36,6 +37,7 @@
 - Status: ✅ FULLY IMPLEMENTED
 
 **Asynchronous Rendering:**
+
 - Location: PDFViewer.cpp lines 168-234
 - PDFPrerenderer integration: Lines 172-174
 - Cache check: Lines 189-196
@@ -45,6 +47,7 @@
 - Status: ✅ FULLY IMPLEMENTED
 
 **Rendering Quality:**
+
 - High-quality flag: Supports high/fast modes
 - DPI calculation: `calculateOptimalDPI()` at line 255
 - Device pixel ratio: Handled at line 298
@@ -69,6 +72,7 @@
 | Cleanup | ✅ | `cleanupCache()` at line 326 |
 
 **Cache Statistics:**
+
 - Structure: PageCacheItem with timestamp, memory size, access count (lines 497-511)
 - LRU list: Pointers for O(1) operations (prev/next)
 - Zoom mapping: Integer ID caching for zoom factors (line 525)
@@ -78,6 +82,7 @@
 **COMPLETE - Advanced Page Management**
 
 **Virtual Scrolling Implementation:**
+
 - Active page widgets: `activePageWidgets` hash at line 424
 - Placeholder widgets: `placeholderWidgets` hash at line 427
 - Page heights cache: `pageHeights` hash at line 429
@@ -86,6 +91,7 @@
 - Visible range calculation: `calculateVisiblePageRange()` at line 309
 
 **Lazy Loading System:**
+
 - Page load states: NotLoaded, Loading, Loaded, LoadError at line 178
 - State tracking: `pageLoadStates` hash at line 439
 - Pending loads queue: `pendingLoads` set at line 442
@@ -94,6 +100,7 @@
 - Lazy load timer: `lazyLoadTimer` at line 441
 
 **Page Lifecycle:**
+
 - Creation: `createPageWidget()` at line 298
 - Destruction: `destroyPageWidget()` at line 299
 - Placeholder: `createPlaceholderWidget()` at line 300
@@ -121,16 +128,19 @@
 **COMPLETE - Optimized Multi-Stage Implementation**
 
 **Search Storage:**
+
 - All results: `m_allSearchResults` at line 568
 - Current index: `m_currentSearchResultIndex` at line 569
 - Per-page results: `m_searchResults` in PDFPageWidget at line 148
 
 **Highlight Colors:**
+
 - Normal color: `m_normalHighlightColor` (yellow 255,255,0,100) at lines 150, 46 in PDFPageWidget
 - Current color: `m_currentHighlightColor` (orange 255,165,0,150) at lines 151, 47 in PDFPageWidget
 - Color update: `updateHighlightColors()` at line 97-98
 
 **Optimization Layers:**
+
 1. Pre-rendered layer: `m_searchHighlightLayer` pixmap at line 154
 2. Dirty flag: `m_searchHighlightsDirty` at line 155
 3. Enable flag: `m_searchHighlightsEnabled` at line 157
@@ -138,6 +148,7 @@
 5. Invalidation: `invalidateSearchHighlights()` at line 166
 
 **Highlight Methods:**
+
 - Set results: `setSearchResults()` at line 230
 - Clear: `clearSearchHighlights()` at line 231
 - Highlight current: `highlightCurrentSearchResult()` at line 232
@@ -152,6 +163,7 @@
 **VERIFIED - Dual Quality Modes**
 
 **High-Quality Path:**
+
 - DPI base: 150 DPI (vs 72 for standard)
 - Antialiasing: Enabled (QPainter::Antialiasing)
 - Text antialiasing: Enabled (QPainter::TextAntialiasing)
@@ -159,12 +171,14 @@
 - Device ratio: Applied at rendering time
 
 **Fast Path:**
+
 - DPI base: 72 DPI
 - Antialiasing: Optional
 - Device ratio: Applied at rendering time
 - Use case: Large documents, continuous mode
 
 **DPI Optimization:**
+
 - Formula: `baseDPI * scaleFactor * devicePixelRatio`
 - Clamping: Maximum 300 DPI for compatibility
 - Conservative: 150 DPI for Qt-generated PDFs
@@ -175,24 +189,28 @@
 **VERIFIED - Intelligent System**
 
 **Worker Architecture:**
+
 - Thread count: `QThread::idealThreadCount()` at line 23 in PDFPrerenderer.cpp
 - Worker setup: `setupWorkerThreads()` method
 - Cleanup: `cleanupWorkerThreads()` method
 - Queue management: Thread-safe with mutex
 
 **Request Processing:**
+
 - Queue type: Priority queue (RenderRequest at lines 23-36)
 - Priority field: Lower number = higher priority
 - Timestamp: Used for FIFO within same priority
 - Duplicate detection: Lines 102-108 in PDFPrerenderer.cpp
 
 **Adaptive Prerendering:**
+
 - Analysis timer: 30-second intervals at line 44
 - Pattern tracking: `recordPageView()`, `recordNavigationPattern()` at lines 72-73
 - Strategy switching: Conservative/Balanced/Aggressive (lines 38-42)
 - Direction awareness: `updateScrollDirection()` at line 74
 
 **Cache Integration:**
+
 - Prerender cache: `m_cache` hash at line 120
 - Memory tracking: `m_currentMemoryUsage` at line 121
 - LRU eviction: `evictLRUItems()` method
@@ -203,18 +221,21 @@
 **VERIFIED - Multiple Cache Layers**
 
 **PDFViewer Cache:**
+
 - Type: LRU with importance scoring
 - Size: Configurable item limit and memory limit
 - Key: 64-bit integer from (page, zoom, rotation)
 - Eviction: Based on recency and importance
 
 **PDFPrerenderer Cache:**
+
 - Type: Intelligent cache with memory awareness
 - Strategy: LRU eviction based on importance score
 - Memory management: `setMaxMemoryUsage()` method
 - Statistics: Hit ratio tracking
 
 **PDFViewerComponents Cache:**
+
 - Type: Thread-safe QCache wrapper (PDFRenderCache)
 - Singleton: Single instance across application
 - Thread safety: QMutex protection
@@ -243,6 +264,7 @@
 **VERIFIED - 25 Shortcuts Implemented**
 
 **Navigation Shortcuts:**
+
 - Page Down: Page forward
 - Page Up: Page backward
 - Home: First page
@@ -252,6 +274,7 @@
 - Ctrl+G: Goto page dialog
 
 **Zoom Shortcuts:**
+
 - Ctrl++: Zoom in
 - Ctrl+-: Zoom out
 - Ctrl+0: Actual size (100%)
@@ -261,11 +284,13 @@
 - Ctrl+Shift+P: Fit page
 
 **View Mode Shortcuts:**
+
 - F11: Toggle fullscreen
 - F5: Presentation mode
 - Ctrl+B: Toggle bookmarks
 
 **Search Shortcuts:**
+
 - Ctrl+F: Find
 - F3: Find next
 - Shift+F3: Find previous
@@ -278,18 +303,21 @@
 **VERIFIED - Multi-Touch Implementation**
 
 **Gesture Recognition:**
+
 - Pinch gesture: `grabGesture(Qt::PinchGesture)` at line 60
 - Swipe gesture: `grabGesture(Qt::SwipeGesture)` at line 61
 - Pan gesture: `grabGesture(Qt::PanGesture)` at line 62
 - Touch events: `setAttribute(Qt::WA_AcceptTouchEvents, true)` at line 65
 
 **Gesture Handlers:**
+
 - `pinchTriggered()` at line 109: Zoom based on scale
 - `swipeTriggered()` at line 110: Page navigation
 - `panTriggered()` at line 111: Pan content
 - `touchEvent()` at line 112: Raw touch handling
 
 **Event Routing:**
+
 - Main event handler: `event()` at line 107
 - Gesture event handler: `gestureEvent()` at line 108
 
@@ -313,17 +341,20 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Complete System**
 
 **Page Management:**
+
 - Visible pages: `visiblePageStart` and `visiblePageEnd` tracking
 - Render buffer: `renderBuffer` for pre-rendering (lines 420-421)
 - Scroll direction: `scrollDirection` for directional optimization
 
 **Lazy Load Scheduling:**
+
 - Timer: `lazyLoadTimer` for debounced loading
 - Queue: `pendingLoads` set for pending pages
 - State tracking: `pageLoadStates` hash for load states
 - Prioritization: `prioritizeVisiblePages()` method
 
 **Memory Efficiency:**
+
 - Placeholder widgets: Non-visible pages get lightweight placeholders
 - Estimated heights: `estimatePageHeight()` avoids full rendering
 - Position caching: `pagePositions` vector for quick lookups
@@ -333,18 +364,21 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Multi-Layer Memory Management**
 
 **Page Cache:**
+
 - Memory limits: `maxCacheMemory` byte-level limit at line 516
 - Item limits: `maxCacheSize` item limit at line 515
 - Per-item tracking: `memorySize` at line 502
 - Total tracking: `currentCacheMemory` at line 517
 
 **Prerenderer Cache:**
+
 - Memory limit: 512MB default (line 25 in PDFPrerenderer.cpp)
 - Item limit: 100 items default (line 24)
 - Eviction policy: Score-based intelligent eviction
 - Statistics: `memoryUsage()` method for monitoring
 
 **Smart Eviction:**
+
 - Importance scoring: Considers page proximity and view time
 - Access tracking: `accessCount` for frequency
 - Timestamp tracking: `lastAccessed` for recency
@@ -355,18 +389,21 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Proper Resource Management**
 
 **Page Widget Cleanup:**
+
 - Destruction: `destroyPageWidget()` at line 299
 - Placeholder cleanup: Automatic with Qt parent-child
 - Pixmap cleanup: QPixmap automatic memory release
 - Timer cleanup: `renderDebounceTimer` managed by Qt
 
 **Cache Cleanup:**
+
 - Periodic eviction: `evictLeastImportantItems()` when over limit
 - Explicit clear: `clearPageCache()` at line 325
 - Cleanup: `cleanupCache()` at line 326
 - LRU removal: `removeTail()` for least important
 
 **Document Cleanup:**
+
 - Clear on document change: Cache cleared in `setDocument()`
 - Prerenderer reset: `clearPrerenderQueue()` on document change
 - Search cleanup: `clearSearchHighlights()` on document change
@@ -376,18 +413,21 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Multi-Threaded Architecture**
 
 **PDFPrerenderer Threading:**
+
 - Worker threads: Created at `setupWorkerThreads()` (line 51)
 - Thread count: Auto-scaled to system capability
 - Queue management: Thread-safe with `QMutex` and `QWaitCondition`
 - Worker type: PDFRenderWorker class for page rendering
 
 **PDFRenderWorker Threading:**
+
 - Local queue: `m_localQueue` for per-worker requests
 - Queue condition: `m_queueCondition` for blocking waits
 - Stop signal: `m_shouldStop` flag for clean shutdown
 - Render execution: `processRenderQueue()` slot in worker thread
 
 **Thread Safety:**
+
 - Mutex protection: `m_queueMutex` protects shared structures
 - Wait conditions: Signal worker threads when work available
 - Deadlock prevention: Documented at line 60 in PDFPrerenderer.cpp
@@ -409,6 +449,7 @@ Implementation through Qt's cursor system and state tracking variables.
 | Page visible range | `visiblePageStart/End` at lines 418-419 | Scroll events |
 
 **Signal Emission:**
+
 - Page changed: `pageChanged(int pageNumber)` at line 578
 - Document changed: `documentChanged(bool hasDocument)` at line 580
 
@@ -417,18 +458,21 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Settings Integration**
 
 **Zoom Storage:**
+
 - Current zoom: `currentZoomFactor` at line 404
 - Zoom type: `currentZoomType` at line 406
 - Zoom timer: `zoomTimer` for debounced saves
 - Pending zoom: `pendingZoomFactor` at line 411
 
 **Settings Management:**
+
 - Save method: `saveZoomSettings()` at line 330
 - Load method: `loadZoomSettings()` at line 331
 - Persistence: Via QSettings system
 - Restoration: On document open
 
 **Signal Emission:**
+
 - Zoom changed: `zoomChanged(double factor)` at line 579
 
 ### 5.3 Scroll Position Maintenance
@@ -436,12 +480,14 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Scroll State Preservation**
 
 **Scroll Tracking:**
+
 - Get position: `getScrollPosition()` at line 213
 - Set position: `setScrollPosition()` at line 214
 - Direction tracking: `scrollDirection` at line 436
 - Debounce timer: `scrollTimer` at line 421
 
 **Continuous View Support:**
+
 - Scroll in continuous mode: Via `continuousScrollArea`
 - Position calculation: Based on visible page range
 - Restoration: Through controller undo/redo system
@@ -451,21 +497,25 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Mode Persistence**
 
 **Mode Types:**
+
 - Single page: PDFViewMode::SinglePage at line 56
 - Continuous: PDFViewMode::ContinuousScroll at line 57
 
 **Mode Support:**
+
 - Get mode: `getViewMode()` at line 243
 - Set mode: `setViewMode()` at line 242
 - Single page widget: `singlePageScrollArea` at line 360
 - Continuous widget: `continuousWidget` at line 365
 
 **Mode-Specific Rendering:**
+
 - Single page: Individual page rendering in scroll area
 - Continuous: Multiple pages stacked vertically
 - Layout update: `updateContinuousView()` method
 
 **Signal Emission:**
+
 - Mode changed: `viewModeChanged(PDFViewMode mode)` at line 581
 
 ---
@@ -477,12 +527,14 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Proper API Usage**
 
 **Document Access:**
+
 - Null check: `if (parentViewer && parentViewer->hasDocument())` at line 268
 - Document retrieval: Via public API `hasDocument()` at line 249
 - Page access: Via public Poppler::Page pointers
 - Document ownership: External (handled by DocumentModel)
 
 **Lifecycle Integration:**
+
 - Open document: ViewWidget calls `setDocument()` on PDFViewer
 - Close document: ViewWidget calls `clearDocument()` on PDFViewer
 - Multi-document: Tab-based switching in ViewWidget
@@ -492,11 +544,13 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - DPI and Rendering Hints**
 
 **DPI Calculation:**
+
 - Method call: `RenderModel::configureDocumentRenderHints()` at lines 75, 177
 - DPI support: Via RenderModel's effective DPI calculation
 - Device ratio: Passed from QWidget::devicePixelRatioF()
 
 **Render Hints:**
+
 - Configuration: Applied to document at prerenderer setup
 - Quality settings: Used in PDFRenderUtils for optimization
 - PDF compatibility: Handled through SafePDFRenderer
@@ -506,12 +560,14 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Multi-Level Cache Coordination**
 
 **Cache Coordination:**
+
 - Prerenderer cache: Primary async render cache
 - PDFViewer cache: Secondary LRU cache for final renders
 - PDFViewerComponents cache: Singleton shared cache
 - SafePDFRenderer cache: Potential compatibility cache
 
 **Cache Flow:**
+
 1. Check PDFPageWidget's last pixmap
 2. Check PDFPrerenderer's cache
 3. Request async prerender
@@ -523,18 +579,21 @@ Implementation through Qt's cursor system and state tracking variables.
 **VERIFIED - Comprehensive Recovery**
 
 **Error Detection:**
+
 - Render state: RenderError at line 72
 - Return value checks: `if (!image.isNull())`
 - SafePDFRenderer status: `if (!renderInfo.success)`
 - Exception catching: std::exception and generic catch
 
 **Recovery Mechanisms:**
+
 - Sync fallback: Async failure triggers sync render (line 237)
 - Retry mechanism: Up to 3 retries with exponential backoff (line 145)
 - Error messages: Displayed in page widget (line 285)
 - Detailed logging: With attempt counts and compatibility info (lines 290-293)
 
 **User Feedback:**
+
 - Status display: "Rendering...", "Rendering (sync)...", error messages
 - State tracking: Render state enum for UI updates
 - Logging: Comprehensive debug/warning output
@@ -619,6 +678,7 @@ Implementation through Qt's cursor system and state tracking variables.
 ## Conclusion
 
 The PDF Viewer components demonstrate **production-ready implementation** for all core functionality. No TODOs or incomplete code blocks found. The architecture supports:
+
 - Efficient rendering of large documents
 - Responsive user interaction
 - Smooth animations and transitions

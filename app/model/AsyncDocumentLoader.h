@@ -40,7 +40,7 @@ public:
     };
 
     explicit AsyncDocumentLoader(QObject* parent = nullptr);
-    ~AsyncDocumentLoader();
+    ~AsyncDocumentLoader() override;
 
     // 开始异步加载文档
     void loadDocument(const QString& filePath);
@@ -141,7 +141,7 @@ class AsyncDocumentLoaderWorker : public QObject {
 
 public:
     AsyncDocumentLoaderWorker(const QString& filePath);
-    ~AsyncDocumentLoaderWorker();
+    ~AsyncDocumentLoaderWorker() override;
 
 public slots:
     void doLoad();

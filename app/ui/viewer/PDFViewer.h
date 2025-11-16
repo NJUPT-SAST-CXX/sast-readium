@@ -16,6 +16,7 @@ class Page;
 
 class RenderModel;
 class PageModel;
+class PDFPrerenderer;
 class QLabel;
 class QVBoxLayout;
 class QHBoxLayout;
@@ -253,6 +254,12 @@ public:
      * @brief 设置页面模型
      */
     void setPageModel(PageModel* model);
+
+    // QGraphics PDF rendering mode control (used by integration/performance
+    // tests)
+    void setQGraphicsRenderingEnabled(bool enabled);
+    bool isQGraphicsRenderingEnabled() const;
+    void setQGraphicsHighQualityRendering(bool enabled);
 
     // ------------------------------------------------------------------------
     // Backward-compatibility API for tests

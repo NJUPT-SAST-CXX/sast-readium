@@ -8,6 +8,8 @@
 #include <QRandomGenerator>
 #include <QtCore>
 #include <algorithm>
+#include <memory>
+#include <vector>
 #include "../logging/SimpleLogging.h"
 
 // PDFAnnotation serialization implementation
@@ -104,7 +106,7 @@ PDFAnnotation PDFAnnotation::fromJson(const QJsonObject& json) {
     // Ink path
     if (json.contains("inkPath")) {
         QJsonArray pathArray = json["inkPath"].toArray();
-        for (const QJsonValue& value : pathArray) {
+        for (const auto& value : pathArray) {
             QJsonObject pointObj = value.toObject();
             annotation.inkPath.append(
                 QPointF(pointObj["x"].toDouble(), pointObj["y"].toDouble()));
@@ -449,7 +451,7 @@ int AnnotationModel::getAnnotationCountForPage(int pageNumber) const {
 void AnnotationModel::setDocument(Poppler::Document* document) {
     m_document = document;
     clearAnnotations();
-    if (document) {
+    if (document != nullptr) {
         loadAnnotationsFromDocument();
     }
 }
@@ -487,7 +489,7 @@ QString AnnotationModel::generateUniqueId() const {
 }
 
 bool AnnotationModel::loadAnnotationsFromDocument() {
-    if (!m_document) {
+    if (m_document == nullptr) {
         return false;
     }
 
@@ -528,7 +530,7 @@ bool AnnotationModel::loadAnnotationsFromDocument() {
 }
 
 bool AnnotationModel::saveAnnotationsToDocument() {
-    if (!m_document) {
+    if (m_document == nullptr) {
         return false;
     }
 
@@ -768,7 +770,7 @@ Poppler::Annotation* PDFAnnotation::toPopplerAnnotation() const {
                 return nullptr;
         }
 
-        if (annotation) {
+        if (annotation != nullptr) {
             // Set common properties
             annotation->setBoundary(boundingRect);
             annotation->setContents(content);
@@ -798,7 +800,7 @@ Poppler::Annotation* PDFAnnotation::toPopplerAnnotation() const {
 
     } catch (const std::exception& e) {
         SLOG_WARNING_F("Failed to create Poppler annotation: {}", e.what());
-        if (annotation) {
+        if (annotation != nullptr) {
             delete annotation;
             annotation = nullptr;
         }
@@ -811,7 +813,7 @@ PDFAnnotation PDFAnnotation::fromPopplerAnnotation(
     Poppler::Annotation* annotation, int pageNum) {
     PDFAnnotation result;
 
-    if (!annotation) {
+    if (annotation == nullptr) {
         return result;
     }
 

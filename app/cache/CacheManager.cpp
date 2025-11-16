@@ -18,6 +18,9 @@ using enum CacheType;
 #include <mach/mach_init.h>
 #include <mach/task.h>
 #include <sys/sysctl.h>
+#elif defined(Q_OS_WIN)
+#include <psapi.h>
+#include <windows.h>
 #endif
 
 constexpr int MAX_TRACKED_ACCESSES = 1000;
@@ -427,6 +430,12 @@ void CacheManager::enforceMemoryLimits() {
 
 void CacheManager::handleMemoryPressure() {
     double usageRatio = getGlobalMemoryUsageRatio();
+    if (usageRatio >= m_d->memoryPressureWarningThreshold) {
+        emit memoryPressureWarning(usageRatio);
+    }
+    if (usageRatio >= m_d->memoryPressureCriticalThreshold) {
+        emit memoryPressureCritical(usageRatio);
+    }
     if (usageRatio > m_d->config.memoryPressureThreshold / 100.0) {
         emit memoryPressureDetected(usageRatio);
 
@@ -644,7 +653,12 @@ void CacheManager::optimizeCacheDistribution() {
                                               0.05);  // At least 5% per cache
         newLimit = std::max(newLimit, minLimit);
 
-        setCacheLimit(type, newLimit);
+        m_d->cacheMemoryLimits[type] = newLimit;
+
+        ICacheComponent* cache = m_d->registeredCaches.value(type);
+        if (cache != nullptr) {
+            cache->setMaxMemoryLimit(newLimit);
+        }
     }
 }
 
@@ -755,6 +769,10 @@ void CacheManager::handleSystemMemoryPressure() {
         // Trigger aggressive cache eviction
         QMutexLocker locker(&m_d->mutex);
 
+        if (!m_d->emergencyEvictionEnabled) {
+            return;
+        }
+
         // Calculate how much memory to free (aim for 10% below threshold)
         qint64 totalSystemMemory = getSystemMemoryTotal();
         auto targetUsage = static_cast<qint64>(
@@ -820,9 +838,35 @@ bool CacheManager::isMemoryCompressionEnabled() const {
 }
 
 void CacheManager::compressInactiveCaches() {
-    // This would implement cache compression for inactive entries
-    // For now, just emit a signal indicating compression is complete
-    emit cacheCompressionCompleted(0);
+    QMutexLocker locker(&m_d->mutex);
+
+    qint64 memoryFreed = 0;
+
+    for (auto it = m_d->registeredCaches.constBegin();
+         it != m_d->registeredCaches.constEnd(); ++it) {
+        CacheType type = it.key();
+        ICacheComponent* cache = it.value();
+        if (cache == nullptr || !m_d->cacheEnabled.value(type, true)) {
+            continue;
+        }
+
+        qint64 before = cache->getMemoryUsage();
+        if (before <= 0) {
+            continue;
+        }
+
+        qint64 toFree = before / 5;
+        if (toFree > 0) {
+            cache->evictLRU(toFree);
+        }
+
+        qint64 after = cache->getMemoryUsage();
+        if (after < before) {
+            memoryFreed += (before - after);
+        }
+    }
+
+    emit cacheCompressionCompleted(memoryFreed);
 }
 
 void CacheManager::optimizeMemoryLayout() {

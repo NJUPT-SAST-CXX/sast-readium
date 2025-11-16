@@ -3,13 +3,15 @@
 SignatureVerifier::SignatureVerifier(QObject* parent) : QObject(parent) {}
 
 bool SignatureVerifier::hasSignatures(Poppler::Document* document) {
-    if (!document)
+    if (!document) {
         return false;
+    }
 
     for (int i = 0; i < document->numPages(); ++i) {
         std::unique_ptr<Poppler::Page> page(document->page(i));
-        if (!page)
+        if (!page) {
             continue;
+        }
 
         QList<Poppler::FormField*> fields = page->formFields();
         for (Poppler::FormField* field : fields) {
@@ -22,14 +24,16 @@ bool SignatureVerifier::hasSignatures(Poppler::Document* document) {
 }
 
 int SignatureVerifier::getSignatureCount(Poppler::Document* document) {
-    if (!document)
+    if (!document) {
         return 0;
+    }
 
     int count = 0;
     for (int i = 0; i < document->numPages(); ++i) {
         std::unique_ptr<Poppler::Page> page(document->page(i));
-        if (!page)
+        if (!page) {
             continue;
+        }
 
         QList<Poppler::FormField*> fields = page->formFields();
         for (Poppler::FormField* field : fields) {

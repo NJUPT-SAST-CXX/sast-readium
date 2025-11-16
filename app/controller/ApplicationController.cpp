@@ -24,6 +24,7 @@
 #include "../ui/core/ToolBar.h"
 #include "../ui/widgets/SearchPanel.h"
 
+#include <QSettings>
 #include "../ui/core/UIErrorHandler.h"
 #include "../ui/core/ViewWidget.h"
 #include "../ui/dialogs/SettingsDialog.h"
@@ -47,6 +48,84 @@ ApplicationController::ApplicationController(QMainWindow* mainWindow,
     }
 
     m_logger.debug("ApplicationController created");
+}
+
+void ApplicationController::applyRenderingSettingsFromConfig() {
+    if (!m_renderModel) {
+        m_logger.warning(
+            "applyRenderingSettingsFromConfig called with null RenderModel");
+        return;
+    }
+
+    QSettings settings("SAST", "Readium");
+
+    int qualityIndex =
+        settings
+            .value("performance/renderQuality",
+                   settings.value("rendering/quality", 2).toInt())
+            .toInt();
+    qualityIndex = qBound(0, qualityIndex, 3);
+
+    RenderModel::RenderQuality quality = RenderModel::RenderQuality::High;
+    switch (qualityIndex) {
+        case 0:
+            quality = RenderModel::RenderQuality::Draft;
+            break;
+        case 1:
+            quality = RenderModel::RenderQuality::Normal;
+            break;
+        case 2:
+            quality = RenderModel::RenderQuality::High;
+            break;
+        case 3:
+            quality = RenderModel::RenderQuality::Ultra;
+            break;
+        default:
+            quality = RenderModel::RenderQuality::High;
+            break;
+    }
+
+    int cacheSizeMB = settings
+                          .value("performance/cacheSize",
+                                 settings.value("cache/size", 500).toInt())
+                          .toInt();
+    if (cacheSizeMB <= 0) {
+        cacheSizeMB = 50;
+    }
+
+    bool preloadEnabled = settings.value("rendering/preload", true).toBool();
+    int preloadCount = settings.value("rendering/preloadCount", 2).toInt();
+    if (preloadCount < 0) {
+        preloadCount = 0;
+    }
+
+    bool hardwareAccel =
+        settings.value("performance/hardwareAccel", true).toBool();
+
+    m_logger.info(QString("Applying rendering settings: qualityIndex=%1, "
+                          "cacheSizeMB=%2, preloadEnabled=%3, preloadCount=%4, "
+                          "hardwareAccel=%5")
+                      .arg(qualityIndex)
+                      .arg(cacheSizeMB)
+                      .arg(preloadEnabled)
+                      .arg(preloadCount)
+                      .arg(hardwareAccel));
+
+    m_renderModel->setRenderQuality(quality);
+    m_renderModel->setMaxCacheSize(cacheSizeMB);
+
+    if (m_pageModel) {
+        m_pageModel->setPreloadEnabled(preloadEnabled);
+        m_pageModel->setPreloadRadius(preloadCount);
+    }
+
+    // 将硬件加速设置传递给缩略图渲染管线（如果侧边栏和模型已创建）
+    if (m_sideBar) {
+        ThumbnailModel* thumbnailModel = m_sideBar->getThumbnailModel();
+        if (thumbnailModel) {
+            thumbnailModel->setHardwareAccelerationEnabled(hardwareAccel);
+        }
+    }
 }
 
 ApplicationController::~ApplicationController() {
@@ -133,6 +212,8 @@ void ApplicationController::initializeModels() {
         m_renderModel = new RenderModel(m_mainWindow->logicalDpiX(),
                                         m_mainWindow->logicalDpiY());
         m_logger.debug("RenderModel created");
+
+        applyRenderingSettingsFromConfig();
 
         m_logger.debug("Creating DocumentModel...");
         m_documentModel = new DocumentModel(m_renderModel);
@@ -231,7 +312,13 @@ void ApplicationController::initializeViews() {
         m_viewWidget->setDocumentController(m_documentController);
         m_logger.info("Setting DocumentModel on ViewWidget...");
         m_viewWidget->setDocumentModel(m_documentModel);
+        m_logger.info("Setting RenderModel on ViewWidget...");
+        m_viewWidget->setRenderModel(m_renderModel);
         m_logger.info("Components configured successfully");
+
+        // Re-apply rendering-related settings now that views (including
+        // SideBar/ThumbnailModel) are available
+        applyRenderingSettingsFromConfig();
 
         // Setup main window
         m_logger.info("Setting up main window...");
@@ -641,6 +728,14 @@ void ApplicationController::connectControllerSignals() {
                     }
                 }
             });
+
+        connect(m_documentController, &DocumentController::settingsChanged,
+                this, [this]() {
+                    m_logger.info(
+                        "ApplicationController: settingsChanged "
+                        "received, applying rendering settings");
+                    applyRenderingSettingsFromConfig();
+                });
     }
 }
 

@@ -33,6 +33,7 @@
 #include <QThread>
 #include <QThreadPool>
 #include <QTimer>
+#include <QVariant>
 #include <array>
 #include <cstdint>
 
@@ -363,6 +364,8 @@ public:
      */
     void setPreloadingStrategy(const QString& strategy);
 
+    void executePreload(Poppler::Document* document);
+
     // Cache management
     /**
      * @brief Optimizes cache performance and memory usage
@@ -615,7 +618,7 @@ private slots:
     /**
      * @brief Handles completion of preload tasks
      */
-    void onPreloadTaskCompleted();
+    void onPreloadTaskCompleted(int pageNumber, int typeValue, QVariant value);
 
 private:
     class Implementation;

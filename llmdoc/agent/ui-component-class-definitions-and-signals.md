@@ -13,6 +13,7 @@ This document provides detailed class definitions, Qt inheritance information, a
 **File:** `d:\Project\sast-readium\app\ui\core\MenuBar.h`
 
 **Class Definition:**
+
 ```cpp
 class MenuBar : public QMenuBar {
     Q_OBJECT
@@ -25,6 +26,7 @@ public:
 **Qt Inheritance Chain:** QMenuBar -> QWidget -> QObject
 
 **Signals:**
+
 - `themeChanged(const QString& theme)` - Emitted when theme changes (light/dark)
 - `languageChanged(const QString& languageCode)` - Emitted when language changes (en/zh)
 - `onExecuted(ActionMap id, QWidget* context)` - Emitted when menu action is executed
@@ -35,6 +37,7 @@ public:
 - `debugPanelExportRequested()` - Emitted to export debug logs
 
 **Slots:**
+
 - `setRecentFilesManager(RecentFilesManager* manager)` - Set manager for recent files
 - `setWelcomeScreenEnabled(bool enabled)` - Enable/disable welcome screen in menu
 - `updateRecentFilesMenu()` - Refresh recent files submenu
@@ -48,6 +51,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\core\ToolBar.h`
 
 **Class Definition:**
+
 ```cpp
 class ToolBar : public QToolBar {
     Q_OBJECT
@@ -71,6 +75,7 @@ signals:
 **Qt Inheritance Chain:** QToolBar -> QWidget -> QObject; CollapsibleSection -> QWidget -> QObject
 
 **Signals:**
+
 - `actionTriggered(ActionMap action)` - Any toolbar action triggered
 - `pageJumpRequested(int pageNumber)` - Jump to specific page
 - `zoomLevelChanged(int percentage)` - Zoom level changed
@@ -78,12 +83,14 @@ signals:
 - `sectionExpandChanged(const QString& sectionName, bool expanded)` - Collapsible section expanded/collapsed
 
 **Slots:**
+
 - `onPageSpinBoxChanged(int pageNumber)` - Page number spinbox changed
 - `onViewModeChanged()` - View mode changed
 - `onZoomSliderChanged(int value)` - Zoom slider changed
 - `onSectionExpandChanged(bool expanded)` - Section expand state changed
 
 **State Tracking Methods:**
+
 - `void updatePageInfo(int currentPage, int totalPages)` - Update page display
 - `void updateZoomLevel(double zoomFactor)` - Update zoom display
 - `void updateDocumentInfo(const QString& fileName, qint64 fileSize, const QDateTime& lastModified)` - Update file info
@@ -97,6 +104,7 @@ signals:
 **File:** `d:\Project\sast-readium\app\ui\core\StatusBar.h`
 
 **Class Definition:**
+
 ```cpp
 class StatusBar : public QStatusBar {
     Q_OBJECT
@@ -121,11 +129,13 @@ signals:
 **Qt Inheritance Chain:** QStatusBar -> QWidget -> QObject; ExpandableInfoPanel -> QWidget -> QObject
 
 **Signals:**
+
 - `pageJumpRequested(int pageNumber)` - Jump to page via status bar input
 - `zoomLevelChangeRequested(double zoomLevel)` - Zoom change via status bar
 - `searchRequested(const QString& text)` - Search via status bar
 
 **Slots:**
+
 - `onPageInputReturnPressed()` - Page input field enter key
 - `onPageInputEditingFinished()` - Page input editing finished
 - `onPageInputTextChanged(const QString& text)` - Page input text changed
@@ -135,6 +145,7 @@ signals:
 - `onMessageTimerTimeout()` - Message display timeout
 
 **MessagePriority Enum:**
+
 ```cpp
 enum class MessagePriority { Low = 0, Normal = 1, High = 2, Critical = 3 };
 ```
@@ -146,6 +157,7 @@ enum class MessagePriority { Low = 0, Normal = 1, High = 2, Critical = 3 };
 **File:** `d:\Project\sast-readium\app\ui\core\SideBar.h`
 
 **Class Definition:**
+
 ```cpp
 class SideBar : public QWidget {
     Q_OBJECT
@@ -158,6 +170,7 @@ public:
 **Qt Inheritance Chain:** QWidget -> QObject
 
 **Signals:**
+
 - `visibilityChanged(bool visible)` - Visibility state changed
 - `widthChanged(int width)` - Width changed
 - `pageClicked(int pageNumber)` - Thumbnail clicked
@@ -166,11 +179,13 @@ public:
 - `bookmarkNavigationRequested(const QString& documentPath, int pageNumber)` - Navigate to bookmark
 
 **Slots:**
+
 - `show(bool animated = true)` - Show sidebar with optional animation
 - `hide(bool animated = true)` - Hide sidebar with optional animation
 - `onAnimationFinished()` - Animation completion handler
 
 **State Management:**
+
 - Min width: 200px, Max width: 400px, Default: 250px
 - Animated show/hide with 300ms duration
 - State persistence via QSettings
@@ -182,6 +197,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\core\RightSideBar.h`
 
 **Class Definition:**
+
 ```cpp
 class RightSideBar : public QWidget {
     Q_OBJECT
@@ -194,17 +210,20 @@ public:
 **Qt Inheritance Chain:** QWidget -> QObject
 
 **Signals:**
+
 - `visibilityChanged(bool visible)` - Visibility state changed
 - `widthChanged(int width)` - Width changed
 - `viewFullDetailsRequested(Poppler::Document* document, const QString& filePath)` - Open full metadata dialog
 
 **Slots:**
+
 - `show(bool animated = true)` - Show sidebar
 - `hide(bool animated = true)` - Hide sidebar
 - `onAnimationFinished()` - Animation completion
 - `onViewFullDetailsRequested(Poppler::Document* document, const QString& filePath)` - Handle details request
 
 **Tabs Contained:**
+
 1. Properties tab (DocumentPropertiesPanel)
 2. Tools tab (AnnotationToolbar)
 3. Search tab (SearchWidget)
@@ -217,6 +236,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\core\ViewWidget.h`
 
 **Class Definition:**
+
 ```cpp
 class ViewWidget : public QWidget {
     Q_OBJECT
@@ -237,11 +257,13 @@ public:
 **Qt Inheritance Chain:** QWidget -> QObject
 
 **Signals:**
+
 - `currentViewerPageChanged(int pageNumber, int totalPages)` - Current page changed
 - `currentViewerZoomChanged(double zoomFactor)` - Zoom changed
 - `scaleChanged(double zoomFactor)` - Scale changed (compatibility)
 
 **Slots:**
+
 - `onDocumentOpened(int index, const QString& fileName)` - Document opened
 - `onDocumentClosed(int index)` - Document closed
 - `onCurrentDocumentChanged(int index)` - Current document changed
@@ -257,6 +279,7 @@ public:
 - `onRenderPageDone(const QImage& image)` - Page render complete
 
 **Key Features:**
+
 - Manages list of PDFViewer instances (one per document)
 - Manages DocumentState for each viewer
 - Tracks document modifications
@@ -271,6 +294,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\core\ContextMenuManager.h`
 
 **Class Definition:**
+
 ```cpp
 class ContextMenuManager : public QObject {
     Q_OBJECT
@@ -316,10 +340,12 @@ public:
 **Qt Inheritance Chain:** QObject
 
 **Signals:**
+
 - `actionTriggered(ActionMap action, const QVariantMap& context)` - Standard action triggered
 - `customActionTriggered(const QString& actionId, const QVariantMap& context)` - Custom action triggered
 
 **Slots:**
+
 - `onDocumentViewerAction()` - Document viewer menu action
 - `onTabAction()` - Tab menu action
 - `onSidebarAction()` - Sidebar menu action
@@ -327,6 +353,7 @@ public:
 - `onSearchAction()` - Search menu action
 
 **Public Show Methods:**
+
 - `void showDocumentViewerMenu(const QPoint& position, const DocumentContext& context, QWidget* parent)`
 - `void showDocumentTabMenu(const QPoint& position, int tabIndex, const UIElementContext& context, QWidget* parent)`
 - `void showSidebarMenu(const QPoint& position, MenuType menuType, const UIElementContext& context, QWidget* parent)`
@@ -342,6 +369,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\core\UIStateManager.h`
 
 **Class Definition:**
+
 ```cpp
 class UIStateManager : public QObject {
     Q_OBJECT
@@ -393,6 +421,7 @@ public:
 **Qt Inheritance Chain:** QObject (Singleton)
 
 **Signals:**
+
 - `stateChanged(const QString& key, const QVariant& value, StateScope scope)` - State value changed
 - `componentStateChanged(const QString& componentId)` - Component state changed
 - `stateSaved(StateScope scope, int itemCount)` - State saved successfully
@@ -400,6 +429,7 @@ public:
 - `stateError(const QString& operation, const QString& error)` - State operation error
 
 **Slots:**
+
 - `onAutosaveTimer()` - Autosave timer triggered
 - `onComponentDestroyed(QObject* object)` - Component destroyed
 
@@ -412,6 +442,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\core\UIErrorHandler.h`
 
 **Class Definition:**
+
 ```cpp
 class UIErrorHandler : public QObject {
     Q_OBJECT
@@ -456,6 +487,7 @@ public:
 **Qt Inheritance Chain:** QObject (Singleton)
 
 **Signals:**
+
 - `errorHandled(const QString& context, const QString& error)` - Error handled
 - `validationFailed(QWidget* widget, const QString& field, const QString& error)` - Validation failed
 - `recoveryAttempted(const QString& component, bool success)` - Recovery attempt completed
@@ -470,6 +502,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\core\UIResourceManager.h`
 
 **Class Definition:**
+
 ```cpp
 class UIResourceManager : public QObject {
     Q_OBJECT
@@ -517,6 +550,7 @@ public:
 **Qt Inheritance Chain:** QObject (Singleton)
 
 **Signals:**
+
 - `resourceRegistered(QObject* object, ResourceType type)` - Resource registered
 - `resourceUnregistered(QObject* object, ResourceType type)` - Resource unregistered
 - `memoryThresholdExceeded(qint64 currentUsage, qint64 threshold)` - Memory threshold exceeded
@@ -524,6 +558,7 @@ public:
 - `cleanupCompleted(ResourceType type, int cleanedCount)` - Cleanup completed
 
 **Slots:**
+
 - `onResourceDestroyed(QObject* object)` - Resource object destroyed
 - `onCleanupTimer()` - Cleanup timer triggered
 - `onMemoryPressure()` - Memory pressure detected
@@ -537,6 +572,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\dialogs\DocumentMetadataDialog.h`
 
 **Class Definition:**
+
 ```cpp
 class DocumentMetadataDialog : public QDialog {
     Q_OBJECT
@@ -549,15 +585,18 @@ public:
 **Qt Inheritance Chain:** QDialog -> QWidget -> QObject
 
 **Tabs:**
+
 1. **Basic Info Tab:** File name, path, size, page count, PDF version, creation/modification dates
 2. **Document Properties Tab:** Title, author, subject, keywords, creator, producer, dates
 3. **Security Tab:** Encryption status, permissions (copy, print, modify, annotate, fill forms, assemble)
 4. **Advanced Tab:** Font information, linearization, forms, JavaScript, embedded files
 
 **Slots:**
+
 - `onThemeChanged()` - Theme changed, update appearance
 
 **Operations:**
+
 - Copy to clipboard for individual fields
 - Export all metadata to file
 - Multi-tab interface with scrollable content areas
@@ -569,6 +608,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\dialogs\SettingsDialog.h`
 
 **Class Definition:**
+
 ```cpp
 class SettingsDialog : public QDialog {
     Q_OBJECT
@@ -585,17 +625,20 @@ signals:
 **Qt Inheritance Chain:** QDialog -> QWidget -> QObject
 
 **Signals:**
+
 - `settingsApplied()` - Settings applied
 - `themeChanged(const QString& theme)` - Theme changed (light/dark)
 - `languageChanged(const QString& languageCode)` - Language changed
 
 **Tabs:**
+
 1. **Appearance:** Theme selection, language selection with preview
 2. **Performance:** Cache settings, page preloading, rendering quality
 3. **Behavior:** Default zoom, default page mode, recent files count, window state, last file
 4. **Advanced:** Logging level, debug panel, welcome screen, cache path, clear cache
 
 **Validation:**
+
 - Cache size validation
 - Recent files count validation
 - Cache path validation
@@ -609,6 +652,7 @@ signals:
 **File:** `d:\Project\sast-readium\app\ui\widgets\DocumentTabWidget.h`
 
 **Class Definition:**
+
 ```cpp
 class DocumentTabBar : public QTabBar {
     Q_OBJECT
@@ -633,16 +677,19 @@ signals:
 **Qt Inheritance Chain:** QTabWidget -> QWidget -> QObject; QTabBar -> QWidget -> QObject
 
 **Signals:**
+
 - `tabCloseRequested(int index)` - Close tab requested
 - `tabSwitched(int index)` - Tab switched
 - `tabMoved(int from, int to)` - Tab moved via drag
 - `allTabsClosed()` - All tabs closed
 
 **Slots:**
+
 - `onTabCloseRequested(int index)` - Handle close request
 - `onTabMoveRequested(int from, int to)` - Handle move request
 
 **Drag-Drop Support:**
+
 - Drag start position tracking
 - Drag-in-progress state
 - MIME data handling for file drops
@@ -654,6 +701,7 @@ signals:
 **File:** `d:\Project\sast-readium\app\ui\widgets\SearchWidget.h`
 
 **Class Definition:**
+
 ```cpp
 class SearchWidget : public QWidget {
     Q_OBJECT
@@ -673,6 +721,7 @@ signals:
 **Qt Inheritance Chain:** QWidget -> QObject
 
 **Signals:**
+
 - `searchRequested(const QString& query, const SearchOptions& options)` - Search initiated
 - `resultSelected(const SearchResult& result)` - Result selected
 - `navigateToResult(int pageNumber, const QRectF& rect)` - Navigate to result
@@ -681,6 +730,7 @@ signals:
 - `highlightColorsChanged(const QColor& normalColor, const QColor& currentColor)` - Colors changed
 
 **Public Slots:**
+
 - `performSearch()` - Perform search with current options
 - `performRealTimeSearch()` - Perform real-time search as typing
 - `nextResult()` - Navigate to next result
@@ -688,6 +738,7 @@ signals:
 - `onResultClicked(const QModelIndex& index)` - Result selected
 
 **Private Slots:**
+
 - `onSearchTextChanged()` - Search input changed
 - `onSearchStarted()` - Search started
 - `onSearchFinished(int resultCount)` - Search completed
@@ -713,6 +764,7 @@ signals:
 **File:** `d:\Project\sast-readium\app\ui\widgets\WelcomeWidget.h`
 
 **Class Definition:**
+
 ```cpp
 class WelcomeWidget : public QWidget {
     Q_OBJECT
@@ -734,6 +786,7 @@ signals:
 **Qt Inheritance Chain:** QWidget -> QObject
 
 **Signals:**
+
 - `fileOpenRequested(const QString& filePath)` - File open requested
 - `newFileRequested()` - New file requested
 - `openFileRequested()` - Open dialog requested
@@ -744,10 +797,12 @@ signals:
 - `startOnboardingRequested()` - Onboarding sequence requested
 
 **Public Slots:**
+
 - `onRecentFilesChanged()` - Recent files updated
 - `onThemeChanged()` - Theme changed
 
 **Private Slots:**
+
 - `onNewFileClicked()`
 - `onOpenFileClicked()`
 - `onOpenFolderClicked()`
@@ -766,6 +821,7 @@ signals:
 **File:** `d:\Project\sast-readium\app\ui\widgets\DocumentPropertiesPanel.h`
 
 **Class Definition:**
+
 ```cpp
 class DocumentPropertiesPanel : public QWidget {
     Q_OBJECT
@@ -780,9 +836,11 @@ signals:
 **Qt Inheritance Chain:** QWidget -> QObject
 
 **Signals:**
+
 - `viewFullDetailsRequested(Poppler::Document* document, const QString& filePath)` - Open full metadata dialog
 
 **Property Groups:**
+
 1. **File Info:** File name, size, page count, PDF version
 2. **Document Info:** Title, author, subject, creator
 3. **Dates:** Creation and modification dates
@@ -794,6 +852,7 @@ signals:
 **File:** `d:\Project\sast-readium\app\ui\widgets\BookmarkWidget.h`
 
 **Class Definition:**
+
 ```cpp
 class BookmarkWidget : public QWidget {
     Q_OBJECT
@@ -812,6 +871,7 @@ signals:
 **Qt Inheritance Chain:** QWidget -> QObject
 
 **Signals:**
+
 - `bookmarkSelected(const Bookmark& bookmark)` - Bookmark selected
 - `navigateToBookmark(const QString& documentPath, int pageNumber)` - Navigate to bookmark
 - `bookmarkAdded(const Bookmark& bookmark)` - Bookmark added
@@ -825,6 +885,7 @@ signals:
 **File:** `d:\Project\sast-readium\app\ui\widgets\DebugLogPanel.h`
 
 **Class Definition:**
+
 ```cpp
 class DebugLogPanel : public QWidget {
     Q_OBJECT
@@ -841,6 +902,7 @@ public:
 **Qt Inheritance Chain:** QWidget -> QObject
 
 **Features:**
+
 - Real-time log display in table widget
 - Log level filtering (Debug, Info, Warning, Error)
 - Category filtering
@@ -858,6 +920,7 @@ public:
 **File:** `d:\Project\sast-readium\app\ui\viewer\PDFViewer.h`
 
 **Class Definition:**
+
 ```cpp
 class PDFPageWidget : public QLabel {
     Q_OBJECT
@@ -888,6 +951,7 @@ enum class ZoomType {
 **Qt Inheritance Chain:** QWidget -> QObject; PDFPageWidget -> QLabel -> QWidget -> QObject
 
 **Key Features:**
+
 - Multiple view modes (single page, continuous scroll)
 - Multiple zoom types (fixed, fit width/height/page)
 - Page rendering with caching
@@ -904,6 +968,7 @@ enum class ZoomType {
 **File:** `d:\Project\sast-readium\app\ui\viewer\PDFOutlineWidget.h`
 
 **Class Definition:**
+
 ```cpp
 class PDFOutlineWidget : public QTreeWidget {
     Q_OBJECT
@@ -919,10 +984,12 @@ signals:
 **Qt Inheritance Chain:** QTreeWidget -> QWidget -> QObject
 
 **Signals:**
+
 - `pageNavigationRequested(int pageNumber)` - Navigate to page
 - `itemSelectionChanged(int pageNumber)` - Selection changed
 
 **Public Methods:**
+
 - `setOutlineModel(PDFOutlineModel* model)`
 - `refreshOutline()`
 - `clearOutline()`
@@ -940,6 +1007,7 @@ signals:
 **File:** `d:\Project\sast-readium\app\ui\thumbnail\ThumbnailListView.h`
 
 **Class Definition:**
+
 ```cpp
 class ThumbnailListView : public QListView {
     Q_OBJECT
@@ -960,6 +1028,7 @@ signals:
 **Qt Inheritance Chain:** QListView -> QWidget -> QObject
 
 **Signals:**
+
 - `pageClicked(int pageNumber)` - Single click
 - `pageDoubleClicked(int pageNumber)` - Double click
 - `pageRightClicked(int pageNumber, const QPoint& globalPos)` - Right click
@@ -969,6 +1038,7 @@ signals:
 - `visibleRangeChanged(int firstVisible, int lastVisible)` - Visible range changed
 
 **Animation Settings (Constants):**
+
 ```cpp
 static constexpr int DEFAULT_THUMBNAIL_WIDTH = 120;
 static constexpr int DEFAULT_THUMBNAIL_HEIGHT = 160;
@@ -990,6 +1060,7 @@ static constexpr int SMOOTH_SCROLL_STEP = 120;         // pixels per wheel
 **File:** `d:\Project\sast-readium\app\ui\managers\WelcomeScreenManager.h`
 
 **Class Definition:**
+
 ```cpp
 class WelcomeScreenManager : public QObject {
     Q_OBJECT
@@ -1007,20 +1078,24 @@ signals:
 **Qt Inheritance Chain:** QObject
 
 **Signals:**
+
 - `welcomeScreenVisibilityChanged(bool visible)` - Visibility changed
 - `welcomeScreenEnabledChanged(bool enabled)` - Enabled state changed
 - `showWelcomeScreenRequested()` - Show requested
 - `hideWelcomeScreenRequested()` - Hide requested
 
 **Public Slots:**
+
 - `onDocumentModelChanged()` - Document model changed
 - `onWelcomeScreenToggleRequested()` - Toggle requested
 - `checkWelcomeScreenVisibility()` - Check and update visibility
 
 **Private Slots:**
+
 - `onDelayedVisibilityCheck()` - Delayed visibility check (100ms)
 
 **Settings Keys (Constants):**
+
 ```cpp
 static const QString SETTINGS_GROUP;
 static const QString SETTINGS_ENABLED_KEY;
@@ -1035,6 +1110,7 @@ static const int VISIBILITY_CHECK_DELAY = 100;  // ms
 ## Macro Convenience Functions
 
 ### UIStateManager Macros
+
 ```cpp
 #define UI_STATE_MANAGER UIStateManager::instance()
 #define SAVE_COMPONENT_STATE(widget) UI_STATE_MANAGER.saveComponentState(widget)
@@ -1046,6 +1122,7 @@ static const int VISIBILITY_CHECK_DELAY = 100;  // ms
 ```
 
 ### UIErrorHandler Macros
+
 ```cpp
 #define UI_HANDLE_INPUT_ERROR(parent, field, error) \
     UIErrorHandler::instance().handleUserInputError(parent, field, error)
@@ -1059,6 +1136,7 @@ static const int VISIBILITY_CHECK_DELAY = 100;  // ms
 ```
 
 ### UIResourceManager Macros
+
 ```cpp
 #define UI_RESOURCE_MANAGER UIResourceManager::instance()
 #define REGISTER_UI_RESOURCE(object, type, description) \

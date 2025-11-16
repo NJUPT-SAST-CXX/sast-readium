@@ -36,6 +36,9 @@ function(setup_project_options)
 
     # Testing support
     option(BUILD_TESTING "Build tests" ON)
+    option(SAST_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+    option(SAST_ENABLE_HARDENING "Enable security hardening flags" ON)
+    option(SAST_ENABLE_LTO "Enable Link Time Optimization (IPO/LTCG)" OFF)
 
     message(STATUS "Project options configured")
 endfunction()
@@ -74,6 +77,7 @@ function(setup_compiler_settings)
     # This generates compile_commands.json in the build directory as a build artifact
     # The file contains compilation information for language servers like clangd
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON PARENT_SCOPE)
+    set(CMAKE_COLOR_DIAGNOSTICS ON PARENT_SCOPE)
 
     # Configure build optimizations
     _setup_ccache()
@@ -84,6 +88,19 @@ function(setup_compiler_settings)
 
     # Configure Release build optimizations
     _setup_release_optimizations()
+
+    if(SAST_ENABLE_LTO)
+        if(CMAKE_CONFIGURATION_TYPES)
+            # Multi-config generators (e.g., MSVC). Enable for Release-like configs.
+            set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON PARENT_SCOPE)
+            set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON PARENT_SCOPE)
+        else()
+            # Single-config generators (e.g., Ninja). Enable only for Release builds.
+            if(CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
+                set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON PARENT_SCOPE)
+            endif()
+        endif()
+    endif()
 
     message(STATUS "Compiler settings configured: C++${CMAKE_CXX_STANDARD}")
 endfunction()
@@ -405,63 +422,100 @@ Diagnostics:
 endfunction()
 
 function(print_build_summary)
-    message(STATUS "")
-    message(STATUS "=== Build Configuration Summary ===")
-    message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
-    message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
-    message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-    message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
+    message(NOTICE "")
+    message(NOTICE "=== Build Configuration Summary ===")
+    message(NOTICE "Platform: ${CMAKE_SYSTEM_NAME}")
+    message(NOTICE "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+    message(NOTICE "Build Type: ${CMAKE_BUILD_TYPE}")
+    message(NOTICE "C++ Standard: ${CMAKE_CXX_STANDARD}")
 
     if(USE_VCPKG)
-        message(STATUS "Package Manager: vcpkg")
+        message(NOTICE "Package Manager: vcpkg")
     else()
-        message(STATUS "Package Manager: system packages")
+        message(NOTICE "Package Manager: system packages")
     endif()
 
     if(BUILD_TESTING)
-        message(STATUS "Testing: Enabled")
+        message(NOTICE "Testing: Enabled")
     else()
-        message(STATUS "Testing: Disabled")
+        message(NOTICE "Testing: Disabled")
     endif()
 
     if(ENABLE_CLANGD_CONFIG)
-        message(STATUS "clangd Integration: Enabled")
+        message(NOTICE "clangd Integration: Enabled")
     else()
-        message(STATUS "clangd Integration: Disabled")
+        message(NOTICE "clangd Integration: Disabled")
     endif()
 
-    message(STATUS "===================================")
-    message(STATUS "")
+    if(SAST_WARNINGS_AS_ERRORS)
+        message(NOTICE "Warnings as Errors: ON")
+    else()
+        message(NOTICE "Warnings as Errors: OFF")
+    endif()
+
+    if(SAST_ENABLE_HARDENING)
+        message(NOTICE "Hardening Flags: ON")
+    else()
+        message(NOTICE "Hardening Flags: OFF")
+    endif()
+
+    if(SAST_ENABLE_LTO)
+        message(NOTICE "Link Time Optimization: ON")
+    else()
+        message(NOTICE "Link Time Optimization: OFF")
+    endif()
+
+    message(NOTICE "===================================")
+    message(NOTICE "")
 endfunction()
 
 # Internal helper functions
 function(_setup_platform_compiler_flags)
     # Get current flags to avoid overwriting
     set(current_cxx_flags ${CMAKE_CXX_FLAGS})
+    set(current_exe_link_flags ${CMAKE_EXE_LINKER_FLAGS})
+    set(current_shared_link_flags ${CMAKE_SHARED_LINKER_FLAGS})
 
-    # Windows/MSVC specific settings
     if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        # Enhanced C++ standard compliance
-        string(APPEND current_cxx_flags " /Zc:__cplusplus /EHsc /utf-8")
-        message(STATUS "Applied MSVC C++ compliance flags")
+        string(APPEND current_cxx_flags " /Zc:__cplusplus /EHsc /utf-8 /W4 /permissive- /sdl")
+        if(SAST_WARNINGS_AS_ERRORS)
+            string(APPEND current_cxx_flags " /WX")
+        endif()
+        string(APPEND current_exe_link_flags " /guard:cf")
     endif()
 
-    # GCC specific settings
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        # Enable useful warnings for GCC
-        string(APPEND current_cxx_flags " -Wall -Wextra")
-        message(STATUS "Applied GCC warning flags")
+        string(APPEND current_cxx_flags " -Wall -Wextra -Wpedantic")
+        if(SAST_WARNINGS_AS_ERRORS)
+            string(APPEND current_cxx_flags " -Werror")
+        endif()
+        if(SAST_ENABLE_HARDENING)
+            string(APPEND current_cxx_flags " -D_FORTIFY_SOURCE=2 -fstack-protector-strong")
+            if(UNIX AND NOT APPLE)
+                string(APPEND current_cxx_flags " -fno-plt")
+                string(APPEND current_exe_link_flags " -Wl,-z,relro -Wl,-z,now")
+                string(APPEND current_shared_link_flags " -Wl,-z,relro -Wl,-z,now")
+            endif()
+        endif()
     endif()
 
-    # Clang specific settings
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        # Enable useful warnings for Clang
-        string(APPEND current_cxx_flags " -Wall -Wextra")
-        message(STATUS "Applied Clang warning flags")
+        string(APPEND current_cxx_flags " -Wall -Wextra -Wpedantic")
+        if(SAST_WARNINGS_AS_ERRORS)
+            string(APPEND current_cxx_flags " -Werror")
+        endif()
+        if(SAST_ENABLE_HARDENING)
+            string(APPEND current_cxx_flags " -D_FORTIFY_SOURCE=2 -fstack-protector-strong")
+            if(UNIX AND NOT APPLE)
+                string(APPEND current_exe_link_flags " -Wl,-z,relro -Wl,-z,now")
+                string(APPEND current_shared_link_flags " -Wl,-z,relro -Wl,-z,now")
+            endif()
+        endif()
     endif()
 
-    # Update parent scope
     set(CMAKE_CXX_FLAGS ${current_cxx_flags} PARENT_SCOPE)
+    set(CMAKE_EXE_LINKER_FLAGS ${current_exe_link_flags} PARENT_SCOPE)
+    set(CMAKE_SHARED_LINKER_FLAGS ${current_shared_link_flags} PARENT_SCOPE)
 endfunction()
 
 #[=======================================================================[.rst:

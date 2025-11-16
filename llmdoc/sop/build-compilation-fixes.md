@@ -11,6 +11,7 @@ This SOP documents critical build system fixes applied to resolve 5 distinct com
 **Problem**: KeyboardShortcutManager.cpp referenced actions `quit` and `showHelp` that were missing from ActionMap enum definition.
 
 **Solution**:
+
 1. Open `/app/controller/tool.hpp`
 2. Locate the ActionMap enum (lines 3-67)
 3. Add missing enum values at end of enum before closing brace:
@@ -25,8 +26,10 @@ This SOP documents critical build system fixes applied to resolve 5 distinct com
 **Problem**: Invalid conversion from `QCoreApplication*` to `const QApplication*` when connecting to `focusChanged` signal.
 
 **Solution**:
+
 1. Open `/app/managers/KeyboardShortcutManager.cpp` (around line 35)
 2. Replace direct `QApplication::instance()` with type-safe cast:
+
    ```cpp
    // OLD: QApplication::instance()
    // NEW: qobject_cast<QApplication*>(QApplication::instance())
@@ -35,6 +38,7 @@ This SOP documents critical build system fixes applied to resolve 5 distinct com
                this, &KeyboardShortcutManager::onFocusChanged);
    }
    ```
+
 3. Explanation: `focusChanged` signal exists only on QApplication, not base QCoreApplication
 4. Rebuild project
 
@@ -45,6 +49,7 @@ This SOP documents critical build system fixes applied to resolve 5 distinct com
 **Problem**: Field names in PDFAnnotation struct definition didn't match usage in implementation. Three distinct field mismatches caused runtime errors.
 
 **Solution**:
+
 1. Open `/app/model/AnnotationModel.cpp` (implementation file)
 2. Cross-reference with `/app/model/AnnotationModel.h` (header file)
 3. Header defines: `boundingRect`, `createdTime`, `modifiedTime`
@@ -53,10 +58,12 @@ This SOP documents critical build system fixes applied to resolve 5 distinct com
    - `creationDate` → `createdTime` (2 occurrences)
    - `modificationDate` → `modifiedTime` (1 occurrence)
 5. Example fix:
+
    ```cpp
    // OLD: annotation.boundingRect = rectObj["boundary"].toObject();
    // NEW: annotation.boundingRect = rectObj["boundingRect"].toObject();
    ```
+
 6. Rebuild project
 
 **Files Modified**: `/app/model/AnnotationModel.cpp` (6 field name corrections)
@@ -66,23 +73,28 @@ This SOP documents critical build system fixes applied to resolve 5 distinct com
 **Problem**: Problematic `#undef` and `#define` of Qt's `qDebug`, `qWarning`, `qCritical` macros broke Qt's internal template code in `qrangemodel_impl.h`.
 
 **Solution**:
+
 1. Open `/app/logging/LoggingMacros.h`
 2. **Remove** all `#undef qDebug`, `#undef qWarning`, `#undef qCritical` lines (if present)
 3. **Remove** any redefinition macros that override Qt's logging
 4. Add new spd_q* prefixed alternatives instead (lines 319-326):
+
    ```cpp
    #define spd_qDebug() spdlogDebug()
    #define spd_qInfo() spdlogInfo()
    #define spd_qWarning() spdlogWarning()
    #define spd_qCritical() spdlogCritical()
    ```
+
 5. Add documentation comment (lines 314-317):
+
    ```cpp
    // NOTE: We do NOT undef or redefine Qt's qDebug/qWarning/qCritical macros
    // because it breaks Qt's internal usage in template headers like qrangemodel_impl.h
    // The original Qt logging macros remain available for backward compatibility.
    // For spdlog integration, use the spd_q* alternatives or LOG_* macros.
    ```
+
 6. Rebuild project
 
 **Files Modified**: `/app/logging/LoggingMacros.h` (removed harmful macros, added spd_q* alternatives)
@@ -94,11 +106,14 @@ This SOP documents critical build system fixes applied to resolve 5 distinct com
 **Problem**: Missing `#include <QElapsedTimer>` caused compilation error in performance measurement tests.
 
 **Solution**:
+
 1. Open `/tests/factory/test_command_prototype_registry.cpp`
 2. Add missing include at top of file with other Qt headers:
+
    ```cpp
    #include <QElapsedTimer>
    ```
+
 3. Rebuild project
 
 **Files Modified**: `/tests/factory/test_command_prototype_registry.cpp` (1 include added)

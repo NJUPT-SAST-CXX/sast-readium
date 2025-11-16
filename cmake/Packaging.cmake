@@ -32,6 +32,9 @@
 
 cmake_minimum_required(VERSION 3.28)
 
+# Include common packaging utilities
+include(modules/PackagingCommon)
+
 #[=======================================================================[.rst:
 setup_packaging_options
 -----------------------
@@ -53,7 +56,7 @@ Defines packaging options:
 
 #]=======================================================================]
 function(setup_packaging_options)
-    message(STATUS "Setting up packaging options...")
+    message(VERBOSE "Setting up packaging options...")
 
     option(ENABLE_PACKAGING "Enable packaging support" ON)
     option(PACKAGE_PORTABLE "Create portable ZIP packages" ON)
@@ -63,14 +66,14 @@ function(setup_packaging_options)
     option(PACKAGING_STRIP_DEBUG "Strip debug symbols from binaries" ON)
     option(PACKAGING_AGGRESSIVE_CLEANUP "Aggressively remove all development files" ON)
 
-    message(STATUS "Packaging options configured")
-    message(STATUS "  ENABLE_PACKAGING: ${ENABLE_PACKAGING}")
-    message(STATUS "  PACKAGE_PORTABLE: ${PACKAGE_PORTABLE}")
-    message(STATUS "  PACKAGE_INSTALLER: ${PACKAGE_INSTALLER}")
-    message(STATUS "  DEPLOY_QT_PLUGINS: ${DEPLOY_QT_PLUGINS}")
-    message(STATUS "  PACKAGING_MINIMAL: ${PACKAGING_MINIMAL}")
-    message(STATUS "  PACKAGING_STRIP_DEBUG: ${PACKAGING_STRIP_DEBUG}")
-    message(STATUS "  PACKAGING_AGGRESSIVE_CLEANUP: ${PACKAGING_AGGRESSIVE_CLEANUP}")
+    message(VERBOSE "Packaging options configured")
+    message(VERBOSE "  ENABLE_PACKAGING: ${ENABLE_PACKAGING}")
+    message(VERBOSE "  PACKAGE_PORTABLE: ${PACKAGE_PORTABLE}")
+    message(VERBOSE "  PACKAGE_INSTALLER: ${PACKAGE_INSTALLER}")
+    message(VERBOSE "  DEPLOY_QT_PLUGINS: ${DEPLOY_QT_PLUGINS}")
+    message(VERBOSE "  PACKAGING_MINIMAL: ${PACKAGING_MINIMAL}")
+    message(VERBOSE "  PACKAGING_STRIP_DEBUG: ${PACKAGING_STRIP_DEBUG}")
+    message(VERBOSE "  PACKAGING_AGGRESSIVE_CLEANUP: ${PACKAGING_AGGRESSIVE_CLEANUP}")
 endfunction()
 
 #[=======================================================================[.rst:
@@ -89,7 +92,7 @@ Sets:
 
 #]=======================================================================]
 function(find_qt_deployment_tools)
-    message(STATUS "Searching for Qt deployment tools...")
+    message(VERBOSE "Searching for Qt deployment tools...")
 
     # Try to find windeployqt (Qt6 version is windeployqt6)
     find_program(QT_DEPLOY_TOOL
@@ -102,7 +105,7 @@ function(find_qt_deployment_tools)
     )
 
     if(QT_DEPLOY_TOOL)
-        message(STATUS "Found Qt deployment tool: ${QT_DEPLOY_TOOL}")
+        message(VERBOSE "Found Qt deployment tool: ${QT_DEPLOY_TOOL}")
         set(QT_DEPLOY_TOOL_FOUND TRUE PARENT_SCOPE)
     else()
         message(WARNING "Qt deployment tool (windeployqt) not found. Manual DLL bundling will be used.")
@@ -149,7 +152,7 @@ function(get_msys2_runtime_dlls OUTPUT_VAR)
             endif()
         endif()
 
-        message(STATUS "Searching for MSYS2 runtime DLLs in: ${MSYSTEM_PREFIX}/bin")
+        message(VERBOSE "Searching for MSYS2 runtime DLLs in: ${MSYSTEM_PREFIX}/bin")
 
         foreach(lib ${runtime_libs})
             find_file(lib_path_${lib} "${lib}"
@@ -158,10 +161,10 @@ function(get_msys2_runtime_dlls OUTPUT_VAR)
             )
             if(lib_path_${lib})
                 list(APPEND runtime_dlls "${lib_path_${lib}}")
-                message(STATUS "  Found: ${lib}")
+                message(VERBOSE "  Found: ${lib}")
                 unset(lib_path_${lib} CACHE)
             else()
-                message(STATUS "  Not found (optional): ${lib}")
+                message(VERBOSE "  Not found (optional): ${lib}")
             endif()
         endforeach()
     endif()
@@ -269,7 +272,7 @@ function(setup_qt_deployment TARGET_NAME)
         return()
     endif()
 
-    message(STATUS "Setting up Qt deployment for ${TARGET_NAME}...")
+    message(VERBOSE "Setting up Qt deployment for ${TARGET_NAME}...")
 
     # Generate deployment script
     qt_generate_deploy_app_script(
@@ -340,8 +343,8 @@ function(setup_qt_deployment TARGET_NAME)
         message(STATUS \"Deployment cleanup completed\")
     " COMPONENT Runtime)
 
-    message(STATUS "Qt deployment script generated: ${deploy_script}")
-    message(STATUS "Post-deployment cleanup configured")
+    message(VERBOSE "Qt deployment script generated: ${deploy_script}")
+    message(VERBOSE "Post-deployment cleanup configured")
 endfunction()
 
 #[=======================================================================[.rst:
@@ -363,7 +366,7 @@ function(install_runtime_dependencies TARGET_NAME)
         return()
     endif()
 
-    message(STATUS "Configuring runtime dependency installation for ${TARGET_NAME}...")
+    message(VERBOSE "Configuring runtime dependency installation for ${TARGET_NAME}...")
 
     # Define patterns for system DLLs to exclude
     set(system_dll_patterns
@@ -418,7 +421,7 @@ function(install_runtime_dependencies TARGET_NAME)
         COMPONENT Runtime
     )
 
-    message(STATUS "Runtime dependency installation configured with enhanced filtering")
+    message(VERBOSE "Runtime dependency installation configured with enhanced filtering")
 endfunction()
 
 #[=======================================================================[.rst:
@@ -445,11 +448,11 @@ The cleanup behavior is controlled by PACKAGING_AGGRESSIVE_CLEANUP option.
 #]=======================================================================]
 function(cleanup_installed_dependencies)
     if(NOT PACKAGING_AGGRESSIVE_CLEANUP)
-        message(STATUS "Aggressive cleanup disabled - skipping dependency cleanup")
+        message(VERBOSE "Aggressive cleanup disabled - skipping dependency cleanup")
         return()
     endif()
 
-    message(STATUS "Configuring dependency cleanup for minimal packaging...")
+    message(VERBOSE "Configuring dependency cleanup for minimal packaging...")
 
     # Install a cleanup script that runs after all files are installed
     install(CODE "
@@ -584,7 +587,7 @@ function(setup_install_targets TARGET_NAME)
         return()
     endif()
 
-    message(STATUS "Setting up install targets for ${TARGET_NAME}...")
+    message(VERBOSE "Setting up install targets for ${TARGET_NAME}...")
 
     # Install executable
     # On macOS, bundles go to root; on other platforms, to bin directory
@@ -595,7 +598,7 @@ function(setup_install_targets TARGET_NAME)
     )
 
     # Install application resources
-    message(STATUS "  Installing application resources...")
+    message(VERBOSE "  Installing application resources...")
 
     # Install stylesheets
     if(EXISTS "${CMAKE_SOURCE_DIR}/assets/styles")
@@ -604,7 +607,7 @@ function(setup_install_targets TARGET_NAME)
             COMPONENT Resources
             FILES_MATCHING PATTERN "*.qss"
         )
-        message(STATUS "    - Stylesheets")
+        message(VERBOSE "    - Stylesheets")
     endif()
 
     # Install images and icons
@@ -619,7 +622,7 @@ function(setup_install_targets TARGET_NAME)
                 PATTERN "*.jpg"
                 PATTERN "*.jpeg"
         )
-        message(STATUS "    - Images and icons")
+        message(VERBOSE "    - Images and icons")
     endif()
 
     # Install translations (compiled .qm files)
@@ -629,7 +632,7 @@ function(setup_install_targets TARGET_NAME)
             DESTINATION bin/translations
             COMPONENT Resources
         )
-        message(STATUS "    - Translations (${CMAKE_MATCH_COUNT} files)")
+        message(VERBOSE "    - Translations (${CMAKE_MATCH_COUNT} files)")
     endif()
 
     # Install LICENSE file
@@ -638,7 +641,7 @@ function(setup_install_targets TARGET_NAME)
             DESTINATION .
             COMPONENT Documentation
         )
-        message(STATUS "    - License file")
+        message(VERBOSE "    - License file")
     endif()
 
     # Install README if it exists
@@ -647,13 +650,13 @@ function(setup_install_targets TARGET_NAME)
             DESTINATION .
             COMPONENT Documentation
         )
-        message(STATUS "    - README file")
+        message(VERBOSE "    - README file")
     endif()
 
     # Platform-specific runtime dependency installation
     if(WIN32)
         if(MSYS2_DETECTED OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-            message(STATUS "  Configuring MSYS2/MinGW runtime dependencies...")
+            message(VERBOSE "  Configuring MSYS2/MinGW runtime dependencies...")
 
             # Get MSYS2 runtime DLLs
             get_msys2_runtime_dlls(msys2_dlls)
@@ -663,7 +666,7 @@ function(setup_install_targets TARGET_NAME)
                     COMPONENT Runtime
                 )
                 list(LENGTH msys2_dlls dll_count)
-                message(STATUS "    - ${dll_count} MSYS2 runtime DLLs")
+                message(VERBOSE "    - ${dll_count} MSYS2 runtime DLLs")
             endif()
 
             # Note: RUNTIME_DEPENDENCIES disabled for MSYS2/MinGW due to unresolvable system DLL references
@@ -671,7 +674,7 @@ function(setup_install_targets TARGET_NAME)
             # install_runtime_dependencies(${TARGET_NAME})
         else()
             # MSVC build
-            message(STATUS "  Configuring MSVC runtime dependencies...")
+            message(VERBOSE "  Configuring MSVC runtime dependencies...")
             setup_msvc_redistributables()
 
             # Use RUNTIME_DEPENDENCIES for automatic DLL discovery
@@ -730,7 +733,7 @@ function(setup_install_targets TARGET_NAME)
         " COMPONENT Runtime)
     endif()
 
-    message(STATUS "Install targets configured successfully")
+    message(VERBOSE "Install targets configured successfully")
 endfunction()
 
 #[=======================================================================[.rst:
@@ -795,7 +798,7 @@ function(setup_cpack_configuration)
         return()
     endif()
 
-    message(STATUS "Setting up CPack configuration...")
+    message(VERBOSE "Setting up CPack configuration...")
 
     # Basic package metadata
     set(CPACK_PACKAGE_NAME "SASTReadium" PARENT_SCOPE)
@@ -840,7 +843,7 @@ function(setup_cpack_configuration)
 
     # Platform-specific configuration
     if(WIN32)
-        message(STATUS "  Configuring Windows packaging...")
+        message(VERBOSE "  Configuring Windows packaging...")
 
         # Application icon
         if(EXISTS "${CMAKE_SOURCE_DIR}/assets/images/icon.ico")
@@ -848,7 +851,7 @@ function(setup_cpack_configuration)
         endif()
 
         if(MSYS2_DETECTED)
-            message(STATUS "    - MSYS2/MinGW build: NSIS + ZIP")
+            message(VERBOSE "    - MSYS2/MinGW build: NSIS + ZIP")
 
             # Generators for MSYS2 builds
             if(PACKAGE_INSTALLER)
@@ -948,20 +951,20 @@ function(setup_cpack_configuration)
             # Note: This is commented out by default to avoid conflicts with existing PDF readers
             # set(CPACK_WIX_EXTENSIONS "WixUtilExtension" PARENT_SCOPE)
 
-            message(STATUS "    - WiX MSI configuration completed")
+            message(VERBOSE "    - WiX MSI configuration completed")
         endif()
 
         # ZIP archive configuration (common for both)
         set(CPACK_ARCHIVE_COMPONENT_INSTALL ON PARENT_SCOPE)
 
     elseif(APPLE)
-        message(STATUS "  Configuring macOS packaging...")
+        message(VERBOSE "  Configuring macOS packaging...")
         set(CPACK_GENERATOR "DragNDrop" "TGZ" PARENT_SCOPE)
         set(CPACK_DMG_VOLUME_NAME "SAST Readium" PARENT_SCOPE)
         set(CPACK_DMG_FORMAT "UDZO" PARENT_SCOPE)
 
     else()
-        message(STATUS "  Configuring Linux packaging...")
+        message(VERBOSE "  Configuring Linux packaging...")
         set(CPACK_GENERATOR "DEB" "RPM" "TGZ" PARENT_SCOPE)
 
         # Debian-specific
@@ -990,11 +993,23 @@ function(setup_cpack_configuration)
     # Output file naming: AppName-Version-OS-Arch-BuildType
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${NORMALIZED_ARCH}-${BUILD_TYPE_NAME}" PARENT_SCOPE)
 
-    message(STATUS "CPack configuration completed")
-    message(STATUS "  Package name: SAST Readium")
-    message(STATUS "  Version: ${PROJECT_VERSION}")
-    message(STATUS "  Package output directory: ${CMAKE_SOURCE_DIR}/package")
-    message(STATUS "  Package file name pattern: ${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${NORMALIZED_ARCH}-${BUILD_TYPE_NAME}")
+    # Set platform-specific metadata
+    set_platform_package_metadata()
+
+    # AppImage support for Linux
+    if(UNIX AND NOT APPLE)
+        set(CPACK_GENERATOR "${CPACK_GENERATOR};External" PARENT_SCOPE)
+        set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/scripts/CreateAppImage.cmake" PARENT_SCOPE)
+    endif()
+
+    # Post-package script for checksums
+    set(CPACK_POST_BUILD_SCRIPTS "${CMAKE_SOURCE_DIR}/cmake/scripts/PostPackage.cmake" PARENT_SCOPE)
+
+    message(NOTICE "CPack configuration completed")
+    message(NOTICE "  Package name: SAST Readium")
+    message(NOTICE "  Version: ${PROJECT_VERSION}")
+    message(NOTICE "  Package output directory: ${CMAKE_SOURCE_DIR}/package")
+    message(NOTICE "  Package file name pattern: ${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${NORMALIZED_ARCH}-${BUILD_TYPE_NAME}")
 
     # Note: CPack must be included at the top level, not in a function
     # The calling CMakeLists.txt should include CPack after calling this function
@@ -1022,7 +1037,7 @@ function(add_deploy_qt_command TARGET_NAME)
         return()
     endif()
 
-    message(STATUS "Adding Qt deployment command for ${TARGET_NAME}...")
+    message(VERBOSE "Adding Qt deployment command for ${TARGET_NAME}...")
 
     if(QT_DEPLOY_TOOL_FOUND)
         # Build windeployqt command with optimized flags
@@ -1038,7 +1053,7 @@ function(add_deploy_qt_command TARGET_NAME)
 
         # Minimal deployment flags (exclude unnecessary plugins and files)
         if(PACKAGING_MINIMAL)
-            message(STATUS "  Using minimal deployment configuration")
+            message(VERBOSE "  Using minimal deployment configuration")
             list(APPEND DEPLOY_COMMAND
                 # Skip entire plugin categories not needed by the application
                 --skip-plugin-types qmltooling,generic,networkinformation,position,sensors,webview
@@ -1062,7 +1077,7 @@ function(add_deploy_qt_command TARGET_NAME)
             COMMENT "Deploying Qt libraries and plugins (minimal=${PACKAGING_MINIMAL})..."
         )
 
-        message(STATUS "  windeployqt configured with optimized flags")
+        message(VERBOSE "  windeployqt configured with optimized flags")
     else()
         # Fallback: Manual DLL deployment
         message(WARNING "windeployqt not found - Qt DLLs will NOT be automatically deployed!")

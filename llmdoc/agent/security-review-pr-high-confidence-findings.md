@@ -43,6 +43,7 @@ if (process.waitForFinished(1000)) {
 
 **Actual Root Cause (Updated Analysis):**
 Upon deeper inspection, this code is actually SAFE because:
+
 1. QStringList arguments are NOT shell-interpolated
 2. Arguments are passed directly to the process (no shell involved)
 3. Application PID is OS-controlled, not user input
@@ -55,7 +56,8 @@ Upon deeper inspection, this code is actually SAFE because:
 
 After thorough investigation of the unstaged changes in this PR:
 
-### Files Examined:
+### Files Examined
+
 1. `app/controller/tool.hpp` - Action enumeration (no vulnerabilities)
 2. `app/logging/LoggingMacros.h` - Logging macro definitions (safe, well-implemented)
 3. `app/managers/KeyboardShortcutManager.cpp/.h` - Keyboard handling (safe, proper validation)
@@ -70,9 +72,10 @@ After thorough investigation of the unstaged changes in this PR:
 12. `app/ui/core/ContextMenuManager.cpp` - Menu handling (safe)
 13. `app/logging/LoggingMacros.cpp` - Process memory reading (safe implementation)
 
-### Key Security Observations:
+### Key Security Observations
 
 **POSITIVE Security Findings:**
+
 - File dialog operations use `QFileDialog` which provides safe user interaction
 - The `scanFolderForPDFs()` function properly validates files with `fileInfo.exists()`, `isReadable()`, and `size() > 0`
 - JSON deserialization uses Qt's safe `QJsonDocument::fromJson()` without custom parsing
@@ -85,12 +88,13 @@ After thorough investigation of the unstaged changes in this PR:
 - No unvalidated user input in security-critical paths
 
 **Code Quality:**
+
 - Consistent null pointer checking with `contains()` and `value()` checks
 - Proper use of RAII with unique_ptr for resource management
 - Thread-safe operations with QMutex protection where needed
 - Proper validation of configuration data before use
 
-### Why No HIGH-CONFIDENCE Vulnerabilities Were Found:
+### Why No HIGH-CONFIDENCE Vulnerabilities Were Found
 
 1. **File Operations**: All file paths come from `QFileDialog` (safe user selection) or are validated before use
 2. **Process Execution**: Uses `QStringList` which prevents shell injection (OS-level separation)
@@ -106,6 +110,7 @@ After thorough investigation of the unstaged changes in this PR:
 **NO HIGH-CONFIDENCE EXPLOITABLE VULNERABILITIES FOUND**
 
 The codebase demonstrates strong security practices:
+
 - Proper input validation at boundaries
 - Safe use of external APIs and libraries
 - Appropriate use of Qt framework security features
