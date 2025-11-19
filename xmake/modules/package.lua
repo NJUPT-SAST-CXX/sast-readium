@@ -254,6 +254,65 @@ function create_dmg_package(target)
     end
 end
 
+-- Create DEB package (Debian/Ubuntu)
+function create_deb_package(target)
+    if not is_plat("linux") then
+        return
+    end
+
+    cprint("${bright cyan}Creating DEB package...${clear}")
+
+    local metadata = generate_package_metadata()
+    local target_file = target:targetfile()
+    local output_dir = path.join(os.projectdir(), "package")
+    local arch = os.arch()
+    if arch == "x86_64" then arch = "amd64" end -- deb uses amd64
+
+    os.mkdir(output_dir)
+
+    -- Create temporary packaging directory
+    local temp_dir = path.join(output_dir, "temp_deb")
+    local package_root = path.join(temp_dir, string.format("%s_%s_%s", metadata.name, metadata.version, arch))
+
+    os.rm(temp_dir)
+    os.mkdir(package_root)
+
+    -- Create structure
+    os.mkdir(path.join(package_root, "DEBIAN"))
+    os.mkdir(path.join(package_root, "usr", "local", "bin"))
+    os.mkdir(path.join(package_root, "usr", "share", "applications"))
+    os.mkdir(path.join(package_root, "usr", "share", "icons", "hicolor", "256x256", "apps"))
+
+    -- Create control file
+    local control_content = string.format([[
+Package: %s
+Version: %s
+Section: utils
+Priority: optional
+Architecture: %s
+Maintainer: %s <sast-team@example.com>
+Description: %s
+]], metadata.name, metadata.version, arch, metadata.author, metadata.description)
+    io.writefile(path.join(package_root, "DEBIAN", "control"), control_content)
+
+    -- Copy executable
+    os.cp(target_file, path.join(package_root, "usr", "local", "bin", metadata.name))
+
+    -- Copy desktop file
+    os.cp(path.join(os.projectdir(), "distrib", "sast-readium.desktop"), path.join(package_root, "usr", "share", "applications"))
+
+    -- Copy icon
+    os.cp(path.join(os.projectdir(), "assets", "images", "logo.png"), path.join(package_root, "usr", "share", "icons", "hicolor", "256x256", "apps", metadata.name .. ".png"))
+
+    -- Build the package
+    os.execv("dpkg-deb", {"--build", package_root, output_dir})
+
+    cprint("${green}DEB package created: %s_${clear}", path.filename(package_root) .. ".deb")
+
+    -- Cleanup
+    os.rm(temp_dir)
+end
+
 -- Generate SHA256 checksum
 function generate_checksum(file_path)
     if not os.isfile(file_path) then
@@ -297,7 +356,9 @@ function create_packages(target)
             create_targz_package(target)
         elseif fmt == "dmg" then
             create_dmg_package(target)
-        elseif fmt == "deb" or fmt == "rpm" or fmt == "appimage" then
+        elseif fmt == "deb" then
+            create_deb_package(target)
+        elseif fmt == "rpm" or fmt == "appimage" then
             cprint("${yellow}%s packaging not yet implemented${clear}", fmt:upper())
         end
     end

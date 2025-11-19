@@ -2,15 +2,19 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QMainWindow>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QPixmap>
 #include <QSplitter>
 #include <QStackedWidget>
+#include <QStatusBar>
 #include "../MainWindow.h"
 #include "../factory/WidgetFactory.h"
 #include "../logging/LoggingMacros.h"
 #include "../managers/FileTypeIconManager.h"
 #include "../managers/I18nManager.h"
+#include "../managers/KeyboardShortcutManager.h"
+#include "../managers/OnboardingManager.h"
 #include "../managers/RecentFilesManager.h"
 #include "../managers/StyleManager.h"
 #include "../managers/SystemTrayManager.h"
@@ -22,9 +26,12 @@
 #include "../ui/core/SideBar.h"
 #include "../ui/core/StatusBar.h"
 #include "../ui/core/ToolBar.h"
+#include "../ui/widgets/OnboardingWidget.h"
 #include "../ui/widgets/SearchPanel.h"
 
 #include <QSettings>
+#include "../controller/EventBus.h"
+#include "../controller/ServiceLocator.h"
 #include "../ui/core/UIErrorHandler.h"
 #include "../ui/core/ViewWidget.h"
 #include "../ui/dialogs/SettingsDialog.h"
@@ -186,6 +193,9 @@ void ApplicationController::initializeApplication() {
 
         m_isInitialized = true;
         m_logger.info("Application initialization completed successfully");
+
+        // Trigger onboarding flow for first-time users after UI is ready
+        OnboardingManager::instance().onApplicationStarted();
 
         emit initializationCompleted();
 
@@ -575,6 +585,53 @@ void ApplicationController::initializeViews() {
         }
         m_logger.debug("Initial view set");
 
+        // Initialize keyboard shortcut manager and route actions
+        KeyboardShortcutManager& shortcutManager =
+            KeyboardShortcutManager::instance();
+        shortcutManager.initialize(m_mainWindow);
+        shortcutManager.setContextWidget(
+            KeyboardShortcutManager::ShortcutContext::DocumentView,
+            m_viewWidget);
+        shortcutManager.setContextWidget(
+            KeyboardShortcutManager::ShortcutContext::MenuBar, m_menuBar);
+        shortcutManager.setContextWidget(
+            KeyboardShortcutManager::ShortcutContext::ToolBar, m_toolBar);
+        shortcutManager.setContextWidget(
+            KeyboardShortcutManager::ShortcutContext::SideBar, m_sideBar);
+        shortcutManager.setContextWidget(
+            KeyboardShortcutManager::ShortcutContext::SearchWidget,
+            m_rightSideBar ? m_rightSideBar->searchPanel() : nullptr);
+
+        connect(&shortcutManager, &KeyboardShortcutManager::shortcutActivated,
+                this,
+                [this](ActionMap action,
+                       KeyboardShortcutManager::ShortcutContext /*context*/) {
+                    if (m_documentController) {
+                        m_documentController->execute(action, m_mainWindow);
+                    }
+                });
+
+        // Setup onboarding overlay widget attached to the main window
+        OnboardingManager& onboarding = OnboardingManager::instance();
+        OnboardingWidget* onboardingWidget = new OnboardingWidget(m_mainWindow);
+        onboarding.setOnboardingWidget(onboardingWidget);
+        onboarding.attachToWidget(m_mainWindow);
+
+        // Register core UI services for plugin access via ServiceLocator
+        if (m_menuBar) {
+            ServiceLocator::instance().registerService<QMenuBar>(m_menuBar);
+        }
+        if (m_toolBar) {
+            ServiceLocator::instance().registerService<QToolBar>(m_toolBar);
+        }
+        if (m_statusBar) {
+            ServiceLocator::instance().registerService<QStatusBar>(m_statusBar);
+        }
+        if (m_systemTrayManager) {
+            ServiceLocator::instance().registerService<SystemTrayManager>(
+                m_systemTrayManager);
+        }
+
         m_logger.info("========== initializeViews() COMPLETED ==========");
 
     } catch (const std::exception& e) {
@@ -639,6 +696,11 @@ void ApplicationController::connectModelSignals() {
                         m_rightSideBar->clearDocument();
                     }
                 });
+
+        // Integrate onboarding progression with document open events
+        connect(m_documentModel, &DocumentModel::documentOpened,
+                &OnboardingManager::instance(),
+                &OnboardingManager::onDocumentOpened);
     }
 }
 
@@ -1058,6 +1120,7 @@ void ApplicationController::handleError(const QString& context,
     }
 
     // Emit error signal for UI notification
+    PUBLISH_EVENT(AppEvents::ERROR_OCCURRED(), error);
     emit errorOccurred(context, error);
 }
 

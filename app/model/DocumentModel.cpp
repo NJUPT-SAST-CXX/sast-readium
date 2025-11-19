@@ -1,5 +1,6 @@
 #include "DocumentModel.h"
 #include <QFileInfo>
+#include "../controller/EventBus.h"
 #include "../logging/LoggingMacros.h"
 #include "RenderModel.h"
 #include "utils/ErrorHandling.h"
@@ -107,6 +108,7 @@ bool DocumentModel::openFromFile(const QString& filePath) {
             // 发送加载开始信号
             LOG_INFO("Starting document load: {}", filePath.toStdString());
             emit loadingStarted(filePath);
+            PUBLISH_EVENT("document.loading", filePath);
 
             // 使用异步加载器加载文档
             asyncLoader->loadDocument(filePath);
@@ -223,6 +225,7 @@ void DocumentModel::onDocumentLoaded(Poppler::Document* document,
 
     LOG_INFO("Async loaded successfully: {}", filePath.toStdString());
     emit documentOpened(newIndex, documents[newIndex]->fileName);
+    PUBLISH_EVENT(AppEvents::DOCUMENT_OPENED(), filePath);
     emit currentDocumentChanged(newIndex);
 
     // 检查是否还有待加载的文件
@@ -242,6 +245,8 @@ bool DocumentModel::closeDocument(int index) {
     if (!isValidIndex(index)) {
         return false;
     }
+
+    const QString closedFilePath = documents[index]->filePath;
 
     documents.erase(documents.begin() + index);
     emit documentClosed(index);
@@ -263,6 +268,8 @@ bool DocumentModel::closeDocument(int index) {
                 documents[currentDocumentIndex]->document.get());
         }
     }
+
+    PUBLISH_EVENT(AppEvents::DOCUMENT_CLOSED(), closedFilePath);
 
     return true;
 }

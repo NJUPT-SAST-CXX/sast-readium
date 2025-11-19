@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SAST Readium - WiX Installer Source File
+  This file defines the complete MSI installer for Windows (MSVC builds)
+
+  Features:
+  - Complete installation with all dependencies
+  - Start Menu shortcuts
+  - Desktop shortcut (optional)
+  - Proper upgrade/uninstall support
+  - Add/Remove Programs integration
+  - Optional PDF file association
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <!-- Product Definition -->
+  <Product Id="*"
+           Name="SAST Readium"
+           Language="1033"
+           Version="!(bind.FileVersion.SASTReadiumExe)"
+           Manufacturer="SAST Team"
+           UpgradeCode="8B3F9C5E-7D2A-4F1B-9E3C-6A8D4B2E1F0A">
+
+    <!-- Package Configuration -->
+    <Package Id="*"
+             InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Description="Qt6-based PDF reader with advanced search capabilities"
+             Comments="SAST Readium Installer"
+             Manufacturer="SAST Team"
+             InstallPrivileges="elevated" />
+
+    <!-- Major Upgrade Configuration -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed. Setup will now exit."
+                  AllowSameVersionUpgrades="yes"
+                  Schedule="afterInstallInitialize" />
+
+    <!-- Media Template -->
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- Icons -->
+    <Icon Id="SASTReadiumIcon" SourceFile="$(var.SourceDir)\assets\images\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="SASTReadiumIcon" />
+
+    <!-- Add/Remove Programs Properties -->
+    <Property Id="ARPCOMMENTS" Value="Qt6-based PDF reader with advanced search capabilities" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/NJUPT-SAST/sast-readium" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/NJUPT-SAST/sast-readium" />
+    <Property Id="ARPCONTACT" Value="SAST Team" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <!-- Installation Directory -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <!-- Feature: Main Application -->
+    <Feature Id="MainApplication"
+             Title="SAST Readium Application"
+             Description="Main application and required runtime libraries"
+             Level="1"
+             ConfigurableDirectory="INSTALLFOLDER"
+             AllowAdvertise="no"
+             Display="expand"
+             Absent="disallow">
+
+      <ComponentGroupRef Id="ApplicationFiles" />
+      <ComponentGroupRef Id="RuntimeLibraries" />
+      <ComponentGroupRef Id="QtPlugins" />
+      <ComponentGroupRef Id="ApplicationResources" />
+      <ComponentRef Id="ApplicationShortcuts" />
+    </Feature>
+
+    <!-- Feature: Desktop Shortcut (Optional) -->
+    <Feature Id="DesktopShortcut"
+             Title="Desktop Shortcut"
+             Description="Create a desktop shortcut"
+             Level="1"
+             AllowAdvertise="no">
+      <ComponentRef Id="DesktopShortcutComponent" />
+    </Feature>
+
+    <!-- Feature: PDF File Association (Optional) -->
+    <Feature Id="PDFAssociation"
+             Title="PDF File Association"
+             Description="Associate PDF files with SAST Readium (Optional)"
+             Level="2"
+             AllowAdvertise="no">
+      <ComponentRef Id="PDFAssociationComponent" />
+    </Feature>
+
+    <!-- UI Configuration -->
+    <UIRef Id="WixUI_FeatureTree" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+    <!-- License -->
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.SourceDir)\distrib\License.rtf" />
+
+    <!-- Banner and Dialog Images -->
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.SourceDir)\distrib\Banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.SourceDir)\distrib\Dialog.bmp" />
+
+  </Product>
+
+  <!-- Directory Structure -->
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <!-- Program Files -->
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="SAST Readium">
+          <!-- Bin Directory -->
+          <Directory Id="BinFolder" Name="bin">
+            <Directory Id="PlatformsFolder" Name="platforms" />
+            <Directory Id="StylesFolder" Name="styles" />
+            <Directory Id="ImagesFolder" Name="images" />
+            <Directory Id="TranslationsFolder" Name="translations" />
+            <Directory Id="ImageFormatsFolder" Name="imageformats" />
+            <Directory Id="IconEnginesFolder" Name="iconengines" />
+            <Directory Id="TlsFolder" Name="tls" />
+            <Directory Id="GenericFolder" Name="generic" />
+          </Directory>
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="SAST Readium" />
+      </Directory>
+
+      <!-- Desktop -->
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+  </Fragment>
+
+  <!-- Application Files Component Group -->
+  <Fragment>
+    <ComponentGroup Id="ApplicationFiles" Directory="BinFolder">
+      <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
+        <File Id="SASTReadiumExe"
+              Source="$(var.InstallDir)\bin\sast-readium.exe"
+              KeyPath="yes"
+              Checksum="yes">
+          <Shortcut Id="StartMenuShortcut"
+                    Directory="ApplicationProgramsFolder"
+                    Name="SAST Readium"
+                    Description="Qt6-based PDF reader with advanced search capabilities"
+                    WorkingDirectory="BinFolder"
+                    Icon="SASTReadiumIcon"
+                    IconIndex="0"
+                    Advertise="no" />
+        </File>
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <!-- Runtime Libraries Component Group -->
+  <Fragment>
+    <ComponentGroup Id="RuntimeLibraries" Directory="BinFolder">
+      <!-- Qt6 Core Libraries -->
+      <Component Id="Qt6Core" Guid="B1C2D3E4-F5A6-7890-BCDE-FA1234567891">
+        <File Id="Qt6CoreDll" Source="$(var.InstallDir)\bin\Qt6Core.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="Qt6Gui" Guid="C1D2E3F4-A5B6-7890-CDEF-AB1234567892">
+        <File Id="Qt6GuiDll" Source="$(var.InstallDir)\bin\Qt6Gui.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="Qt6Widgets" Guid="D1E2F3A4-B5C6-7890-DEFA-BC1234567893">
+        <File Id="Qt6WidgetsDll" Source="$(var.InstallDir)\bin\Qt6Widgets.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="Qt6Svg" Guid="E1F2A3B4-C5D6-7890-EFAB-CD1234567894">
+        <File Id="Qt6SvgDll" Source="$(var.InstallDir)\bin\Qt6Svg.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="Qt6SvgWidgets" Guid="F1A2B3C4-D5E6-7890-FABC-DE1234567895">
+        <File Id="Qt6SvgWidgetsDll" Source="$(var.InstallDir)\bin\Qt6SvgWidgets.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="Qt6PrintSupport" Guid="A2B3C4D5-E6F7-8901-ABCD-EF2345678901">
+        <File Id="Qt6PrintSupportDll" Source="$(var.InstallDir)\bin\Qt6PrintSupport.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="Qt6OpenGLWidgets" Guid="B2C3D4E5-F6A7-8901-BCDE-FA2345678902">
+        <File Id="Qt6OpenGLWidgetsDll" Source="$(var.InstallDir)\bin\Qt6OpenGLWidgets.dll" KeyPath="yes" />
+      </Component>
+
+      <!-- Additional Qt Libraries -->
+      <Component Id="Qt6Additional" Guid="C2D3E4F5-A6B7-8901-CDEF-AB2345678903">
+        <File Id="Qt6ConcurrentDll" Source="$(var.InstallDir)\bin\Qt6Concurrent.dll" />
+        <File Id="Qt6Core5CompatDll" Source="$(var.InstallDir)\bin\Qt6Core5Compat.dll" />
+        <File Id="Qt6NetworkDll" Source="$(var.InstallDir)\bin\Qt6Network.dll" />
+      </Component>
+
+      <!-- Application Libraries -->
+      <Component Id="AppLibraries" Guid="D2E3F4A5-B6C7-8901-DEFA-BC2345678904">
+        <File Id="ElaWidgetToolsDll" Source="$(var.InstallDir)\bin\ElaWidgetTools.dll" />
+      </Component>
+
+      <!-- Third-party Libraries -->
+      <Component Id="ThirdPartyLibs" Guid="E2F3A4B5-C6D7-8901-EFAB-CD2345678905">
+        <File Id="PopplerQt6Dll" Source="$(var.InstallDir)\bin\libpoppler-qt6-3.dll" />
+        <File Id="SpdlogDll" Source="$(var.InstallDir)\bin\spdlog.dll" />
+        <File Id="FmtDll" Source="$(var.InstallDir)\bin\fmt.dll" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <!-- Qt Plugins Component Group -->
+  <Fragment>
+    <ComponentGroup Id="QtPlugins" Directory="BinFolder">
+      <!-- Platforms Plugin -->
+      <Component Id="PlatformsPlugin" Directory="PlatformsFolder" Guid="F2A3B4C5-D6E7-8901-FABC-DE2345678906">
+        <File Id="qwindowsDll" Source="$(var.InstallDir)\bin\platforms\qwindows.dll" KeyPath="yes" />
+      </Component>
+
+      <!-- Image Formats Plugins -->
+      <Component Id="ImageFormatsPlugins" Directory="ImageFormatsFolder" Guid="A3B4C5D6-E7F8-9012-ABCD-EF3456789012">
+        <File Id="qicoDll" Source="$(var.InstallDir)\bin\imageformats\qico.dll" />
+        <File Id="qjpegDll" Source="$(var.InstallDir)\bin\imageformats\qjpeg.dll" />
+        <File Id="qpdfDll" Source="$(var.InstallDir)\bin\imageformats\qpdf.dll" />
+        <File Id="qsvgDll" Source="$(var.InstallDir)\bin\imageformats\qsvg.dll" />
+        <File Id="qgifDll" Source="$(var.InstallDir)\bin\imageformats\qgif.dll" />
+      </Component>
+
+      <!-- Icon Engines Plugins -->
+      <Component Id="IconEnginesPlugins" Directory="IconEnginesFolder" Guid="B3C4D5E6-F7A8-9012-BCDE-FA3456789013">
+        <File Id="qsvgiconDll" Source="$(var.InstallDir)\bin\iconengines\qsvgicon.dll" KeyPath="yes" />
+      </Component>
+
+      <!-- TLS Plugin -->
+      <Component Id="TlsPlugin" Directory="TlsFolder" Guid="C3D4E5F6-A7B8-9012-CDEF-AB3456789014">
+        <File Id="qopensslbackendDll" Source="$(var.InstallDir)\bin\tls\qopensslbackend.dll" KeyPath="yes" />
+      </Component>
+
+      <!-- Styles Plugin -->
+      <Component Id="StylesPlugin" Directory="BinFolder" Guid="D3E4F5A6-B7C8-9012-DEFA-BC3456789015">
+        <File Id="qwindowsvistastyleDll" Source="$(var.InstallDir)\bin\styles\qwindowsvistastyle.dll" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <!-- Application Resources Component Group -->
+  <Fragment>
+    <ComponentGroup Id="ApplicationResources" Directory="BinFolder">
+      <!-- Stylesheets -->
+      <Component Id="StylesheetResources" Directory="StylesFolder" Guid="E3F4A5B6-C7D8-9012-EFAB-CD3456789016">
+        <File Id="CommonQss" Source="$(var.InstallDir)\bin\styles\common.qss" />
+        <File Id="DarkQss" Source="$(var.InstallDir)\bin\styles\dark.qss" />
+        <File Id="LightQss" Source="$(var.InstallDir)\bin\styles\light.qss" />
+      </Component>
+
+      <!-- Images -->
+      <Component Id="ImageResources" Directory="ImagesFolder" Guid="F3A4B5C6-D7E8-9012-FABC-DE3456789017">
+        <File Id="LogoSvg" Source="$(var.InstallDir)\bin\images\logo.svg" />
+      </Component>
+
+      <!-- Translations -->
+      <Component Id="TranslationResources" Directory="TranslationsFolder" Guid="A4B5C6D7-E8F9-0123-ABCD-EF4567890123">
+        <File Id="AppZhCNQm" Source="$(var.InstallDir)\bin\translations\app_zh_CN.qm" />
+      </Component>
+
+      <!-- Documentation -->
+      <Component Id="Documentation" Directory="INSTALLFOLDER" Guid="B4C5D6E7-F8A9-0123-BCDE-FA4567890124">
+        <File Id="LicenseFile" Source="$(var.SourceDir)\LICENSE" />
+        <File Id="ReadmeFile" Source="$(var.SourceDir)\README.md" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <!-- Shortcuts Components -->
+  <Fragment>
+    <!-- Start Menu Shortcut (created with main executable) -->
+    <Component Id="ApplicationShortcuts" Directory="ApplicationProgramsFolder" Guid="C4D5E6F7-A8B9-0123-CDEF-AB4567890125">
+      <RemoveFolder Id="CleanupStartMenu" Directory="ApplicationProgramsFolder" On="uninstall" />
+      <RegistryValue Root="HKCU"
+                     Key="Software\SAST\SASTReadium"
+                     Name="InstallPath"
+                     Type="string"
+                     Value="[INSTALLFOLDER]"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- Desktop Shortcut (Optional) -->
+    <Component Id="DesktopShortcutComponent" Directory="DesktopFolder" Guid="D4E5F6A7-B8C9-0123-DEFA-BC4567890126">
+      <Shortcut Id="DesktopShortcut"
+                Name="SAST Readium"
+                Description="Qt6-based PDF reader with advanced search capabilities"
+                Target="[BinFolder]sast-readium.exe"
+                WorkingDirectory="BinFolder"
+                Icon="SASTReadiumIcon"
+                IconIndex="0" />
+      <RemoveFolder Id="CleanupDesktop" Directory="DesktopFolder" On="uninstall" />
+      <RegistryValue Root="HKCU"
+                     Key="Software\SAST\SASTReadium"
+                     Name="DesktopShortcut"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- PDF File Association (Optional) -->
+    <Component Id="PDFAssociationComponent" Directory="INSTALLFOLDER" Guid="E4F5A6B7-C8D9-0123-EFAB-CD4567890127">
+      <ProgId Id="SASTReadium.PDF" Description="PDF Document" Icon="SASTReadiumIcon" IconIndex="0">
+        <Extension Id="pdf" ContentType="application/pdf">
+          <Verb Id="open" Command="Open with SAST Readium" TargetFile="SASTReadiumExe" Argument='"%1"' />
+        </Extension>
+      </ProgId>
+      <RegistryValue Root="HKCU"
+                     Key="Software\SAST\SASTReadium"
+                     Name="PDFAssociation"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+  </Fragment>
+
+</Wix>

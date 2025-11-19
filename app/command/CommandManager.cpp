@@ -105,16 +105,16 @@ void CommandManager::registerCommand(const QString& commandId,
     }
 }
 
-bool CommandManager::canUndo() const { return !m_undoStack.isEmpty(); }
+bool CommandManager::canUndo() const { return !m_undoStack.empty(); }
 
-bool CommandManager::canRedo() const { return !m_redoStack.isEmpty(); }
+bool CommandManager::canRedo() const { return !m_redoStack.empty(); }
 
 QString CommandManager::undoCommandName() const {
-    if (m_undoStack.isEmpty()) {
+    if (m_undoStack.empty()) {
         return {};
     }
 
-    QObject* command = m_undoStack.top();
+    QObject* command = m_undoStack.back().get();
 
     // Try to get command name from different command types
     if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
@@ -128,11 +128,11 @@ QString CommandManager::undoCommandName() const {
 }
 
 QString CommandManager::redoCommandName() const {
-    if (m_redoStack.isEmpty()) {
+    if (m_redoStack.empty()) {
         return {};
     }
 
-    QObject* command = m_redoStack.top();
+    QObject* command = m_redoStack.back().get();
 
     // Try to get command name from different command types
     if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
@@ -154,9 +154,8 @@ void CommandManager::setHistorySize(int size) {
     m_historySize = size;
 
     // Trim history if necessary
-    while (m_undoStack.size() > m_historySize) {
-        QObject* command = m_undoStack.takeFirst();
-        delete command;
+    while (m_undoStack.size() > static_cast<size_t>(m_historySize)) {
+        m_undoStack.erase(m_undoStack.begin());
     }
 
     updateUndoRedoActions();
@@ -264,17 +263,11 @@ void CommandManager::clearShortcuts() {
 }
 
 void CommandManager::clearHistory() {
-    // Delete all commands in undo stack
-    while (!m_undoStack.isEmpty()) {
-        QObject* command = m_undoStack.pop();
-        delete command;
-    }
+    // Clear all commands in undo stack (smart pointers handle deletion)
+    m_undoStack.clear();
 
-    // Delete all commands in redo stack
-    while (!m_redoStack.isEmpty()) {
-        QObject* command = m_redoStack.pop();
-        delete command;
-    }
+    // Clear all commands in redo stack (smart pointers handle deletion)
+    m_redoStack.clear();
 
     updateUndoRedoActions();
     emit historyChanged();
@@ -284,7 +277,8 @@ void CommandManager::clearHistory() {
 QStringList CommandManager::commandHistory() const {
     QStringList history;
 
-    for (QObject* command : m_undoStack) {
+    for (const auto& commandPtr : m_undoStack) {
+        QObject* command = commandPtr.get();
         if (auto* navCommand = qobject_cast<NavigationCommand*>(command)) {
             history.append(navCommand->name());
         } else if (auto* docCommand = qobject_cast<DocumentCommand*>(command)) {
@@ -308,7 +302,9 @@ void CommandManager::undo() {
         return;
     }
 
-    QObject* command = m_undoStack.pop();
+    auto commandPtr = std::move(m_undoStack.back());
+    m_undoStack.pop_back();
+    QObject* command = commandPtr.get();
 
     try {
         bool success = false;
@@ -321,19 +317,19 @@ void CommandManager::undo() {
         }
 
         if (success) {
-            m_redoStack.push(command);
+            m_redoStack.push_back(std::move(commandPtr));
             m_logger.debug("Successfully undid command");
             emit commandUndone(undoCommandName());
         } else {
             // If undo failed, put command back on undo stack
-            m_undoStack.push(command);
+            m_undoStack.push_back(std::move(commandPtr));
             m_logger.warning("Failed to undo command");
         }
 
     } catch (const std::exception& e) {
         m_logger.error(QString("Exception during undo: %1").arg(e.what()));
         // Put command back on undo stack
-        m_undoStack.push(command);
+        m_undoStack.push_back(std::move(commandPtr));
     }
 
     updateUndoRedoActions();
@@ -350,14 +346,16 @@ void CommandManager::redo() {
         return;
     }
 
-    QObject* command = m_redoStack.pop();
+    auto commandPtr = std::move(m_redoStack.back());
+    m_redoStack.pop_back();
+    QObject* command = commandPtr.get();
 
     try {
         bool success = executeCommandObject(command);
 
         if (!success) {
             // If redo failed, put command back on redo stack
-            m_redoStack.push(command);
+            m_redoStack.push_back(std::move(commandPtr));
             m_logger.warning("Failed to redo command");
         } else {
             m_logger.debug("Successfully redid command");
@@ -367,7 +365,7 @@ void CommandManager::redo() {
     } catch (const std::exception& e) {
         m_logger.error(QString("Exception during redo: %1").arg(e.what()));
         // Put command back on redo stack
-        m_redoStack.push(command);
+        m_redoStack.push_back(std::move(commandPtr));
     }
 
     updateUndoRedoActions();
@@ -434,13 +432,12 @@ void CommandManager::addToHistory(QObject* command) {
     // Clear redo stack when new command is executed
     clearRedoStack();
 
-    // Add to undo stack
-    m_undoStack.push(command);
+    // Add to undo stack (transfer ownership to smart pointer)
+    m_undoStack.push_back(std::unique_ptr<QObject>(command));
 
     // Trim history if necessary
-    while (m_undoStack.size() > m_historySize) {
-        QObject* oldCommand = m_undoStack.takeFirst();
-        delete oldCommand;
+    while (m_undoStack.size() > static_cast<size_t>(m_historySize)) {
+        m_undoStack.erase(m_undoStack.begin());
     }
 
     updateUndoRedoActions();
@@ -448,10 +445,8 @@ void CommandManager::addToHistory(QObject* command) {
 }
 
 void CommandManager::clearRedoStack() {
-    while (!m_redoStack.isEmpty()) {
-        QObject* command = m_redoStack.pop();
-        delete command;
-    }
+    // Clear redo stack (smart pointers handle deletion automatically)
+    m_redoStack.clear();
 }
 
 void CommandManager::updateUndoRedoActions() {
@@ -551,9 +546,11 @@ CommandInvoker::CommandInvoker(CommandManager* manager, QObject* parent)
         m_manager = &GlobalCommandManager::instance();
     }
 
-    m_sequenceTimer->setSingleShot(true);
-    connect(m_sequenceTimer, &QTimer::timeout, this,
-            &CommandInvoker::executeNextInSequence);
+    if (m_sequenceTimer) {
+        m_sequenceTimer->setSingleShot(true);
+        connect(m_sequenceTimer, &QTimer::timeout, this,
+                &CommandInvoker::executeNextInSequence);
+    }
 }
 
 void CommandInvoker::invoke(const QString& commandId) {
@@ -566,22 +563,24 @@ void CommandInvoker::invoke(const QString& commandId) {
     emit invocationCompleted(commandId, success);
 }
 
-void CommandInvoker::invoke(const QString& commandId,
-                            const QVariant& /*param*/) {
+void CommandInvoker::invoke(const QString& commandId, const QVariant& param) {
+    Q_UNUSED(param)
     // For now, just invoke without parameters
     // Parameter support would require extending the command system
     invoke(commandId);
 }
 
 void CommandInvoker::invoke(const QString& commandId,
-                            const QVariantList& /*params*/) {
+                            const QVariantList& params) {
+    Q_UNUSED(params)
     // For now, just invoke without parameters
     // Parameter support would require extending the command system
     invoke(commandId);
 }
 
 void CommandInvoker::invoke(const QString& commandId,
-                            const QVariantMap& /*params*/) {
+                            const QVariantMap& params) {
+    Q_UNUSED(params)
     // For now, just invoke without parameters
     // Parameter support would require extending the command system
     invoke(commandId);
@@ -624,7 +623,7 @@ void CommandInvoker::executeNextInSequence() {
     emit invocationCompleted(commandId, success);
 
     if (!m_sequenceQueue.isEmpty()) {
-        if (m_sequenceDelay > 0) {
+        if (m_sequenceDelay > 0 && m_sequenceTimer) {
             m_sequenceTimer->start(m_sequenceDelay);
         } else {
             executeNextInSequence();

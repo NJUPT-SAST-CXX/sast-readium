@@ -1,17 +1,18 @@
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
 
 #include <memory>
 
+#include "../controller/DocumentController.h"
 #include "../controller/tool.hpp"
 #include "../logging/SimpleLogging.h"
 
 // Forward declarations
-class DocumentController;
 class DocumentModel;
 class QWidget;
 
@@ -33,21 +34,23 @@ public:
                              const QString& name, QObject* parent = nullptr);
     virtual ~DocumentCommand() = default;
 
+    Q_DISABLE_COPY_MOVE(DocumentCommand)
+
     // Command interface
     virtual bool execute() = 0;
-    virtual bool canExecute() const;
+    [[nodiscard]] virtual bool canExecute() const;
     virtual bool undo() {
         return false;
     }  // Most document commands are not undoable
 
     // Command metadata
-    QString name() const { return m_name; }
-    QString description() const { return m_description; }
-    ActionMap actionId() const { return m_actionId; }
+    [[nodiscard]] QString name() const { return m_name; }
+    [[nodiscard]] QString description() const { return m_description; }
+    [[nodiscard]] ActionMap actionId() const { return m_actionId; }
 
     // Error handling
-    bool hasError() const { return !m_errorMessage.isEmpty(); }
-    QString errorMessage() const { return m_errorMessage; }
+    [[nodiscard]] bool hasError() const { return !m_errorMessage.isEmpty(); }
+    [[nodiscard]] QString errorMessage() const { return m_errorMessage; }
 
 signals:
     void executed(bool success);
@@ -60,10 +63,12 @@ protected:
     void setErrorMessage(const QString& error) { m_errorMessage = error; }
     void clearError() { m_errorMessage.clear(); }
 
-    DocumentController* controller() const { return m_controller; }
+    [[nodiscard]] DocumentController* controller() const {
+        return m_controller;
+    }
 
 private:
-    DocumentController* m_controller;
+    QPointer<DocumentController> m_controller;
     QString m_name;
     QString m_description;
     ActionMap m_actionId = ActionMap::openFile;  // Default action
@@ -84,11 +89,13 @@ public:
                                  const QString& filePath = QString(),
                                  QObject* parent = nullptr);
 
+    Q_DISABLE_COPY_MOVE(OpenDocumentCommand)
+
     void setFilePath(const QString& path) { m_filePath = path; }
-    QString filePath() const { return m_filePath; }
+    [[nodiscard]] QString filePath() const { return m_filePath; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
 
 private:
     QString m_filePath;
@@ -106,11 +113,13 @@ public:
                                   const QStringList& filePaths = QStringList(),
                                   QObject* parent = nullptr);
 
+    Q_DISABLE_COPY_MOVE(OpenDocumentsCommand)
+
     void setFilePaths(const QStringList& paths) { m_filePaths = paths; }
-    QStringList filePaths() const { return m_filePaths; }
+    [[nodiscard]] QStringList filePaths() const { return m_filePaths; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
 
 private:
     QStringList m_filePaths;
@@ -129,11 +138,13 @@ public:
     explicit CloseDocumentCommand(DocumentController* controller,
                                   int index = -1, QObject* parent = nullptr);
 
+    Q_DISABLE_COPY_MOVE(CloseDocumentCommand)
+
     void setDocumentIndex(int index) { m_index = index; }
-    int documentIndex() const { return m_index; }
+    [[nodiscard]] int documentIndex() const { return m_index; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
 
 private:
     int m_index;  // -1 means current document
@@ -152,11 +163,13 @@ public:
                                    const QString& targetPath = QString(),
                                    QObject* parent = nullptr);
 
+    Q_DISABLE_COPY_MOVE(SaveDocumentAsCommand)
+
     void setTargetPath(const QString& path) { m_targetPath = path; }
-    QString targetPath() const { return m_targetPath; }
+    [[nodiscard]] QString targetPath() const { return m_targetPath; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
 
 private:
     QString m_targetPath;
@@ -170,18 +183,20 @@ class ExportDocumentCommand : public DocumentCommand {
     Q_OBJECT
 
 public:
-    enum ExportFormat { PDF, Images, Text, HTML };
+    enum ExportFormat : std::uint8_t { PDF, Images, Text, HTML };
 
     explicit ExportDocumentCommand(DocumentController* controller,
                                    ExportFormat format,
                                    QObject* parent = nullptr);
+
+    Q_DISABLE_COPY_MOVE(ExportDocumentCommand)
 
     void setFormat(ExportFormat format) { m_format = format; }
     void setOutputPath(const QString& path) { m_outputPath = path; }
     void setOptions(const QVariantMap& options) { m_options = options; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
 
 private:
     // Helper methods for different export formats
@@ -209,13 +224,15 @@ public:
     explicit PrintDocumentCommand(DocumentController* controller,
                                   QObject* parent = nullptr);
 
+    Q_DISABLE_COPY_MOVE(PrintDocumentCommand)
+
     void setPageRange(int start, int end);
     void setPrintOptions(const QVariantMap& options) {
         m_printOptions = options;
     }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
 
 private:
     int m_startPage = -1;
@@ -233,8 +250,10 @@ public:
     explicit ReloadDocumentCommand(DocumentController* controller,
                                    QObject* parent = nullptr);
 
+    Q_DISABLE_COPY_MOVE(ReloadDocumentCommand)
+
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
 
 private:
     int m_previousPage = 0;
@@ -252,10 +271,12 @@ public:
                                            QWidget* parentWidget = nullptr,
                                            QObject* parent = nullptr);
 
+    Q_DISABLE_COPY_MOVE(ShowDocumentPropertiesCommand)
+
     void setParentWidget(QWidget* widget) { m_parentWidget = widget; }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
 
 private:
     QWidget* m_parentWidget;
@@ -273,6 +294,8 @@ public:
                                      QString secondPath = QString(),
                                      QObject* parent = nullptr);
 
+    Q_DISABLE_COPY_MOVE(CompareDocumentsCommand)
+
     void setFirstDocument(const QString& path) { m_firstPath = path; }
     void setSecondDocument(const QString& path) { m_secondPath = path; }
     void setComparisonOptions(const QVariantMap& options) {
@@ -280,7 +303,7 @@ public:
     }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
 
 private:
     QString m_firstPath;
@@ -298,14 +321,16 @@ public:
     explicit DocumentMacroCommand(DocumentController* controller,
                                   const QString& name,
                                   QObject* parent = nullptr);
-    ~DocumentMacroCommand();
+    ~DocumentMacroCommand() override;
+
+    Q_DISABLE_COPY_MOVE(DocumentMacroCommand)
 
     void addCommand(DocumentCommand* command);
     void clearCommands();
-    int commandCount() const { return m_commands.size(); }
+    [[nodiscard]] int commandCount() const { return m_commands.size(); }
 
     bool execute() override;
-    bool canExecute() const override;
+    [[nodiscard]] bool canExecute() const override;
     bool undo() override;
 
 private:

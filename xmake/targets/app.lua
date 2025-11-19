@@ -2,10 +2,14 @@
 -- Main application target definition
 
 includes("../modules/qt.lua")
+includes("../modules/dependencies.lua")
 
 target("sast-readium")
     set_kind("binary")
     add_rules("qt.moc")
+
+    -- Dependencies on internal libraries
+    add_deps("ElaWidgetTools")
 
     -- Headers requiring MOC
     add_files("$(projectdir)/app/MainWindow.h")
@@ -54,50 +58,9 @@ target("sast-readium")
 
     set_targetdir("$(builddir)")
 
-    -- Setup Qt
-    setup_qt_for_target()
-
-    -- External packages
-    -- On Windows+MinGW, pkg-config injects the generic Mingw include root
-    -- (e.g. .../mingw64/include) which breaks libstdc++'s `#include_next <stdlib.h>`.
-    -- To avoid that, we manually add only the specific sub-include directories
-    -- for Poppler and friends on MinGW, and still use pkg-config elsewhere.
-    do
-        local current_toolchain = get_config("toolchain")
-        if current_toolchain == "auto" then current_toolchain = get_default_toolchain() end
-        if is_plat("windows") and current_toolchain == "mingw" then
-            -- Derive MSYS2 MinGW root from Qt base
-            local qt_base = find_qt_installation()
-            local mingw_root = qt_base
-            if qt_base and path.filename(qt_base) == "qt6-static" then
-                mingw_root = path.directory(qt_base)
-            end
-            if not mingw_root or not os.isdir(mingw_root .. "/include") then
-                -- Fallback to environment if detection failed
-                mingw_root = os.getenv("MINGW_PREFIX") or "D:/msys64/mingw64"
-            end
-            -- Add only the required third-party include subfolders
-            add_includedirs(mingw_root .. "/include/poppler/qt6", {public = true})
-            add_includedirs(mingw_root .. "/include/poppler", {public = true})
-            add_includedirs(mingw_root .. "/include/freetype2", {public = true})
-            add_includedirs(mingw_root .. "/include/harfbuzz", {public = true})
-            add_includedirs(mingw_root .. "/include/glib-2.0", {public = true})
-            add_includedirs(mingw_root .. "/lib/glib-2.0/include", {public = true})
-            add_includedirs(mingw_root .. "/include/nss3", {public = true})
-            add_includedirs(mingw_root .. "/include/nspr", {public = true})
-            add_includedirs(mingw_root .. "/include/openjpeg-2.5", {public = true})
-            add_includedirs(mingw_root .. "/include/libpng16", {public = true})
-            add_includedirs(mingw_root .. "/include/webp", {public = true})
-            -- Link directories; we still rely on the linker to resolve poppler and its deps
-            add_linkdirs(mingw_root .. "/lib")
-            -- Base poppler libs (the rest are pulled transitively)
-            add_links("poppler-qt6", "poppler")
-        else
-            add_packages("pkgconfig::poppler-qt6")
-        end
-        -- spdlog is safe everywhere
-        add_packages("spdlog")
-    end
+    -- Setup dependencies
+    setup_qt_dependencies()
+    setup_external_dependencies()
 
     -- Generate config.h
     before_build(function (target)

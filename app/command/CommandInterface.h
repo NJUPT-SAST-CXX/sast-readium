@@ -13,8 +13,6 @@
  */
 class CommandInterface {
 public:
-    virtual ~CommandInterface() = default;
-
     // Explicitly delete copy and move operations
     CommandInterface(const CommandInterface&) = delete;
     CommandInterface& operator=(const CommandInterface&) = delete;
@@ -34,4 +32,8 @@ public:
     // Serialization
     [[nodiscard]] virtual QJsonObject serialize() const = 0;
     virtual void deserialize(const QJsonObject& data) = 0;
+
+protected:
+    CommandInterface() = default;
+    virtual ~CommandInterface() = default;
 };

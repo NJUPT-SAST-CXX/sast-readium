@@ -15,6 +15,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QStandardPaths>
+#include <QStringConverter>
 #include <QSysInfo>
 #include <QTextStream>
 #include <csignal>

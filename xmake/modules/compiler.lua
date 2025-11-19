@@ -56,4 +56,36 @@ function setup_compiler_flags()
 
     -- Position Independent Code
     add_cxxflags("-fPIC", {tools = {"gcc", "clang"}})
+
+    -- Additional cross-platform optimizations
+    if is_mode("release") then
+        -- Enable additional optimizations for release builds
+        add_cxxflags("-O3", "-DNDEBUG", {tools = {"gcc", "clang"}})
+        add_cxxflags("/O2", "/DNDEBUG", {tools = "cl"})
+
+        -- Enable fast math optimizations (be careful with floating point precision)
+        add_cxxflags("-ffast-math", {tools = {"gcc", "clang"}})
+        add_cxxflags("/fp:fast", {tools = "cl"})
+
+        -- Enable vectorization hints
+        add_cxxflags("-ftree-vectorize", {tools = {"gcc", "clang"}})
+
+        -- Platform-specific optimizations
+        if is_arch("x86_64", "x64") then
+            add_cxxflags("-march=x86-64", "-mtune=generic", {tools = {"gcc", "clang"}})
+        elseif is_arch("arm64") then
+            add_cxxflags("-march=armv8-a", {tools = {"gcc", "clang"}})
+        end
+    end
+
+    -- Debug build optimizations
+    if is_mode("debug") then
+        -- Better debugging experience
+        add_cxxflags("-g3", "-O0", {tools = {"gcc", "clang"}})
+        add_cxxflags("/Od", "/Zi", {tools = "cl"})
+
+        -- Enable runtime checks in debug mode
+        add_cxxflags("-fsanitize=address", "-fsanitize=undefined", {tools = {"gcc", "clang"}})
+        add_ldflags("-fsanitize=address", "-fsanitize=undefined", {tools = {"gcc", "clang"}})
+    end
 end

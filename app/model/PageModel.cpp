@@ -577,3 +577,21 @@ void PageModel::onRenderCompleted(int pageNum, const QImage& image) {
         }
     }
 }
+
+PageModel::~PageModel() {
+    // Clean up resources
+    if (_preloadTimer) {
+        _preloadTimer->stop();
+    }
+
+    // Clear preloaded pages
+    _preloadedPages.clear();
+
+    // Clear page metadata
+    _pageMetadata.clear();
+
+    // Clear page load times
+    _pageLoadTimes.clear();
+
+    LOG_DEBUG("PageModel: Destroyed");
+}

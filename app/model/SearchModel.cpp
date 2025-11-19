@@ -90,7 +90,7 @@ void SearchModel::startSearch(Poppler::Document* document, const QString& query,
         cancelSearch();
     }
 
-    if (!document || query.isEmpty()) {
+    if (document == nullptr || query.isEmpty()) {
         LOG_WARNING(
             "SearchModel::startSearch received invalid input: "
             "documentValid={}, queryEmpty={}",
@@ -236,7 +236,7 @@ void SearchModel::onSearchFinished() {
 void SearchModel::performSearch() {
     QList<SearchResult> allResults;
 
-    if (!m_document) {
+    if (m_document == nullptr) {
         emit searchError("Document is null");
         LOG_ERROR("SearchModel::performSearch aborted: document is null");
         return;
@@ -253,7 +253,7 @@ void SearchModel::performSearch() {
     // Simple search without complex error handling for testing
     for (int i = 0; i < pageCount; ++i) {
         std::unique_ptr<Poppler::Page> page(m_document->page(i));
-        if (!page) {
+        if (page == nullptr) {
             LOG_WARNING(
                 "SearchModel::performSearch skipping invalid page index {}", i);
             continue;  // Skip invalid pages but continue search
@@ -284,7 +284,7 @@ QList<SearchResult> SearchModel::searchInPage(Poppler::Page* page,
                                               const SearchOptions& options) {
     QList<SearchResult> results;
 
-    if (!page) {
+    if (page == nullptr) {
         return results;
     }
 
@@ -298,7 +298,7 @@ QList<SearchResult> SearchModel::searchInPage(Poppler::Page* page,
             QStringList pieces;
             pieces.reserve(static_cast<int>(boxes.size()));
             for (const auto& boxPtr : boxes) {
-                if (boxPtr) {
+                if (boxPtr != nullptr) {
                     pieces.append(boxPtr->text());
                 }
             }
@@ -379,7 +379,7 @@ QRegularExpression SearchModel::createSearchRegex(
 
 // Real-time search implementation
 void SearchModel::performRealTimeSearch() {
-    if (!m_document || m_currentQuery.isEmpty()) {
+    if (m_document == nullptr || m_currentQuery.isEmpty()) {
         return;
     }
 
@@ -392,7 +392,7 @@ void SearchModel::performRealTimeSearch() {
 
     for (int i = 0; i < pageCount; ++i) {
         std::unique_ptr<Poppler::Page> page(m_document->page(i));
-        if (page) {
+        if (page != nullptr) {
             QList<SearchResult> pageResults =
                 searchInPage(page.get(), i, m_currentQuery, m_currentOptions);
             allResults.append(pageResults);
@@ -464,7 +464,7 @@ void SearchModel::startFuzzySearch(Poppler::Document* document,
         cancelSearch();
     }
 
-    if (!document || query.isEmpty()) {
+    if (document == nullptr || query.isEmpty()) {
         LOG_WARNING(
             "SearchModel::startFuzzySearch received invalid input: "
             "documentValid={}, queryEmpty={}",
@@ -514,7 +514,7 @@ void SearchModel::startPageRangeSearch(Poppler::Document* document,
         cancelSearch();
     }
 
-    if (!document || query.isEmpty()) {
+    if (document == nullptr || query.isEmpty()) {
         LOG_WARNING(
             "SearchModel::startPageRangeSearch received invalid input: "
             "documentValid={}, queryEmpty={}",
@@ -574,7 +574,7 @@ QList<SearchResult> SearchModel::performFuzzySearch(
     const QString& query, const SearchOptions& options) {
     QList<SearchResult> allResults;
 
-    if (!m_document) {
+    if (m_document == nullptr) {
         LOG_ERROR("SearchModel::performFuzzySearch aborted: document is null");
         return allResults;
     }
@@ -583,7 +583,7 @@ QList<SearchResult> SearchModel::performFuzzySearch(
 
     for (int i = 0; i < pageCount; ++i) {
         std::unique_ptr<Poppler::Page> page(m_document->page(i));
-        if (page) {
+        if (page != nullptr) {
             QString pageText = page->text(QRectF());
 
             // Split page text into words for fuzzy matching
@@ -638,7 +638,7 @@ QList<SearchResult> SearchModel::performPageRangeSearch(
     const SearchOptions& options) {
     QList<SearchResult> allResults;
 
-    if (!m_document) {
+    if (m_document == nullptr) {
         LOG_ERROR(
             "SearchModel::performPageRangeSearch aborted: document is null");
         return allResults;
@@ -658,7 +658,7 @@ QList<SearchResult> SearchModel::performPageRangeSearch(
 
     for (int i = actualStartPage; i <= actualEndPage; ++i) {
         std::unique_ptr<Poppler::Page> page(m_document->page(i));
-        if (page) {
+        if (page != nullptr) {
             QList<SearchResult> pageResults =
                 searchInPage(page.get(), i, query, options);
             allResults.append(pageResults);

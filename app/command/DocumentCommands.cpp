@@ -29,7 +29,7 @@ DocumentCommand::DocumentCommand(DocumentController* controller,
     m_logger.debug(QString("Created document command: %1").arg(name));
 }
 
-bool DocumentCommand::canExecute() const { return m_controller != nullptr; }
+bool DocumentCommand::canExecute() const { return !m_controller.isNull(); }
 
 // OpenDocumentCommand implementation
 OpenDocumentCommand::OpenDocumentCommand(DocumentController* controller,

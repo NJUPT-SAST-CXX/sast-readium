@@ -1065,7 +1065,7 @@ void SystemTrayManager::connectToApplicationEvents() {
     });
 
     // Connect to error events (if they exist)
-    eventBus.subscribe("error.occurred", this, [this](Event* event) {
+    eventBus.subscribe(AppEvents::ERROR_OCCURRED(), this, [this](Event* event) {
         if (m_pImpl->m_showStatusIndicators) {
             setApplicationStatus("error", "Error occurred");
         }

@@ -45,65 +45,43 @@ create_test_target(test_smoke
 # Cache Tests - Cache subsystem tests
 # ============================================================================
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cache/test_cache_manager.cpp)
-    create_test_target(test_cache_manager
-        SOURCES cache/test_cache_manager.cpp cache/CacheTestHelpers.cpp
-        TIMEOUT 300
-    )
-endif()
+# Define cache tests with common helper sources
+set(CACHE_TESTS
+    test_cache_manager
+    test_pdf_cache_manager
+    test_page_text_cache
+    test_search_result_cache
+)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cache/test_pdf_cache_manager.cpp)
-    create_test_target(test_pdf_cache_manager
-        SOURCES cache/test_pdf_cache_manager.cpp cache/CacheTestHelpers.cpp
-        TIMEOUT 300
-    )
-endif()
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cache/test_page_text_cache.cpp)
-    create_test_target(test_page_text_cache
-        SOURCES cache/test_page_text_cache.cpp cache/CacheTestHelpers.cpp
-        TIMEOUT 300
-    )
-endif()
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cache/test_search_result_cache.cpp)
-    create_test_target(test_search_result_cache
-        SOURCES cache/test_search_result_cache.cpp cache/CacheTestHelpers.cpp
-        TIMEOUT 300
-    )
-endif()
+foreach(test_name IN LISTS CACHE_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cache/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES cache/${test_name}.cpp cache/CacheTestHelpers.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
 
 # ============================================================================
 # Command Tests - Command pattern implementation tests
 # ============================================================================
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/command/test_command_manager.cpp)
-    create_test_target(test_command_manager
-        SOURCES command/test_command_manager.cpp
-        TIMEOUT 300
-    )
-endif()
+# Define command tests
+set(COMMAND_TESTS
+    test_command_manager
+    test_document_commands
+    test_initialization_command
+    test_navigation_commands
+)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/command/test_document_commands.cpp)
-    create_test_target(test_document_commands
-        SOURCES command/test_document_commands.cpp
-        TIMEOUT 300
-    )
-endif()
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/command/test_initialization_command.cpp)
-    create_test_target(test_initialization_command
-        SOURCES command/test_initialization_command.cpp
-        TIMEOUT 300
-    )
-endif()
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/command/test_navigation_commands.cpp)
-    create_test_target(test_navigation_commands
-        SOURCES command/test_navigation_commands.cpp
-        TIMEOUT 300
-    )
-endif()
+foreach(test_name IN LISTS COMMAND_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/command/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES command/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
 
 # ============================================================================
 # Controller Tests - Service-oriented architecture tests

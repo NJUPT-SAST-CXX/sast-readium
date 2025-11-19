@@ -1,5 +1,10 @@
 project(app LANGUAGES CXX VERSION 0.1.0.0 DESCRIPTION "SAST Readium")
 
+if(APPLE)
+    set(SAST_READIUM_MACOS_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
+    configure_file("${CMAKE_SOURCE_DIR}/distrib/Info.plist.in" "${SAST_READIUM_MACOS_PLIST}" @ONLY)
+endif()
+
 # Include utility modules
 include(TargetUtils)
 
@@ -54,13 +59,34 @@ if(SAST_SPDLOG_INCLUDE_DIR AND EXISTS "${SAST_SPDLOG_INCLUDE_DIR}/spdlog/spdlog.
     target_include_directories(app_lib PUBLIC "${SAST_SPDLOG_INCLUDE_DIR}")
 endif()
 
-# Get common libraries and link them to app_lib
+# Get common libraries and link them to app_lib with proper visibility
 get_common_libraries(common_libs)
-target_link_libraries(app_lib PUBLIC
-    ${common_libs}
-    ElaWidgetTools  # ElaWidgetTools library for modern UI components
-    app_resources   # Ensure qrc object code is linked for dependents
+target_link_libraries(app_lib
+    PUBLIC
+        # Public dependencies that consumers of app_lib need
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Widgets
+        ElaWidgetTools  # ElaWidgetTools library for modern UI components
+        app_resources   # Ensure qrc object code is linked for dependents
+    PRIVATE
+        # Private dependencies that only app_lib needs internally
+        Qt6::OpenGLWidgets
+        Qt6::Svg
+        Qt6::Concurrent
+        Qt6::Core5Compat
+        Qt6::PrintSupport
+        PkgConfig::POPPLER_QT6
+        $<$<PLATFORM_ID:Windows>:dbghelp>
+        $<$<PLATFORM_ID:Windows>:psapi>
+        $<$<NOT:$<PLATFORM_ID:Windows>>:${CMAKE_DL_LIBS}>
 )
+
+# Ensure spdlog usage requirements (e.g., SPDLOG_COMPILED_LIB) propagate to
+# consumers like the main executable so that all translation units use the
+# compiled-library mode consistently instead of mixing header-only and
+# compiled modes, which can cause multiple-definition link errors.
+target_link_libraries(app_lib PUBLIC spdlog::spdlog)
 
 # Set C++ standard for library
 set_target_properties(app_lib PROPERTIES
@@ -98,13 +124,28 @@ target_precompile_headers(app_lib PRIVATE
 
 message(VERBOSE "Building main executable: sast-readium")
 
-# Create executable with platform-specific configuration
-if(WIN32)
-    add_executable(sast-readium "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
-    # Temporarily disable WIN32_EXECUTABLE for debugging
-    set_target_properties(sast-readium PROPERTIES WIN32_EXECUTABLE FALSE)
-else()
-    add_executable(sast-readium "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+# Create executable with modern target properties
+add_executable(sast-readium "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+
+# Set target properties using modern CMake approach
+set_target_properties(sast-readium PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    # Use generator expressions for platform-specific settings
+    WIN32_EXECUTABLE $<$<PLATFORM_ID:Windows>:FALSE>  # Temporarily disable for debugging
+    MACOSX_BUNDLE $<$<PLATFORM_ID:Darwin>:TRUE>
+    # Output name and version
+    OUTPUT_NAME "sast-readium"
+    VERSION ${PROJECT_VERSION}
+)
+
+if(APPLE)
+    # Use a custom Info.plist so that the macOS bundle has proper metadata and
+    # declares PDF document support.
+    set_target_properties(sast-readium PROPERTIES
+        MACOSX_BUNDLE_INFO_PLIST "${SAST_READIUM_MACOS_PLIST}"
+    )
 endif()
 
 # Link the executable to the library
@@ -144,6 +185,10 @@ setup_install_targets(sast-readium)
 # Setup Qt deployment for installation (generates deployment script)
 setup_qt_deployment(sast-readium)
 
+if(APPLE AND ENABLE_PACKAGING)
+    setup_code_signing(sast-readium)
+endif()
+
 message(NOTICE "Main executable configured: sast-readium")
 
 # ==============================================================================
@@ -154,14 +199,21 @@ message(NOTICE "Main executable configured: sast-readium")
 if(BUILD_LEGACY_UI)
     message(VERBOSE "Building legacy UI executable: app-legacy")
 
-    # Create executable with platform-specific configuration
-    if(WIN32)
-        add_executable(app-legacy "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
-        # Temporarily disable WIN32_EXECUTABLE for debugging
-        set_target_properties(app-legacy PROPERTIES WIN32_EXECUTABLE FALSE)
-    else()
-        add_executable(app-legacy "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
-    endif()
+    # Create legacy executable with modern target properties
+    add_executable(app-legacy "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+
+    # Set target properties using modern CMake approach
+    set_target_properties(app-legacy PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        # Use generator expressions for platform-specific settings
+        WIN32_EXECUTABLE $<$<PLATFORM_ID:Windows>:FALSE>  # Temporarily disable for debugging
+        MACOSX_BUNDLE $<$<PLATFORM_ID:Darwin>:TRUE>
+        # Output name and version
+        OUTPUT_NAME "app-legacy"
+        VERSION ${PROJECT_VERSION}
+    )
 
     # Link the executable to the library
     target_link_libraries(app-legacy PRIVATE app_lib)

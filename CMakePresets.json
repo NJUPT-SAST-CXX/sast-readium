@@ -196,6 +196,51 @@
                 "SAST_ENABLE_HARDENING": "ON",
                 "SAST_ENABLE_LTO": "ON"
             }
+        },
+        {
+            "name": "Package-Windows-MSVC",
+            "displayName": "Package build for Windows MSVC (MSI installer)",
+            "description": "Optimized Release build for creating MSI packages using MSVC and WiX",
+            "generator": "Visual Studio 17 2022",
+            "binaryDir": "${sourceDir}/build/Package-Windows-MSVC",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "USE_VCPKG": "ON",
+                "CMAKE_CXX_FLAGS": "/Zc:__cplusplus /EHsc /utf-8",
+                "BUILD_TESTING": "OFF",
+                "ENABLE_CLANGD_CONFIG": "OFF",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON",
+                "SAST_ENABLE_LTO": "ON",
+                "ENABLE_PACKAGING": "ON",
+                "PACKAGE_INSTALLER": "ON",
+                "PACKAGE_PORTABLE": "ON",
+                "DEPLOY_QT_PLUGINS": "ON",
+                "PACKAGING_MINIMAL": "ON",
+                "PACKAGING_STRIP_DEBUG": "ON",
+                "PACKAGING_AGGRESSIVE_CLEANUP": "ON"
+            }
+        },
+        {
+            "name": "Package-Windows-MinGW",
+            "displayName": "Package build for Windows MinGW (NSIS installer)",
+            "description": "Optimized Release build for creating NSIS packages using MinGW-w64",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/Package-Windows-MinGW",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "USE_VCPKG": "OFF",
+                "ENABLE_PACKAGING": "ON",
+                "PACKAGE_INSTALLER": "ON",
+                "PACKAGE_PORTABLE": "ON",
+                "DEPLOY_QT_PLUGINS": "ON",
+                "SAST_QUIET": "ON",
+                "SAST_ENABLE_HARDENING": "ON",
+                "SAST_ENABLE_LTO": "ON",
+                "PACKAGING_MINIMAL": "ON",
+                "PACKAGING_STRIP_DEBUG": "ON",
+                "PACKAGING_AGGRESSIVE_CLEANUP": "ON"
+            }
         }
     ],
     "buildPresets": [
@@ -269,6 +314,18 @@
             "name": "Release-macOS-vcpkg-arm64",
             "displayName": "Release build for macOS Apple Silicon (with vcpkg)",
             "configurePreset": "Release-macOS-vcpkg-arm64",
+            "jobs": 8
+        },
+        {
+            "name": "Package-Windows-MSVC",
+            "displayName": "Package build for Windows MSVC",
+            "configurePreset": "Package-Windows-MSVC",
+            "configuration": "Release"
+        },
+        {
+            "name": "Package-Windows-MinGW",
+            "displayName": "Package build for Windows MinGW",
+            "configurePreset": "Package-Windows-MinGW",
             "jobs": 8
         }
     ]

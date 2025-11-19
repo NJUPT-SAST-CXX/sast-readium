@@ -33,6 +33,12 @@ param(
     [Parameter(Mandatory=$false)]
     [string]$TestPDF = "",
 
+    # When specified, this flag simply ensures that DLL dependency checks are enabled.
+    # It is accepted for compatibility with documentation examples and aliases the
+    # default behavior where dependency checks are already performed unless
+    # -SkipDllCheck is set.
+    [switch]$CheckMissing = $false,
+
     [switch]$SkipDllCheck = $false,
 
     [switch]$SkipFunctionalTest = $false
@@ -93,9 +99,17 @@ Write-Info "Verifying installation at: $InstallPath"
 Write-Info "Current directory: $(Get-Location)"
 
 # Determine executable location
-$ExePath = Join-Path $InstallPath "app.exe"
+# Prefer the current executable name (sast-readium.exe), but fall back to
+# legacy app.exe for backward compatibility with older packages.
+$ExePath = Join-Path $InstallPath "sast-readium.exe"
 if (-not (Test-Path $ExePath)) {
-    $ExePath = Join-Path $InstallPath "bin\app.exe"
+    $ExePath = Join-Path $InstallPath "bin\sast-readium.exe"
+}
+if (-not (Test-Path $ExePath)) {
+    $ExePath = Join-Path $InstallPath "app.exe"
+    if (-not (Test-Path $ExePath)) {
+        $ExePath = Join-Path $InstallPath "bin\app.exe"
+    }
 }
 
 # ============================================================================

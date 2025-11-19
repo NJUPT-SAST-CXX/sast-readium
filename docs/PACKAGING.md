@@ -285,6 +285,29 @@ sha256sum -c SHA256SUMS
 - **CMake**: `build/package/` 或 `package/`
 - **XMake**: `package/`
 
+## 依赖打包策略（跨平台概览）
+
+不同平台在依赖处理上的策略略有差异：
+
+- **Windows（MSVC + MSYS2）**
+  - 使用 CMake `RUNTIME_DEPENDENCIES` 与 `InstallRequiredSystemLibraries` 自动收集并安装运行时 DLL。
+  - MSVC 构建通过 WiX MSI 打包 VC++ 运行库。
+  - MSYS2 构建会额外复制 `libgcc_s_seh-1.dll`、`libstdc++-6.dll`、`libwinpthread-1.dll` 以及 Poppler/ spdlog 等 DLL，并使用 `windeployqt` 部署 Qt。
+  - 可选的最小化打包选项会移除头文件、静态库、调试符号和多余的 Qt 插件以减小体积。
+
+- **Linux（DEB/RPM + AppImage）**
+  - DEB/RPM 采用“系统包为主”的策略：
+    - DEB 依赖默认包含：`libc6, libqt6core6, libqt6gui6, libqt6widgets6, libqt6svg6, libpoppler-qt6-3`。
+    - RPM 使用对应的 Qt6/Poppler 包组，适配发行版的依赖解析。
+  - AppImage 采用 `linuxdeploy` + `linuxdeploy-plugin-qt`（若可用）将 Qt 框架和插件一起打包，使其在绝大多数发行版上开箱即用。
+
+- **macOS（.app + DMG/PKG）**
+  - 可执行文件构建为标准 `MACOSX_BUNDLE` `.app`，并使用自定义 `Info.plist` 声明 PDF 文档类型。
+  - DMG 使用 `DragNDrop` 生成，PKG 使用 CPack `productbuild` 生成安装包。
+  - 若设置了 `CODESIGN_IDENTITY`，安装阶段会自动对 `.app` 进行签名，为后续公证与分发做准备。
+
+在所有平台上，`PACKAGING_MINIMAL`、`PACKAGING_STRIP_DEBUG`、`PACKAGING_AGGRESSIVE_CLEANUP` 组合用于控制依赖的“打包多少”和“删多少”，在可用性和包体积之间取得平衡。
+
 ## CI/CD 集成
 
 ### GitHub Actions 示例

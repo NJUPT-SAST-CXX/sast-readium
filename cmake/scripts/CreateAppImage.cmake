@@ -14,6 +14,10 @@ endif()
 find_program(LINUXDEPLOY_QT_PLUGIN linuxdeploy-plugin-qt)
 if(NOT LINUXDEPLOY_QT_PLUGIN)
     message(WARNING "linuxdeploy-plugin-qt not found - Qt deployment may be incomplete")
+else()
+    # When the Qt plugin is available, enable it so that Qt frameworks/plugins
+    # are bundled into the AppImage together with the main executable.
+    set(LINUXDEPLOY_QT_PLUGIN_ARG "--plugin qt")
 endif()
 
 set(APPDIR "${CPACK_TOPLEVEL_DIRECTORY}/AppDir")

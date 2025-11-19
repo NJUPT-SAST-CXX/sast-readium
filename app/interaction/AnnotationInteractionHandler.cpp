@@ -180,43 +180,40 @@ PDFAnnotation AnnotationInteractionHandler::createAnnotationFromDrawing() {
     annotation.pageNumber = m_currentPage;
     annotation.color = m_currentColor;
     annotation.opacity = m_opacity;
-    annotation.creationDate = QDateTime::currentDateTime();
-    annotation.modificationDate = annotation.creationDate;
     annotation.author = "User";  // Should get from settings
-
-    QRectF bounds = calculateBoundingRect();
-    annotation.boundary = bounds;
+    annotation.boundingRect = calculateBoundingRect();
+    annotation.modifiedTime = QDateTime::currentDateTime();
 
     switch (m_currentMode) {
         case Highlight:
-            annotation.type = PDFAnnotation::Highlight;
+            annotation.type = AnnotationType::Highlight;
             annotation.content = "Highlight";
             break;
 
         case Underline:
-            annotation.type = PDFAnnotation::Underline;
+            annotation.type = AnnotationType::Underline;
             annotation.content = "Underline";
             break;
 
         case StrikeOut:
-            annotation.type = PDFAnnotation::StrikeOut;
+            annotation.type = AnnotationType::StrikeOut;
             annotation.content = "Strike Out";
             break;
 
         case Rectangle:
-            annotation.type = PDFAnnotation::Square;
+            annotation.type = AnnotationType::Rectangle;
             annotation.lineWidth = m_lineWidth;
             annotation.content = "Rectangle";
             break;
 
         case Circle:
-            annotation.type = PDFAnnotation::Circle;
+            annotation.type = AnnotationType::Circle;
             annotation.lineWidth = m_lineWidth;
             annotation.content = "Circle";
             break;
 
         case Line:
-            annotation.type = PDFAnnotation::Line;
+            annotation.type = AnnotationType::Line;
             annotation.lineWidth = m_lineWidth;
             annotation.startPoint = m_startPoint;
             annotation.endPoint = m_currentPoint;
@@ -224,29 +221,28 @@ PDFAnnotation AnnotationInteractionHandler::createAnnotationFromDrawing() {
             break;
 
         case Arrow:
-            annotation.type = PDFAnnotation::Line;
+            annotation.type = AnnotationType::Arrow;
             annotation.lineWidth = m_lineWidth;
             annotation.startPoint = m_startPoint;
             annotation.endPoint = m_currentPoint;
-            annotation.hasArrow = true;
             annotation.content = "Arrow";
             break;
 
         case FreehandDraw:
-            annotation.type = PDFAnnotation::Ink;
+            annotation.type = AnnotationType::Ink;
             annotation.lineWidth = m_lineWidth;
-            annotation.inkPaths.append(m_drawingPoints);
+            annotation.inkPath = m_drawingPoints;
             annotation.content = "Freehand Drawing";
             break;
 
         case Text:
-            annotation.type = PDFAnnotation::FreeText;
+            annotation.type = AnnotationType::FreeText;
             annotation.content = "";  // Will be filled by text dialog
-            annotation.boundary = QRectF(m_startPoint, QSizeF(200, 100));
+            annotation.boundingRect = QRectF(m_startPoint, QSizeF(200, 100));
             break;
 
         default:
-            annotation.type = PDFAnnotation::Note;
+            annotation.type = AnnotationType::Note;
             annotation.content = "Note";
             break;
     }

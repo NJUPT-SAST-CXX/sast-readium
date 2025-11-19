@@ -12,8 +12,10 @@
 #pragma once
 
 #include <QDateTime>
+#include <QMap>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <functional>
 #include <memory>
 

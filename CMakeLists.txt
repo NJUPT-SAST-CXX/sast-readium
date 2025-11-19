@@ -8,12 +8,15 @@ if(SAST_QUIET)
 endif()
 list(APPEND CMAKE_MESSAGE_CONTEXT "SAST")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Use generator expressions for build type configuration
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type")
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
 endif()
-if(MSVC)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-endif()
+
+# Modern MSVC runtime library configuration using generator expressions
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Add cmake modules to path

@@ -3,7 +3,9 @@
 #include <QAction>
 #include <QHash>
 #include <QObject>
+#include <QPointer>
 #include <QStack>
+#include <QTimer>
 #include <functional>
 #include <memory>
 
@@ -31,11 +33,7 @@ public:
     explicit CommandManager(QObject* parent = nullptr);
     ~CommandManager() override;
 
-    // Explicitly delete copy and move operations
-    CommandManager(const CommandManager&) = delete;
-    CommandManager& operator=(const CommandManager&) = delete;
-    CommandManager(CommandManager&&) = delete;
-    CommandManager& operator=(CommandManager&&) = delete;
+    Q_DISABLE_COPY_MOVE(CommandManager)
 
     // Command execution
     bool executeCommand(const QString& commandId);
@@ -114,8 +112,8 @@ private:
     QHash<QString, QString> m_shortcuts;
 
     // Command history
-    QStack<QObject*> m_undoStack;
-    QStack<QObject*> m_redoStack;
+    std::vector<std::unique_ptr<QObject>> m_undoStack;
+    std::vector<std::unique_ptr<QObject>> m_redoStack;
     int m_historySize = 100;
 
     // State
@@ -123,8 +121,8 @@ private:
     bool m_enabled = true;
 
     // Actions
-    QAction* m_undoAction = nullptr;
-    QAction* m_redoAction = nullptr;
+    QPointer<QAction> m_undoAction;
+    QPointer<QAction> m_redoAction;
 
     // Logging
     mutable SastLogging::CategoryLogger m_logger;
@@ -138,11 +136,7 @@ class GlobalCommandManager {
 public:
     static CommandManager& instance();
 
-    // Explicitly delete copy and move operations
-    GlobalCommandManager(const GlobalCommandManager&) = delete;
-    GlobalCommandManager& operator=(const GlobalCommandManager&) = delete;
-    GlobalCommandManager(GlobalCommandManager&&) = delete;
-    GlobalCommandManager& operator=(GlobalCommandManager&&) = delete;
+    Q_DISABLE_COPY_MOVE(GlobalCommandManager)
 
     // Convenience methods
     static bool execute(const QString& commandId);
@@ -190,10 +184,10 @@ signals:
     void batchCompleted(int successCount, int failureCount);
 
 private:
-    CommandManager* m_manager;
+    QPointer<CommandManager> m_manager;
     QStringList m_sequenceQueue;
     int m_sequenceDelay = 0;
-    QTimer* m_sequenceTimer = nullptr;
+    QPointer<QTimer> m_sequenceTimer;
 
     void executeNextInSequence();
 };
@@ -230,7 +224,7 @@ signals:
     void playbackCompleted();
 
 private:
-    CommandManager* m_manager;
+    QPointer<CommandManager> m_manager;
     bool m_isRecording = false;
     QStringList m_recordedCommands;
 

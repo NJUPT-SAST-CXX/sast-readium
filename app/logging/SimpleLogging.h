@@ -296,6 +296,7 @@ void clearLastError();
 #define SLOG_DEBUG(msg) SastLogging::debug(msg)
 #define SLOG_INFO(msg) SastLogging::info(msg)
 #define SLOG_WARNING(msg) SastLogging::warning(msg)
+#define SLOG_WARN(msg) SLOG_WARNING(msg)
 #define SLOG_ERROR(msg) SastLogging::error(msg)
 #define SLOG_CRITICAL(msg) SastLogging::critical(msg)
 
@@ -304,6 +305,7 @@ void clearLastError();
 #define SLOG_DEBUG_F(...) SastLogging::debug(__VA_ARGS__)
 #define SLOG_INFO_F(...) SastLogging::info(__VA_ARGS__)
 #define SLOG_WARNING_F(...) SastLogging::warning(__VA_ARGS__)
+#define SLOG_WARN_F(...) SLOG_WARNING_F(__VA_ARGS__)
 #define SLOG_ERROR_F(...) SastLogging::error(__VA_ARGS__)
 #define SLOG_CRITICAL_F(...) SastLogging::critical(__VA_ARGS__)
 

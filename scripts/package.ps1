@@ -89,13 +89,13 @@ function Detect-BuildType {
     $MSYS2Path = Join-Path $BuildDir "$BuildType-MSYS2"
     $WindowsPath = Join-Path $BuildDir "$BuildType-Windows"
 
-    if (Test-Path (Join-Path $MSYS2Path "app\app.exe")) {
+    if (Test-Path (Join-Path $MSYS2Path "app\sast-readium.exe")) {
         Write-Status "Detected MSYS2 build"
         return @{
             Type = "MSYS2"
             Path = $MSYS2Path
         }
-    } elseif (Test-Path (Join-Path $WindowsPath "app\app.exe")) {
+    } elseif (Test-Path (Join-Path $WindowsPath ("app\" + $BuildType + "\sast-readium.exe"))) {
         Write-Status "Detected Windows (MSVC) build"
         return @{
             Type = "Windows"
@@ -112,7 +112,14 @@ function Detect-BuildType {
 # Check if build exists
 function Test-Build {
     $BuildInfo = Detect-BuildType
-    $AppPath = Join-Path $BuildInfo.Path "app\app.exe"
+
+    if ($BuildInfo.Type -eq "Windows") {
+        $exeRelative = "app\" + $BuildType + "\sast-readium.exe"
+    } else {
+        $exeRelative = "app\sast-readium.exe"
+    }
+
+    $AppPath = Join-Path $BuildInfo.Path $exeRelative
 
     if (-not (Test-Path $AppPath)) {
         Write-Error "Build not found at $AppPath"

@@ -2,9 +2,7 @@
 
 #include <QDateTime>
 #include <QList>
-#include <QMessageBox>
 #include <QObject>
-#include <QSharedPointer>
 #include <QSizeF>
 #include <QStack>
 #include <QTimer>

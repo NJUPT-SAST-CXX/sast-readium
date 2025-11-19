@@ -14,6 +14,7 @@
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTimer>
+#include "../controller/EventBus.h"
 #include "../logging/LoggingMacros.h"
 #include "../managers/I18nManager.h"
 #include "../managers/StyleManager.h"
@@ -666,6 +667,10 @@ void DocumentController::saveDocumentCopy(QWidget* parent) {
         }
     }
 
+    if (success) {
+        PUBLISH_EVENT(AppEvents::DOCUMENT_SAVED(), filePath);
+    }
+
     // 发送操作完成信号
     emit documentOperationCompleted(ActionMap::saveAs, success);
 }
@@ -773,6 +778,7 @@ void DocumentController::exportDocument(QWidget* parent) {
             QMessageBox::information(
                 parent, tr("导出成功"),
                 tr("文档已成功导出到：\n%1").arg(fileName));
+            PUBLISH_EVENT(AppEvents::DOCUMENT_SAVED(), fileName);
             exportSuccess = true;
         } else {
             QMessageBox::critical(parent, tr("导出失败"),
@@ -919,6 +925,7 @@ void DocumentController::exportDocument(QWidget* parent) {
                 tr("文本已成功导出到：\n%1\n\n提取了 %2 页的文本")
                     .arg(fileName)
                     .arg(extractedCount));
+            PUBLISH_EVENT(AppEvents::DOCUMENT_SAVED(), fileName);
             exportSuccess = true;
         } else if (progressDialog.wasCanceled()) {
             QMessageBox::information(

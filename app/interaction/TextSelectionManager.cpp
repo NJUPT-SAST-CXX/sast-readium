@@ -50,12 +50,12 @@ bool TextSelectionManager::extractTextBoxes() {
     m_charRects.clear();
     m_pageText.clear();
 
-    QList<Poppler::TextBox*> popplerTextBoxes = m_currentPage->textList();
+    auto popplerTextBoxes = m_currentPage->textList();
     int charIndex = 0;
-    for (Poppler::TextBox* box : popplerTextBoxes) {
-        if (box) {
-            QString text = box->text();
-            QRectF rect = box->boundingBox();
+    for (const auto& boxPtr : popplerTextBoxes) {
+        if (boxPtr) {
+            QString text = boxPtr->text();
+            QRectF rect = boxPtr->boundingBox();
             for (int i = 0; i < text.length(); ++i) {
                 TextBox textBox(rect, QString(text[i]), charIndex,
                                 m_currentPage);
@@ -64,7 +64,6 @@ bool TextSelectionManager::extractTextBoxes() {
                 m_pageText.append(text[i]);
                 charIndex++;
             }
-            delete box;
         }
     }
 

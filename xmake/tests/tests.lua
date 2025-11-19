@@ -2,6 +2,10 @@
 -- Comprehensive Test Support split from root
 
 includes("../modules/qt.lua")
+includes("../modules/dependencies.lua")
+
+-- Include test runner
+includes("test_runner.lua")
 
 if has_config("enable_tests") then
 

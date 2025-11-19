@@ -27,6 +27,7 @@ void FormFieldManager::setPage(Poppler::Page* page, int pageNumber) {
 
 void FormFieldManager::clearPage() {
     m_formFields.clear();
+    m_formFieldStorage.clear();
     qDeleteAll(m_fieldWidgets);
     m_fieldWidgets.clear();
     m_fieldValues.clear();
@@ -40,7 +41,11 @@ void FormFieldManager::extractFormFields() {
     if (!m_currentPage || m_formFieldsExtracted)
         return;
 
-    m_formFields = m_currentPage->formFields();
+    m_formFieldStorage = m_currentPage->formFields();
+    m_formFields.clear();
+    for (const auto& fieldPtr : m_formFieldStorage) {
+        m_formFields.append(fieldPtr.get());
+    }
     m_formFieldsExtracted = true;
 
     for (Poppler::FormField* field : m_formFields) {

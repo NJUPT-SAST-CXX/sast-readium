@@ -1,4 +1,5 @@
 #include "SignatureVerifier.h"
+#include <poppler/qt6/poppler-form.h>
 
 SignatureVerifier::SignatureVerifier(QObject* parent) : QObject(parent) {}
 
@@ -13,8 +14,9 @@ bool SignatureVerifier::hasSignatures(Poppler::Document* document) {
             continue;
         }
 
-        QList<Poppler::FormField*> fields = page->formFields();
-        for (Poppler::FormField* field : fields) {
+        const auto fields = page->formFields();
+        for (const auto& fieldPtr : fields) {
+            Poppler::FormField* field = fieldPtr.get();
             if (field && field->type() == Poppler::FormField::FormSignature) {
                 return true;
             }
@@ -35,8 +37,9 @@ int SignatureVerifier::getSignatureCount(Poppler::Document* document) {
             continue;
         }
 
-        QList<Poppler::FormField*> fields = page->formFields();
-        for (Poppler::FormField* field : fields) {
+        const auto fields = page->formFields();
+        for (const auto& fieldPtr : fields) {
+            Poppler::FormField* field = fieldPtr.get();
             if (field && field->type() == Poppler::FormField::FormSignature) {
                 count++;
             }
@@ -58,8 +61,9 @@ QList<SignatureVerifier::SignatureInfo> SignatureVerifier::verifyDocument(
         if (!page)
             continue;
 
-        QList<Poppler::FormField*> fields = page->formFields();
-        for (Poppler::FormField* field : fields) {
+        const auto fields = page->formFields();
+        for (const auto& fieldPtr : fields) {
+            Poppler::FormField* field = fieldPtr.get();
             if (field && field->type() == Poppler::FormField::FormSignature) {
                 Poppler::FormFieldSignature* sigField =
                     static_cast<Poppler::FormFieldSignature*>(field);
@@ -90,12 +94,11 @@ SignatureVerifier::SignatureInfo SignatureVerifier::extractSignatureInfo(
     }
 
     // Extract signature validation status
-    Poppler::FormFieldSignature::SignatureValidationInfo validInfo =
-        signatureField->validate(
-            Poppler::FormFieldSignature::ValidateVerifyCertificate);
+    Poppler::SignatureValidationInfo validInfo = signatureField->validate(
+        Poppler::FormFieldSignature::ValidateVerifyCertificate);
 
     info.isValid = (validInfo.signatureStatus() ==
-                    Poppler::FormFieldSignature::SignatureValid);
+                    Poppler::SignatureValidationInfo::SignatureValid);
     info.signerName = validInfo.signerName();
     info.signingTime =
         QDateTime::currentDateTime();  // Would get from signature

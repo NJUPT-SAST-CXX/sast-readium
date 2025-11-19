@@ -131,7 +131,7 @@ Sets OUTPUT_VAR to list of runtime DLL paths.
 function(get_msys2_runtime_dlls OUTPUT_VAR)
     set(runtime_dlls "")
 
-    if(MSYS2_DETECTED)
+    if(MSYS2_DETECTED OR (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "GNU"))
         # Common MSYS2/MinGW runtime libraries
         set(runtime_libs
             "libgcc_s_seh-1.dll"
@@ -653,6 +653,38 @@ function(setup_install_targets TARGET_NAME)
         message(VERBOSE "    - README file")
     endif()
 
+    # Linux desktop integration: .desktop file and application icon
+    if(UNIX AND NOT APPLE)
+        install(CODE "
+            file(MAKE_DIRECTORY \"${CMAKE_INSTALL_PREFIX}/share/applications\")
+            set(desktop_file \"${CMAKE_INSTALL_PREFIX}/share/applications/sast-readium.desktop\")
+
+            file(WRITE \"${desktop_file}\" \"[Desktop Entry]\\n\")
+            file(APPEND \"${desktop_file}\" \"Type=Application\\n\")
+            file(APPEND \"${desktop_file}\" \"Name=SAST Readium\\n\")
+            file(APPEND \"${desktop_file}\" \"GenericName=PDF Reader\\n\")
+            file(APPEND \"${desktop_file}\" \"Comment=Qt6-based PDF reader with advanced search capabilities\\n\")
+            file(APPEND \"${desktop_file}\" \"Exec=sast-readium %F\\n\")
+            file(APPEND \"${desktop_file}\" \"Icon=sast-readium\\n\")
+            file(APPEND \"${desktop_file}\" \"Categories=Office;Viewer;Qt;\\n\")
+            file(APPEND \"${desktop_file}\" \"MimeType=application/pdf;\\n\")
+            file(APPEND \"${desktop_file}\" \"Terminal=false\\n\")
+            file(APPEND \"${desktop_file}\" \"StartupNotify=true\\n\")
+            file(APPEND \"${desktop_file}\" \"Keywords=PDF;Reader;Viewer;Document;\\n\")
+
+            message(STATUS \"Installed desktop file: ${desktop_file}\")
+        " COMPONENT Resources)
+
+        if(EXISTS "${CMAKE_SOURCE_DIR}/assets/images/logo.svg")
+            install(FILES "${CMAKE_SOURCE_DIR}/assets/images/logo.svg"
+                DESTINATION share/icons/hicolor/scalable/apps
+                RENAME "sast-readium.svg"
+                COMPONENT Resources
+            )
+            message(VERBOSE "    - Installed scalable SVG icon for Linux desktop integration")
+        endif()
+    endif()
+
     # Platform-specific runtime dependency installation
     if(WIN32)
         if(MSYS2_DETECTED OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -669,9 +701,49 @@ function(setup_install_targets TARGET_NAME)
                 message(VERBOSE "    - ${dll_count} MSYS2 runtime DLLs")
             endif()
 
-            # Note: RUNTIME_DEPENDENCIES disabled for MSYS2/MinGW due to unresolvable system DLL references
-            # Qt deployment script handles Qt dependencies, and MSYS2 DLLs are manually copied above
-            # install_runtime_dependencies(${TARGET_NAME})
+            # Additionally, install key third-party DLLs used by the application
+            # so that MSYS2/MinGW builds are self-contained without manual DLL
+            # copying.
+
+            # 1) ElaWidgetTools runtime (built as a shared library in this project)
+            if(TARGET ElaWidgetTools)
+                install(FILES $<TARGET_FILE:ElaWidgetTools>
+                    DESTINATION bin
+                    COMPONENT Runtime
+                )
+                message(VERBOSE "    - ElaWidgetTools runtime DLL")
+            endif()
+
+            # 2) System poppler-qt6 and spdlog DLLs from MSYS2 prefix, if
+            # available. These are discovered in the same prefix used for
+            # Qt/poppler includes.
+            set(_msys_runtime_search_dirs "")
+            if(MSYSTEM_PREFIX)
+                list(APPEND _msys_runtime_search_dirs "${MSYSTEM_PREFIX}/bin")
+            elseif(DEFINED ENV{MSYSTEM_PREFIX})
+                list(APPEND _msys_runtime_search_dirs "$ENV{MSYSTEM_PREFIX}/bin")
+            endif()
+
+            if(_msys_runtime_search_dirs)
+                foreach(_msys_runtime_dll "libpoppler-qt6-3.dll" "libspdlog-1.15.dll")
+                    find_file(_msys_runtime_path "${_msys_runtime_dll}"
+                        PATHS ${_msys_runtime_search_dirs}
+                        NO_DEFAULT_PATH
+                    )
+                    if(_msys_runtime_path)
+                        install(FILES "${_msys_runtime_path}"
+                            DESTINATION bin
+                            COMPONENT Runtime
+                        )
+                        message(VERBOSE "    - MSYS2 runtime DLL: ${_msys_runtime_dll}")
+                        unset(_msys_runtime_path CACHE)
+                    else()
+                        message(VERBOSE "    - Optional MSYS2 runtime DLL not found: ${_msys_runtime_dll}")
+                    endif()
+                endforeach()
+            else()
+                message(VERBOSE "    - No MSYS2 runtime search dirs available; skipping third-party DLL copy")
+            endif()
         else()
             # MSVC build
             message(VERBOSE "  Configuring MSVC runtime dependencies...")
@@ -868,7 +940,7 @@ function(setup_cpack_configuration)
             set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64" PARENT_SCOPE)
             set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON PARENT_SCOPE)
             set(CPACK_NSIS_MODIFY_PATH OFF PARENT_SCOPE)
-            set(CPACK_NSIS_MUI_FINISHPAGE_RUN "bin\\\\app.exe" PARENT_SCOPE)
+            set(CPACK_NSIS_MUI_FINISHPAGE_RUN "bin\\\\sast-readium.exe" PARENT_SCOPE)
 
             # URLs and contact information
             set(CPACK_NSIS_HELP_LINK "https://github.com/NJUPT-SAST/sast-readium" PARENT_SCOPE)
@@ -880,8 +952,8 @@ function(setup_cpack_configuration)
 
             # Create desktop and start menu shortcuts
             set(CPACK_NSIS_CREATE_ICONS_EXTRA "
-                CreateShortCut '$DESKTOP\\\\SAST Readium.lnk' '$INSTDIR\\\\bin\\\\app.exe'
-                CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\SAST Readium.lnk' '$INSTDIR\\\\bin\\\\app.exe'
+                CreateShortCut '$DESKTOP\\\\SAST Readium.lnk' '$INSTDIR\\\\bin\\\\sast-readium.exe'
+                CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\SAST Readium.lnk' '$INSTDIR\\\\bin\\\\sast-readium.exe'
             " PARENT_SCOPE)
             set(CPACK_NSIS_DELETE_ICONS_EXTRA "
                 Delete '$DESKTOP\\\\SAST Readium.lnk'
@@ -892,7 +964,7 @@ function(setup_cpack_configuration)
             set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
                 WriteRegStr HKCR '.pdf\\\\OpenWithProgids' 'SASTReadium.pdf' ''
                 WriteRegStr HKCR 'SASTReadium.pdf' '' 'PDF Document'
-                WriteRegStr HKCR 'SASTReadium.pdf\\\\shell\\\\open\\\\command' '' '$INSTDIR\\\\bin\\\\app.exe \\\"%1\\\"'
+                WriteRegStr HKCR 'SASTReadium.pdf\\\\shell\\\\open\\\\command' '' '$INSTDIR\\\\bin\\\\sast-readium.exe \\\"%1\\\"'
             " PARENT_SCOPE)
             set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
                 DeleteRegKey HKCR 'SASTReadium.pdf'
@@ -959,7 +1031,7 @@ function(setup_cpack_configuration)
 
     elseif(APPLE)
         message(VERBOSE "  Configuring macOS packaging...")
-        set(CPACK_GENERATOR "DragNDrop" "TGZ" PARENT_SCOPE)
+        set(CPACK_GENERATOR "DragNDrop" "productbuild" "TGZ" PARENT_SCOPE)
         set(CPACK_DMG_VOLUME_NAME "SAST Readium" PARENT_SCOPE)
         set(CPACK_DMG_FORMAT "UDZO" PARENT_SCOPE)
 
@@ -970,7 +1042,7 @@ function(setup_cpack_configuration)
         # Debian-specific
         set(CPACK_DEBIAN_PACKAGE_MAINTAINER "SAST Team <sast@njupt.edu.cn>" PARENT_SCOPE)
         set(CPACK_DEBIAN_PACKAGE_SECTION "utils" PARENT_SCOPE)
-        set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libqt6core6, libqt6gui6, libqt6widgets6" PARENT_SCOPE)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libqt6core6, libqt6gui6, libqt6widgets6, libqt6svg6, libpoppler-qt6-3" PARENT_SCOPE)
 
         # RPM-specific
         set(CPACK_RPM_PACKAGE_LICENSE "MIT" PARENT_SCOPE)

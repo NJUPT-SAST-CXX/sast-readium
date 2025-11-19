@@ -38,7 +38,7 @@ function(discover_app_sources output_var)
     # Define standard application components
     set(app_components
         ui/core ui/viewer ui/widgets ui/dialogs ui/thumbnail ui/managers ui/pages
-        managers model controller delegate view cache utils adapters
+        managers model controller delegate view cache utils adapters interaction
         plugin factory command search logging
     )
 

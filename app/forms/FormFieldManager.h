@@ -1,5 +1,6 @@
 #pragma once
 
+#include <poppler/qt6/poppler-form.h>
 #include <poppler/qt6/poppler-qt6.h>
 #include <QCheckBox>
 #include <QComboBox>
@@ -12,6 +13,7 @@
 #include <QString>
 #include <QVariant>
 #include <QWidget>
+#include <vector>
 
 class FormFieldManager : public QObject {
     Q_OBJECT
@@ -22,7 +24,7 @@ public:
 
     void setPage(Poppler::Page* page, int pageNumber);
     void clearPage();
-    bool hasFormFields() const { return \!m_formFields.isEmpty(); }
+    bool hasFormFields() const { return !m_formFields.isEmpty(); }
 
     QList<Poppler::FormField*> getFormFields() const { return m_formFields; }
     Poppler::FormField* getFieldAtPoint(const QPointF& point) const;
@@ -64,6 +66,7 @@ private:
 
     Poppler::Page* m_currentPage;
     int m_pageNumber;
+    std::vector<std::unique_ptr<Poppler::FormField>> m_formFieldStorage;
     QList<Poppler::FormField*> m_formFields;
     QHash<Poppler::FormField*, QWidget*> m_fieldWidgets;
     QHash<Poppler::FormField*, QVariant> m_fieldValues;

@@ -146,7 +146,7 @@ create_portable() {
 
     # Copy executable and all DLLs
     local build_app_dir="${BUILD_DIR}/${BUILD_TYPE}-MSYS2/app"
-    cp "$build_app_dir/app.exe" "$app_dir/"
+    cp "$build_app_dir/sast-readium.exe" "$app_dir/"
     cp "$build_app_dir"/*.dll "$app_dir/" 2>/dev/null || true
     cp -r "$build_app_dir/styles" "$app_dir/" 2>/dev/null || true
     cp -r "$build_app_dir/platforms" "$app_dir/" 2>/dev/null || true
@@ -158,7 +158,7 @@ create_portable() {
     cat >"${portable_dir}/run.bat" <<'LAUNCHER'
 @echo off
 cd /d "%~dp0"
-start "" "%~dp0SAST Readium\app.exe" %*
+start "" "%~dp0SAST Readium\sast-readium.exe" %*
 LAUNCHER
 
     # Create README
@@ -227,7 +227,7 @@ InstallDir "$PROGRAMFILES\SAST Readium"
 
 Section "Install"
   SetOutPath "$INSTDIR"
-  File "app.exe"
+  File "sast-readium.exe"
   File "*.dll"
   SetOutPath "$INSTDIR\styles"
   File /r "styles\*.*"
@@ -238,7 +238,7 @@ Section "Install"
   SetOutPath "$INSTDIR\iconengines"
   File /r "iconengines\*.*"
   CreateDirectory "$SMPROGRAMS\SAST Readium"
-  CreateShortCut "$SMPROGRAMS\SAST Readium\SAST Readium.lnk" "$INSTDIR\app.exe"
+  CreateShortCut "$SMPROGRAMS\SAST Readium\SAST Readium.lnk" "$INSTDIR\sast-readium.exe"
 SectionEnd
 
 Section "Uninstall"
@@ -248,7 +248,7 @@ SectionEnd
 NSIS
 
     # Copy files to NSIS directory
-    cp "$build_app_dir/app.exe" "$nsis_dir/"
+    cp "$build_app_dir/sast-readium.exe" "$nsis_dir/"
     cp "$build_app_dir"/*.dll "$nsis_dir/" 2>/dev/null || true
     cp -r "$build_app_dir/styles" "$nsis_dir/" 2>/dev/null || true
     cp -r "$build_app_dir/platforms" "$nsis_dir/" 2>/dev/null || true

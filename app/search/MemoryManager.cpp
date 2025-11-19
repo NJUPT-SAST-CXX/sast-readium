@@ -277,7 +277,15 @@ void MemoryManager::optimizeTextCaches() {
 
 void MemoryManager::optimizeHighlightCaches() {
     CacheManager& cacheManager = CacheManager::instance();
+    if (!cacheManager.isCacheRegistered(CacheType::SearchHighlightCache)) {
+        return;
+    }
+
     auto stats = cacheManager.getCacheStats(CacheType::SearchHighlightCache);
+    if (stats.memoryUsage <= 0) {
+        return;
+    }
+
     cacheManager.requestCacheEviction(
         CacheType::SearchHighlightCache,
         static_cast<qint64>(static_cast<double>(stats.memoryUsage) * 0.25));
@@ -291,7 +299,15 @@ void MemoryManager::performEmergencyCleanup() {
     // Aggressive cleanup - request eviction across caches
     CacheManager& cacheManager = CacheManager::instance();
     auto req = [&](CacheType t) {
+        if (!cacheManager.isCacheRegistered(t)) {
+            return;
+        }
+
         auto s = cacheManager.getCacheStats(t);
+        if (s.memoryUsage <= 0) {
+            return;
+        }
+
         cacheManager.requestCacheEviction(
             t, static_cast<qint64>(static_cast<double>(s.memoryUsage) * 0.5));
     };

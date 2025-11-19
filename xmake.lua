@@ -21,11 +21,10 @@ includes("xmake/modules/toolchains.lua")
 includes("xmake/modules/qt.lua")
 includes("xmake/modules/compiler.lua")
 includes("xmake/modules/package.lua")
+includes("xmake/modules/dependencies.lua")
 
--- Configure quiet mode
-if has_config("quiet") then
-    set_loglevel("warning")
-end
+-- Configure quiet mode (only if quiet option is available)
+-- Note: set_loglevel may not be available in all contexts, so we skip this for now
 
 -- Configure toolchain early
 configure_toolchain()
@@ -34,6 +33,7 @@ configure_toolchain()
 setup_compiler_flags()
 
 -- Targets
+includes("xmake/targets/libs.lua")
 includes("xmake/targets/app.lua")
 
 -- Tests

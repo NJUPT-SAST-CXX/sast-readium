@@ -166,9 +166,9 @@ show_build_info() {
     echo "Parallel Jobs: $JOBS"
     echo "MSYSTEM: $MSYSTEM"
 
-    if [[ -f "$build_dir/app/app.exe" ]]; then
-        echo "Executable: $build_dir/app/app.exe"
-        echo "Executable size: $(du -h "$build_dir/app/app.exe" | cut -f1)"
+    if [[ -f "$build_dir/app/sast-readium.exe" ]]; then
+        echo "Executable: $build_dir/app/sast-readium.exe"
+        echo "Executable size: $(du -h "$build_dir/app/sast-readium.exe" | cut -f1)"
     fi
     print_success "========================="
 }

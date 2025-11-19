@@ -57,6 +57,18 @@ option("enable_lto")
     set_showmenu(true)
 option_end()
 
+option("enable_examples")
+    set_default(false)
+    set_description("Enable building example applications")
+    set_showmenu(true)
+option_end()
+
+option("enable_static_libs")
+    set_default(false)
+    set_description("Build libraries as static instead of shared")
+    set_showmenu(true)
+option_end()
+
 -- Global requirements
 add_requires("pkgconfig::poppler-qt6")
 add_requires("spdlog")
