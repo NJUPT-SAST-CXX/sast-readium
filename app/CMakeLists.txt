@@ -76,6 +76,7 @@ target_link_libraries(app_lib
         Qt6::Concurrent
         Qt6::Core5Compat
         Qt6::PrintSupport
+        Qt6::TextToSpeech  # Required for AccessibilityModel TTS support
         PkgConfig::POPPLER_QT6
         $<$<PLATFORM_ID:Windows>:dbghelp>
         $<$<PLATFORM_ID:Windows>:psapi>
