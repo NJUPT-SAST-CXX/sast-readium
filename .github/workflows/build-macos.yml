@@ -1,0 +1,312 @@
+name: MacOS Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions: write-all
+
+env:
+  # Build optimization settings
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j4"
+  CACHE_VERSION: v2
+  APP_NAME: sast-readium
+  # Homebrew optimizations
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
+
+jobs:
+  build:
+    name: build on macos-${{ matrix.arch }} with system packages
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+          include:
+            - os: macos-15
+              arch: arm64
+            - os: macos-15-intel
+              arch: x86_64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      - name: Install system dependencies
+        run: |
+          echo "Installing Homebrew packages..."
+          brew install cmake ninja qt@6 pkg-config spdlog
+
+          # Install poppler dependencies
+          echo "Installing poppler dependencies..."
+          brew install cairo fontconfig freetype gettext glib gpgme jpeg-turbo libpng libtiff little-cms2 nspr nss openjpeg
+
+          # Verify installations
+          echo "Installed package versions:"
+          brew list --versions cmake ninja qt@6 pkg-config ccache || true
+
+      - name: Build poppler with Qt6 support
+        run: |
+          # Build poppler with Qt6 support
+          echo "Building poppler from source with Qt6 support..."
+          
+          # Set Qt6 path
+          export Qt6_DIR=$(brew --prefix qt@6)
+          export PATH="$Qt6_DIR/bin:$PATH"
+          export PKG_CONFIG_PATH="$Qt6_DIR/lib/pkgconfig:$PKG_CONFIG_PATH"
+          
+          # Clone poppler repository (latest stable release)
+          git clone --depth 1 --branch poppler-24.11.0 https://gitlab.freedesktop.org/poppler/poppler.git /tmp/poppler
+          cd /tmp/poppler
+          
+          # Create build directory
+          mkdir build && cd build
+          
+          # Configure poppler with Qt6 support
+          cmake .. \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$Qt6_DIR" \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DENABLE_QT6=ON \
+            -DENABLE_QT5=OFF \
+            -DENABLE_GLIB=ON \
+            -DENABLE_CPP=ON \
+            -DENABLE_UTILS=ON \
+            -DENABLE_GPGME=OFF \
+            -DBUILD_GTK_TESTS=OFF \
+            -DBUILD_QT5_TESTS=OFF \
+            -DBUILD_QT6_TESTS=OFF \
+            -DBUILD_CPP_TESTS=OFF \
+            -DENABLE_BOOST=OFF
+          
+          # Build and install (use all available cores)
+          ninja -j$(sysctl -n hw.ncpu)
+          sudo ninja install
+          
+          # Update library cache
+          sudo update_dyld_shared_cache || true
+          
+          # Verify installation
+          echo "Verifying poppler-qt6 installation..."
+          pkg-config --modversion poppler-qt6 || echo "Warning: poppler-qt6 not found in pkg-config"
+          ls -la /usr/local/lib/libpoppler-qt6.* || true
+          
+          # Set PKG_CONFIG_PATH for subsequent steps
+          echo "PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+
+      - name: Configure CMake
+        run: |
+          cmake --preset=Release-Unix -DUSE_VCPKG=OFF
+
+      - name: Build
+        run: |
+          cmake --build --preset=Release-Unix --parallel 4
+      
+      - name: Deploy runtime
+        run: |
+          echo "Creating macOS .app bundle..."
+          
+          # Set variables
+          APP_NAME="sast-readium"
+          APP_DISPLAY_NAME="Sast-Readium"
+          BUILD_DIR="build/Release"
+          PUBLISH_DIR="build/Publish"
+          APP_BUNDLE="${PUBLISH_DIR}/${APP_DISPLAY_NAME}.app"
+          
+          # Create .app bundle structure
+          mkdir -p "${PUBLISH_DIR}"
+          mkdir -p "${APP_BUNDLE}/Contents/MacOS"
+          mkdir -p "${APP_BUNDLE}/Contents/Resources"
+          mkdir -p "${APP_BUNDLE}/Contents/Frameworks"
+          
+          # Copy executable
+          echo "Copying executable..."
+          cp "${BUILD_DIR}/app/app" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
+          chmod +x "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
+          
+          # Copy resources
+          echo "Copying resources..."
+          [ -d "${BUILD_DIR}/app/styles" ] && cp -r "${BUILD_DIR}/app/styles" "${APP_BUNDLE}/Contents/Resources/"
+          [ -d "assets" ] && cp -r assets "${APP_BUNDLE}/Contents/Resources/"
+          
+          # Create app icon
+          if [ -f "assets/images/1024x1024.png" ]; then
+            echo "Creating app icon..."
+            mkdir -p icon.iconset
+            sips -z 16 16     assets/images/1024x1024.png --out icon.iconset/icon_16x16.png 2>/dev/null
+            sips -z 32 32     assets/images/1024x1024.png --out icon.iconset/icon_16x16@2x.png 2>/dev/null
+            sips -z 32 32     assets/images/1024x1024.png --out icon.iconset/icon_32x32.png 2>/dev/null
+            sips -z 64 64     assets/images/1024x1024.png --out icon.iconset/icon_32x32@2x.png 2>/dev/null
+            sips -z 128 128   assets/images/1024x1024.png --out icon.iconset/icon_128x128.png 2>/dev/null
+            sips -z 256 256   assets/images/256x256.png --out icon.iconset/icon_128x128@2x.png 2>/dev/null
+            sips -z 256 256   assets/images/256x256.png --out icon.iconset/icon_256x256.png 2>/dev/null
+            sips -z 512 512   assets/images/1024x1024.png --out icon.iconset/icon_256x256@2x.png 2>/dev/null
+            sips -z 512 512   assets/images/1024x1024.png --out icon.iconset/icon_512x512.png 2>/dev/null
+            sips -z 1024 1024 assets/images/1024x1024.png --out icon.iconset/icon_512x512@2x.png 2>/dev/null
+            iconutil -c icns icon.iconset -o "${APP_BUNDLE}/Contents/Resources/app.icns"
+            rm -rf icon.iconset
+          fi
+          
+          # Create Info.plist
+          cat > "${APP_BUNDLE}/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>sast-readium</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.sast.readium</string>
+              <key>CFBundleName</key>
+              <string>Sast-Readium</string>
+              <key>CFBundleDisplayName</key>
+              <string>SAST Readium</string>
+              <key>CFBundleVersion</key>
+              <string>0.1.0</string>
+              <key>CFBundleShortVersionString</key>
+              <string>0.1.0</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleIconFile</key>
+              <string>app.icns</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>11.0</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>NSPrincipalClass</key>
+              <string>NSApplication</string>
+              <key>CFBundleDocumentTypes</key>
+              <array>
+                  <dict>
+                      <key>CFBundleTypeName</key>
+                      <string>PDF Document</string>
+                      <key>CFBundleTypeRole</key>
+                      <string>Viewer</string>
+                      <key>CFBundleTypeExtensions</key>
+                      <array>
+                          <string>pdf</string>
+                      </array>
+                      <key>LSHandlerRank</key>
+                      <string>Alternate</string>
+                  </dict>
+              </array>
+          </dict>
+          </plist>
+          EOF
+          
+          # Deploy Qt dependencies
+          echo "Deploying Qt dependencies..."
+          export Qt6_DIR=$(brew --prefix qt@6)
+          "${Qt6_DIR}/bin/macdeployqt" "${APP_BUNDLE}" -verbose=2
+          
+          # Fix symlinks - replace with actual files
+          echo ""
+          echo "Fixing symlinks in Frameworks..."
+          for lib in "${APP_BUNDLE}/Contents/Frameworks"/*.dylib; do
+            if [ -L "$lib" ]; then
+              lib_name=$(basename "$lib")
+              # Resolve the full chain of symlinks to get actual file
+              actual_file=$(readlink -f "$lib" 2>/dev/null || echo "")
+              
+              # If readlink -f doesn't work, manually resolve
+              if [ -z "$actual_file" ] || [ ! -f "$actual_file" ]; then
+                # Try to find in /usr/local/lib
+                actual_file=$(find /usr/local/lib -name "${lib_name%.dylib}*.dylib" -type f 2>/dev/null | head -1)
+              fi
+              
+              if [ -n "$actual_file" ] && [ -f "$actual_file" ]; then
+                actual_size=$(stat -f%z "$actual_file")
+                echo "Replacing symlink: $lib_name -> $(basename "$actual_file") ($(numfmt --to=iec-i --suffix=B $actual_size 2>/dev/null || echo "${actual_size} bytes"))"
+                rm "$lib"
+                cp "$actual_file" "$lib"
+                chmod +w "$lib"
+              fi
+            fi
+          done
+
+          rm -rf "${APP_BUNDLE}/Contents/Frameworks"/libpoppler-qt6.3.dylib
+          cp /usr/local/lib/libpoppler-qt6.3.8.0.dylib "${APP_BUNDLE}/Contents/Frameworks/libpoppler-qt6.3.dylib"
+          
+          echo ""
+          echo "App bundle created at: ${APP_BUNDLE}"
+          du -sh "${APP_BUNDLE}"
+
+      - name: Upload native build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-macos-${{ matrix.arch }}
+          path: |
+            build/Publish/
+          retention-days: 7
+
+  # Build summary and status
+  build-summary:
+    name: macOS Build Summary
+    runs-on: macos-latest
+    needs: [build]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate build summary
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          BUILD_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          buildResult="${BUILD_RESULT}"
+          shortSha="${GITHUB_SHA:0:7}"
+
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # macOS Build Summary
+
+          EOF
+
+          echo "## Result" >> $GITHUB_STEP_SUMMARY
+          echo "- Build job: ${buildResult}" >> $GITHUB_STEP_SUMMARY
+          echo "- Ref: ${GITHUB_REF_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${shortSha}" >> $GITHUB_STEP_SUMMARY
+          echo "- Run: ${GITHUB_RUN_NUMBER}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Build Strategy" >> $GITHUB_STEP_SUMMARY
+          echo "- Homebrew with system packages (preferred)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Artifacts Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "artifacts" ]; then
+            for dir in artifacts/*/; do
+              if [ -d "$dir" ]; then
+                artifact_name=$(basename "$dir")
+                file_count=$(find "$dir" -type f | wc -l | xargs)
+                total_size=$(du -sh "$dir" | cut -f1)
+                echo "- **${artifact_name}**: ${file_count} files, ${total_size}" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          else
+            echo "(No artifacts directory found)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Performance Optimizations" >> $GITHUB_STEP_SUMMARY
+          echo "- System packages prioritized (Homebrew)" >> $GITHUB_STEP_SUMMARY
+          echo "- Caching of Homebrew package repositories" >> $GITHUB_STEP_SUMMARY
+          echo "- Parallel builds with optimal job count" >> $GITHUB_STEP_SUMMARY
+          echo "- Shallow git clones for faster checkout" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Run" >> $GITHUB_STEP_SUMMARY
+          echo "- ${BUILD_JOB_URL}" >> $GITHUB_STEP_SUMMARY

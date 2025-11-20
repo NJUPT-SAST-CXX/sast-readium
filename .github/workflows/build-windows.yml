@@ -1,0 +1,157 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions: write-all
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j4"
+  CACHE_VERSION: v2
+  APP_NAME: sast-readium
+
+jobs:
+  build:
+    name: build on windows with MSYS2
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      # Use msys2/setup-msys2 built-in caching (default true)
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: clang64
+          update: true
+          cache: true
+          install: >-
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-ninja
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-lld
+            mingw-w64-clang-x86_64-ntldd
+            mingw-w64-clang-x86_64-qt6-base
+            mingw-w64-clang-x86_64-qt6-svg
+            mingw-w64-clang-x86_64-qt6-speech
+            mingw-w64-clang-x86_64-qt6-tools
+            mingw-w64-clang-x86_64-qt6-translations
+            mingw-w64-clang-x86_64-poppler-qt6
+            mingw-w64-clang-x86_64-pkgconf
+            mingw-w64-clang-x86_64-spdlog
+            git
+
+      - name: Configure CMake
+        run: |
+          cmake --preset=Release-MSYS2
+
+      - name: Build
+        run: |
+          cmake --build --preset=Release-MSYS2 --parallel $CMAKE_BUILD_PARALLEL_LEVEL
+
+      - name: Deploy runtime (windeployqt)
+        run: |
+          # Run windeployqt to deploy Qt dependencies
+          echo "====Running windeployqt6===="
+          windeployqt6.exe build/Release-MSYS2/app/app.exe
+          echo "====Deployment completed===="
+
+          # Copy missing DLLs from /clang64/bin
+          echo "====Copying missing DLLs from /clang64/bin===="
+          /clang64/bin/ntldd.exe -R build/Release-MSYS2/app/app.exe | grep "clang64" | awk '{print $1}' | while read dll; do
+              if [ -f "/clang64/bin/$dll" ]; then
+                  cp "/clang64/bin/$dll" build/Release-MSYS2/app/
+                  echo "Copied: $dll"
+              else
+                  echo "Not found in /clang64/bin: $dll"
+              fi
+          done
+          echo "====All missing DLLs processed.===="
+
+      - name: Upload MSYS2 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-msys2-clang64-Release
+          path: build/Release-MSYS2/app/**
+          if-no-files-found: error
+          compression-level: 9
+          retention-days: 7
+
+  # Build summary and status
+  build-summary:
+    name: Windows Build Summary
+    runs-on: windows-latest
+    needs: [build]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate build summary
+        shell: pwsh
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          BUILD_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          $buildResult = $env:BUILD_RESULT
+          $shortSha = if ($env:GITHUB_SHA) { $env:GITHUB_SHA.Substring(0,7) } else { "" }
+
+          $summary = @"
+          # Windows Build Summary
+
+          ## Result
+          - Build job: $buildResult
+          - Ref: $env:GITHUB_REF_NAME
+          - Commit: $shortSha
+          - Run: $env:GITHUB_RUN_NUMBER
+
+          ## Build Strategy
+          - MSYS2 with system packages (preferred)
+
+          ## Artifacts Generated
+
+          "@
+
+          if (Test-Path "artifacts") {
+            Get-ChildItem -Path "artifacts" -Directory | ForEach-Object {
+              $artifactName = $_.Name
+              $fileCount = (Get-ChildItem -Path $_.FullName -Recurse -File).Count
+              $totalSize = [math]::Round((Get-ChildItem -Path $_.FullName -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
+              $summary += "- **$artifactName**: $fileCount files, $totalSize MB
+              "
+            }
+          } else {
+            $summary += "(No artifacts directory found)
+            "
+          }
+
+          $summary += @"
+
+          ## Performance Optimizations
+          - System packages prioritized (MSYS2)
+          - Caching of MSYS2 package repositories
+          - Parallel builds with optimal job count
+          - Shallow git clones for faster checkout
+
+          ## Run
+          - $env:BUILD_JOB_URL
+
+          "@
+
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8

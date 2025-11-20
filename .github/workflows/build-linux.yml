@@ -1,0 +1,189 @@
+name: Linux Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions: write-all
+
+env:
+  # Build optimization settings
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j4"
+  CACHE_VERSION: v2
+  APP_NAME: sast-readium
+
+jobs:
+  build:
+    name: build on linux with system packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      - name: Setup CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Install system dependencies
+        run: |
+          # Use cached package lists if available
+          for i in 1 2 3; do sudo apt-get update && break || sleep 5; done
+          sudo apt-get install -y qt6-base-dev libqt6svg6-dev qt6-speech-dev qt6-declarative-dev qt6-tools-dev qt6-l10n-tools libpoppler-qt6-dev libspdlog-dev build-essential ninja-build pkg-config pax-utils libfuse2 libsm6 libsm-dev libxrender1 libxext-dev
+
+      - name: Configure CMake
+        run: |
+          cmake --preset=Release-Unix -DUSE_VCPKG=OFF
+
+      - name: Build
+        run: |
+          cmake --build --preset=Release-Unix --parallel $CMAKE_BUILD_PARALLEL_LEVEL
+
+      - name: Deploy runtime
+        run: |
+          # Download appimagetool
+          wget -P build/ https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -P build/ https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          wget -P build/ https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x build/appimagetool-x86_64.AppImage
+          chmod +x build/linuxdeploy-x86_64.AppImage
+          chmod +x build/linuxdeploy-plugin-qt-x86_64.AppImage
+
+          #Copying before deployment
+          mkdir -p build/Publish/
+          mkdir -p build/Publish/usr/
+          mkdir -p build/Publish/usr/bin/
+          mkdir -p build/Publish/usr/lib/
+          mkdir -p build/Publish/usr/share/icons/hicolor/256x256/apps/
+          mkdir -p build/Publish/usr/share/icons/hicolor/1024x1024/apps/
+
+          cp build/Release/app/app build/Publish/usr/bin/
+          ldd build/Release/app/app | grep "=>" | cut -d " " -f 3 | xargs -I {} cp {} build/Publish/usr/lib/
+          cp /lib/x86_64-linux-gnu/libSM.so.6 build/Publish/usr/lib/
+          cp /lib/x86_64-linux-gnu/libICE.so.6 build/Publish/usr/lib/
+          cp -r build/Release/app/styles build/Publish/
+          cp -r assets build/Publish/
+          cp assets/images/256x256.png build/Publish/usr/share/icons/hicolor/256x256/apps/myapp.png
+          cp assets/images/1024x1024.png build/Publish/usr/share/icons/hicolor/1024x1024/apps/myapp.png
+          cp assets/images/256x256.png build/Publish/myapp.png
+
+          # Create AppRun script
+          touch build/Publish/AppRun
+          cat > build/Publish/AppRun << 'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          export LD_LIBRARY_PATH="$HERE/usr/lib:$LD_LIBRARY_PATH"
+          exec "$HERE/usr/bin/app" "$@"
+          EOF
+
+          chmod +x build/Publish/AppRun
+
+          # Create app.desktop file
+          touch build/Publish/app.desktop
+          cat > build/Publish/app.desktop << 'EOF'
+          [Desktop Entry]
+          Name=sast-readium
+          Exec=app
+          Icon=myapp
+          Type=Application
+          Categories=Utility;
+          EOF
+
+          # Set Qt path for linuxdeploy-plugin-qt
+          export QMAKE=$(which qmake6)
+          export QT_PLUGIN_PATH=$(qmake6 -query QT_INSTALL_PLUGINS)
+
+          # Run linuxdeploy with Qt plugin (automatically handles Qt dependencies and plugins)
+          cd build
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir Publish \
+            --plugin qt \
+            --executable Publish/usr/bin/app \
+            --desktop-file Publish/app.desktop \
+            --icon-file Publish/myapp.png \
+            --output appimage
+          cd ..
+
+          # Deploying
+          # build/appimagetool-x86_64.AppImage build/Publish/Sast-Readium-x86_64.AppImage
+
+
+      - name: Upload system build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-linux-x64-system
+          path: |
+            build/sast-readium-x86_64.AppImage
+          if-no-files-found: error
+          compression-level: 9
+          retention-days: 7
+
+  # Build summary and performance metrics
+  build-summary:
+    name: Linux Build Summary
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate build summary
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          BUILD_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          BUILD_RESULT="${BUILD_RESULT}"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # Linux Build Summary
+
+          ## Result
+          - Build job: $BUILD_RESULT
+          - Ref: $GITHUB_REF_NAME
+          - Commit: $SHORT_SHA
+          - Run: $GITHUB_RUN_NUMBER
+
+          ## Build Strategy
+          - Ubuntu with system packages (preferred)
+          - Release and Debug builds
+
+          ## Artifacts Generated
+
+          EOF
+
+          if [ -d "artifacts" ]; then
+            for dir in artifacts/*/; do
+              if [ -d "$dir" ]; then
+                artifact_name=$(basename "$dir")
+                file_count=$(find "$dir" -type f | wc -l)
+                total_size=$(du -sh "$dir" | cut -f1)
+                echo "- **$artifact_name**: $file_count files, $total_size" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          else
+            echo "(No artifacts directory found)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+
+          ## Performance Optimizations
+          - System packages prioritized (apt)
+          - Caching of APT package repositories
+          - Parallel builds with optimal job count
+          - Shallow git clones for faster checkout
+
+          ## Run
+          - $BUILD_JOB_URL
+
+          EOF

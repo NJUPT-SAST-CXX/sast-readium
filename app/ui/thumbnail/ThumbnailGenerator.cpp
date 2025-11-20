@@ -315,8 +315,12 @@ void ThumbnailGenerator::startNextJob() {
 void ThumbnailGenerator::onGenerationFinished() {
     QFutureWatcher<QPixmap>* watcher =
         static_cast<QFutureWatcher<QPixmap>*>(sender());
-    if (!watcher)
-        return;
+    
+    // 使用 QPointer 安全检查
+    QPointer<QFutureWatcher<QPixmap>> safeWatcher(watcher);
+    if (!safeWatcher) {
+        return;  // watcher 已经被删除
+    }
 
     // 找到对应的任务
     GenerationJob* job = nullptr;
@@ -334,19 +338,25 @@ void ThumbnailGenerator::onGenerationFinished() {
     }
 
     if (!job) {
-        watcher->deleteLater();
+        if (safeWatcher) {
+            safeWatcher->deleteLater();
+        }
         return;
     }
 
     try {
-        QPixmap pixmap = watcher->result();
+        if (safeWatcher) {
+            QPixmap pixmap = safeWatcher->result();
 
-        if (!pixmap.isNull()) {
-            handleJobCompletion(job);
-            emit thumbnailGenerated(pageNumber, pixmap);
-            m_totalGenerated++;
+            if (!pixmap.isNull()) {
+                handleJobCompletion(job);
+                emit thumbnailGenerated(pageNumber, pixmap);
+                m_totalGenerated++;
+            } else {
+                handleJobError(job, "Failed to generate pixmap");
+            }
         } else {
-            handleJobError(job, "Failed to generate pixmap");
+            handleJobError(job, "Watcher was deleted during processing");
         }
     } catch (const std::exception& e) {
         handleJobError(job, QString("Generation error: %1").arg(e.what()));
@@ -357,11 +367,16 @@ void ThumbnailGenerator::onGenerationFinished() {
     // 清理任务
     {
         QMutexLocker locker(&m_jobsMutex);
-        delete m_activeJobs.take(pageNumber);  // 删除并移除
-        emit activeJobsChanged(m_activeJobs.size());
+        if (m_activeJobs.contains(pageNumber)) {
+            delete m_activeJobs.take(pageNumber);
+            emit activeJobsChanged(m_activeJobs.size());
+        }
     }
 
-    watcher->deleteLater();
+    // 安全删除 watcher
+    if (safeWatcher) {
+        safeWatcher->deleteLater();
+    }
 }
 
 void ThumbnailGenerator::onBatchTimer() {

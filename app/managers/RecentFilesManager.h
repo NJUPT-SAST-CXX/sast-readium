@@ -85,7 +85,7 @@ private:
     QSettings* m_settings;
     QList<RecentFileInfo> m_recentFiles;
     int m_maxRecentFiles;
-    mutable QMutex m_mutex;
+    mutable QRecursiveMutex m_mutex;
 
     static const int DEFAULT_MAX_RECENT_FILES = 10;
     static const QString SETTINGS_GROUP;

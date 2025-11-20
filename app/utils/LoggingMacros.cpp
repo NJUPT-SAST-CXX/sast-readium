@@ -1,4 +1,5 @@
 #include "LoggingMacros.h"
+#include <QCoreApplication>
 #include <QFileInfo>
 #include <QMutex>
 #include <QMutexLocker>
@@ -6,11 +7,22 @@
 #include <QThread>
 #include <chrono>
 
+// ============================================================================
+// Platform-specific includes for memory usage
+// ============================================================================
+
 #ifdef Q_OS_WIN
 // clang-format off
 #include <windows.h>
 #include <psapi.h>
 // clang-format on
+#elif defined(Q_OS_MACOS)
+#include <mach/mach.h>
+#include <mach/mach_init.h>
+#include <mach/task.h>
+#elif defined(Q_OS_LINUX)
+#include <QRegularExpression>
+#include <QTextStream>
 #endif
 
 // Static member initialization
@@ -317,21 +329,3 @@ void logSeparator(const QString& title, char separator) {
 }
 
 }  // namespace LoggingUtils
-
-// ============================================================================
-// Platform-specific includes for memory usage
-// ============================================================================
-
-#ifdef Q_OS_WIN
-// clang-format off
-#include <windows.h>
-#include <psapi.h>
-// clang-format on
-#elif defined(Q_OS_MACOS)
-#include <mach/mach.h>
-#include <mach/mach_init.h>
-#include <mach/task.h>
-#elif defined(Q_OS_LINUX)
-#include <QRegularExpression>
-#include <QTextStream>
-#endif

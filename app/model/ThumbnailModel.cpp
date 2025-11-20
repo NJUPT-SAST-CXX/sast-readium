@@ -177,6 +177,7 @@ void ThumbnailModel::setDocument(std::shared_ptr<Poppler::Document> document) {
 
     if (m_generator) {
         m_generator->setDocument(document);
+        m_generator->start();
     }
 
     endResetModel();

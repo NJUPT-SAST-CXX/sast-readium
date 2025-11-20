@@ -162,23 +162,23 @@ void PDFPageWidget::paintEvent(QPaintEvent* event) {
 
     // Enable high-quality rendering hints
     painter.setRenderHints(QPainter::Antialiasing |
-                           QPainter::SmoothPixmapTransform |
-                           QPainter::TextAntialiasing);
+                          QPainter::SmoothPixmapTransform |
+                          QPainter::TextAntialiasing);
 
-    // Call parent implementation with enhanced rendering
-    QLabel::paintEvent(event);
+    // 先绘制边框
+    if (!renderedPixmap.isNull()) {
+        QRect pixmapRect = rect();
+        painter.setPen(QPen(QColor(0, 0, 0, 30), 1));
+        painter.drawRect(pixmapRect.adjusted(0, 0, -1, -1));
+    }
 
     // Draw search highlights
     if (!m_searchResults.isEmpty()) {
         drawSearchHighlights(painter);
     }
 
-    // Add subtle shadow effect for better visual appearance
-    if (!renderedPixmap.isNull()) {
-        QRect pixmapRect = rect();
-        painter.setPen(QPen(QColor(0, 0, 0, 30), 1));
-        painter.drawRect(pixmapRect.adjusted(0, 0, -1, -1));
-    }
+    // 然后调用父类实现
+    QLabel::paintEvent(event);
 }
 
 bool PDFPageWidget::event(QEvent* event) {
@@ -1233,7 +1233,7 @@ void PDFViewer::updatePageDisplay() {
 
         std::unique_ptr<Poppler::Page> page(document->page(currentPageNumber));
         if (page) {
-            singlePageWidget->setPage(page.get(), currentZoomFactor,
+            singlePageWidget->setPage(page.release(), currentZoomFactor,
                                       currentRotation);
         }
     }
@@ -1430,7 +1430,7 @@ void PDFViewer::createContinuousPages() {
         if (page) {
             // 阻止信号发出，避免在初始化时触发缩放循环
             pageWidget->blockSignals(true);
-            pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+            pageWidget->setPage(page.release(), currentZoomFactor, currentRotation);
             pageWidget->blockSignals(false);
         }
 
@@ -1881,7 +1881,7 @@ void PDFViewer::setRotation(int degrees) {
                             document->page(currentPageNumber));
                         if (page) {
                             singlePageWidget->setPage(
-                                page.get(), currentZoomFactor, currentRotation);
+                                page.release(), currentZoomFactor, currentRotation);
                         } else {
                             throw std::runtime_error(
                                 "Failed to get page for rotation");

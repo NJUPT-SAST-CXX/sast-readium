@@ -158,7 +158,7 @@ private:
     std::unique_ptr<ThumbnailGenerator> m_generator;
 
     mutable QHash<int, ThumbnailItem> m_thumbnails;
-    mutable QMutex m_thumbnailsMutex;
+    mutable QRecursiveMutex m_thumbnailsMutex;
 
     QSize m_thumbnailSize;
     double m_thumbnailQuality;
