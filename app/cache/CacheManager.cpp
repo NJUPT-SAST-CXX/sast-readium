@@ -1,10 +1,14 @@
 #include "CacheManager.h"
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QMutexLocker>
 #include <QProcess>
 #include <QThread>
 #include <QTimer>
 #include <algorithm>
+#include <atomic>
+#include "controller/CachePresenter.h"
+#include "controller/EventBus.h"
 #include "logging/SimpleLogging.h"
 
 using enum CacheType;
@@ -37,7 +41,8 @@ public:
           systemMemoryMonitoringEnabled(true),
           predictiveEvictionEnabled(true),
           memoryCompressionEnabled(false),
-          emergencyEvictionEnabled(true) {
+          emergencyEvictionEnabled(true),
+          presenter(std::make_unique<CachePresenter>(qPtr)) {
         // Setup timers
         cleanupTimer->setSingleShot(false);
         memoryPressureTimer->setSingleShot(false);
@@ -52,6 +57,25 @@ public:
                          &CacheManager::updateCacheStatistics);
         QObject::connect(systemMemoryTimer, &QTimer::timeout, qPtr,
                          &CacheManager::handleSystemMemoryPressure);
+
+        // Connect CachePresenter signals to CacheManager signals
+        QObject::connect(presenter.get(), &CachePresenter::cacheHit, qPtr,
+                         [qPtr](CacheType type, const QString& key) {
+                             qPtr->notifyCacheHit(type, key);
+                         });
+        QObject::connect(presenter.get(), &CachePresenter::cacheMiss, qPtr,
+                         [qPtr](CacheType type, const QString& key) {
+                             qPtr->notifyCacheMiss(type, key);
+                         });
+        QObject::connect(presenter.get(),
+                         &CachePresenter::memoryPressureWarning, qPtr,
+                         &CacheManager::memoryPressureWarning);
+        QObject::connect(presenter.get(),
+                         &CachePresenter::memoryPressureCritical, qPtr,
+                         &CacheManager::memoryPressureCritical);
+
+        // Connect CacheManager signals to EventBus for decoupled communication
+        connectToEventBus(qPtr);
 
         // Start timers
         cleanupTimer->start(config.cleanupInterval);
@@ -111,6 +135,10 @@ public:
     // Thread safety
     mutable QMutex mutex;
 
+    // PERFORMANCE FIX: Prevent timer callback overlap to avoid event loop
+    // starvation
+    std::atomic<bool> timerCallbackActive{false};
+
     // Adaptive management
     bool adaptiveManagementEnabled = true;
     QHash<CacheType, double> usagePatterns;
@@ -127,6 +155,9 @@ public:
     // Memory pressure thresholds
     double memoryPressureWarningThreshold = 0.75;
     double memoryPressureCriticalThreshold = 0.90;
+
+    // MVP Architecture: CachePresenter for new cache operations
+    std::unique_ptr<CachePresenter> presenter;
 
     void initializeDefaultLimits() {
         cacheMemoryLimits[SEARCH_RESULT_CACHE] = config.searchResultCacheLimit;
@@ -248,6 +279,116 @@ public:
             }
         }
     }
+
+    static void connectToEventBus(CacheManager* manager) {
+        // Connect cache events to EventBus for decoupled communication
+        EventBus& eventBus = EventBus::instance();
+
+        // Memory pressure events
+        QObject::connect(manager, &CacheManager::memoryLimitExceeded,
+                         [](qint64 currentUsage, qint64 limit) {
+                             QVariantMap data;
+                             data["currentUsage"] = currentUsage;
+                             data["limit"] = limit;
+                             EventBus::instance().publish(
+                                 "cache.memory.limitExceeded", data);
+                         });
+
+        QObject::connect(manager, &CacheManager::memoryPressureDetected,
+                         [](double usageRatio) {
+                             QVariantMap data;
+                             data["usageRatio"] = usageRatio;
+                             EventBus::instance().publish(
+                                 "cache.memory.pressureDetected", data);
+                         });
+
+        QObject::connect(manager, &CacheManager::memoryPressureWarning,
+                         [](double usageRatio) {
+                             QVariantMap data;
+                             data["usageRatio"] = usageRatio;
+                             EventBus::instance().publish(
+                                 "cache.memory.pressureWarning", data);
+                         });
+
+        QObject::connect(manager, &CacheManager::memoryPressureCritical,
+                         [](double usageRatio) {
+                             QVariantMap data;
+                             data["usageRatio"] = usageRatio;
+                             EventBus::instance().publish(
+                                 "cache.memory.pressureCritical", data);
+                         });
+
+        QObject::connect(manager, &CacheManager::systemMemoryPressureDetected,
+                         [](double systemUsageRatio) {
+                             QVariantMap data;
+                             data["systemUsageRatio"] = systemUsageRatio;
+                             EventBus::instance().publish(
+                                 "cache.system.memoryPressure", data);
+                         });
+
+        // Cache statistics events
+        QObject::connect(manager, &CacheManager::cacheStatsUpdated,
+                         [](CacheType type, const CacheStats& stats) {
+                             QVariantMap data;
+                             data["cacheType"] = static_cast<int>(type);
+                             data["memoryUsage"] = stats.memoryUsage;
+                             data["entryCount"] = stats.entryCount;
+                             data["hitRatio"] = stats.hitRatio;
+                             data["totalHits"] = stats.totalHits;
+                             data["totalMisses"] = stats.totalMisses;
+                             EventBus::instance().publish("cache.stats.updated",
+                                                          data);
+                         });
+
+        QObject::connect(manager, &CacheManager::globalStatsUpdated,
+                         [](qint64 totalMemory, double hitRatio) {
+                             QVariantMap data;
+                             data["totalMemory"] = totalMemory;
+                             data["hitRatio"] = hitRatio;
+                             EventBus::instance().publish("cache.stats.global",
+                                                          data);
+                         });
+
+        // Cache operation events
+        QObject::connect(manager, &CacheManager::cacheEvictionRequested,
+                         [](CacheType type, qint64 bytesToFree) {
+                             QVariantMap data;
+                             data["cacheType"] = static_cast<int>(type);
+                             data["bytesToFree"] = bytesToFree;
+                             EventBus::instance().publish(
+                                 "cache.eviction.requested", data);
+                         });
+
+        QObject::connect(manager, &CacheManager::emergencyEvictionTriggered,
+                         [](qint64 bytesFreed) {
+                             QVariantMap data;
+                             data["bytesFreed"] = bytesFreed;
+                             EventBus::instance().publish(
+                                 "cache.eviction.emergency", data);
+                         });
+
+        QObject::connect(manager, &CacheManager::cacheConfigurationChanged,
+                         []() {
+                             EventBus::instance().publish(
+                                 "cache.config.changed", QVariant());
+                         });
+
+        QObject::connect(manager, &CacheManager::memoryOptimizationCompleted,
+                         [](qint64 memoryFreed) {
+                             QVariantMap data;
+                             data["memoryFreed"] = memoryFreed;
+                             EventBus::instance().publish(
+                                 "cache.optimization.completed", data);
+                         });
+
+        QObject::connect(manager, &CacheManager::cacheCompressionCompleted,
+                         [](qint64 memorySaved) {
+                             QVariantMap data;
+                             data["memorySaved"] = memorySaved;
+                             EventBus::instance().publish(
+                                 "cache.compression.completed", data);
+                         });
+    }
 };
 
 CacheManager::CacheManager(QObject* parent)
@@ -303,11 +444,16 @@ void CacheManager::setGlobalConfig(const GlobalCacheConfig& config) {
     // Update timer intervals
     m_d->cleanupTimer->setInterval(config.cleanupInterval);
 
+    // Delegate configuration to presenter
+    m_d->presenter->setGlobalConfig(config);
+
     emit cacheConfigurationChanged();
 }
 
 CacheManager::GlobalCacheConfig CacheManager::getGlobalConfig() const {
     QMutexLocker locker(&m_d->mutex);
+    // Use presenter's config for MVP-based caches if available
+    // Fall back to local config for legacy caches
     return m_d->config;
 }
 
@@ -315,6 +461,10 @@ void CacheManager::setCacheLimit(CacheType type, qint64 memoryLimit) {
     QMutexLocker locker(&m_d->mutex);
     m_d->cacheMemoryLimits[type] = memoryLimit;
 
+    // Delegate to presenter for MVP-based caches
+    m_d->presenter->setCacheLimit(type, memoryLimit);
+
+    // Handle legacy ICacheComponent caches
     ICacheComponent* cache = m_d->registeredCaches.value(type);
     if (cache != nullptr) {
         cache->setMaxMemoryLimit(memoryLimit);
@@ -323,6 +473,12 @@ void CacheManager::setCacheLimit(CacheType type, qint64 memoryLimit) {
 
 qint64 CacheManager::getCacheLimit(CacheType type) const {
     QMutexLocker locker(&m_d->mutex);
+    // Try MVP-based cache limit first
+    qint64 mvpLimit = m_d->presenter->getCacheLimit(type);
+    if (mvpLimit > 0) {
+        return mvpLimit;
+    }
+    // Fall back to legacy limit
     return m_d->cacheMemoryLimits.value(type, 0);
 }
 
@@ -402,8 +558,18 @@ bool CacheManager::isCacheEnabled(CacheType type) const {
 }
 
 qint64 CacheManager::getTotalMemoryUsage() const {
+    // For MVP-based caches, delegate to presenter
+    // For legacy caches, use old calculation
     QMutexLocker locker(&m_d->mutex);
-    return m_d->calculateTotalMemoryUsage();
+
+    // Get MVP-based cache usage
+    qint64 mvpUsage = m_d->presenter->getTotalMemoryUsage();
+
+    // Get legacy ICacheComponent usage
+    qint64 legacyUsage = m_d->calculateTotalMemoryUsage();
+
+    // Return the sum (MVP will be 0 until specialized caches migrate)
+    return mvpUsage + legacyUsage;
 }
 
 qint64 CacheManager::getTotalMemoryLimit() const {
@@ -421,6 +587,10 @@ double CacheManager::getGlobalMemoryUsageRatio() const {
 void CacheManager::enforceMemoryLimits() {
     QMutexLocker locker(&m_d->mutex);
 
+    // Delegate MVP-based cache management to presenter
+    m_d->presenter->enforceMemoryLimits();
+
+    // Handle legacy ICacheComponent caches
     qint64 totalUsage = m_d->calculateTotalMemoryUsage();
     if (totalUsage > m_d->config.totalMemoryLimit) {
         emit memoryLimitExceeded(totalUsage, m_d->config.totalMemoryLimit);
@@ -429,6 +599,16 @@ void CacheManager::enforceMemoryLimits() {
 }
 
 void CacheManager::handleMemoryPressure() {
+    QElapsedTimer timer;
+    timer.start();
+
+    // Delegate MVP-based memory pressure handling to presenter
+    {
+        QMutexLocker locker(&m_d->mutex);
+        m_d->presenter->handleMemoryPressure();
+    }
+
+    // Handle legacy ICacheComponent caches
     double usageRatio = getGlobalMemoryUsageRatio();
     if (usageRatio >= m_d->memoryPressureWarningThreshold) {
         emit memoryPressureWarning(usageRatio);
@@ -442,9 +622,27 @@ void CacheManager::handleMemoryPressure() {
         QMutexLocker locker(&m_d->mutex);
         m_d->performMemoryPressureEviction();
     }
+
+    qint64 elapsedMs = timer.elapsed();
+    SLOG_DEBUG_F(
+        "CacheManager::handleMemoryPressure completed in {} ms "
+        "(usageRatio={})",
+        elapsedMs, usageRatio);
 }
 
 void CacheManager::performPeriodicCleanup() {
+    // PERFORMANCE FIX: Skip if another timer callback is running
+    bool expected = false;
+    if (!m_d->timerCallbackActive.compare_exchange_strong(expected, true)) {
+        SLOG_DEBUG(
+            "CacheManager::performPeriodicCleanup skipped - another callback "
+            "active");
+        return;
+    }
+
+    QElapsedTimer timer;
+    timer.start();
+
     if (m_d->config.enableMemoryPressureEviction) {
         handleMemoryPressure();
     }
@@ -454,11 +652,38 @@ void CacheManager::performPeriodicCleanup() {
         analyzeUsagePatterns();
         optimizeCacheDistribution();
     }
+
+    qint64 elapsedMs = timer.elapsed();
+    SLOG_DEBUG_F("CacheManager::performPeriodicCleanup completed in {} ms",
+                 elapsedMs);
+
+    m_d->timerCallbackActive.store(false);
 }
 
-void CacheManager::onMemoryPressureTimer() { handleMemoryPressure(); }
+void CacheManager::onMemoryPressureTimer() {
+    // PERFORMANCE FIX: Skip if another timer callback is running
+    bool expected = false;
+    if (!m_d->timerCallbackActive.compare_exchange_strong(expected, true)) {
+        SLOG_DEBUG(
+            "CacheManager::onMemoryPressureTimer skipped - another callback "
+            "active");
+        return;
+    }
+
+    handleMemoryPressure();
+    m_d->timerCallbackActive.store(false);
+}
 
 void CacheManager::updateCacheStatistics() {
+    // PERFORMANCE FIX: Skip if another timer callback is running
+    bool expected = false;
+    if (!m_d->timerCallbackActive.compare_exchange_strong(expected, true)) {
+        SLOG_DEBUG(
+            "CacheManager::updateCacheStatistics skipped - another callback "
+            "active");
+        return;
+    }
+
     QMutexLocker locker(&m_d->mutex);
 
     for (auto it = m_d->registeredCaches.constBegin();
@@ -487,12 +712,22 @@ void CacheManager::updateCacheStatistics() {
     qint64 totalMemory = m_d->calculateTotalMemoryUsage();
     double globalHitRatio = getGlobalHitRatio();
     emit globalStatsUpdated(totalMemory, globalHitRatio);
+
+    m_d->timerCallbackActive.store(false);
 }
 
 CacheStats CacheManager::getCacheStats(CacheType type) const {
     QMutexLocker locker(&m_d->mutex);
 
     CacheStats stats;
+
+    // Try MVP-based cache first
+    CacheStats mvpStats = m_d->presenter->getStats(type);
+    if (mvpStats.entryCount > 0 || mvpStats.memoryUsage > 0) {
+        return mvpStats;
+    }
+
+    // Fall back to legacy ICacheComponent
     ICacheComponent* cache = m_d->registeredCaches.value(type);
     if (cache == nullptr) {
         return stats;
@@ -515,6 +750,10 @@ CacheStats CacheManager::getCacheStats(CacheType type) const {
 double CacheManager::getGlobalHitRatio() const {
     QMutexLocker locker(&m_d->mutex);
 
+    // Get MVP-based cache hit ratio
+    double mvpRatio = m_d->presenter->getGlobalHitRatio();
+
+    // Get legacy cache hit ratio
     qint64 totalHits = 0;
     qint64 totalMisses = 0;
 
@@ -526,9 +765,15 @@ double CacheManager::getGlobalHitRatio() const {
     }
 
     qint64 total = totalHits + totalMisses;
-    return total > 0
-               ? static_cast<double>(totalHits) / static_cast<double>(total)
-               : 0.0;
+    double legacyRatio =
+        total > 0 ? static_cast<double>(totalHits) / static_cast<double>(total)
+                  : 0.0;
+
+    // Aggregate both sources (weight by usage if both have data)
+    if (mvpRatio > 0 && legacyRatio > 0) {
+        return (mvpRatio + legacyRatio) / 2.0;  // Simple average
+    }
+    return mvpRatio > 0 ? mvpRatio : legacyRatio;
 }
 
 QHash<CacheType, CacheStats> CacheManager::getAllCacheStats() const {
@@ -536,6 +781,13 @@ QHash<CacheType, CacheStats> CacheManager::getAllCacheStats() const {
 
     QHash<CacheType, CacheStats> allStats;
 
+    // Get MVP-based cache stats
+    QHash<CacheType, CacheStats> mvpStats = m_d->presenter->getAllStats();
+    for (auto it = mvpStats.constBegin(); it != mvpStats.constEnd(); ++it) {
+        allStats.insert(it.key(), it.value());
+    }
+
+    // Add or update with legacy ICacheComponent stats
     for (auto it = m_d->registeredCaches.constBegin();
          it != m_d->registeredCaches.constEnd(); ++it) {
         CacheType type = it.key();
@@ -554,7 +806,10 @@ QHash<CacheType, CacheStats> CacheManager::getAllCacheStats() const {
                                              static_cast<double>(total)
                                        : 0.0;
 
-            allStats[type] = stats;
+            // Only add if not already in MVP stats
+            if (!allStats.contains(type)) {
+                allStats[type] = stats;
+            }
         }
     }
 
@@ -757,7 +1012,17 @@ double CacheManager::getSystemMemoryPressure() const {
 }
 
 void CacheManager::handleSystemMemoryPressure() {
+    // PERFORMANCE FIX: Skip if another timer callback is running
+    bool expected = false;
+    if (!m_d->timerCallbackActive.compare_exchange_strong(expected, true)) {
+        SLOG_DEBUG(
+            "CacheManager::handleSystemMemoryPressure skipped - another "
+            "callback active");
+        return;
+    }
+
     if (!m_d->systemMemoryMonitoringEnabled) {
+        m_d->timerCallbackActive.store(false);
         return;
     }
 
@@ -804,6 +1069,8 @@ void CacheManager::handleSystemMemoryPressure() {
             emit emergencyEvictionTriggered(bytesToFree);
         }
     }
+
+    m_d->timerCallbackActive.store(false);
 }
 
 void CacheManager::enablePredictiveEviction(bool enabled) {

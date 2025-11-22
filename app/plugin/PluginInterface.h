@@ -41,6 +41,7 @@ public:
     // Plugin capabilities
     virtual QStringList provides() const = 0;
     virtual QStringList requiredPlugins() const = 0;
+    virtual QStringList supportedFileTypes() const { return QStringList(); }
 
     // Configuration
     virtual void configure(const QJsonObject& config) = 0;
@@ -48,7 +49,15 @@ public:
 
     // Plugin API version
     virtual int apiVersion() const = 0;
+
+    // Host interaction
+    virtual void setPluginHost(IPluginHost* host) = 0;
+
+    // Communication
+    virtual void handleMessage(const QString& from, const QVariant& message) {}
 };
+
+Q_DECLARE_INTERFACE(IPluginInterface, "com.sast.readium.IPluginInterface/1.0")
 
 /**
  * @brief PluginBase - Base implementation for plugins
@@ -57,6 +66,7 @@ public:
  */
 class PluginBase : public QObject, public IPluginInterface {
     Q_OBJECT
+    Q_INTERFACES(IPluginInterface)
 
 public:
     explicit PluginBase(QObject* parent = nullptr);
@@ -85,6 +95,8 @@ public:
 
     int apiVersion() const override { return 1; }
 
+    void setPluginHost(IPluginHost* host) override { m_host = host; }
+
 signals:
     void initialized();
     void shutdownCompleted();
@@ -101,6 +113,7 @@ protected:
     EventBus* eventBus();
     CommandManager* commandManager();
     ConfigurationManager* configurationManager();
+    IPluginHost* host() const { return m_host; }
 
     // Plugin metadata
     struct Metadata {
@@ -109,6 +122,7 @@ protected:
         QString description;
         QString author;
         QStringList dependencies;
+        QStringList supportedTypes;
     } m_metadata;
 
     // Plugin capabilities
@@ -122,6 +136,7 @@ protected:
 
     // State
     bool m_initialized = false;
+    IPluginHost* m_host = nullptr;
 
     // Logging
     SastLogging::CategoryLogger m_logger{"Plugin"};
@@ -265,4 +280,84 @@ public:
     }
     bool accepts(IPluginInterface* plugin) const override;
     void extend(IPluginInterface* plugin) override;
+};
+
+/**
+ * @brief Dock widget extension point for adding dockable widgets
+ */
+class DockWidgetExtensionPoint : public IExtensionPoint {
+public:
+    QString id() const override { return "org.sast.readium.dock_widget"; }
+    QString description() const override {
+        return "Adds dockable widgets to the main window";
+    }
+    bool accepts(IPluginInterface* plugin) const override;
+    void extend(IPluginInterface* plugin) override;
+};
+
+/**
+ * @brief Context menu extension point for extending context menus
+ */
+class ContextMenuExtensionPoint : public IExtensionPoint {
+public:
+    QString id() const override { return "org.sast.readium.context_menu"; }
+    QString description() const override {
+        return "Extends context menus throughout the application";
+    }
+    bool accepts(IPluginInterface* plugin) const override;
+    void extend(IPluginInterface* plugin) override;
+};
+
+/**
+ * @brief Status bar extension point for status bar messages
+ */
+class StatusBarExtensionPoint : public IExtensionPoint {
+public:
+    QString id() const override { return "org.sast.readium.status_bar"; }
+    QString description() const override {
+        return "Allows plugins to display status bar messages";
+    }
+    bool accepts(IPluginInterface* plugin) const override;
+    void extend(IPluginInterface* plugin) override;
+};
+
+/**
+ * @brief UI extension interface for plugins to provide UI elements
+ *
+ * Plugins implementing this interface can provide menu items, toolbar buttons,
+ * dock widgets, context menu actions, and status bar messages.
+ */
+class IUIExtension {
+public:
+    virtual ~IUIExtension() = default;
+
+    // Menu extensions
+    virtual QList<QAction*> menuActions() const { return QList<QAction*>(); }
+    virtual QString menuPath() const {
+        return QString();
+    }  // e.g., "Tools/MyPlugin"
+
+    // Toolbar extensions
+    virtual QList<QAction*> toolbarActions() const { return QList<QAction*>(); }
+    virtual QString toolbarName() const { return QString(); }
+
+    // Dock widget extensions
+    virtual QWidget* createDockWidget(QWidget* parent = nullptr) {
+        Q_UNUSED(parent);
+        return nullptr;
+    }
+    virtual QString dockWidgetTitle() const { return QString(); }
+    virtual Qt::DockWidgetArea dockWidgetArea() const {
+        return Qt::RightDockWidgetArea;
+    }
+
+    // Context menu extensions
+    virtual QList<QAction*> contextMenuActions(const QString& contextId) const {
+        Q_UNUSED(contextId);
+        return QList<QAction*>();
+    }
+
+    // Status bar integration
+    virtual QString statusBarMessage() const { return QString(); }
+    virtual int statusBarTimeout() const { return 0; }  // 0 = permanent
 };

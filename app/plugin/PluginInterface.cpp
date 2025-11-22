@@ -2,9 +2,12 @@
 #include <QAction>
 #include <QCoreApplication>
 #include <QDir>
+#include <QDockWidget>
+#include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
 #include <QStandardPaths>
+#include <QStatusBar>
 #include <QToolBar>
 #include "../command/CommandManager.h"
 #include "../controller/ConfigurationManager.h"
@@ -334,4 +337,179 @@ void DocumentHandlerExtensionPoint::extend(IPluginInterface* plugin) {
     // Future enhancement: Emit signal to notify DocumentController
     // that a new document handler is available
     // emit documentHandlerRegistered(plugin->name(), provides);
+}
+
+// ============================================================================
+// DockWidgetExtensionPoint Implementation
+// ============================================================================
+
+bool DockWidgetExtensionPoint::accepts(IPluginInterface* plugin) const {
+    if (!plugin) {
+        return false;
+    }
+
+    // Check if plugin provides dock widget capability
+    QStringList provides = plugin->provides();
+    return provides.contains("dock_widget") || provides.contains("ui.dock") ||
+           provides.contains("ui.dockwidget");
+}
+
+void DockWidgetExtensionPoint::extend(IPluginInterface* plugin) {
+    if (!plugin) {
+        return;
+    }
+
+    qDebug() << "DockWidgetExtensionPoint::extend called for plugin:"
+             << plugin->name();
+
+    // Try to cast to IUIExtension
+    auto* uiExtension = dynamic_cast<IUIExtension*>(plugin);
+    if (!uiExtension) {
+        qWarning() << "Plugin" << plugin->name()
+                   << "does not implement IUIExtension interface";
+        return;
+    }
+
+    // Create the dock widget
+    QWidget* dockContent = uiExtension->createDockWidget();
+    if (!dockContent) {
+        qWarning() << "Plugin" << plugin->name() << "returned null dock widget";
+        return;
+    }
+
+    // Get MainWindow from ServiceLocator
+    auto& serviceLocator = ServiceLocator::instance();
+    QObject* mainWindowObj = serviceLocator.getService<QMainWindow>();
+
+    if (!mainWindowObj) {
+        qWarning() << "MainWindow not registered in ServiceLocator. Plugin "
+                      "dock widget extensions require MainWindow registration.";
+        delete dockContent;
+        return;
+    }
+
+    QMainWindow* mainWindow = qobject_cast<QMainWindow*>(mainWindowObj);
+    if (!mainWindow) {
+        qWarning() << "Failed to cast MainWindow from ServiceLocator";
+        delete dockContent;
+        return;
+    }
+
+    // Create and add the dock widget
+    QDockWidget* dockWidget =
+        new QDockWidget(uiExtension->dockWidgetTitle(), mainWindow);
+    dockWidget->setWidget(dockContent);
+    dockWidget->setObjectName(QString("PluginDock_%1").arg(plugin->name()));
+
+    mainWindow->addDockWidget(uiExtension->dockWidgetArea(), dockWidget);
+
+    qDebug() << "Successfully added dock widget for plugin:" << plugin->name();
+}
+
+// ============================================================================
+// ContextMenuExtensionPoint Implementation
+// ============================================================================
+
+bool ContextMenuExtensionPoint::accepts(IPluginInterface* plugin) const {
+    if (!plugin) {
+        return false;
+    }
+
+    // Check if plugin provides context menu capability
+    QStringList provides = plugin->provides();
+    return provides.contains("context_menu") ||
+           provides.contains("ui.context_menu") ||
+           provides.contains("contextmenu");
+}
+
+void ContextMenuExtensionPoint::extend(IPluginInterface* plugin) {
+    if (!plugin) {
+        return;
+    }
+
+    qDebug() << "ContextMenuExtensionPoint::extend called for plugin:"
+             << plugin->name();
+
+    // Try to cast to IUIExtension
+    auto* uiExtension = dynamic_cast<IUIExtension*>(plugin);
+    if (!uiExtension) {
+        qWarning() << "Plugin" << plugin->name()
+                   << "does not implement IUIExtension interface";
+        return;
+    }
+
+    // Log that context menu extension is registered
+    // In a full implementation, this would register with a ContextMenuRegistry
+    // service that would provide these actions when context menus are created
+    qDebug() << "Context menu extension registered for plugin:"
+             << plugin->name();
+
+    // Future: Register with ContextMenuRegistry service
+    // auto* registry = serviceLocator.getService<ContextMenuRegistry>();
+    // if (registry) {
+    //     registry->registerContextMenuProvider(plugin->name(), uiExtension);
+    // }
+}
+
+// ============================================================================
+// StatusBarExtensionPoint Implementation
+// ============================================================================
+
+bool StatusBarExtensionPoint::accepts(IPluginInterface* plugin) const {
+    if (!plugin) {
+        return false;
+    }
+
+    // Check if plugin provides status bar capability
+    QStringList provides = plugin->provides();
+    return provides.contains("status_bar") ||
+           provides.contains("ui.status_bar") || provides.contains("statusbar");
+}
+
+void StatusBarExtensionPoint::extend(IPluginInterface* plugin) {
+    if (!plugin) {
+        return;
+    }
+
+    qDebug() << "StatusBarExtensionPoint::extend called for plugin:"
+             << plugin->name();
+
+    // Try to cast to IUIExtension
+    auto* uiExtension = dynamic_cast<IUIExtension*>(plugin);
+    if (!uiExtension) {
+        qWarning() << "Plugin" << plugin->name()
+                   << "does not implement IUIExtension interface";
+        return;
+    }
+
+    // Get MainWindow from ServiceLocator
+    auto& serviceLocator = ServiceLocator::instance();
+    QObject* mainWindowObj = serviceLocator.getService<QMainWindow>();
+
+    if (!mainWindowObj) {
+        qWarning() << "MainWindow not registered in ServiceLocator. Plugin "
+                      "status bar extensions require MainWindow registration.";
+        return;
+    }
+
+    QMainWindow* mainWindow = qobject_cast<QMainWindow*>(mainWindowObj);
+    if (!mainWindow) {
+        qWarning() << "Failed to cast MainWindow from ServiceLocator";
+        return;
+    }
+
+    QStatusBar* statusBar = mainWindow->statusBar();
+    if (!statusBar) {
+        qWarning() << "MainWindow has no status bar";
+        return;
+    }
+
+    // Display the plugin's status bar message
+    QString message = uiExtension->statusBarMessage();
+    if (!message.isEmpty()) {
+        int timeout = uiExtension->statusBarTimeout();
+        statusBar->showMessage(message, timeout);
+        qDebug() << "Displayed status bar message for plugin:"
+                 << plugin->name();
+    }
 }

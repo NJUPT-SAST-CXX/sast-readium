@@ -17,6 +17,15 @@
 #include <QToolBar>
 #include <QWidget>
 
+// Forward declarations for plugin interfaces
+class IExtensionPoint;
+class IPluginInterface;
+class IDocumentProcessorPlugin;
+class IRenderPlugin;
+class ISearchPlugin;
+class ICacheStrategyPlugin;
+class IAnnotationPlugin;
+
 /**
  * Plugin interface that all plugins must implement
  */
@@ -156,6 +165,13 @@ public:
     QList<IDocumentPlugin*> getDocumentPlugins() const;
     QList<IUIPlugin*> getUIPlugins() const;
 
+    // Specialized plugin access
+    QList<IDocumentProcessorPlugin*> getDocumentProcessorPlugins() const;
+    QList<IRenderPlugin*> getRenderPlugins() const;
+    QList<ISearchPlugin*> getSearchPlugins() const;
+    QList<ICacheStrategyPlugin*> getCacheStrategyPlugins() const;
+    QList<IAnnotationPlugin*> getAnnotationPlugins() const;
+
     // Plugin metadata
     PluginMetadata getPluginMetadata(const QString& pluginName) const;
     QHash<QString, PluginMetadata> getAllPluginMetadata() const;
@@ -205,6 +221,20 @@ public:
     bool backupPluginConfiguration(const QString& filePath) const;
     bool restorePluginConfiguration(const QString& filePath);
 
+    // UI Extension Management
+    void registerExtensionPoint(IExtensionPoint* extensionPoint);
+    void unregisterExtensionPoint(const QString& extensionId);
+    QList<IExtensionPoint*> getExtensionPoints() const;
+    void applyExtensionPoints(IPluginInterface* plugin);
+
+    // UI Element Tracking (for cleanup)
+    void registerPluginUIElement(const QString& pluginName, QObject* uiElement);
+    void cleanupPluginUIElements(const QString& pluginName);
+
+    // Hook Registry Management
+    void registerStandardHooks();
+    void unregisterAllHooks(const QString& pluginName);
+
 signals:
     void pluginLoaded(const QString& pluginName);
     void pluginUnloaded(const QString& pluginName);
@@ -235,7 +265,7 @@ private:
 
     // Plugin storage
     QHash<QString, QPluginLoader*> m_pluginLoaders;
-    QHash<QString, IPlugin*> m_loadedPlugins;
+    QHash<QString, IPluginInterface*> m_loadedPlugins;
     QHash<QString, PluginMetadata> m_pluginMetadata;
     QHash<QString, QStringList> m_pluginErrors;
 
@@ -247,6 +277,12 @@ private:
     bool m_hotReloadingEnabled;
     QTimer* m_hotReloadTimer;
     QHash<QString, qint64> m_pluginModificationTimes;
+
+    // UI Extension points
+    QList<IExtensionPoint*> m_extensionPoints;
+
+    // UI Element tracking (for cleanup on plugin unload)
+    QHash<QString, QList<QObject*>> m_pluginUIElements;
 
     static PluginManager* s_instance;
 };

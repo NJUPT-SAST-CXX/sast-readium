@@ -101,31 +101,32 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath) {
                 emit loadingMessageChanged("加载完成");
                 emit documentLoaded(document, filePath);
 
-                // Cleanup worker and thread synchronously to avoid deleteLater
-                // at shutdown
+                // Cleanup worker and thread asynchronously to avoid blocking
+                // main thread DEADLOCK FIX: Use deleteLater instead of blocking
+                // wait()
                 if (threadToCleanup != nullptr) {
-                    threadToCleanup->quit();
-                    if (!threadToCleanup->wait(3000)) {
-                        SLOG_WARNING(
-                            "AsyncDocumentLoader: Thread cleanup timeout after "
-                            "success, terminating");
-                        threadToCleanup->terminate();
-                        threadToCleanup->wait(1000);
+                    // Disconnect all signals to prevent issues during cleanup
+                    if (workerToCleanup != nullptr) {
+                        workerToCleanup->disconnect();
+                        workerToCleanup->deleteLater();
                     }
-                }
-                if (workerToCleanup != nullptr) {
-                    // Move worker to current thread after its thread stopped,
-                    // then delete
-                    if (workerToCleanup->thread() != nullptr &&
-                        workerToCleanup->thread()->isRunning()) {
-                        // Should not happen because we waited, but guard anyway
-                        workerToCleanup->thread()->quit();
-                        workerToCleanup->thread()->wait(1000);
-                    }
-                }
 
-                delete workerToCleanup;
-                delete threadToCleanup;
+                    // Delete thread after it finishes
+                    connect(threadToCleanup, &QThread::finished,
+                            threadToCleanup, &QThread::deleteLater);
+
+                    // Request thread to quit gracefully
+                    threadToCleanup->quit();
+
+                    // Log if thread doesn't quit within reasonable time
+                    QTimer::singleShot(5000, this, [threadToCleanup]() {
+                        if (threadToCleanup && threadToCleanup->isRunning()) {
+                            SLOG_WARNING(
+                                "AsyncDocumentLoader: Thread still running 5s "
+                                "after quit request");
+                        }
+                    });
+                }
 
                 // 检查队列中是否还有待加载的文档
                 processNextInQueue();
@@ -156,28 +157,32 @@ void AsyncDocumentLoader::loadDocument(const QString& filePath) {
                 stopProgressSimulation();
                 emit loadingFailed(error, filePath);
 
-                // Cleanup worker and thread synchronously to avoid deleteLater
-                // at shutdown
+                // Cleanup worker and thread asynchronously to avoid blocking
+                // main thread DEADLOCK FIX: Use deleteLater instead of blocking
+                // wait()
                 if (threadToCleanup != nullptr) {
-                    threadToCleanup->quit();
-                    if (!threadToCleanup->wait(3000)) {
-                        SLOG_WARNING(
-                            "AsyncDocumentLoader: Thread cleanup timeout after "
-                            "failure, terminating");
-                        threadToCleanup->terminate();
-                        threadToCleanup->wait(1000);
+                    // Disconnect all signals to prevent issues during cleanup
+                    if (workerToCleanup != nullptr) {
+                        workerToCleanup->disconnect();
+                        workerToCleanup->deleteLater();
                     }
-                }
-                if (workerToCleanup != nullptr) {
-                    if (workerToCleanup->thread() != nullptr &&
-                        workerToCleanup->thread()->isRunning()) {
-                        workerToCleanup->thread()->quit();
-                        workerToCleanup->thread()->wait(1000);
-                    }
-                }
 
-                delete workerToCleanup;
-                delete threadToCleanup;
+                    // Delete thread after it finishes
+                    connect(threadToCleanup, &QThread::finished,
+                            threadToCleanup, &QThread::deleteLater);
+
+                    // Request thread to quit gracefully
+                    threadToCleanup->quit();
+
+                    // Log if thread doesn't quit within reasonable time
+                    QTimer::singleShot(5000, this, [threadToCleanup]() {
+                        if (threadToCleanup && threadToCleanup->isRunning()) {
+                            SLOG_WARNING(
+                                "AsyncDocumentLoader: Thread still running 5s "
+                                "after quit request");
+                        }
+                    });
+                }
 
                 // Process next document in queue after failure
                 processNextInQueue();

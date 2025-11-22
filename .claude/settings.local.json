@@ -98,7 +98,10 @@
       "Bash(else echo \"Build directory does not exist\")",
       "Bash(if [ -d build/Debug-MSYS2/tests ])",
       "Bash(then echo 'Tests directory exists')",
-      "Bash(else echo \"Tests directory does not exist - need to build tests\")"
+      "Bash(else echo \"Tests directory does not exist - need to build tests\")",
+      "SlashCommand(/tr:withScout)",
+      "SlashCommand(/tr:withDoc)",
+      "Bash(jobs:*)"
     ],
     "deny": [],
     "ask": []

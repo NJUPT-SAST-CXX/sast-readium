@@ -1,6 +1,7 @@
 #include "StateManager.h"
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -631,7 +632,12 @@ void StateManager::onSubscriberDestroyed(QObject* obj) { unsubscribeAll(obj); }
 
 void StateManager::onAutoSaveTimeout() {
     if (!m_autoSavePath.isEmpty()) {
+        QElapsedTimer timer;
+        timer.start();
         saveState(m_autoSavePath);
+        m_logger.debug(QString("Auto-save to %1 took %2 ms")
+                           .arg(m_autoSavePath)
+                           .arg(timer.elapsed()));
     }
 }
 

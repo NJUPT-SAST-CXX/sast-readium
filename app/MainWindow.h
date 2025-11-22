@@ -18,6 +18,7 @@ class HomePage;
 class PDFViewerPage;
 class SettingsPage;
 class AboutPage;
+class PluginManagerPage;
 
 // Forward declarations - Adapters
 class DocumentAdapter;
@@ -61,6 +62,7 @@ private:
     void initPages();
     void initBusinessLogic();
     void connectSignals();
+    void initPluginUIExtensions();
 
     // UI update methods
     void retranslateUi();
@@ -92,6 +94,7 @@ private:
     PDFViewerPage* m_pdfViewerPage;
     SettingsPage* m_settingsPage;
     AboutPage* m_aboutPage;
+    PluginManagerPage* m_pluginManagerPage;
 
     // ========================================================================
     // Business Logic Layer (from app_lib)
@@ -118,6 +121,7 @@ private:
     QString m_searchKey;
     QString m_bookmarksKey;
     QString m_annotationsKey;
+    QString m_pluginManagerKey;
     QString m_settingsKey;
     QString m_aboutKey;
 

@@ -6,6 +6,9 @@
 #include "model/PageModel.h"
 #include "model/RenderModel.h"
 
+// Annotation system
+#include "ui/integration/AnnotationIntegrationHelper.h"
+
 // Logging
 #include "logging/SimpleLogging.h"
 
@@ -32,9 +35,20 @@ class PageWidget : public QWidget {
     Q_OBJECT
 
 public:
-    explicit PageWidget(int pageNumber, QWidget* parent = nullptr)
-        : QWidget(parent), m_pageNumber(pageNumber), m_rotation(0) {
+    explicit PageWidget(int pageNumber,
+                        AnnotationIntegrationHelper* annotationHelper = nullptr,
+                        double zoomFactor = 1.0, QWidget* parent = nullptr)
+        : QWidget(parent),
+          m_pageNumber(pageNumber),
+          m_rotation(0),
+          m_annotationHelper(annotationHelper),
+          m_zoomFactor(zoomFactor) {
         setMinimumSize(100, 100);
+    }
+
+    void setZoomFactor(double zoom) {
+        m_zoomFactor = zoom;
+        update();
     }
 
     void setImage(const QImage& image) {
@@ -114,6 +128,16 @@ protected:
             }
         }
 
+        // ============================================================
+        // ANNOTATION RENDERING
+        // ============================================================
+        if (m_annotationHelper) {
+            // Render annotations on top of the page
+            // Note: pageNumber is 0-based for rendering
+            m_annotationHelper->renderAnnotations(&painter, m_pageNumber,
+                                                  rect(), m_zoomFactor);
+        }
+
         // 绘制边框
         painter.setPen(QPen(Qt::lightGray, 1));
         painter.setBrush(Qt::NoBrush);
@@ -125,6 +149,8 @@ private:
     QImage m_image;
     int m_rotation;
     QList<QRectF> m_highlights;
+    AnnotationIntegrationHelper* m_annotationHelper;
+    double m_zoomFactor;
 };
 
 // ============================================================================
@@ -153,6 +179,9 @@ public:
     QVBoxLayout* mainLayout = nullptr;
     QList<PageWidget*> pageWidgets;
     QWidget* emptyStateWidget = nullptr;
+
+    // Annotation system
+    AnnotationIntegrationHelper* annotationHelper = nullptr;
 
     // 搜索高亮
     QMap<int, QList<QRectF>> searchHighlights;
@@ -362,6 +391,14 @@ void PDFViewer::setZoom(double zoomFactor) {
     SLOG_INFO_F("PDFViewer: Setting zoom to {}", zoomFactor);
     m_impl->zoomFactor = zoomFactor;
     m_impl->clearCache();
+
+    // Update zoom factor in all PageWidgets
+    for (PageWidget* widget : m_impl->pageWidgets) {
+        if (widget) {
+            widget->setZoomFactor(zoomFactor);
+        }
+    }
+
     renderCurrentPages();
 
     emit zoomChanged(m_impl->zoomFactor);
@@ -642,6 +679,19 @@ void PDFViewer::setQGraphicsHighQualityRendering(bool enabled) {
     m_impl->qgraphicsHighQualityEnabled = enabled;
     SLOG_INFO_F("PDFViewer: QGraphics high-quality rendering %s",
                 enabled ? "enabled" : "disabled");
+}
+
+void PDFViewer::setAnnotationHelper(AnnotationIntegrationHelper* helper) {
+    m_impl->annotationHelper = helper;
+    SLOG_INFO("PDFViewer: AnnotationIntegrationHelper set");
+
+    // Update existing PageWidgets if any
+    for (PageWidget* widget : m_impl->pageWidgets) {
+        if (widget) {
+            // Note: PageWidget doesn't have a setter, but it will be set on
+            // next render The helper is passed during PageWidget construction
+        }
+    }
 }
 
 // ============================================================================
@@ -1111,7 +1161,8 @@ void PDFViewer::applySinglePageMode() {
 
     // 只显示当前页
     PageWidget* pageWidget =
-        new PageWidget(m_impl->currentPage, m_impl->contentWidget);
+        new PageWidget(m_impl->currentPage, m_impl->annotationHelper,
+                       m_impl->zoomFactor, m_impl->contentWidget);
     m_impl->pageWidgets.append(pageWidget);
     m_impl->mainLayout->addWidget(pageWidget, 0, Qt::AlignCenter);
 
@@ -1128,7 +1179,9 @@ void PDFViewer::applyContinuousMode() {
 
     // 显示所有页面
     for (int i = 1; i <= m_impl->totalPages; ++i) {
-        PageWidget* pageWidget = new PageWidget(i, m_impl->contentWidget);
+        PageWidget* pageWidget =
+            new PageWidget(i, m_impl->annotationHelper, m_impl->zoomFactor,
+                           m_impl->contentWidget);
         m_impl->pageWidgets.append(pageWidget);
         m_impl->mainLayout->addWidget(pageWidget, 0, Qt::AlignCenter);
     }
@@ -1165,13 +1218,15 @@ void PDFViewer::applyTwoPageMode() {
         rowLayout->setSpacing(10);
 
         // 左页
-        PageWidget* leftPage = new PageWidget(i, rowWidget);
+        PageWidget* leftPage = new PageWidget(i, m_impl->annotationHelper,
+                                              m_impl->zoomFactor, rowWidget);
         m_impl->pageWidgets.append(leftPage);
         rowLayout->addWidget(leftPage);
 
         // 右页（如果存在）
         if (i + 1 <= m_impl->totalPages) {
-            PageWidget* rightPage = new PageWidget(i + 1, rowWidget);
+            PageWidget* rightPage = new PageWidget(
+                i + 1, m_impl->annotationHelper, m_impl->zoomFactor, rowWidget);
             m_impl->pageWidgets.append(rightPage);
             rowLayout->addWidget(rightPage);
         } else {
@@ -1200,7 +1255,9 @@ void PDFViewer::applyBookMode() {
 
     // 第一页单独显示
     if (m_impl->totalPages >= 1) {
-        PageWidget* firstPage = new PageWidget(1, m_impl->contentWidget);
+        PageWidget* firstPage =
+            new PageWidget(1, m_impl->annotationHelper, m_impl->zoomFactor,
+                           m_impl->contentWidget);
         m_impl->pageWidgets.append(firstPage);
         m_impl->mainLayout->addWidget(firstPage, 0, Qt::AlignCenter);
     }
@@ -1213,13 +1270,15 @@ void PDFViewer::applyBookMode() {
         rowLayout->setSpacing(10);
 
         // 左页
-        PageWidget* leftPage = new PageWidget(i, rowWidget);
+        PageWidget* leftPage = new PageWidget(i, m_impl->annotationHelper,
+                                              m_impl->zoomFactor, rowWidget);
         m_impl->pageWidgets.append(leftPage);
         rowLayout->addWidget(leftPage);
 
         // 右页（如果存在）
         if (i + 1 <= m_impl->totalPages) {
-            PageWidget* rightPage = new PageWidget(i + 1, rowWidget);
+            PageWidget* rightPage = new PageWidget(
+                i + 1, m_impl->annotationHelper, m_impl->zoomFactor, rowWidget);
             m_impl->pageWidgets.append(rightPage);
             rowLayout->addWidget(rightPage);
         } else {

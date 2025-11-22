@@ -1,11 +1,13 @@
 #include "MemoryManager.h"
 #include <QCoreApplication>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QMutexLocker>
 #include <algorithm>
 #include "SearchConfiguration.h"
 #include "SearchEngine.h"
 #include "TextExtractor.h"
+#include "logging/SimpleLogging.h"
 
 class MemoryManager::Implementation {
 public:
@@ -244,6 +246,9 @@ double MemoryManager::getMemoryEfficiency() const {
 }
 
 void MemoryManager::optimizeMemoryUsage() {
+    QElapsedTimer timer;
+    timer.start();
+
     QMutexLocker locker(&d->mutex);
 
     emit memoryOptimizationStarted(d->optimizationLevel);
@@ -257,6 +262,13 @@ void MemoryManager::optimizeMemoryUsage() {
     d->currentStats.lastOptimization = QDateTime::currentDateTime();
 
     emit memoryOptimizationCompleted(memoryFreed);
+
+    qint64 elapsedMs = timer.elapsed();
+    locker.unlock();
+    SLOG_DEBUG_F(
+        "MemoryManager::optimizeMemoryUsage freed {} bytes in {} ms "
+        "(level={})",
+        memoryFreed, elapsedMs, static_cast<int>(d->optimizationLevel));
 }
 
 void MemoryManager::optimizeSearchCaches() {
@@ -415,11 +427,22 @@ void MemoryManager::onCacheMemoryExceeded(qint64 /*usage*/, qint64 /*limit*/) {
 
 void MemoryManager::performPeriodicOptimization() {
     if (d->autoOptimizationEnabled) {
+        QElapsedTimer timer;
+        timer.start();
+
         optimizeMemoryUsage();
 
+        bool ranPredictive = false;
         if (d->predictiveOptimizationEnabled) {
             predictMemoryNeeds();
+            ranPredictive = true;
         }
+
+        qint64 elapsedMs = timer.elapsed();
+        SLOG_DEBUG_F(
+            "MemoryManager::performPeriodicOptimization completed in {} ms "
+            "(predictive={})",
+            elapsedMs, ranPredictive);
     }
 }
 

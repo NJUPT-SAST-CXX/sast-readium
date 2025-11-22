@@ -7,6 +7,7 @@
 #include <QContextMenuEvent>
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QEvent>
 #include <QFile>
 #include <QFont>
@@ -47,6 +48,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QtCore/Qt>
+#include "../../logging/SimpleLogging.h"
 #include "../../managers/StyleManager.h"
 #include "ToastNotification.h"
 // ElaWidgetTools
@@ -751,6 +753,9 @@ void DebugLogPanel::updateLogDisplay() {
         return;
     }
 
+    QElapsedTimer timer;
+    timer.start();
+
     QMutexLocker locker(&m_logMutex);
 
     // Process pending entries in batches
@@ -779,6 +784,18 @@ void DebugLogPanel::updateLogDisplay() {
     // Auto-scroll if enabled
     if (m_autoScroll && processed > 0) {
         scrollToBottom();
+    }
+
+    if (processed > 0) {
+        qint64 elapsedMs = timer.elapsed();
+
+        // Only log when the update is relatively expensive to avoid spam
+        if (elapsedMs > 10 || m_pendingMessages > m_config.batchSize) {
+            SLOG_DEBUG_F(
+                "DebugLogPanel::updateLogDisplay processed {} messages in {} "
+                "ms (pending={})",
+                processed, elapsedMs, m_pendingMessages);
+        }
     }
 }
 

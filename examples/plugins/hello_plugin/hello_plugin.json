@@ -1,0 +1,19 @@
+{
+    "name": "Hello Plugin",
+    "version": "1.0.0",
+    "description": "Example plugin demonstrating SAST Readium plugin system",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "supportedTypes": [],
+    "features": [
+        "example",
+        "demo",
+        "event-handling",
+        "configuration"
+    ],
+    "configuration": {
+        "greeting": "Hello from SAST Readium Plugin System!",
+        "enableLogging": true,
+        "maxDocuments": 100
+    }
+}

@@ -16,10 +16,14 @@
 #include "MainWindow.h"
 #include "cache/CacheManager.h"
 #include "config.h"
+#include "controller/AnnotationController.h"
+#include "controller/ServiceLocator.h"
 #include "logging/LoggingMacros.h"
 #include "logging/LoggingManager.h"
 #include "logging/SimpleLogging.h"
 #include "managers/I18nManager.h"
+#include "plugin/PluginInterface.h"
+#include "plugin/PluginManager.h"
 #include "utils/ResourcesInit.h"
 
 // Command-line configuration structure (same as original app)
@@ -252,6 +256,100 @@ void initializeCacheSystem() {
     }
 }
 
+void initializePluginSystem() {
+    LOG_TRACE("Initializing plugin system...");
+    try {
+        // Get PluginManager instance
+        PluginManager& pluginManager = PluginManager::instance();
+
+        // Register PluginManager with ServiceLocator for global access
+        ServiceLocator::instance().registerService<PluginManager>(
+            &pluginManager);
+
+        // Set plugin directories
+        QStringList pluginDirs;
+        pluginDirs << QApplication::applicationDirPath() + "/plugins";
+        pluginDirs << QStandardPaths::writableLocation(
+                          QStandardPaths::AppDataLocation) +
+                          "/plugins";
+        pluginManager.setPluginDirectories(pluginDirs);
+
+        // Register built-in extension points
+        // Note: Menu and Toolbar extension points need MainWindow to be created
+        // first They will be registered in MainWindow initialization
+        LOG_DEBUG("Registering plugin extension points...");
+
+        // Register document handler extension point (doesn't require UI)
+        static DocumentHandlerExtensionPoint documentHandlerEP;
+        pluginManager.registerExtensionPoint(&documentHandlerEP);
+
+        LOG_DEBUG("Extension points registered");
+
+        // Register standard workflow hooks
+        pluginManager.registerStandardHooks();
+        LOG_DEBUG("Standard hooks registered");
+
+        // Scan for available plugins
+        pluginManager.scanForPlugins();
+
+        // Load settings (enabled/disabled state)
+        pluginManager.loadSettings();
+
+        // Load all enabled plugins
+        pluginManager.loadAllPlugins();
+
+        LOG_INFO(
+            "Plugin system initialized successfully. Found {} plugins, loaded "
+            "{} plugins",
+            pluginManager.getAvailablePlugins().size(),
+            pluginManager.getLoadedPlugins().size());
+
+    } catch (const std::exception& e) {
+        LOG_ERROR("Plugin system init failed: {}", e.what());
+        logToStderrIfLoggingUnavailable(
+            QString("[ERROR] Plugin system init failed: %1").arg(e.what()));
+    } catch (...) {
+        LOG_ERROR("Plugin system init failed with unknown error");
+        logToStderrIfLoggingUnavailable(QStringLiteral(
+            "[ERROR] Plugin system init failed with unknown error"));
+    }
+}
+
+void initializeAnnotationSystem() {
+    LOG_TRACE("Initializing annotation system...");
+    try {
+        // Create and register AnnotationController with ServiceLocator
+        auto* annotationController = new AnnotationController();
+        ServiceLocator::instance().registerService<AnnotationController>(
+            annotationController);
+
+        // Set default author from system
+        QString defaultAuthor = qgetenv("USERNAME");
+        if (defaultAuthor.isEmpty()) {
+            defaultAuthor = qgetenv("USER");
+        }
+        if (defaultAuthor.isEmpty()) {
+            defaultAuthor = "User";
+        }
+        annotationController->setDefaultAuthor(defaultAuthor);
+
+        // Enable auto-save by default
+        annotationController->setAutoSave(true);
+
+        LOG_INFO("Annotation system initialized successfully (Author: {})",
+                 defaultAuthor.toStdString());
+
+    } catch (const std::exception& e) {
+        LOG_ERROR("Annotation system init failed: {}", e.what());
+        logToStderrIfLoggingUnavailable(
+            QString("[ERROR] Annotation system init failed: %1").arg(e.what()));
+    } catch (...) {
+        LOG_ERROR("Annotation system init failed with unknown error");
+        logToStderrIfLoggingUnavailable(QStringLiteral(
+            "[ERROR] Annotation system init failed with unknown error"));
+    }
+}
+
 int runMainWindow() {
     try {
         LOG_INFO("Creating MainWindow");
@@ -331,6 +429,8 @@ int main(int argc, char** argv) {
     initializeQtResources();
     initializeI18nSystem();
     initializeCacheSystem();
+    initializePluginSystem();
+    initializeAnnotationSystem();
 
     return runMainWindow();
 }

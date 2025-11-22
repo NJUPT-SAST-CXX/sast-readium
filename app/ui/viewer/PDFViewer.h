@@ -17,6 +17,7 @@ class Page;
 class RenderModel;
 class PageModel;
 class PDFPrerenderer;
+class AnnotationIntegrationHelper;
 class QLabel;
 class QVBoxLayout;
 class QHBoxLayout;
@@ -260,6 +261,16 @@ public:
     void setQGraphicsRenderingEnabled(bool enabled);
     bool isQGraphicsRenderingEnabled() const;
     void setQGraphicsHighQualityRendering(bool enabled);
+
+    // ========================================================================
+    // Annotation System Integration
+    // ========================================================================
+
+    /**
+     * @brief Set annotation integration helper
+     * @param helper The annotation integration helper
+     */
+    void setAnnotationHelper(AnnotationIntegrationHelper* helper);
 
     // ------------------------------------------------------------------------
     // Backward-compatibility API for tests

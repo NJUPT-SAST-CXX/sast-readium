@@ -156,6 +156,32 @@ bool I18nManagerImpl::loadTranslation(const QString& languageCode) {
         }
     }
 
+    auto loadModuleTranslation = [&](const QString& baseName) {
+        for (const QString& path : searchPaths) {
+            auto moduleTranslator = std::make_unique<QTranslator>();
+            QString moduleFile = QDir(path).filePath(
+                QString("%1_%2").arg(baseName, languageCode));
+
+            if (QFile::exists(moduleFile + ".qm")) {
+                moduleFile += ".qm";
+            }
+
+            if (moduleTranslator->load(moduleFile)) {
+                LOG_INFO("I18nManager: Loaded module translation from: {}",
+                         moduleFile.toStdString());
+                qApp->installTranslator(moduleTranslator.get());
+                m_translators.push_back(std::move(moduleTranslator));
+                break;
+            }
+        }
+    };
+
+    loadModuleTranslation(QString("annotation_system"));
+    loadModuleTranslation(QString("plugin_system"));
+    loadModuleTranslation(QString("accessibility"));
+    loadModuleTranslation(QString("command_line"));
+    loadModuleTranslation(QString("document_metadata"));
+
     if (!loaded) {
         LOG_WARNING("I18nManager: Could not find translation file for: {}",
                     languageCode.toStdString());

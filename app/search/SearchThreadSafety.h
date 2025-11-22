@@ -14,6 +14,8 @@
 #include <QWriteLocker>
 #include <atomic>
 #include <memory>
+#include <ranges>
+#include <vector>
 
 /**
  * Comprehensive thread safety framework for search operations

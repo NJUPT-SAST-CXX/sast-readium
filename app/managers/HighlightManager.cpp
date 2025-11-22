@@ -1,6 +1,7 @@
 #include "HighlightManager.h"
 #include <QDir>
 #include <QFileInfo>
+#include <QJsonDocument>
 #include <QTimer>
 #include "../controller/EventBus.h"
 #include "../interaction/TextSelectionManager.h"

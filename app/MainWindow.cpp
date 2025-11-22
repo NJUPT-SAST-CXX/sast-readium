@@ -14,6 +14,7 @@
 #include "ui/pages/AboutPage.h"
 #include "ui/pages/HomePage.h"
 #include "ui/pages/PDFViewerPage.h"
+#include "ui/pages/PluginManagerPage.h"
 #include "ui/pages/SettingsPage.h"
 
 // Adapters
@@ -23,10 +24,13 @@
 // Business Logic (from app_lib)
 #include "controller/ApplicationController.h"
 #include "controller/DocumentController.h"
+#include "controller/ServiceLocator.h"
 #include "logging/SimpleLogging.h"
 #include "managers/I18nManager.h"
 #include "managers/RecentFilesManager.h"
 #include "managers/StyleManager.h"
+#include "plugin/PluginInterface.h"
+#include "plugin/PluginManager.h"
 #include "search/SearchEngine.h"
 
 // Qt
@@ -43,6 +47,7 @@ MainWindow::MainWindow(QWidget* parent)
       m_pdfViewerPage(nullptr),
       m_settingsPage(nullptr),
       m_aboutPage(nullptr),
+      m_pluginManagerPage(nullptr),
       m_isInitialized(false),
       m_currentPage(0),
       m_totalPages(0),
@@ -78,6 +83,13 @@ MainWindow::MainWindow(QWidget* parent)
                   << std::endl;
         initBusinessLogic();
         std::cout << "[TRACE] MainWindow: initBusinessLogic() completed"
+                  << std::endl;
+
+        // Initialize plugin UI extensions
+        std::cout << "[TRACE] MainWindow: Calling initPluginUIExtensions()"
+                  << std::endl;
+        initPluginUIExtensions();
+        std::cout << "[TRACE] MainWindow: initPluginUIExtensions() completed"
                   << std::endl;
 
         // Connect signals
@@ -208,6 +220,16 @@ void MainWindow::initPages() {
     addPageNode(tr("Recent Files"), m_homePage, m_documentsKey,
                 ElaIconType::ClockRotateLeft);
     m_recentFilesKey = m_homePage->property("ElaPageKey").toString();
+
+    // ========================================================================
+    // Tools Section
+    // ========================================================================
+
+    // Plugin Manager
+    m_pluginManagerPage = new PluginManagerPage(this);
+    addPageNode(tr("Plugin Manager"), m_pluginManagerPage, m_toolsKey,
+                ElaIconType::Puzzle);
+    m_pluginManagerKey = m_pluginManagerPage->property("ElaPageKey").toString();
 
     // ========================================================================
     // Footer Section - Settings and About
@@ -578,4 +600,50 @@ void MainWindow::restoreWindowState() {
     }
 
     SLOG_INFO("MainWindow: Window state restored (file opening deferred)");
+}
+
+void MainWindow::initPluginUIExtensions() {
+    SLOG_INFO("MainWindow: Initializing plugin UI extensions");
+
+    // Get PluginManager from ServiceLocator
+    auto& serviceLocator = ServiceLocator::instance();
+    PluginManager* pluginManager = serviceLocator.getService<PluginManager>();
+
+    if (!pluginManager) {
+        SLOG_WARNING(
+            "MainWindow: PluginManager not available in ServiceLocator");
+        return;
+    }
+
+    // Register this MainWindow with ServiceLocator for plugin access
+    // Note: ElaWindow doesn't inherit from QMainWindow, so plugins expecting
+    // QMainWindow interface won't work. We would need to wrap or cast
+    // appropriately. For now, we'll register extension points that don't rely
+    // on QMainWindow
+
+    SLOG_DEBUG("MainWindow: Registering plugin extension points");
+
+    // Register Menu extension point
+    static MenuExtensionPoint menuEP;
+    pluginManager->registerExtensionPoint(&menuEP);
+
+    // Register Toolbar extension point
+    static ToolbarExtensionPoint toolbarEP;
+    pluginManager->registerExtensionPoint(&toolbarEP);
+
+    // Register Dock Widget extension point
+    // Note: Dock widgets require QMainWindow, which ElaWindow doesn't provide
+    // Uncomment when we have a proper wrapper or if ElaWindow adds dock support
+    // static DockWidgetExtensionPoint dockWidgetEP;
+    // pluginManager->registerExtensionPoint(&dockWidgetEP);
+
+    // Register Context Menu extension point
+    static ContextMenuExtensionPoint contextMenuEP;
+    pluginManager->registerExtensionPoint(&contextMenuEP);
+
+    // Register Status Bar extension point
+    static StatusBarExtensionPoint statusBarEP;
+    pluginManager->registerExtensionPoint(&statusBarEP);
+
+    SLOG_INFO("MainWindow: Plugin UI extensions initialized successfully");
 }

@@ -2,6 +2,7 @@
 #include <QApplication>
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -529,8 +530,16 @@ bool UIStateManager::isValidStateValue(const QVariant& value) {
 
 void UIStateManager::onAutosaveTimer() {
     if (m_autosaveEnabled && !m_batchUpdateMode) {
+        QElapsedTimer timer;
+        timer.start();
+
         saveStateToFile();
         cleanupExpiredStates();
+
+        qint64 elapsedMs = timer.elapsed();
+        m_logger.debug("UIStateManager autosave completed in " +
+                       QString::number(elapsedMs) +
+                       " ms (states=" + QString::number(m_states.size()) + ")");
     }
 }
 

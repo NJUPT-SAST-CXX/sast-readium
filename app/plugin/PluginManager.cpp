@@ -7,9 +7,18 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <QWidget>
 #include <algorithm>
 #include <functional>
 #include "../logging/LoggingMacros.h"
+#include "IAnnotationPlugin.h"
+#include "ICacheStrategyPlugin.h"
+#include "IDocumentProcessorPlugin.h"
+#include "IRenderPlugin.h"
+#include "ISearchPlugin.h"
+#include "PluginHookPoint.h"
+#include "PluginHookRegistry.h"
+#include "PluginInterface.h"
 
 // Static instance
 PluginManager* PluginManager::s_instance = nullptr;
@@ -250,15 +259,19 @@ bool PluginManager::loadPluginFromFile(const QString& filePath) {
         return false;
     }
 
-    IPlugin* plugin = qobject_cast<IPlugin*>(pluginObject);
+    IPluginInterface* plugin = qobject_cast<IPluginInterface*>(pluginObject);
     if (plugin == nullptr) {
         LOG_ERROR(
-            "PluginManager: plugin '{}' does not implement IPlugin interface",
+            "PluginManager: plugin '{}' does not implement IPluginInterface "
+            "interface",
             filePath.toStdString());
         loader->unload();
         delete loader;
         return false;
     }
+
+    // Set host before initialization
+    plugin->setPluginHost(this);
 
     // Initialize plugin
     if (!plugin->initialize()) {
@@ -272,6 +285,12 @@ bool PluginManager::loadPluginFromFile(const QString& filePath) {
     const QString pluginName = plugin->name();
     m_pluginLoaders[pluginName] = loader;
     m_loadedPlugins[pluginName] = plugin;
+
+    // Apply UI extension points if the plugin implements IPluginInterface
+    auto* pluginInterface = dynamic_cast<IPluginInterface*>(plugin);
+    if (pluginInterface) {
+        applyExtensionPoints(pluginInterface);
+    }
 
     // Update metadata
     if (m_pluginMetadata.contains(pluginName)) {
@@ -296,8 +315,14 @@ bool PluginManager::unloadPlugin(const QString& pluginName) {
 }
 
 void PluginManager::unloadPluginInternal(const QString& pluginName) {
+    // Cleanup UI elements first (before shutting down the plugin)
+    cleanupPluginUIElements(pluginName);
+
+    // Unregister all hook callbacks
+    unregisterAllHooks(pluginName);
+
     if (m_loadedPlugins.contains(pluginName)) {
-        IPlugin* plugin = m_loadedPlugins[pluginName];
+        IPluginInterface* plugin = m_loadedPlugins[pluginName];
         plugin->shutdown();
         m_loadedPlugins.remove(pluginName);
     }
@@ -383,16 +408,16 @@ void PluginManager::setPluginEnabled(const QString& pluginName, bool enabled) {
     }
 }
 
-IPlugin* PluginManager::getPlugin(const QString& pluginName) const {
+IPluginInterface* PluginManager::getPlugin(const QString& pluginName) const {
     return m_loadedPlugins.value(pluginName, nullptr);
 }
 
-QList<IPlugin*> PluginManager::getPluginsByType(
+QList<IPluginInterface*> PluginManager::getPluginsByType(
     const QString& interfaceId) const {
-    QList<IPlugin*> result;
+    QList<IPluginInterface*> result;
 
-    for (IPlugin* plugin : m_loadedPlugins.values()) {
-        QObject* obj = qobject_cast<QObject*>(plugin);
+    for (IPluginInterface* plugin : m_loadedPlugins.values()) {
+        QObject* obj = dynamic_cast<QObject*>(plugin);
         if (obj != nullptr && obj->inherits(interfaceId.toUtf8().constData())) {
             result.append(plugin);
         }
@@ -401,26 +426,69 @@ QList<IPlugin*> PluginManager::getPluginsByType(
     return result;
 }
 
-QList<IDocumentPlugin*> PluginManager::getDocumentPlugins() const {
-    QList<IDocumentPlugin*> result;
+QList<IDocumentProcessorPlugin*> PluginManager::getDocumentProcessorPlugins()
+    const {
+    QList<IDocumentProcessorPlugin*> result;
 
-    for (IPlugin* plugin : m_loadedPlugins.values()) {
-        IDocumentPlugin* docPlugin = qobject_cast<IDocumentPlugin*>(plugin);
-        if (docPlugin != nullptr) {
-            result.append(docPlugin);
+    for (IPluginInterface* plugin : m_loadedPlugins.values()) {
+        IDocumentProcessorPlugin* docProcessor =
+            dynamic_cast<IDocumentProcessorPlugin*>(plugin);
+        if (docProcessor != nullptr) {
+            result.append(docProcessor);
         }
     }
 
     return result;
 }
 
-QList<IUIPlugin*> PluginManager::getUIPlugins() const {
-    QList<IUIPlugin*> result;
+QList<IRenderPlugin*> PluginManager::getRenderPlugins() const {
+    QList<IRenderPlugin*> result;
 
-    for (IPlugin* plugin : m_loadedPlugins.values()) {
-        IUIPlugin* uiPlugin = qobject_cast<IUIPlugin*>(plugin);
-        if (uiPlugin != nullptr) {
-            result.append(uiPlugin);
+    for (IPluginInterface* plugin : m_loadedPlugins.values()) {
+        IRenderPlugin* renderPlugin = dynamic_cast<IRenderPlugin*>(plugin);
+        if (renderPlugin != nullptr) {
+            result.append(renderPlugin);
+        }
+    }
+
+    return result;
+}
+
+QList<ISearchPlugin*> PluginManager::getSearchPlugins() const {
+    QList<ISearchPlugin*> result;
+
+    for (IPluginInterface* plugin : m_loadedPlugins.values()) {
+        ISearchPlugin* searchPlugin = dynamic_cast<ISearchPlugin*>(plugin);
+        if (searchPlugin != nullptr) {
+            result.append(searchPlugin);
+        }
+    }
+
+    return result;
+}
+
+QList<ICacheStrategyPlugin*> PluginManager::getCacheStrategyPlugins() const {
+    QList<ICacheStrategyPlugin*> result;
+
+    for (IPluginInterface* plugin : m_loadedPlugins.values()) {
+        ICacheStrategyPlugin* cachePlugin =
+            dynamic_cast<ICacheStrategyPlugin*>(plugin);
+        if (cachePlugin != nullptr) {
+            result.append(cachePlugin);
+        }
+    }
+
+    return result;
+}
+
+QList<IAnnotationPlugin*> PluginManager::getAnnotationPlugins() const {
+    QList<IAnnotationPlugin*> result;
+
+    for (IPluginInterface* plugin : m_loadedPlugins.values()) {
+        IAnnotationPlugin* annotationPlugin =
+            dynamic_cast<IAnnotationPlugin*>(plugin);
+        if (annotationPlugin != nullptr) {
+            result.append(annotationPlugin);
         }
     }
 
@@ -588,9 +656,9 @@ void PluginManager::setPluginConfiguration(const QString& pluginName,
         m_pluginMetadata[pluginName].configuration = config;
 
         // Apply configuration to loaded plugin
-        IPlugin* plugin = getPlugin(pluginName);
+        IPluginInterface* plugin = getPlugin(pluginName);
         if (plugin != nullptr) {
-            plugin->setConfiguration(config);
+            plugin->configure(config);
         }
     }
 }
@@ -962,4 +1030,235 @@ bool PluginManager::restorePluginConfiguration(const QString& filePath) {
     emit pluginConfigurationRestored(filePath);
 
     return true;
+}
+
+// ============================================================================
+// UI Extension Management
+// ============================================================================
+
+void PluginManager::registerExtensionPoint(IExtensionPoint* extensionPoint) {
+    if (!extensionPoint) {
+        LOG_WARNING("PluginManager: attempt to register null extension point");
+        return;
+    }
+
+    // Check if already registered
+    for (IExtensionPoint* existing : m_extensionPoints) {
+        if (existing->id() == extensionPoint->id()) {
+            LOG_WARNING(
+                "PluginManager: extension point '{}' already registered",
+                extensionPoint->id().toStdString());
+            return;
+        }
+    }
+
+    m_extensionPoints.append(extensionPoint);
+    LOG_INFO("PluginManager: registered extension point '{}'",
+             extensionPoint->id().toStdString());
+
+    // Apply to all currently loaded plugins
+    for (IPluginInterface* plugin : m_loadedPlugins.values()) {
+        auto* pluginInterface = plugin;  // Already IPluginInterface
+        if (pluginInterface && extensionPoint->accepts(pluginInterface)) {
+            extensionPoint->extend(pluginInterface);
+        }
+    }
+}
+
+void PluginManager::unregisterExtensionPoint(const QString& extensionId) {
+    for (int i = 0; i < m_extensionPoints.size(); ++i) {
+        if (m_extensionPoints[i]->id() == extensionId) {
+            LOG_INFO("PluginManager: unregistered extension point '{}'",
+                     extensionId.toStdString());
+            m_extensionPoints.removeAt(i);
+            return;
+        }
+    }
+
+    LOG_WARNING("PluginManager: extension point '{}' not found for unregister",
+                extensionId.toStdString());
+}
+
+QList<IExtensionPoint*> PluginManager::getExtensionPoints() const {
+    return m_extensionPoints;
+}
+
+void PluginManager::applyExtensionPoints(IPluginInterface* plugin) {
+    if (!plugin) {
+        return;
+    }
+
+    LOG_DEBUG("PluginManager: applying extension points to plugin '{}'",
+              plugin->name().toStdString());
+
+    for (IExtensionPoint* extensionPoint : m_extensionPoints) {
+        if (extensionPoint->accepts(plugin)) {
+            LOG_DEBUG("PluginManager: applying extension point '{}' to '{}'",
+                      extensionPoint->id().toStdString(),
+                      plugin->name().toStdString());
+            extensionPoint->extend(plugin);
+        }
+    }
+}
+
+void PluginManager::registerPluginUIElement(const QString& pluginName,
+                                            QObject* uiElement) {
+    if (!uiElement) {
+        return;
+    }
+
+    if (!m_pluginUIElements.contains(pluginName)) {
+        m_pluginUIElements[pluginName] = QList<QObject*>();
+    }
+
+    m_pluginUIElements[pluginName].append(uiElement);
+    LOG_DEBUG("PluginManager: registered UI element for plugin '{}'",
+              pluginName.toStdString());
+}
+
+void PluginManager::cleanupPluginUIElements(const QString& pluginName) {
+    if (!m_pluginUIElements.contains(pluginName)) {
+        return;
+    }
+
+    LOG_DEBUG("PluginManager: cleaning up UI elements for plugin '{}'",
+              pluginName.toStdString());
+
+    QList<QObject*>& elements = m_pluginUIElements[pluginName];
+
+    for (QObject* element : elements) {
+        if (element) {
+            // Check if it's a widget and remove it from parent
+            if (auto* widget = qobject_cast<QWidget*>(element)) {
+                widget->setParent(nullptr);
+            }
+
+            // Delete the object
+            element->deleteLater();
+        }
+    }
+
+    elements.clear();
+    m_pluginUIElements.remove(pluginName);
+
+    LOG_INFO("PluginManager: cleaned up UI elements for plugin '{}'",
+             pluginName.toStdString());
+}
+
+void PluginManager::registerStandardHooks() {
+    LOG_DEBUG("PluginManager: Registering standard hooks");
+
+    auto& hookRegistry = PluginHookRegistry::instance();
+
+    // Document workflow hooks
+    hookRegistry.registerHook(StandardHooks::DOCUMENT_PRE_LOAD,
+                              "Before document is loaded");
+    hookRegistry.registerHook(StandardHooks::DOCUMENT_POST_LOAD,
+                              "After document is loaded");
+    hookRegistry.registerHook(StandardHooks::DOCUMENT_PRE_CLOSE,
+                              "Before document is closed");
+    hookRegistry.registerHook(StandardHooks::DOCUMENT_POST_CLOSE,
+                              "After document is closed");
+
+    // Rendering workflow hooks
+    hookRegistry.registerHook(StandardHooks::RENDER_PRE_PAGE,
+                              "Before page is rendered");
+    hookRegistry.registerHook(StandardHooks::RENDER_POST_PAGE,
+                              "After page is rendered");
+
+    // Search workflow hooks
+    hookRegistry.registerHook(StandardHooks::SEARCH_PRE_EXECUTE,
+                              "Before search is executed");
+    hookRegistry.registerHook(StandardHooks::SEARCH_POST_EXECUTE,
+                              "After search is executed");
+    hookRegistry.registerHook(StandardHooks::SEARCH_INDEX_BUILD,
+                              "When search index is built");
+    hookRegistry.registerHook(StandardHooks::SEARCH_RESULTS_RANK,
+                              "When search results are ranked");
+
+    // Cache workflow hooks
+    hookRegistry.registerHook(StandardHooks::CACHE_PRE_ADD,
+                              "Before item is added to cache");
+    hookRegistry.registerHook(StandardHooks::CACHE_POST_ADD,
+                              "After item is added to cache");
+    hookRegistry.registerHook(StandardHooks::CACHE_PRE_EVICT,
+                              "Before cache eviction");
+    hookRegistry.registerHook(StandardHooks::CACHE_POST_EVICT,
+                              "After cache eviction");
+
+    // Export workflow hooks
+    hookRegistry.registerHook(StandardHooks::EXPORT_PRE_EXECUTE,
+                              "Before document export");
+    hookRegistry.registerHook(StandardHooks::EXPORT_POST_EXECUTE,
+                              "After document export");
+
+    // Annotation workflow hooks
+    hookRegistry.registerHook(StandardHooks::ANNOTATION_CREATED,
+                              "After annotation is created");
+    hookRegistry.registerHook(StandardHooks::ANNOTATION_UPDATED,
+                              "After annotation is updated");
+    hookRegistry.registerHook(StandardHooks::ANNOTATION_DELETED,
+                              "After annotation is deleted");
+
+    LOG_INFO("PluginManager: Registered {} standard hooks",
+             hookRegistry.getHookNames().size());
+}
+
+void PluginManager::unregisterAllHooks(const QString& pluginName) {
+    LOG_DEBUG("PluginManager: Unregistering all hooks for plugin '{}'",
+              pluginName.toStdString());
+
+    auto& hookRegistry = PluginHookRegistry::instance();
+    hookRegistry.unregisterAllCallbacks(pluginName);
+
+    LOG_INFO("PluginManager: Unregistered all hooks for plugin '{}'",
+             pluginName.toStdString());
+}
+
+// ============================================================================
+// IPluginHost Implementation
+// ============================================================================
+
+IPluginInterface* PluginManager::getPlugin(const QString& name) {
+    return m_loadedPlugins.value(name, nullptr);
+}
+
+QList<IPluginInterface*> PluginManager::getPlugins() const {
+    return m_loadedPlugins.values();
+}
+
+void PluginManager::scanPluginDirectory(const QString& directory) {
+    QStringList dirs = m_pluginDirectories;
+    if (!dirs.contains(directory)) {
+        dirs.append(directory);
+        setPluginDirectories(dirs);
+    }
+    scanForPlugins();
+}
+
+QStringList PluginManager::availablePlugins() const {
+    return getAvailablePlugins();
+}
+
+bool PluginManager::initializePlugin(const QString& name) {
+    return loadPlugin(name);
+}
+
+void PluginManager::shutdownPlugin(const QString& name) { unloadPlugin(name); }
+
+bool PluginManager::sendPluginMessage(const QString& from, const QString& to,
+                                      const QVariant& message) {
+    IPluginInterface* target = m_loadedPlugins.value(to, nullptr);
+    if (target) {
+        target->handleMessage(from, message);
+        return true;
+    }
+    return false;
+}
+
+void PluginManager::broadcastPluginMessage(const QString& from,
+                                           const QVariant& message) {
+    for (IPluginInterface* plugin : m_loadedPlugins.values()) {
+        plugin->handleMessage(from, message);
+    }
 }

@@ -83,10 +83,21 @@ Implements QAbstractListModel interface:
 
 Emits signals: `annotationAdded()`, `annotationRemoved()`, `annotationUpdated()`, `annotationsLoaded()`, `annotationsSaved()`, `annotationsCleared()`
 
+### Integration with Application Layers
+
+The AnnotationModel provides the data layer for the annotation system. Business logic and presentation are handled by complementary components:
+
+- **[Annotation Controller](annotation-controller.md)** - Business logic, persistence, event integration, and command coordination
+- **[Annotation Commands](annotation-commands.md)** - 13 command classes supporting full undo/redo for all modifications
+- **[Annotation Rendering](annotation-rendering.md)** - Visual rendering of annotations on PDF pages
+
 ## 3. Relevant Code Modules
 
 - `/app/model/AnnotationModel.h` - Header with PDFAnnotation struct and AnnotationModel class
 - `/app/model/AnnotationModel.cpp` - Implementation with serialization and model logic
+- `/app/controller/AnnotationController.h` - Business logic layer
+- `/app/command/AnnotationCommands.h` - Command classes
+- `/app/delegate/AnnotationRenderDelegate.h` - Rendering delegate
 - Dependencies: Poppler-Qt6 (`poppler-qt6.h`, `poppler-annotation.h`), Qt Core (`QAbstractListModel`, `QJsonObject`, `QDateTime`)
 
 ## 4. Attention
@@ -95,3 +106,4 @@ Emits signals: `annotationAdded()`, `annotationRemoved()`, `annotationUpdated()`
 - Serialization relies on correct field names (boundingRect, createdTime, modifiedTime) matching struct definition
 - Poppler integration may require Poppler::Document pointer set via `setDocument()` before loading annotations
 - All timestamps use QDateTime with millisecond precision for modification tracking
+- AnnotationModel is used as dependency by AnnotationController and all command classes; do not instantiate directly

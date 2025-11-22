@@ -143,28 +143,40 @@ void EventBus::publish(Event* event) {
         return;
     }
 
-    QMutexLocker locker(&m_mutex);
+    QString eventType;
+    bool shouldEmitSignal = false;
 
-    // Apply filters
-    if (!applyFilters(event)) {
-        m_logger.debug("Event filtered out: " + event->type());
-        return;
+    // DEADLOCK FIX: Minimize critical section and emit signal outside lock
+    {
+        QMutexLocker locker(&m_mutex);
+
+        // Apply filters
+        if (!applyFilters(event)) {
+            m_logger.debug("Event filtered out: " + event->type());
+            return;
+        }
+
+        m_totalEventsPublished++;
+        eventType = event->type();
+        shouldEmitSignal = true;
+
+        if (m_asyncProcessingEnabled) {
+            // Add to queue for async processing
+            m_eventQueue.append(event);
+
+            if (!m_processTimer->isActive()) {
+                m_processTimer->start(0);
+            }
+        } else {
+            // Process immediately (still under lock for now)
+            deliverEvent(event);
+            delete event;
+        }
     }
 
-    m_totalEventsPublished++;
-    emit eventPublished(event->type());
-
-    if (m_asyncProcessingEnabled) {
-        // Add to queue for async processing
-        m_eventQueue.append(event);
-
-        if (!m_processTimer->isActive()) {
-            m_processTimer->start(0);
-        }
-    } else {
-        // Process immediately
-        deliverEvent(event);
-        delete event;
+    // Emit signal outside mutex to prevent deadlock from re-entrant calls
+    if (shouldEmitSignal) {
+        emit eventPublished(eventType);
     }
 }
 
@@ -238,10 +250,17 @@ void EventBus::removeFilter(const QString& eventType) {
 }
 
 void EventBus::processEventQueue() {
-    QMutexLocker locker(&m_mutex);
+    QList<Event*> eventsToProcess;
 
-    while (!m_eventQueue.isEmpty()) {
-        Event* event = m_eventQueue.takeFirst();
+    // DEADLOCK FIX: Take events from queue under lock, process outside lock
+    {
+        QMutexLocker locker(&m_mutex);
+        eventsToProcess = m_eventQueue;
+        m_eventQueue.clear();
+    }
+
+    // Process events outside mutex to prevent deadlock from re-entrant calls
+    for (Event* event : eventsToProcess) {
         deliverEvent(event);
         delete event;
     }

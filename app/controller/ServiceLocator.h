@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QHash>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -44,7 +46,8 @@ public:
     void registerService(std::shared_ptr<Interface> instance) {
         QString typeName = QString::fromStdString(typeid(Interface).name());
         m_sharedServices[typeName] = instance;
-        registerServiceInstance(typeName, instance.get());
+        registerServiceInstance(typeName, instance.get(),
+                                ServiceOwnership::Shared);
     }
 
     // Service retrieval
@@ -79,6 +82,14 @@ public:
     void setLazyLoading(bool lazy) { m_lazyLoading = lazy; }
     [[nodiscard]] bool isLazyLoading() const { return m_lazyLoading; }
 
+    // Plugin service management
+    void registerPluginService(const QString& pluginName,
+                               const QString& typeName, QObject* instance);
+    void unregisterPluginServices(const QString& pluginName);
+    [[nodiscard]] QStringList getPluginServices(
+        const QString& pluginName) const;
+    [[nodiscard]] bool isPluginService(const QString& typeName) const;
+
 signals:
     void serviceRegistered(const QString& typeName);
     void serviceRemoved(const QString& typeName);
@@ -99,17 +110,30 @@ private:
 
     void registerServiceFactory(const QString& typeName,
                                 ServiceFactory factory);
-    void registerServiceInstance(const QString& typeName, QObject* instance);
+    enum class ServiceOwnership { LocatorOwned, External, Shared };
+
+    void registerServiceInstance(
+        const QString& typeName, QObject* instance,
+        ServiceOwnership ownership = ServiceOwnership::External);
     QObject* createService(const QString& typeName);
 
     // Service storage (use QPointer to avoid dangling pointers when services
     // are destroyed elsewhere)
     QHash<QString, QPointer<QObject>> m_services;
+    QHash<QString, ServiceOwnership> m_serviceOwnership;
     QHash<QString, ServiceFactory> m_factories;
     QHash<QString, std::shared_ptr<void>> m_sharedServices;
 
+    // Plugin service tracking
+    QHash<QString, QStringList>
+        m_pluginServices;  // pluginName -> list of service typeNames
+    QHash<QString, QString> m_serviceToPlugin;  // typeName -> pluginName
+
     // Configuration
     bool m_lazyLoading = true;
+
+    // Thread safety
+    mutable QMutex m_mutex;
 
     // Logging
     SastLogging::CategoryLogger m_logger{"ServiceLocator"};

@@ -1,0 +1,30 @@
+{
+    "name": "Metadata Extractor",
+    "version": "1.0.0",
+    "description": "Extracts and analyzes document metadata from PDF files. Demonstrates the IDocumentProcessorPlugin interface with metadata extraction and export capabilities.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "supportedTypes": [".pdf"],
+    "features": [
+        "document.processor",
+        "document.metadata",
+        "export.json",
+        "export.xml"
+    ],
+    "configuration": {
+        "autoExtract": true,
+        "cacheMetadata": true,
+        "exportFormats": ["json", "xml"],
+        "extractFields": [
+            "title",
+            "author",
+            "subject",
+            "keywords",
+            "producer",
+            "creator",
+            "pageCount",
+            "fileSize",
+            "dates"
+        ]
+    }
+}

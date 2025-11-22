@@ -19,6 +19,7 @@
 #include "SearchThreadSafety.h"
 #include "SearchValidator.h"
 #include "TextExtractor.h"
+#include "logging/SimpleLogging.h"
 
 class SearchEngine::Implementation {
 public:
@@ -441,13 +442,39 @@ public:
     }
 
     void cancelCurrentSearch() {
+        QElapsedTimer timer;
+        timer.start();
+
         const bool hadActiveSearch =
             isSearching.isSet() || !backgroundProcessor->isIdle();
 
         backgroundProcessor->cancelAll();
-        backgroundProcessor->waitForDone(-1);
+        SLOG_DEBUG_F(
+            "SearchEngine::cancelCurrentSearch: waiting for background tasks "
+            "to finish (hadActiveSearch={}, isIdleBeforeWait={})",
+            hadActiveSearch, backgroundProcessor->isIdle());
+
+        // DEADLOCK FIX: Use timeout instead of infinite wait to prevent UI
+        // freeze
+        constexpr int CANCEL_TIMEOUT_MS = 5000;  // 5 seconds max wait
+        backgroundProcessor->waitForDone(CANCEL_TIMEOUT_MS);
+        qint64 elapsedMs = timer.elapsed();
+
+        if (elapsedMs >= CANCEL_TIMEOUT_MS) {
+            SLOG_WARNING_F(
+                "SearchEngine::cancelCurrentSearch: Timeout after {} ms "
+                "waiting "
+                "for background tasks. Proceeding anyway.",
+                elapsedMs);
+        }
+
         incrementalManager->cancelScheduledSearch();
         isSearching.clear();
+
+        SLOG_DEBUG_F(
+            "SearchEngine::cancelCurrentSearch completed in {} ms "
+            "(hadActiveSearch={})",
+            elapsedMs, hadActiveSearch);
 
         if (hadActiveSearch) {
             emit q_ptr->searchCancelled();
