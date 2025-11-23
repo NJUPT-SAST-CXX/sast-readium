@@ -119,34 +119,7 @@ if has_config("enable_tests") then
             end
 
             add_includedirs("$(projectdir)", "$(projectdir)/app", "$(projectdir)/tests")
-
-            add_files("$(projectdir)/app/logging/Logger.cpp")
-            add_files("$(projectdir)/app/logging/LoggingManager.cpp")
-            add_files("$(projectdir)/app/logging/QtSpdlogBridge.cpp")
-            add_files("$(projectdir)/app/search/SearchEngine.cpp")
-            add_files("$(projectdir)/app/search/TextExtractor.cpp")
-            add_files("$(projectdir)/app/search/IncrementalSearchManager.cpp")
-            add_files("$(projectdir)/app/search/BackgroundProcessor.cpp")
-            add_files("$(projectdir)/app/search/MemoryManager.cpp")
-            add_files("$(projectdir)/app/search/SearchValidator.cpp")
-            add_files("$(projectdir)/app/cache/CacheManager.cpp")
-            add_files("$(projectdir)/app/cache/PDFCacheManager.cpp")
-            add_files("$(projectdir)/app/cache/SearchResultCache.cpp")
-            add_files("$(projectdir)/app/cache/PageTextCache.cpp")
-            add_files("$(projectdir)/app/controller/ServiceLocator.cpp")
-            add_files("$(projectdir)/app/controller/StateManager.cpp")
-            add_files("$(projectdir)/app/controller/EventBus.cpp")
-            add_files("$(projectdir)/app/controller/ConfigurationManager.cpp")
-            add_files("$(projectdir)/app/controller/ActionMap.cpp")
-            add_files("$(projectdir)/app/factory/ModelFactory.cpp")
-            add_files("$(projectdir)/app/factory/CommandPrototypeRegistry.cpp")
-            add_files("$(projectdir)/app/command/CommandManager.cpp")
-            add_files("$(projectdir)/app/command/DocumentCommands.cpp")
-            add_files("$(projectdir)/app/command/NavigationCommands.cpp")
-            add_files("$(projectdir)/app/command/InitializationCommand.cpp")
-            add_files("$(projectdir)/app/command/CommandManager.cpp")
-            add_files("$(projectdir)/app/utils/DocumentAnalyzer.cpp")
-            add_files("$(projectdir)/app/utils/PDFUtilities.cpp")
+            add_deps("app_lib")
 
             if is_plat("linux") then
                 add_syslinks("pthread", "dl")
@@ -259,7 +232,7 @@ if has_config("enable_tests") then
     create_test_target("test_pdf_utilities", "$(projectdir)/tests/utils/test_pdf_utilities.cpp", 300)
     create_test_target("test_pdf_optimizations", "$(projectdir)/tests/utils/test_pdf_optimizations.cpp", 300)
     if has_package("gtest") then
-        create_test_target("test_thread_safety", "tests/utils/test_thread_safety.cpp", 600, {packages = {"gtest"}})
+        create_test_target("test_thread_safety", "$(projectdir)/tests/utils/test_thread_safety.cpp", 600, {packages = {"gtest"}})
     elseif not has_config("quiet") then
         cprint("${yellow}Google Test not found, skipping test_thread_safety${clear}")
     end

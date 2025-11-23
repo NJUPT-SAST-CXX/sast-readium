@@ -1,9 +1,11 @@
 #pragma once
 
+#include <QAction>
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
 #include <QVariant>
+#include <QWidget>
 #include <memory>
 #include "../logging/SimpleLogging.h"
 

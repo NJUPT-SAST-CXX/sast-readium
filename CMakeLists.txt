@@ -63,8 +63,16 @@ if(BUILD_LEGACY_UI)
     message(STATUS "Building legacy UI executable (app-legacy)")
 endif()
 
+# Example plugins option - disabled by default
+option(BUILD_EXAMPLE_PLUGINS "Build example plugins under examples/plugins" OFF)
+
 # Add subdirectories
 add_subdirectory(app)
+
+if(BUILD_EXAMPLE_PLUGINS)
+    add_subdirectory(examples/plugins/hello_plugin)
+    add_subdirectory(examples/plugins/metadata_extractor)
+endif()
 
 # Add tests if enabled
 if(BUILD_TESTING)

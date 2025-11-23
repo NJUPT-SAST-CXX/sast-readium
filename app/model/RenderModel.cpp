@@ -3,6 +3,7 @@
 #include <QtConcurrent/QtConcurrent>
 #include <cmath>
 #include "../logging/LoggingMacros.h"
+#include "../utils/SafePDFRenderer.h"
 #include "qimage.h"
 #include "qlogging.h"
 
@@ -745,9 +746,33 @@ void RenderModel::renderPageAsync(int pageNum, double xres, double yres, int x,
                 return QImage();
             }
 
-            // Render the page
-            QImage image =
-                pdfPage->renderToImage(actualDpiX, actualDpiY, x, y, w, h);
+            // Use SafePDFRenderer for async rendering
+            // Note: We can't use the region overload of SafePDFRenderer
+            // directly if x,y,w,h are set but SafePDFRenderer has
+            // safeRenderPageRegion.
+
+            QRectF region;
+            if (w > 0 && h > 0) {
+                region = QRectF(x, y, w, h);
+            }
+
+            // SafePDFRenderer handles timeouts and crashes
+            SafePDFRenderer::RenderInfo info;
+            QImage image;
+
+            if (region.isEmpty()) {
+                image = SafePDFRenderer::instance().safeRenderPage(
+                    pdfPage.get(), actualDpiX, &info);
+            } else {
+                image = SafePDFRenderer::instance().safeRenderPageRegion(
+                    pdfPage.get(), region, actualDpiX, &info);
+            }
+
+            if (!info.success) {
+                LOG_WARNING("RenderModel: Async render failed for page {}: {}",
+                            pageNum, info.errorMessage.toStdString());
+            }
+
             return image;
 
         } catch (const std::exception& e) {

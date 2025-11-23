@@ -52,7 +52,7 @@ Shapes use annotation boundingRect and custom startPoint/endPoint for lines/arro
 
 **Freehand Drawing**
 
-- `renderInk()` - Polyline drawn from inkPath QList<QPointF>
+- `renderInk()` - Polyline drawn from inkPath `QList<QPointF>`
 
 Ink annotations replay stored path with line width and color.
 

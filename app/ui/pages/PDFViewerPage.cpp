@@ -370,8 +370,9 @@ void PDFViewerPage::connectToolBarSignals() {
     connect(m_toolBar, &ToolBar::nightModeToggled, this, [this](bool enabled) {
         // Toggle night mode for reading
         SLOG_INFO_F("PDFViewerPage: Night mode toggled: {}", enabled);
-        // TODO: Implement night mode (invert colors, dark background, etc.)
-        // This would typically involve setting a color filter on the PDF viewer
+        if (PDFViewer* viewer = getCurrentViewer()) {
+            viewer->setNightMode(enabled);
+        }
     });
 
     connect(m_toolBar, &ToolBar::readingModeToggled, this,

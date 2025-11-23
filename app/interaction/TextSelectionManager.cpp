@@ -3,6 +3,8 @@
 #include <QClipboard>
 #include <algorithm>
 
+#include <QMultiHash>
+
 TextSelectionManager::TextSelectionManager(QObject* parent)
     : QObject(parent),
       m_currentPage(nullptr),
@@ -16,10 +18,16 @@ TextSelectionManager::TextSelectionManager(QObject* parent)
 TextSelectionManager::~TextSelectionManager() { clearPage(); }
 
 void TextSelectionManager::setPage(Poppler::Page* page, int pageNumber) {
-    if (m_currentPage == page && m_pageNumber == pageNumber)
+    if (m_currentPage.get() == page && m_pageNumber == pageNumber)
         return;
+
+    // If we are passed the same raw pointer that we already own, do nothing
+    // But since we own it via unique_ptr, caller shouldn't have raw pointer to
+    // give us unless they got it from us or it's a new pointer. Given the usage
+    // in PDFViewer, it passes a NEW pointer from document->page().
+
     clearPage();
-    m_currentPage = page;
+    m_currentPage.reset(page);
     m_pageNumber = pageNumber;
     m_textBoxesExtracted = false;
     m_layoutAnalyzed = false;
@@ -32,7 +40,7 @@ void TextSelectionManager::clearPage() {
     m_lineBreaks.clear();
     m_wordBreaks.clear();
     m_pageText.clear();
-    m_currentPage = nullptr;
+    m_currentPage.reset();
     m_pageNumber = -1;
     m_textBoxesExtracted = false;
     m_layoutAnalyzed = false;
@@ -49,6 +57,7 @@ bool TextSelectionManager::extractTextBoxes() {
     m_textBoxes.clear();
     m_charRects.clear();
     m_pageText.clear();
+    m_spatialIndex.clear();
 
     auto popplerTextBoxes = m_currentPage->textList();
     int charIndex = 0;
@@ -58,7 +67,7 @@ bool TextSelectionManager::extractTextBoxes() {
             QRectF rect = boxPtr->boundingBox();
             for (int i = 0; i < text.length(); ++i) {
                 TextBox textBox(rect, QString(text[i]), charIndex,
-                                m_currentPage);
+                                m_currentPage.get());
                 m_textBoxes.append(textBox);
                 m_charRects.append(rect);
                 m_pageText.append(text[i]);
@@ -68,8 +77,34 @@ bool TextSelectionManager::extractTextBoxes() {
     }
 
     m_textBoxesExtracted = true;
+    buildSpatialIndex();
     analyzeTextLayout();
     return true;
+}
+
+void TextSelectionManager::buildSpatialIndex() {
+    m_spatialIndex.clear();
+    for (int i = 0; i < m_textBoxes.size(); ++i) {
+        const QRectF& rect = m_textBoxes[i].rect;
+        int startX = static_cast<int>(rect.left()) / SPATIAL_GRID_SIZE;
+        int endX = static_cast<int>(rect.right()) / SPATIAL_GRID_SIZE;
+        int startY = static_cast<int>(rect.top()) / SPATIAL_GRID_SIZE;
+        int endY = static_cast<int>(rect.bottom()) / SPATIAL_GRID_SIZE;
+
+        for (int y = startY; y <= endY; ++y) {
+            for (int x = startX; x <= endX; ++x) {
+                qint64 key =
+                    (static_cast<qint64>(y) << 32) | static_cast<qint64>(x);
+                m_spatialIndex.insert(key, i);
+            }
+        }
+    }
+}
+
+qint64 TextSelectionManager::getSpatialKey(const QPointF& point) const {
+    int x = static_cast<int>(point.x()) / SPATIAL_GRID_SIZE;
+    int y = static_cast<int>(point.y()) / SPATIAL_GRID_SIZE;
+    return (static_cast<qint64>(y) << 32) | static_cast<qint64>(x);
 }
 
 void TextSelectionManager::analyzeTextLayout() {
@@ -148,9 +183,15 @@ void TextSelectionManager::clearSelection() {
 }
 
 int TextSelectionManager::findCharacterAtPoint(const QPointF& point) const {
-    for (int i = 0; i < m_textBoxes.size(); ++i) {
-        if (m_textBoxes[i].contains(point))
-            return i;
+    qint64 key = getSpatialKey(point);
+    auto it = m_spatialIndex.constFind(key);
+    while (it != m_spatialIndex.constEnd() && it.key() == key) {
+        int idx = it.value();
+        if (idx >= 0 && idx < m_textBoxes.size() &&
+            m_textBoxes[idx].contains(point)) {
+            return idx;
+        }
+        ++it;
     }
     return -1;
 }

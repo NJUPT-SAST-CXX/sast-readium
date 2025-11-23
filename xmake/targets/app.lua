@@ -4,63 +4,60 @@
 includes("../modules/qt.lua")
 includes("../modules/dependencies.lua")
 
-target("sast-readium")
-    set_kind("binary")
-    add_rules("qt.moc")
-
-    -- Dependencies on internal libraries
-    add_deps("ElaWidgetTools")
-
-    -- Headers requiring MOC
-    add_files("$(projectdir)/app/MainWindow.h")
-    add_files("$(projectdir)/app/model/DocumentModel.h")
-    add_files("$(projectdir)/app/model/PageModel.h")
-    add_files("$(projectdir)/app/model/RenderModel.h")
-    add_files("$(projectdir)/app/model/PDFOutlineModel.h")
-    add_files("$(projectdir)/app/controller/DocumentController.h")
-    add_files("$(projectdir)/app/controller/PageController.h")
-    add_files("$(projectdir)/app/managers/StyleManager.h")
-    add_files("$(projectdir)/app/managers/FileTypeIconManager.h")
-    add_files("$(projectdir)/app/managers/RecentFilesManager.h")
-    add_files("$(projectdir)/app/ui/viewer/PDFViewer.h")
-    add_files("$(projectdir)/app/ui/viewer/PDFOutlineWidget.h")
-    add_files("$(projectdir)/app/ui/widgets/DocumentTabWidget.h")
-    add_files("$(projectdir)/app/ui/widgets/SearchWidget.h")
-    add_files("$(projectdir)/app/ui/widgets/BookmarkWidget.h")
-    add_files("$(projectdir)/app/ui/widgets/AnnotationToolbar.h")
-    add_files("$(projectdir)/app/model/ThumbnailModel.h")
-    add_files("$(projectdir)/app/delegate/ThumbnailDelegate.h")
-    add_files("$(projectdir)/app/ui/thumbnail/ThumbnailListView.h")
-    add_files("$(projectdir)/app/ui/thumbnail/ThumbnailGenerator.h")
-    add_files("$(projectdir)/app/model/AsyncDocumentLoader.h")
-    add_files("$(projectdir)/app/ui/dialogs/DocumentMetadataDialog.h")
-    add_files("$(projectdir)/app/ui/dialogs/DocumentComparison.h")
-    add_files("$(projectdir)/app/ui/core/ViewWidget.h")
-    add_files("$(projectdir)/app/ui/core/StatusBar.h")
-    add_files("$(projectdir)/app/ui/core/SideBar.h")
-    add_files("$(projectdir)/app/ui/core/MenuBar.h")
-    add_files("$(projectdir)/app/ui/core/ToolBar.h")
-    add_files("$(projectdir)/app/ui/core/ContextMenuManager.h")
-    add_files("$(projectdir)/app/factory/WidgetFactory.h")
-    add_files("$(projectdir)/app/model/SearchModel.h")
-    add_files("$(projectdir)/app/model/BookmarkModel.h")
-    add_files("$(projectdir)/app/model/AnnotationModel.h")
-    add_files("$(projectdir)/app/ui/viewer/PDFPrerenderer.h")
-    add_files("$(projectdir)/app/ui/viewer/PDFAnimations.h")
-
-    add_files("$(projectdir)/app/ui/viewer/QGraphicsPDFViewer.h")
-    add_files("$(projectdir)/app/cache/PDFCacheManager.h")
-    add_files("$(projectdir)/app/plugin/PluginManager.h")
-    add_files("$(projectdir)/app/delegate/PageNavigationDelegate.h")
-    add_files("$(projectdir)/app/utils/DocumentAnalyzer.h")
-    add_files("$(projectdir)/app/ui/thumbnail/ThumbnailWidget.h")
-    add_files("$(projectdir)/app/ui/thumbnail/ThumbnailContextMenu.h")
-
-    set_targetdir("$(builddir)")
+-- Shared configuration for app targets
+function app_config(target)
+    set_languages("cxx20")
 
     -- Setup dependencies
     setup_qt_dependencies()
     setup_external_dependencies()
+
+    -- Build mode specific settings
+    if is_mode("release") then
+        set_optimize("fastest")
+        add_defines("NDEBUG")
+        set_symbols("hidden")
+    else
+        set_optimize("none")
+        set_symbols("debug")
+        add_defines("DEBUG", "_DEBUG")
+    end
+
+    -- Include directories
+    add_includedirs("$(projectdir)", "$(projectdir)/app", "$(buildir)")
+    add_includedirs("$(projectdir)/app/ui", "$(projectdir)/app/ui/core", "$(projectdir)/app/ui/viewer", "$(projectdir)/app/ui/widgets")
+    add_includedirs("$(projectdir)/app/ui/dialogs", "$(projectdir)/app/ui/thumbnail", "$(projectdir)/app/ui/managers")
+    add_includedirs("$(projectdir)/app/managers", "$(projectdir)/app/model", "$(projectdir)/app/controller", "$(projectdir)/app/delegate")
+    add_includedirs("$(projectdir)/app/cache", "$(projectdir)/app/utils", "$(projectdir)/app/plugin")
+    add_includedirs("$(projectdir)/app/factory", "$(projectdir)/app/command")
+
+    -- Platform-specific
+    if is_plat("windows") then
+        add_defines("WIN32", "_WINDOWS", "UNICODE", "_UNICODE")
+        add_files("$(projectdir)/app/app.rc")
+        local current_toolchain = get_config("toolchain")
+        if current_toolchain == "auto" then current_toolchain = get_default_toolchain() end
+        if current_toolchain == "msvc" then
+            add_ldflags("/SUBSYSTEM:WINDOWS")
+        end
+    elseif is_plat("linux") then
+        add_defines("LINUX")
+        add_syslinks("pthread", "dl")
+    elseif is_plat("macosx") then
+        add_defines("MACOS")
+        add_frameworks("CoreFoundation", "CoreServices")
+    end
+end
+
+-- Static library containing all app logic and resources
+target("app_lib")
+    set_kind("static")
+    add_rules("qt.moc", "qt.qrc", "qt.ts")
+
+    -- Dependencies
+    add_deps("ElaWidgetTools")
+
+    app_config(target)
 
     -- Generate config.h
     before_build(function (target)
@@ -79,120 +76,54 @@ target("sast-readium")
         end
     end)
 
-    -- Include directories
-    add_includedirs("$(projectdir)", "$(projectdir)/app", "$(builddir)")
-    add_includedirs("$(projectdir)/app/ui", "$(projectdir)/app/ui/core", "$(projectdir)/app/ui/viewer", "$(projectdir)/app/ui/widgets")
-    add_includedirs("$(projectdir)/app/ui/dialogs", "$(projectdir)/app/ui/thumbnail", "$(projectdir)/app/ui/managers")
-    add_includedirs("$(projectdir)/app/managers", "$(projectdir)/app/model", "$(projectdir)/app/controller", "$(projectdir)/app/delegate")
-    add_includedirs("$(projectdir)/app/cache", "$(projectdir)/app/utils", "$(projectdir)/app/plugin")
-    add_includedirs("$(projectdir)/app/factory", "$(projectdir)/app/command")
-
-    -- Build mode specific settings
-    if is_mode("release") then
-        set_optimize("fastest")
-        add_defines("NDEBUG")
-        set_symbols("hidden")
-    else
-        set_optimize("none")
-        set_symbols("debug")
-        add_defines("DEBUG", "_DEBUG")
-    end
-
-    -- Platform-specific
-    if is_plat("windows") then
-        add_defines("WIN32", "_WINDOWS", "UNICODE", "_UNICODE")
-    add_files("$(projectdir)/app/app.rc")
-        local current_toolchain = get_config("toolchain")
-        if current_toolchain == "auto" then current_toolchain = get_default_toolchain() end
-        if current_toolchain == "msvc" then
-            add_ldflags("/SUBSYSTEM:WINDOWS")
-        end
-    elseif is_plat("linux") then
-        add_defines("LINUX")
-        add_syslinks("pthread", "dl")
-    elseif is_plat("macosx") then
-        add_defines("MACOS")
-        add_frameworks("CoreFoundation", "CoreServices")
-    end
-
-    -- Sources
-    add_files("$(projectdir)/app/main.cpp")
-    add_files("$(projectdir)/app/MainWindow.cpp")
-
-    add_files("$(projectdir)/app/ui/core/ViewWidget.cpp")
-    add_files("$(projectdir)/app/ui/core/StatusBar.cpp")
-    add_files("$(projectdir)/app/ui/core/SideBar.cpp")
-    add_files("$(projectdir)/app/ui/core/MenuBar.cpp")
-    add_files("$(projectdir)/app/ui/core/ToolBar.cpp")
-    add_files("$(projectdir)/app/ui/core/ContextMenuManager.cpp")
-
-    add_files("$(projectdir)/app/model/DocumentModel.cpp")
-    add_files("$(projectdir)/app/model/PageModel.cpp")
-    add_files("$(projectdir)/app/model/RenderModel.cpp")
-    add_files("$(projectdir)/app/model/PDFOutlineModel.cpp")
-    add_files("$(projectdir)/app/model/AsyncDocumentLoader.cpp")
-    add_files("$(projectdir)/app/model/SearchModel.cpp")
-    add_files("$(projectdir)/app/model/BookmarkModel.cpp")
-    add_files("$(projectdir)/app/model/AnnotationModel.cpp")
-    add_files("$(projectdir)/app/model/ThumbnailModel.cpp")
-
-    add_files("$(projectdir)/app/controller/DocumentController.cpp")
-    add_files("$(projectdir)/app/controller/PageController.cpp")
-
-    add_files("$(projectdir)/app/managers/StyleManager.cpp")
-    add_files("$(projectdir)/app/managers/FileTypeIconManager.cpp")
-    add_files("$(projectdir)/app/managers/RecentFilesManager.cpp")
-
-    add_files("$(projectdir)/app/cache/PDFCacheManager.cpp")
-
-    add_files("$(projectdir)/app/utils/PDFUtilities.cpp")
-    add_files("$(projectdir)/app/utils/DocumentAnalyzer.cpp")
-
-    add_files("$(projectdir)/app/plugin/PluginManager.cpp")
-
-    add_files("$(projectdir)/app/factory/WidgetFactory.cpp")
-
-
-    add_files("$(projectdir)/app/ui/viewer/PDFViewer.cpp")
-    add_files("$(projectdir)/app/ui/viewer/PDFOutlineWidget.cpp")
-
-    add_files("$(projectdir)/app/ui/viewer/PDFAnimations.cpp")
-    add_files("$(projectdir)/app/ui/viewer/PDFPrerenderer.cpp")
-    add_files("$(projectdir)/app/ui/viewer/QGraphicsPDFViewer.cpp")
-
-    add_files("$(projectdir)/app/ui/widgets/DocumentTabWidget.cpp")
-    add_files("$(projectdir)/app/ui/widgets/SearchWidget.cpp")
-    add_files("$(projectdir)/app/ui/widgets/BookmarkWidget.cpp")
-    add_files("$(projectdir)/app/ui/widgets/AnnotationToolbar.cpp")
-
-    add_files("$(projectdir)/app/ui/dialogs/DocumentComparison.cpp")
-    add_files("$(projectdir)/app/ui/dialogs/DocumentMetadataDialog.cpp")
-
-    add_files("$(projectdir)/app/ui/thumbnail/ThumbnailWidget.cpp")
-    add_files("$(projectdir)/app/ui/thumbnail/ThumbnailGenerator.cpp")
-    add_files("$(projectdir)/app/ui/thumbnail/ThumbnailListView.cpp")
-    add_files("$(projectdir)/app/ui/thumbnail/ThumbnailContextMenu.cpp")
-
-    add_files("$(projectdir)/app/delegate/PageNavigationDelegate.cpp")
-    add_files("$(projectdir)/app/delegate/ThumbnailDelegate.cpp")
-
-    -- Headers (organization only)
+    -- Headers
     add_headerfiles("$(projectdir)/app/*.h")
-    add_headerfiles("$(projectdir)/app/ui/core/*.h")
-    add_headerfiles("$(projectdir)/app/ui/viewer/*.h")
-    add_headerfiles("$(projectdir)/app/ui/widgets/*.h")
-    add_headerfiles("$(projectdir)/app/ui/dialogs/*.h")
-    add_headerfiles("$(projectdir)/app/ui/thumbnail/*.h")
-    add_headerfiles("$(projectdir)/app/ui/managers/*.h")
-    add_headerfiles("$(projectdir)/app/managers/*.h")
-    add_headerfiles("$(projectdir)/app/model/*.h")
-    add_headerfiles("$(projectdir)/app/controller/*.h")
-    add_headerfiles("$(projectdir)/app/delegate/*.h")
-    add_headerfiles("$(projectdir)/app/cache/*.h")
-    add_headerfiles("$(projectdir)/app/utils/*.h")
-    add_headerfiles("$(projectdir)/app/plugin/*.h")
-    add_headerfiles("$(projectdir)/app/factory/*.h")
-    add_headerfiles("$(projectdir)/app/command/*.h")
+    add_headerfiles("$(projectdir)/app/**/*.h")
+
+    -- Sources (Grouped by component matching CMake discovery)
+    -- Core UI
+    add_files("$(projectdir)/app/MainWindow.cpp")
+    add_files("$(projectdir)/app/ui/core/*.cpp")
+    add_files("$(projectdir)/app/ui/viewer/*.cpp")
+    add_files("$(projectdir)/app/ui/widgets/*.cpp")
+    add_files("$(projectdir)/app/ui/dialogs/*.cpp")
+    add_files("$(projectdir)/app/ui/thumbnail/*.cpp")
+    add_files("$(projectdir)/app/ui/managers/*.cpp")
+
+    -- Logic components
+    add_files("$(projectdir)/app/managers/*.cpp")
+    add_files("$(projectdir)/app/model/*.cpp")
+    add_files("$(projectdir)/app/controller/*.cpp")
+    add_files("$(projectdir)/app/delegate/*.cpp")
+    add_files("$(projectdir)/app/cache/*.cpp")
+    add_files("$(projectdir)/app/utils/*.cpp")
+    add_files("$(projectdir)/app/plugin/*.cpp")
+    add_files("$(projectdir)/app/factory/*.cpp")
+    add_files("$(projectdir)/app/command/*.cpp")
+    add_files("$(projectdir)/app/logging/*.cpp")
+    add_files("$(projectdir)/app/search/*.cpp")
+    add_files("$(projectdir)/app/adapters/*.cpp")
+
+    -- Resources
+    add_files("$(projectdir)/app/app.qrc")
+    add_files("$(projectdir)/app/ela_ui.qrc")
+
+    -- Translations
+    add_files("$(projectdir)/app/i18n/*.ts")
+
+target_end()
+
+-- Main Executable
+target("sast-readium")
+    set_kind("binary")
+    add_rules("qt.moc")
+
+    add_deps("app_lib")
+
+    app_config(target)
+
+    add_files("$(projectdir)/app/main.cpp")
+    set_targetdir("$(buildir)")
 
     -- Assets copy
     after_build(function (target)
@@ -202,5 +133,25 @@ target("sast-readium")
             cprint("${dim}Copied assets/styles to %s${clear}", path.join(targetdir, "styles"))
         end
     end)
-
 target_end()
+
+-- Legacy Executable
+if has_config("legacy_ui") then
+    target("app-legacy")
+        set_kind("binary")
+        add_rules("qt.moc")
+
+        add_deps("app_lib")
+
+        app_config(target)
+
+        add_files("$(projectdir)/app/main.cpp")
+        set_targetdir("$(buildir)")
+
+        -- Assets copy
+        after_build(function (target)
+            local targetdir = target:targetdir()
+            os.cp(path.join(os.projectdir(), "assets/styles"), path.join(targetdir, "styles"))
+        end)
+    target_end()
+end

@@ -46,7 +46,8 @@ bool HelloPlugin::onInitialize() {
         return true;
 
     } catch (const std::exception& e) {
-        m_logger.error("HelloPlugin: Initialization failed: {}", e.what());
+        m_logger.error(
+            QString("HelloPlugin: Initialization failed: %1").arg(e.what()));
         return false;
     }
 }
@@ -65,7 +66,8 @@ void HelloPlugin::onShutdown() {
         m_logger.info("HelloPlugin: Shutdown complete");
 
     } catch (const std::exception& e) {
-        m_logger.error("HelloPlugin: Shutdown error: {}", e.what());
+        m_logger.error(
+            QString("HelloPlugin: Shutdown error: %1").arg(e.what()));
     }
 }
 
@@ -104,8 +106,8 @@ void HelloPlugin::onDocumentOpened(const QVariant& data) {
                    .arg(filePath)
                    .arg(m_documentOpenCount));
 
-    m_logger.info("HelloPlugin: Document opened event received: {}",
-                  filePath.toStdString());
+    m_logger.info(QString("HelloPlugin: Document opened event received: %1")
+                      .arg(filePath));
 
     // Emit status change
     emit statusChanged(
@@ -116,13 +118,13 @@ void HelloPlugin::onDocumentClosed(const QVariant& data) {
     QString filePath = data.toString();
     logMessage(QString("Document closed: %1").arg(filePath));
 
-    m_logger.info("HelloPlugin: Document closed event received: {}",
-                  filePath.toStdString());
+    m_logger.info(QString("HelloPlugin: Document closed event received: %1")
+                      .arg(filePath));
 }
 
 void HelloPlugin::logMessage(const QString& message) {
     // Log to plugin logger
-    m_logger.info("[Hello Plugin] {}", message.toStdString());
+    m_logger.info(QString("[Hello Plugin] %1").arg(message));
 
     // Also log via qDebug for demonstration
     qDebug() << "[Hello Plugin]" << message;

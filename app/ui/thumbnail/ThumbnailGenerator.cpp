@@ -616,8 +616,8 @@ QPixmap ThumbnailGenerator::renderPageToPixmapOptimized(Poppler::Page* page,
         double dpi = getCachedDPI(size, pageSize, quality);
 
         // 渲染页面 - 直接渲染到目标尺寸附近以减少缩放
-        QImage image = page->renderToImage(dpi, dpi, -1, -1, -1, -1,
-                                           Poppler::Page::Rotate0);
+        // Use SafePDFRenderer
+        QImage image = SafePDFRendering::renderPage(page, dpi);
 
         if (image.isNull()) {
             return {};

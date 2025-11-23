@@ -18,6 +18,10 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
@@ -121,6 +125,12 @@ jobs:
 
           echo "Building with $JOBS parallel jobs"
           cmake --build --preset=${{ matrix.preset }} --parallel $JOBS
+
+      - name: Run tests (Debug only)
+        if: matrix.build_type == 'Debug'
+        run: |
+          cd build/${{ matrix.build_type }}
+          ctest --output-on-failure --parallel 4
 
       - name: Upload system build artifacts
         uses: actions/upload-artifact@v4

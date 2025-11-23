@@ -1188,8 +1188,8 @@ if (m_asyncProcessingEnabled) {
 **Available:**
 
 - AtomicCounter, AtomicFlag, AtomicPointer
-- SharedData<T> with RWLock
-- ThreadSafeQueue<T> with QWaitCondition
+- `SharedData<T>` with RWLock
+- `ThreadSafeQueue<T>` with QWaitCondition
 - HierarchicalMutex
 
 **Usage:** Some components (SearchEngine, MemoryManager) use explicit QMutex instead of these patterns, missing optimization opportunities.

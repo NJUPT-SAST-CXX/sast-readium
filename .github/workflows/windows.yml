@@ -26,6 +26,10 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
@@ -44,6 +48,7 @@ jobs:
     name: MSYS2 ${{ matrix.sys }} (${{ matrix.arch }})
     runs-on: windows-latest
     timeout-minutes: 90
+    if: ${{ !matrix.only_on_request || github.event.inputs.build_all_architectures == 'true' || contains(github.event.head_commit.message, '[all-arch]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -172,6 +177,12 @@ jobs:
       - name: Build
         run: |
           cmake --build --preset=${{ matrix.build_type }}-MSYS2 --parallel 4
+
+      - name: Run tests (ucrt64 Debug only)
+        if: matrix.sys == 'ucrt64' && matrix.build_type == 'Debug'
+        run: |
+          cd build/Debug-MSYS2
+          ctest --output-on-failure --parallel 4
 
       - name: Test build output
         run: |

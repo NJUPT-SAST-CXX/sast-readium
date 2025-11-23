@@ -11,6 +11,7 @@
 #include <QRectF>
 #include <QString>
 #include <QVector>
+#include <memory>
 
 struct TextBox {
     QRectF rect;
@@ -114,7 +115,7 @@ private:
     bool isNewLine(int charIndex) const;
     bool isWordBoundary(int charIndex) const;
 
-    Poppler::Page* m_currentPage;
+    std::unique_ptr<Poppler::Page> m_currentPage;
     int m_pageNumber;
     QList<TextBox> m_textBoxes;
     QString m_pageText;

@@ -53,10 +53,52 @@ public:
     };
     Q_ENUM(ViewMode)
 
+    /**
+     * @brief 工具模式枚举
+     */
+    enum ToolMode {
+        Browse = 0,      // 浏览模式（默认）
+        SelectText = 1,  // 文本选择模式
+        Highlight = 2,   // 高亮标注模式
+        Underline = 3,   // 下划线标注模式
+        StrikeOut = 4,   // 删除线标注模式
+        Note = 5,        // 笔记标注模式
+        Hand = 6         // 手型工具（拖动）
+    };
+    Q_ENUM(ToolMode)
+
     explicit PDFViewer(QWidget* parent = nullptr);
     // Overload used in tests to disable styling overhead
     explicit PDFViewer(QWidget* parent, bool enableStyling);
     ~PDFViewer() override;
+
+    // ========================================================================
+    // 工具模式
+    // ========================================================================
+
+    /**
+     * @brief 设置当前工具模式
+     */
+    void setToolMode(ToolMode mode);
+
+    /**
+     * @brief 获取当前工具模式
+     */
+    ToolMode toolMode() const;
+
+    // ========================================================================
+    // 外观设置
+    // ========================================================================
+
+    /**
+     * @brief 开启/关闭夜间模式
+     */
+    void setNightMode(bool enabled);
+
+    /**
+     * @brief 是否处于夜间模式
+     */
+    bool isNightMode() const;
 
     // ========================================================================
     // 文档操作
@@ -321,8 +363,19 @@ signals:
     // 视图模式信号
     void viewModeChanged(ViewMode mode);
 
+    // 工具模式信号
+    void toolModeChanged(ToolMode mode);
+
+    // 链接点击信号
+    void linkClicked(const QString& url);
+    void linkDestination(int pageNumber, double x, double y);
+
     // 错误信号
     void renderError(const QString& error);
+
+    // 新增信号
+    void signal1();
+    void signal2();
 
 protected:
     void resizeEvent(QResizeEvent* event) override;
@@ -330,6 +383,7 @@ protected:
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
 
 private:
     // 内部实现类（Pimpl 模式）

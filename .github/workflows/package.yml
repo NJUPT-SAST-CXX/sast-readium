@@ -15,11 +15,10 @@ on:
         required: false
         default: true
         type: boolean
-      use_platform_builds:
-        description: 'Use artifacts from platform-specific workflows'
-        required: false
-        default: true
-        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -70,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: version-info
-    if: github.event.inputs.use_platform_builds != 'true'
+    if: false
     outputs:
       build_triggered: ${{ steps.trigger.outputs.build_triggered }}
 
@@ -89,7 +88,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     needs: version-info
-    if: github.event.inputs.use_platform_builds != 'true'
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -185,281 +184,132 @@ jobs:
             build/Release*/app/
           retention-days: 1
 
-  # Package for Linux (.deb, .rpm, AppImage)
+  # Package for Linux (.deb, .rpm, AppImage) via CPack
   package-linux:
     name: Package Linux
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    needs: [version-info, build-for-packaging]
+    timeout-minutes: 60
+    needs: [version-info]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download Linux build
-        uses: actions/download-artifact@v4
         with:
-          name: build-linux-x64
-          path: build/
+          submodules: recursive
 
-      - name: Install packaging tools
+      - name: Install build and packaging dependencies
         run: |
           sudo apt update
-          sudo apt install -y dpkg-dev rpm build-essential fakeroot
+          sudo apt install -y \
+            qt6-base-dev qt6-svg-dev qt6-tools-dev libpoppler-qt6-dev \
+            build-essential cmake ninja-build pkg-config ccache \
+            dpkg-dev rpm fakeroot
+        shell: bash
 
-          # Install AppImage tools
+      - name: Install AppImage tools
+        run: |
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
           sudo mv appimagetool-x86_64.AppImage /usr/local/bin/appimagetool
+        shell: bash
 
-      - name: Create .deb package
-        run: |
-          mkdir -p packaging/deb/DEBIAN
-          mkdir -p packaging/deb/usr/bin
-          mkdir -p packaging/deb/usr/share/applications
-          mkdir -p packaging/deb/usr/share/pixmaps
+      - name: Configure CMake (Release-Unix with packaging)
+        run: cmake --preset=Release-Unix
+        shell: bash
 
-          # Copy binary
-          cp build/Release/app/app packaging/deb/usr/bin/${{ env.APP_NAME }}
-
-          # Create desktop file
-          cat > packaging/deb/usr/share/applications/${{ env.APP_NAME }}.desktop << EOF
-          [Desktop Entry]
-          Name=SAST Readium
-          Comment=Qt6-based PDF reader
-          Exec=${{ env.APP_NAME }}
-          Icon=${{ env.APP_NAME }}
-          Terminal=false
-          Type=Application
-          Categories=Office;Viewer;
-          MimeType=application/pdf;
-          EOF
-
-          # Create control file
-          cat > packaging/deb/DEBIAN/control << EOF
-          Package: ${{ env.APP_NAME }}
-          Version: ${{ needs.version-info.outputs.version_number }}
-          Section: utils
-          Priority: optional
-          Architecture: amd64
-          Depends: libqt6core6, libqt6gui6, libqt6widgets6, libqt6svg6, libpoppler-qt6-3
-          Maintainer: SAST Team
-          Description: Qt6-based PDF reader application
-           A modern PDF reader built with Qt6 and Poppler.
-          EOF
-
-          # Build .deb
-          dpkg-deb --build packaging/deb ${{ env.APP_NAME }}_${{ needs.version-info.outputs.version_number }}_amd64.deb
-
-      - name: Create .rpm package
-        run: |
-          mkdir -p packaging/rpm/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-
-          # Create RPM spec file
-          cat > packaging/rpm/SPECS/${{ env.APP_NAME }}.spec << EOF
-          Name: ${{ env.APP_NAME }}
-          Version: ${{ needs.version-info.outputs.version_number }}
-          Release: 1%{?dist}
-          Summary: Qt6-based PDF reader
-          License: MIT
-          URL: https://github.com/SAST-Readium/sast-readium
-
-          %description
-          A modern PDF reader built with Qt6 and Poppler.
-
-          %install
-          mkdir -p %{buildroot}/usr/bin
-          mkdir -p %{buildroot}/usr/share/applications
-          cp ${{ github.workspace }}/build/Release/app/app %{buildroot}/usr/bin/${{ env.APP_NAME }}
-          cp ${{ github.workspace }}/packaging/deb/usr/share/applications/${{ env.APP_NAME }}.desktop %{buildroot}/usr/share/applications/
-
-          %files
-          /usr/bin/${{ env.APP_NAME }}
-          /usr/share/applications/${{ env.APP_NAME }}.desktop
-
-          %changelog
-          * $(date +'%a %b %d %Y') SAST Team - ${{ needs.version-info.outputs.version_number }}-1
-          - Release ${{ needs.version-info.outputs.version }}
-          EOF
-
-          # Build RPM
-          rpmbuild --define "_topdir $(pwd)/packaging/rpm" -bb packaging/rpm/SPECS/${{ env.APP_NAME }}.spec
-          cp packaging/rpm/RPMS/x86_64/${{ env.APP_NAME }}-*.rpm ./
-
-      - name: Create AppImage
-        run: |
-          mkdir -p packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/bin
-          mkdir -p packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/share/applications
-          mkdir -p packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/share/icons/hicolor/256x256/apps
-
-          # Copy files
-          cp build/Release/app/app packaging/appimage/${{ env.APP_NAME }}.AppDir/usr/bin/${{ env.APP_NAME }}
-          cp packaging/deb/usr/share/applications/${{ env.APP_NAME }}.desktop packaging/appimage/${{ env.APP_NAME }}.AppDir/
-
-          # Create AppRun
-          cat > packaging/appimage/${{ env.APP_NAME }}.AppDir/AppRun << 'EOF'
-          #!/bin/bash
-          HERE="$(dirname "$(readlink -f "${0}")")"
-          exec "${HERE}/usr/bin/${{ env.APP_NAME }}" "$@"
-          EOF
-          chmod +x packaging/appimage/${{ env.APP_NAME }}.AppDir/AppRun
-
-          # Build AppImage
-          cd packaging/appimage
-          appimagetool ${{ env.APP_NAME }}.AppDir ${{ env.APP_NAME }}-${{ needs.version-info.outputs.version_number }}-x86_64.AppImage
-          mv *.AppImage ../../
+      - name: Build and package with CPack
+        run: cmake --build --preset=Release-Unix --target package --parallel 4
+        shell: bash
 
       - name: Upload Linux packages
         uses: actions/upload-artifact@v4
         with:
           name: packages-linux
           path: |
-            *.deb
-            *.rpm
-            *.AppImage
+            build/Release/*.deb
+            build/Release/*.rpm
+            build/Release/*.AppImage
 
-  # Package for macOS (.dmg)
+  # Package for macOS (.dmg) via CPack
   package-macos:
     name: Package macOS
     runs-on: macos-latest
-    timeout-minutes: 45
-    needs: [version-info, build-for-packaging]
+    timeout-minutes: 60
+    needs: [version-info]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download macOS build
-        uses: actions/download-artifact@v4
         with:
-          name: build-macos-universal
-          path: build/
+          submodules: recursive
 
-      - name: Install packaging tools
+      - name: Install build dependencies
         run: |
-          brew install create-dmg
+          brew install cmake ninja qt@6 pkg-config
+        shell: bash
 
-      - name: Create .app bundle
+      - name: Configure CMake (universal, Release-Unix with packaging)
         run: |
-          mkdir -p packaging/macos/${{ env.APP_NAME }}.app/Contents/{MacOS,Resources}
+          export PKG_CONFIG_PATH="$(brew --prefix qt@6)/lib/pkgconfig:$PKG_CONFIG_PATH"
+          cmake --preset=Release-Unix -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        shell: bash
 
-          # Copy binary
-          cp build/Release/app/app packaging/macos/${{ env.APP_NAME }}.app/Contents/MacOS/${{ env.APP_NAME }}
-          chmod +x packaging/macos/${{ env.APP_NAME }}.app/Contents/MacOS/${{ env.APP_NAME }}
-
-          # Create Info.plist
-          cat > packaging/macos/${{ env.APP_NAME }}.app/Contents/Info.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleExecutable</key>
-              <string>${{ env.APP_NAME }}</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.sast.readium</string>
-              <key>CFBundleName</key>
-              <string>SAST Readium</string>
-              <key>CFBundleVersion</key>
-              <string>${{ needs.version-info.outputs.version_number }}</string>
-              <key>CFBundleShortVersionString</key>
-              <string>${{ needs.version-info.outputs.version_number }}</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>LSMinimumSystemVersion</key>
-              <string>10.15</string>
-          </dict>
-          </plist>
-          EOF
-
-      - name: Create .dmg
-        run: |
-          create-dmg \
-            --volname "SAST Readium ${{ needs.version-info.outputs.version_number }}" \
-            --volicon "assets/images/icon.icns" \
-            --window-pos 200 120 \
-            --window-size 600 300 \
-            --icon-size 100 \
-            --icon "${{ env.APP_NAME }}.app" 175 120 \
-            --hide-extension "${{ env.APP_NAME }}.app" \
-            --app-drop-link 425 120 \
-            "${{ env.APP_NAME }}-${{ needs.version-info.outputs.version_number }}-universal.dmg" \
-            "packaging/macos/" || true
+      - name: Build and package with CPack
+        run: cmake --build --preset=Release-Unix --target package --parallel 4
+        shell: bash
 
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:
           name: packages-macos
           path: |
-            *.dmg
+            build/Release/*.dmg
 
-  # Package for Windows (.msi)
+  # Package for Windows (installer/portable) via CPack
   package-windows:
     name: Package Windows
     runs-on: windows-latest
-    timeout-minutes: 45
-    needs: [version-info, build-for-packaging]
+    timeout-minutes: 60
+    needs: [version-info]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download Windows build
-        uses: actions/download-artifact@v4
         with:
-          name: build-windows-x64
-          path: build/
+          submodules: recursive
 
-      - name: Install WiX Toolset
-        run: |
-          Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip" -OutFile "wix.zip"
-          Expand-Archive -Path "wix.zip" -DestinationPath "wix"
-          echo "${{ github.workspace }}\wix" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Setup MSYS2 (MinGW64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          update: true
+          install: >-
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-svg
+            mingw-w64-x86_64-qt6-tools
+            mingw-w64-x86_64-poppler-qt6
+            mingw-w64-x86_64-pkg-config
+            git
 
-      - name: Create MSI installer
-        run: |
-          # Create WiX source file
-          @"
-          <?xml version="1.0" encoding="UTF-8"?>
-          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-            <Product Id="*" Name="SAST Readium" Language="1033" Version="${{ needs.version-info.outputs.version_number }}"
-                     Manufacturer="SAST Team" UpgradeCode="12345678-1234-1234-1234-123456789012">
-              <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
-              <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
-              <MediaTemplate EmbedCab="yes" />
+      - name: Configure CMake (Release-MSYS2 with packaging)
+        shell: msys2 {0}
+        run: cmake --preset=Release-MSYS2
 
-              <Feature Id="ProductFeature" Title="SAST Readium" Level="1">
-                <ComponentGroupRef Id="ProductComponents" />
-              </Feature>
-            </Product>
+      - name: Build and package with CPack
+        shell: msys2 {0}
+        run: cmake --build --preset=Release-MSYS2 --target package --parallel 4
 
-            <Fragment>
-              <Directory Id="TARGETDIR" Name="SourceDir">
-                <Directory Id="ProgramFilesFolder">
-                  <Directory Id="INSTALLFOLDER" Name="SAST Readium" />
-                </Directory>
-              </Directory>
-            </Fragment>
-
-            <Fragment>
-              <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-                <Component Id="MainExecutable" Guid="*">
-                  <File Id="AppExe" Source="build\Release-Windows\app\app.exe" KeyPath="yes" />
-                </Component>
-              </ComponentGroup>
-            </Fragment>
-          </Wix>
-          "@ | Out-File -FilePath "installer.wxs" -Encoding UTF8
-
-          # Compile and link
-          candle.exe installer.wxs
-          light.exe installer.wixobj -o "${{ env.APP_NAME }}-${{ needs.version-info.outputs.version_number }}-x64.msi"
-
-      - name: Upload Windows package
+      - name: Upload Windows packages
         uses: actions/upload-artifact@v4
         with:
           name: packages-windows
           path: |
-            *.msi
+            build/Release-MSYS2/*.exe
+            build/Release-MSYS2/*.zip
+            build/Release-MSYS2/*.msi
 
   # Create GitHub Release
   create-release:

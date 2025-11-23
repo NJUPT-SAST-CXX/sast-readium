@@ -118,6 +118,7 @@ void PDFOutlineWidget::refreshOutline() {
 }
 
 void PDFOutlineWidget::clearOutline() {
+    m_pageToItemMap.clear();
     clear();
     currentHighlightedItem = nullptr;
 
@@ -174,6 +175,10 @@ QTreeWidgetItem* PDFOutlineWidget::createOutlineItem(
 
     // 存储节点指针（用于后续操作）
     item->setData(0, NodePtrRole, QVariant::fromValue(node.get()));
+
+    if (node->isValidPageReference()) {
+        m_pageToItemMap.insert(node->pageNumber, item);
+    }
 
     return item;
 }
@@ -315,22 +320,14 @@ void PDFOutlineWidget::searchItems(const QString& searchText) {
 
 QTreeWidgetItem* PDFOutlineWidget::findItemByPage(int pageNumber,
                                                   QTreeWidgetItem* parent) {
-    if (!parent) {
-        parent = invisibleRootItem();
+    Q_UNUSED(parent);  // Optimized lookup ignores parent restriction for now
+
+    if (m_pageToItemMap.contains(pageNumber)) {
+        return m_pageToItemMap.value(pageNumber);
     }
 
-    for (int i = 0; i < parent->childCount(); ++i) {
-        QTreeWidgetItem* child = parent->child(i);
-        if (getItemPageNumber(child) == pageNumber) {
-            return child;
-        }
-
-        QTreeWidgetItem* found = findItemByPage(pageNumber, child);
-        if (found) {
-            return found;
-        }
-    }
-
+    // If not found exactly, we might want to find the nearest preceding page?
+    // But original implementation was exact match.
     return nullptr;
 }
 

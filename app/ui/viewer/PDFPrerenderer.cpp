@@ -223,6 +223,12 @@ void PDFPrerenderer::recordPageView(int pageNumber, qint64 viewDuration) {
     while (times.size() > 20) {
         times.removeFirst();
     }
+
+    // Update access history for reading pattern analysis
+    m_accessHistory.append(pageNumber);
+    while (m_accessHistory.size() > 50) {
+        m_accessHistory.removeFirst();
+    }
 }
 
 void PDFPrerenderer::recordNavigationPattern(int fromPage, int toPage) {
@@ -444,6 +450,7 @@ void PDFPrerenderer::setupWorkerThreads() {
 
         worker->moveToThread(thread);
         worker->setDocument(m_document);
+        worker->setDocumentMutex(&m_docMutex);
 
         connect(thread, &QThread::started, worker,
                 &PDFRenderWorker::processRenderQueue);
@@ -615,6 +622,11 @@ void PDFRenderWorker::clearQueue() {
     m_localQueue.clear();
 }
 
+void PDFRenderWorker::setDocumentMutex(QMutex* mutex) {
+    QMutexLocker locker(&m_queueMutex);
+    m_docMutex = mutex;
+}
+
 void PDFRenderWorker::stop() {
     QMutexLocker locker(&m_queueMutex);
     m_shouldStop = true;
@@ -678,7 +690,17 @@ QPixmap PDFRenderWorker::renderPage(
     SafePDFRenderer& renderer = SafePDFRenderer::instance();
     SafePDFRenderer::RenderInfo renderInfo;
 
-    QImage image = renderer.safeRenderPage(page.get(), dpi, &renderInfo);
+    QImage image;
+    {
+        // Lock the document mutex if available to serialize access
+        // This protects against concurrent access from other workers
+        std::unique_ptr<QMutexLocker> docLocker;
+        if (m_docMutex) {
+            docLocker = std::make_unique<QMutexLocker>(m_docMutex);
+        }
+        image = renderer.safeRenderPage(page.get(), dpi, &renderInfo);
+    }
+
     if (!renderInfo.success || image.isNull()) {
         // For prerendering, we can safely fail silently
         qDebug() << "PDFPrerenderer: Safe rendering failed for page"

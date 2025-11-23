@@ -23,6 +23,7 @@ add_library(hello_plugin SHARED ${PLUGIN_SOURCES})
 # Link Qt6
 target_link_libraries(hello_plugin PRIVATE
     Qt6::Core
+    Qt6::Widgets
 )
 
 # Set plugin properties
@@ -39,11 +40,12 @@ add_custom_command(TARGET hello_plugin POST_BUILD
 )
 
 # Installation
+# Install into bin/plugins so that the main application can discover the plugin
 install(TARGETS hello_plugin
-    LIBRARY DESTINATION plugins
-    RUNTIME DESTINATION plugins
+    RUNTIME DESTINATION bin/plugins
+    LIBRARY DESTINATION bin/plugins
 )
 
 install(FILES hello_plugin.json
-    DESTINATION plugins
+    DESTINATION bin/plugins
 )

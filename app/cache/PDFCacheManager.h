@@ -144,9 +144,10 @@ public:
      * @param pageNumber Page number to preload
      * @param type Type of cache item to preload
      * @param target Target object to notify when complete
+     * @param mutex Mutex to lock during document access (optional)
      */
     PreloadTask(Poppler::Document* document, int pageNumber, CacheItemType type,
-                QObject* target);
+                QObject* target, QMutex* mutex = nullptr);
 
     /**
      * @brief Executes the preload task
@@ -161,6 +162,7 @@ private:
     int m_pageNumber;               ///< Page number to preload
     CacheItemType m_type;           ///< Type of item to preload
     QObject* m_target;  ///< Target object for completion notification
+    QMutex* m_mutex;    ///< Mutex for thread safety
 };
 
 /**

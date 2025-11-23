@@ -94,6 +94,7 @@ private:
 
     // Core components
     Poppler::Document* m_document;
+    QMutex m_docMutex;  // Mutex to serialize document access across workers
     QList<QThread*> m_workerThreads;
     QList<class PDFRenderWorker*> m_workers;
 
@@ -162,6 +163,7 @@ public:
     void setDocument(Poppler::Document* document);
     void addRenderRequest(const PDFPrerenderer::RenderRequest& request);
     void clearQueue();
+    void setDocumentMutex(QMutex* mutex);
     void stop();
 
 public slots:
@@ -172,6 +174,7 @@ private:
     double calculateOptimalDPI(double scaleFactor);
 
     Poppler::Document* m_document;
+    QMutex* m_docMutex = nullptr;  // Shared mutex for document access
     QQueue<PDFPrerenderer::RenderRequest> m_localQueue;
     QMutex m_queueMutex;
     QWaitCondition m_queueCondition;

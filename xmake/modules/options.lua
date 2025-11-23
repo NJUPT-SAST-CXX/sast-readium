@@ -69,6 +69,12 @@ option("enable_static_libs")
     set_showmenu(true)
 option_end()
 
+option("legacy_ui")
+    set_default(false)
+    set_description("Build the legacy UI executable")
+    set_showmenu(true)
+option_end()
+
 -- Global requirements
 add_requires("pkgconfig::poppler-qt6")
 add_requires("spdlog")

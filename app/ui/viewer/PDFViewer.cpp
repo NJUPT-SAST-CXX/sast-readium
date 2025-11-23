@@ -9,13 +9,21 @@
 // Annotation system
 #include "ui/integration/AnnotationIntegrationHelper.h"
 
+// Interaction managers
+#include "forms/FormFieldManager.h"
+#include "interaction/TextSelectionManager.h"
+
 // Logging
 #include "logging/SimpleLogging.h"
 
 // Poppler
+#include <poppler/qt6/poppler-annotation.h>
+#include <poppler/qt6/poppler-link.h>
 #include <poppler/qt6/poppler-qt6.h>
 
 // Qt
+#include <QClipboard>
+#include <QDesktopServices>
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QPainter>
@@ -37,13 +45,19 @@ class PageWidget : public QWidget {
 public:
     explicit PageWidget(int pageNumber,
                         AnnotationIntegrationHelper* annotationHelper = nullptr,
+                        TextSelectionManager* selectionManager = nullptr,
+                        FormFieldManager* formManager = nullptr,
                         double zoomFactor = 1.0, QWidget* parent = nullptr)
         : QWidget(parent),
           m_pageNumber(pageNumber),
           m_rotation(0),
           m_annotationHelper(annotationHelper),
-          m_zoomFactor(zoomFactor) {
+          m_selectionManager(selectionManager),
+          m_formManager(formManager),
+          m_zoomFactor(zoomFactor),
+          m_isNightMode(false) {
         setMinimumSize(100, 100);
+        setMouseTracking(true);  // Enable mouse tracking for hover effects
     }
 
     void setZoomFactor(double zoom) {
@@ -51,8 +65,16 @@ public:
         update();
     }
 
+    void setNightMode(bool enabled) {
+        if (m_isNightMode != enabled) {
+            m_isNightMode = enabled;
+            update();
+        }
+    }
+
     void setImage(const QImage& image) {
         m_image = image;
+        m_nightImage = QImage();  // Clear cache
         updateGeometry();
         update();
     }
@@ -93,14 +115,17 @@ protected:
         painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
         // 绘制背景
-        painter.fillRect(rect(), Qt::white);
+        painter.fillRect(rect(),
+                         m_isNightMode ? QColor(30, 30, 30) : Qt::white);
 
         if (m_image.isNull()) {
             // 绘制加载中提示
-            painter.setPen(Qt::gray);
+            painter.setPen(m_isNightMode ? Qt::lightGray : Qt::gray);
             painter.drawText(rect(), Qt::AlignCenter, tr("Loading..."));
             return;
         }
+
+        painter.save();
 
         // 应用旋转
         if (m_rotation != 0) {
@@ -110,7 +135,79 @@ protected:
         }
 
         // 绘制页面图像
-        painter.drawImage(0, 0, m_image);
+        if (m_isNightMode) {
+            // Night mode: use cached inverted image for performance
+            if (m_nightImage.isNull() && !m_image.isNull()) {
+                m_nightImage = m_image;
+                if (m_nightImage.format() != QImage::Format_ARGB32) {
+                    m_nightImage =
+                        m_nightImage.convertToFormat(QImage::Format_ARGB32);
+                }
+                m_nightImage.invertPixels(QImage::InvertRgb);
+            }
+
+            if (!m_nightImage.isNull()) {
+                painter.drawImage(0, 0, m_nightImage);
+            }
+        } else {
+            painter.drawImage(0, 0, m_image);
+        }
+
+        // 绘制文本选择
+        if (m_selectionManager && m_selectionManager->hasSelection() &&
+            m_selectionManager->getSelection().pageNumber == m_pageNumber) {
+            m_selectionManager->renderSelection(
+                painter, 1.0);  // PageWidget coordinates match page image
+                                // coordinates (mostly)
+            // Wait, if image is zoomed, PageWidget size matches zoomed size.
+            // TextSelectionManager rects are in PDF coordinates (points).
+            // We need to scale them. But m_image is already scaled by
+            // m_zoomFactor? Yes, renderPage generates image at dpi = 72 * zoom.
+            // So image pixels = PDF points * zoom.
+            // TextSelectionManager usually stores rects in PDF points.
+            // renderSelection takes a scaleFactor.
+            // Since we are painting on the image which is already scaled,
+            // we should pass m_zoomFactor to renderSelection?
+            // Actually TextSelectionManager::renderSelection scales the rects.
+            // If we are painting on the widget surface, and the widget surface
+            // is size of image... The image size is PDF_Size * Zoom. So we
+            // should pass m_zoomFactor.
+
+            // However, the painter might already be transformed if we had
+            // scrolling/scaling on the view... But here we are inside
+            // PageWidget paintEvent. 0,0 is top-left of page. So we need to
+            // scale from PDF points to Pixels. 1 PDF point = 1/72 inch. 1 Pixel
+            // = 1/DPI inch. But Poppler::Page::renderToImage takes DPI. We used
+            // DPI = 72 * zoomFactor. So 1 PDF point maps to 'zoomFactor'
+            // pixels. Example: zoom=1.0 -> 72 DPI -> 1 pt = 1 px. Example:
+            // zoom=2.0 -> 144 DPI -> 1 pt = 2 px. So yes, pass m_zoomFactor.
+
+            // Note: renderSelection sets the brush/pen.
+            // We need to ensure we are in the right coordinate system.
+            // If we rotated, we are already transformed.
+        }
+
+        // Need to call renderSelection logic here manually or via helper
+        if (m_selectionManager && m_selectionManager->hasSelection() &&
+            m_selectionManager->getSelection().pageNumber == m_pageNumber) {
+            painter.save();
+            QColor selectionColor = m_selectionManager->getSelectionColor();
+            // In night mode, maybe adjust selection color?
+            if (m_isNightMode)
+                selectionColor.setAlpha(80);
+
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(selectionColor);
+
+            for (const QRectF& rect : m_selectionManager->getSelectionRects()) {
+                // Rects are in PDF points
+                QRectF scaledRect(
+                    rect.x() * m_zoomFactor, rect.y() * m_zoomFactor,
+                    rect.width() * m_zoomFactor, rect.height() * m_zoomFactor);
+                painter.drawRect(scaledRect);
+            }
+            painter.restore();
+        }
 
         // 绘制搜索高亮
         if (!m_highlights.isEmpty()) {
@@ -119,7 +216,13 @@ protected:
 
             for (const QRectF& highlight : m_highlights) {
                 QRectF scaledRect = highlight;
-                // 缩放到图像坐标
+                // highlights from Poppler/SearchAdapter are usually normalized
+                // (0..1)? Wait, SearchAdapter usually returns normalized rects
+                // or point rects? PageWidget::paintEvent code I read earlier
+                // did: scaledRect.setX(scaledRect.x() * m_image.width()); This
+                // implies normalized coordinates (0..1). Let's stick to that
+                // assumption as I haven't changed search adapter.
+
                 scaledRect.setX(scaledRect.x() * m_image.width());
                 scaledRect.setY(scaledRect.y() * m_image.height());
                 scaledRect.setWidth(scaledRect.width() * m_image.width());
@@ -138,8 +241,10 @@ protected:
                                                   rect(), m_zoomFactor);
         }
 
+        painter.restore();  // Restore rotation transform
+
         // 绘制边框
-        painter.setPen(QPen(Qt::lightGray, 1));
+        painter.setPen(QPen(m_isNightMode ? Qt::darkGray : Qt::lightGray, 1));
         painter.setBrush(Qt::NoBrush);
         painter.drawRect(rect().adjusted(0, 0, -1, -1));
     }
@@ -147,10 +252,14 @@ protected:
 private:
     int m_pageNumber;
     QImage m_image;
+    QImage m_nightImage;  // Cache for night mode
     int m_rotation;
     QList<QRectF> m_highlights;
     AnnotationIntegrationHelper* m_annotationHelper;
+    TextSelectionManager* m_selectionManager;
+    FormFieldManager* m_formManager;
     double m_zoomFactor;
+    bool m_isNightMode;
 };
 
 // ============================================================================
@@ -183,12 +292,21 @@ public:
     // Annotation system
     AnnotationIntegrationHelper* annotationHelper = nullptr;
 
+    // Interaction Managers
+    std::unique_ptr<TextSelectionManager> textSelectionManager;
+    std::unique_ptr<FormFieldManager> formFieldManager;
+
     // 搜索高亮
     QMap<int, QList<QRectF>> searchHighlights;
 
     // 渲染缓存
     QMap<int, QImage> renderCache;
     int maxCacheSize = 10;
+
+    // Tool and View settings
+    ToolMode toolMode = ToolMode::Browse;
+    bool isNightMode = false;
+    QPoint lastMousePos;
 
     // 辅助方法
     void clearCache() { renderCache.clear(); }
@@ -243,6 +361,25 @@ PDFViewer::PDFViewer(QWidget* parent)
     setWidget(m_impl->contentWidget);
 
     m_impl->prerenderer = new PDFPrerenderer(this);
+
+    // 初始化交互管理器
+    m_impl->textSelectionManager = std::make_unique<TextSelectionManager>(this);
+    m_impl->formFieldManager = std::make_unique<FormFieldManager>(this);
+
+    // 连接信号
+    connect(m_impl->textSelectionManager.get(),
+            &TextSelectionManager::selectionChanged, this, [this]() {
+                // 触发重绘以显示选择
+                for (PageWidget* widget : m_impl->pageWidgets) {
+                    widget->update();
+                }
+            });
+
+    connect(m_impl->textSelectionManager.get(),
+            &TextSelectionManager::textCopied, this,
+            [this](const QString& text) {
+                SLOG_INFO("PDFViewer: Text copied to clipboard");
+            });
 
     SLOG_INFO("PDFViewer: Constructor completed");
 }
@@ -307,6 +444,10 @@ void PDFViewer::clearDocument() {
     if (m_impl->prerenderer) {
         m_impl->prerenderer->stopPrerendering();
         m_impl->prerenderer->setDocument(nullptr);
+    }
+
+    if (m_impl->textSelectionManager) {
+        m_impl->textSelectionManager->clearPage();
     }
 
     // 清除布局
@@ -592,7 +733,39 @@ void PDFViewer::findPrevious() {}
 void PDFViewer::clearSearch() {}
 
 // ============================================================================
-// 搜索高亮
+// 工具模式
+// ============================================================================
+
+void PDFViewer::setToolMode(ToolMode mode) {
+    if (m_impl->toolMode != mode) {
+        m_impl->toolMode = mode;
+
+        // Update cursor based on tool mode
+        switch (mode) {
+            case ToolMode::Hand:
+                setCursor(Qt::OpenHandCursor);
+                break;
+            case ToolMode::SelectText:
+                setCursor(Qt::IBeamCursor);
+                break;
+            default:
+                setCursor(Qt::ArrowCursor);
+                break;
+        }
+
+        // Clear selections if changing away from selection mode
+        if (mode != ToolMode::SelectText && m_impl->textSelectionManager) {
+            m_impl->textSelectionManager->clearSelection();
+        }
+
+        emit toolModeChanged(mode);
+    }
+}
+
+PDFViewer::ToolMode PDFViewer::toolMode() const { return m_impl->toolMode; }
+
+// ============================================================================
+// 外观设置
 // ============================================================================
 
 void PDFViewer::highlightSearchResults(int pageNumber,
@@ -716,21 +889,177 @@ void PDFViewer::wheelEvent(QWheelEvent* event) {
         event->accept();
     } else {
         ElaScrollArea::wheelEvent(event);
+
+        // Track scroll direction for predictive prerendering
+        if (m_impl->prerenderer && event->angleDelta().y() != 0) {
+            // Positive delta = scroll up = direction -1 (previous pages)
+            // Negative delta = scroll down = direction 1 (next pages)
+            int direction = (event->angleDelta().y() > 0) ? -1 : 1;
+            m_impl->prerenderer->updateScrollDirection(direction);
+        }
     }
 }
 
 void PDFViewer::mousePressEvent(QMouseEvent* event) {
-    // 这里可以添加文本选择等功能
+    // Handle Hand tool
+    if (m_impl->toolMode == ToolMode::Hand) {
+        if (event->button() == Qt::LeftButton) {
+            setCursor(Qt::ClosedHandCursor);
+            m_impl->lastMousePos = event->globalPosition().toPoint();
+        }
+        ElaScrollArea::mousePressEvent(event);
+        return;
+    }
+
+    // Determine which page was clicked
+    QWidget* child = childAt(event->position().toPoint());
+    PageWidget* pageWidget = qobject_cast<PageWidget*>(child);
+
+    if (!pageWidget) {
+        ElaScrollArea::mousePressEvent(event);
+        return;
+    }
+
+    int pageNum = pageWidget->pageNumber();  // 1-based
+    QPointF localPos = pageWidget->mapFrom(this, event->position().toPoint());
+
+    // Convert local coordinates to PDF points
+    // Widget size = PDF_points * zoom
+    // So PDF_points = localPos / zoom
+    double zoom = m_impl->zoomFactor;
+    QPointF pdfPoint(localPos.x() / zoom, localPos.y() / zoom);
+
+    // 1. Check for Form Fields
+    if (m_impl->formFieldManager) {
+        // Need to ensure form manager has current page set
+        m_impl->formFieldManager->setPage(m_impl->document->page(pageNum - 1),
+                                          pageNum);
+
+        if (auto* field = m_impl->formFieldManager->getFieldAtPoint(pdfPoint)) {
+            // Let form manager handle it (focus, edit, etc.)
+            // m_impl->formFieldManager->handleMousePress(field, ...);
+            // For now, just return to prevent selection/link
+            return;
+        }
+    }
+
+    // 2. Check for Links
+    if (m_impl->document) {
+        std::unique_ptr<Poppler::Page> page(
+            m_impl->document->page(pageNum - 1));
+        if (page) {
+            QList<Poppler::Link*> links = page->links();
+            for (Poppler::Link* link : links) {
+                if (link->linkArea().contains(pdfPoint)) {
+                    // Handle link click
+                    if (link->linkType() == Poppler::Link::Goto) {
+                        Poppler::LinkGoto* gotoLink =
+                            static_cast<Poppler::LinkGoto*>(link);
+                        if (gotoLink->isExternal()) {
+                            QString filename = gotoLink->fileName();
+                            // Handle external file link
+                        } else {
+                            Poppler::LinkDestination dest =
+                                gotoLink->destination();
+                            if (dest.pageNumber() > 0) {
+                                goToPage(dest.pageNumber());
+                                emit linkDestination(dest.pageNumber(),
+                                                     dest.left(), dest.top());
+                            }
+                        }
+                    } else if (link->linkType() == Poppler::Link::Browse) {
+                        Poppler::LinkBrowse* browseLink =
+                            static_cast<Poppler::LinkBrowse*>(link);
+                        QString url = browseLink->url();
+                        QDesktopServices::openUrl(QUrl(url));
+                        emit linkClicked(url);
+                    }
+                    qDeleteAll(links);  // Clean up
+                    return;
+                }
+            }
+            qDeleteAll(links);
+        }
+    }
+
+    // 3. Handle Text Selection
+    if (m_impl->toolMode == ToolMode::SelectText &&
+        m_impl->textSelectionManager) {
+        // Set current page for selection manager
+        m_impl->textSelectionManager->setPage(
+            m_impl->document->page(pageNum - 1), pageNum);
+        m_impl->textSelectionManager->setScaleFactor(zoom);
+        m_impl->textSelectionManager->startSelection(pdfPoint);
+    }
+
     ElaScrollArea::mousePressEvent(event);
 }
 
 void PDFViewer::mouseMoveEvent(QMouseEvent* event) {
-    // 这里可以添加文本选择等功能
+    if (m_impl->toolMode == ToolMode::Hand) {
+        if (event->buttons() & Qt::LeftButton) {
+            QPoint delta =
+                event->globalPosition().toPoint() - m_impl->lastMousePos;
+            verticalScrollBar()->setValue(verticalScrollBar()->value() -
+                                          delta.y());
+            horizontalScrollBar()->setValue(horizontalScrollBar()->value() -
+                                            delta.x());
+            m_impl->lastMousePos = event->globalPosition().toPoint();
+        }
+        ElaScrollArea::mouseMoveEvent(event);
+        return;
+    }
+
+    QWidget* child = childAt(event->position().toPoint());
+    PageWidget* pageWidget = qobject_cast<PageWidget*>(child);
+
+    if (pageWidget) {
+        QPointF localPos =
+            pageWidget->mapFrom(this, event->position().toPoint());
+        double zoom = m_impl->zoomFactor;
+        QPointF pdfPoint(localPos.x() / zoom, localPos.y() / zoom);
+
+        // Handle text selection drag
+        if (m_impl->toolMode == ToolMode::SelectText &&
+            m_impl->textSelectionManager &&
+            m_impl->textSelectionManager->hasPage()) {
+            // Only update if we are on the SAME page as selection started
+            // This prevents selecting text across pages which isn't fully
+            // supported yet
+            if (m_impl->textSelectionManager->getSelection().pageNumber ==
+                pageWidget->pageNumber()) {
+                m_impl->textSelectionManager->updateSelection(pdfPoint);
+            }
+        }
+
+        // Change cursor over links
+        bool isOverLink = false;
+        if (m_impl->document) {
+            // Note: getting page and links on every mouse move is expensive
+            // Should optimize by caching links for current visible pages
+            // For now, implementing simply
+            // Use a simplified check or cached check if possible
+        }
+    }
+
     ElaScrollArea::mouseMoveEvent(event);
 }
 
 void PDFViewer::mouseReleaseEvent(QMouseEvent* event) {
-    // 这里可以添加文本选择等功能
+    if (m_impl->toolMode == ToolMode::SelectText &&
+        m_impl->textSelectionManager) {
+        m_impl->textSelectionManager->endSelection();
+
+        if (m_impl->textSelectionManager->hasSelection()) {
+            // Show context menu or valid selection UI
+        }
+    }
+
+    if (m_impl->toolMode == ToolMode::Hand &&
+        event->button() == Qt::LeftButton) {
+        setCursor(Qt::OpenHandCursor);
+    }
+
     ElaScrollArea::mouseReleaseEvent(event);
 }
 
@@ -1160,9 +1489,11 @@ void PDFViewer::applySinglePageMode() {
     clearLayout();
 
     // 只显示当前页
-    PageWidget* pageWidget =
-        new PageWidget(m_impl->currentPage, m_impl->annotationHelper,
-                       m_impl->zoomFactor, m_impl->contentWidget);
+    PageWidget* pageWidget = new PageWidget(
+        m_impl->currentPage, m_impl->annotationHelper,
+        m_impl->textSelectionManager.get(), m_impl->formFieldManager.get(),
+        m_impl->zoomFactor, m_impl->contentWidget);
+    pageWidget->setNightMode(m_impl->isNightMode);
     m_impl->pageWidgets.append(pageWidget);
     m_impl->mainLayout->addWidget(pageWidget, 0, Qt::AlignCenter);
 
@@ -1179,9 +1510,11 @@ void PDFViewer::applyContinuousMode() {
 
     // 显示所有页面
     for (int i = 1; i <= m_impl->totalPages; ++i) {
-        PageWidget* pageWidget =
-            new PageWidget(i, m_impl->annotationHelper, m_impl->zoomFactor,
-                           m_impl->contentWidget);
+        PageWidget* pageWidget = new PageWidget(
+            i, m_impl->annotationHelper, m_impl->textSelectionManager.get(),
+            m_impl->formFieldManager.get(), m_impl->zoomFactor,
+            m_impl->contentWidget);
+        pageWidget->setNightMode(m_impl->isNightMode);
         m_impl->pageWidgets.append(pageWidget);
         m_impl->mainLayout->addWidget(pageWidget, 0, Qt::AlignCenter);
     }
@@ -1255,9 +1588,11 @@ void PDFViewer::applyBookMode() {
 
     // 第一页单独显示
     if (m_impl->totalPages >= 1) {
-        PageWidget* firstPage =
-            new PageWidget(1, m_impl->annotationHelper, m_impl->zoomFactor,
-                           m_impl->contentWidget);
+        PageWidget* firstPage = new PageWidget(
+            1, m_impl->annotationHelper, m_impl->textSelectionManager.get(),
+            m_impl->formFieldManager.get(), m_impl->zoomFactor,
+            m_impl->contentWidget);
+        firstPage->setNightMode(m_impl->isNightMode);
         m_impl->pageWidgets.append(firstPage);
         m_impl->mainLayout->addWidget(firstPage, 0, Qt::AlignCenter);
     }
@@ -1270,15 +1605,20 @@ void PDFViewer::applyBookMode() {
         rowLayout->setSpacing(10);
 
         // 左页
-        PageWidget* leftPage = new PageWidget(i, m_impl->annotationHelper,
-                                              m_impl->zoomFactor, rowWidget);
+        PageWidget* leftPage = new PageWidget(
+            i, m_impl->annotationHelper, m_impl->textSelectionManager.get(),
+            m_impl->formFieldManager.get(), m_impl->zoomFactor, rowWidget);
+        leftPage->setNightMode(m_impl->isNightMode);
         m_impl->pageWidgets.append(leftPage);
         rowLayout->addWidget(leftPage);
 
         // 右页（如果存在）
         if (i + 1 <= m_impl->totalPages) {
             PageWidget* rightPage = new PageWidget(
-                i + 1, m_impl->annotationHelper, m_impl->zoomFactor, rowWidget);
+                i + 1, m_impl->annotationHelper,
+                m_impl->textSelectionManager.get(),
+                m_impl->formFieldManager.get(), m_impl->zoomFactor, rowWidget);
+            rightPage->setNightMode(m_impl->isNightMode);
             m_impl->pageWidgets.append(rightPage);
             rowLayout->addWidget(rightPage);
         } else {

@@ -62,6 +62,7 @@ target("ElaWidgetTools")
             add_ldflags("/SUBSYSTEM:WINDOWS")
             set_targetdir("$(buildir)/libs")
         end
+        add_syslinks("D3D11", "DXGI")
     elseif is_plat("linux") then
         add_defines("LINUX")
         add_syslinks("pthread", "dl")

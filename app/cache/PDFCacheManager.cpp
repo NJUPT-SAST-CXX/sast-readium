@@ -12,6 +12,8 @@
 
 #include "../logging/LoggingMacros.h"
 
+#include "../utils/SafePDFRenderer.h"
+
 // CacheItem Implementation
 qint64 CacheItem::calculateSize() const {
     qint64 size = sizeof(CacheItem);
@@ -53,11 +55,12 @@ bool CacheItem::isExpired(qint64 maxAge) const {
 
 // PreloadTask Implementation
 PreloadTask::PreloadTask(Poppler::Document* document, int pageNumber,
-                         CacheItemType type, QObject* target)
+                         CacheItemType type, QObject* target, QMutex* mutex)
     : m_document(document),
       m_pageNumber(pageNumber),
       m_type(type),
-      m_target(target) {
+      m_target(target),
+      m_mutex(mutex) {
     setAutoDelete(true);
 }
 
@@ -67,7 +70,17 @@ void PreloadTask::run() {
     }
 
     try {
-        std::unique_ptr<Poppler::Page> page(m_document->page(m_pageNumber));
+        std::unique_ptr<Poppler::Page> page;
+
+        // Scope for mutex lock - critical section for document access
+        {
+            std::unique_ptr<QMutexLocker> locker;
+            if (m_mutex) {
+                locker = std::make_unique<QMutexLocker>(m_mutex);
+            }
+            page.reset(m_document->page(m_pageNumber));
+        }
+
         if (!page) {
             return;
         }
@@ -75,14 +88,19 @@ void PreloadTask::run() {
         QVariant result;
         switch (m_type) {
             case CacheItemType::RenderedPage: {
-                QImage image = page->renderToImage(150.0, 150.0);
+                QImage image = SafePDFRendering::renderPage(page.get(), 150.0);
                 result = image;
                 break;
             }
             case CacheItemType::Thumbnail: {
-                QImage image = page->renderToImage(72.0, 72.0)
-                                   .scaled(128, 128, Qt::KeepAspectRatio,
-                                           Qt::SmoothTransformation);
+                // Use SafePDFRenderer for thumbnail generation too
+                // First render at 72 DPI
+                QImage image = SafePDFRendering::renderPage(page.get(), 72.0);
+                if (!image.isNull()) {
+                    // Then scale down
+                    image = image.scaled(128, 128, Qt::KeepAspectRatio,
+                                         Qt::SmoothTransformation);
+                }
                 result = image;
                 break;
             }
@@ -141,6 +159,7 @@ public:
 
     // Cache storage
     mutable QMutex cacheMutex;
+    mutable QMutex documentMutex;  // Mutex for thread-safe document access
     QHash<QString, CacheItem> cache;
 
     // Configuration
@@ -631,7 +650,8 @@ void PDFCacheManager::executePreload(Poppler::Document* document) {
 
         if (type == CacheItemType::Thumbnail ||
             type == CacheItemType::TextContent) {
-            auto* task = new PreloadTask(document, pageNumber, type, this);
+            auto* task = new PreloadTask(document, pageNumber, type, this,
+                                         &m_pimpl->documentMutex);
             m_pimpl->preloadThreadPool->start(task);
         } else {
             QString k = m_pimpl->generateKey(pageNumber, type);

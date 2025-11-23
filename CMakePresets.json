@@ -25,7 +25,8 @@
                 "USE_VCPKG": "OFF",
                 "SAST_QUIET": "ON",
                 "SAST_ENABLE_HARDENING": "ON",
-                "SAST_ENABLE_LTO": "ON"
+                "SAST_ENABLE_LTO": "ON",
+                "BUILD_EXAMPLE_PLUGINS": "ON"
             }
         },
         {
@@ -89,7 +90,8 @@
                 "DEPLOY_QT_PLUGINS": "ON",
                 "SAST_QUIET": "ON",
                 "SAST_ENABLE_HARDENING": "ON",
-                "SAST_ENABLE_LTO": "ON"
+                "SAST_ENABLE_LTO": "ON",
+                "BUILD_EXAMPLE_PLUGINS": "ON"
             }
         },
         {
@@ -218,7 +220,8 @@
                 "DEPLOY_QT_PLUGINS": "ON",
                 "PACKAGING_MINIMAL": "ON",
                 "PACKAGING_STRIP_DEBUG": "ON",
-                "PACKAGING_AGGRESSIVE_CLEANUP": "ON"
+                "PACKAGING_AGGRESSIVE_CLEANUP": "ON",
+                "BUILD_EXAMPLE_PLUGINS": "ON"
             }
         },
         {
@@ -239,7 +242,8 @@
                 "SAST_ENABLE_LTO": "ON",
                 "PACKAGING_MINIMAL": "ON",
                 "PACKAGING_STRIP_DEBUG": "ON",
-                "PACKAGING_AGGRESSIVE_CLEANUP": "ON"
+                "PACKAGING_AGGRESSIVE_CLEANUP": "ON",
+                "BUILD_EXAMPLE_PLUGINS": "ON"
             }
         }
     ],

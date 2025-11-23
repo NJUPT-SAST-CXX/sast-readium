@@ -106,11 +106,14 @@ private:
     // 获取项目对应的页面号
     int getItemPageNumber(QTreeWidgetItem* item) const;
 
-    // 递归搜索项目
+    // Recursively search items
     void searchItemsRecursive(QTreeWidgetItem* item, const QString& searchText,
                               bool& found);
 
-    // 保存和恢复展开状态
+    // Cache for fast page lookup
+    QMultiMap<int, QTreeWidgetItem*> m_pageToItemMap;
+
+    // Save and restore expanded state();
     void saveExpandedState();
     void restoreExpandedState();
     QStringList getExpandedItems(QTreeWidgetItem* parent = nullptr) const;

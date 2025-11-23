@@ -573,6 +573,12 @@ function setup_qt_for_target()
         if os.isdir(qt_include_dir .. "/QtPrintSupport") then
             add_includedirs(qt_include_dir .. "/QtPrintSupport")
         end
+        if os.isdir(qt_include_dir .. "/QtTextToSpeech") then
+            add_includedirs(qt_include_dir .. "/QtTextToSpeech")
+        end
+        if os.isdir(qt_include_dir .. "/QtXml") then
+            add_includedirs(qt_include_dir .. "/QtXml")
+        end
 
         -- Add library directory and core libraries
         add_linkdirs(qt_base .. "/lib")
@@ -581,7 +587,7 @@ function setup_qt_for_target()
                  qt_version_prefix .. "Concurrent")
 
         -- Add optional libraries if available
-        local optional_libs = {"OpenGL", "OpenGLWidgets", "Network", "PrintSupport"}
+        local optional_libs = {"OpenGL", "OpenGLWidgets", "Network", "PrintSupport", "TextToSpeech", "Xml"}
         for _, lib in ipairs(optional_libs) do
             local lib_patterns = {
                 qt_base .. "/lib/lib" .. qt_version_prefix .. lib .. ".a",
@@ -626,7 +632,7 @@ function setup_qt_for_target()
                  qt_version_prefix .. "Concurrent")
 
         -- Add optional libraries if available
-        local optional_libs = {"OpenGL", "OpenGLWidgets", "Network", "PrintSupport"}
+        local optional_libs = {"OpenGL", "OpenGLWidgets", "Network", "PrintSupport", "TextToSpeech", "Xml"}
         for _, lib in ipairs(optional_libs) do
             local lib_patterns = {
                 qt_base .. "/lib/lib" .. qt_version_prefix .. lib .. ".so",
@@ -667,7 +673,7 @@ function setup_qt_for_target()
                  qt_version_prefix .. "Concurrent")
 
         -- Add optional libraries (macOS typically has them available)
-        local optional_libs = {"OpenGL", "OpenGLWidgets", "Network", "PrintSupport"}
+        local optional_libs = {"OpenGL", "OpenGLWidgets", "Network", "PrintSupport", "TextToSpeech", "Xml"}
         for _, lib in ipairs(optional_libs) do
             local framework_path = qt_base .. "/lib/" .. qt_version_prefix .. lib .. ".framework"
             local lib_path = qt_base .. "/lib/lib" .. qt_version_prefix .. lib .. ".dylib"
@@ -698,6 +704,12 @@ function setup_qt_for_target()
     end
     if os.isdir(qt_include_dir .. "/QtPrintSupport") then
         add_defines("QT_PRINTSUPPORT_LIB")
+    end
+    if os.isdir(qt_include_dir .. "/QtTextToSpeech") then
+        add_defines("QT_TEXTTOSPEECH_LIB")
+    end
+    if os.isdir(qt_include_dir .. "/QtXml") then
+        add_defines("QT_XML_LIB")
     end
 
     -- Build mode specific defines
