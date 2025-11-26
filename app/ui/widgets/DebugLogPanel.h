@@ -9,7 +9,6 @@
 #include <QFileDialog>
 #include <QFont>
 #include <QGridLayout>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QMessageBox>
@@ -18,7 +17,6 @@
 #include <QSettings>
 #include <QSplitter>
 #include <QTabWidget>
-#include <QTableWidget>
 #include <QTextCharFormat>
 #include <QTextCursor>
 #include <QTextEdit>
@@ -38,6 +36,9 @@ class ElaPushButton;
 class ElaText;
 class ElaProgressBar;
 class ElaMenu;
+class ElaScrollPageArea;
+class ElaTableView;
+class QStandardItemModel;
 
 /**
  * @brief Comprehensive debug logging panel widget
@@ -207,7 +208,8 @@ private:
     QScrollBar* m_scrollBar;
 
     // Filter controls
-    QGroupBox* m_filterGroup;
+    ElaScrollPageArea* m_filterGroup;
+    ElaText* m_filterTitle;
     ElaComboBox* m_logLevelFilter;
     ElaComboBox* m_categoryFilter;
     ElaLineEdit* m_searchEdit;
@@ -226,8 +228,10 @@ private:
     ElaCheckBox* m_autoScrollCheck;
 
     // Statistics display
-    QGroupBox* m_statsGroup;
-    QTableWidget* m_statsTable;
+    ElaScrollPageArea* m_statsGroup;
+    ElaText* m_statsTitle;
+    ElaTableView* m_statsTable;
+    QStandardItemModel* m_statsModel;
     ElaText* m_messagesPerSecLabel;
     ElaProgressBar* m_memoryUsageBar;
 

@@ -2,14 +2,15 @@
 #include <QApplication>
 #include <QDialog>
 #include <QHBoxLayout>
-#include <QMessageBox>
 #include <QMetaProperty>
 #include <QPushButton>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <algorithm>
+
 #include "../../managers/StyleManager.h"
+#include "ElaContentDialog.h"
 #include "ElaText.h"
 #include "UIErrorHandler.h"
 
@@ -323,26 +324,43 @@ void UIRecoveryManager::clearSavedState(QWidget* widget) {
 bool UIRecoveryManager::promptUserForRecovery(
     QWidget* parent, const ErrorHandling::ErrorInfo& error,
     const QStringList& options) {
-    QMessageBox msgBox(parent);
-    msgBox.setWindowTitle(tr("Error Recovery"));
-    msgBox.setText(tr("An error occurred: %1\n\nHow would you like to proceed?")
-                       .arg(error.message));
-    msgBox.setIcon(QMessageBox::Question);
+    auto* dialog = new ElaContentDialog(parent);
+    dialog->setWindowTitle(tr("Error Recovery"));
 
-    QPushButton* retryButton =
-        msgBox.addButton(tr("Retry"), QMessageBox::ActionRole);
-    QPushButton* ignoreButton =
-        msgBox.addButton(tr("Ignore"), QMessageBox::RejectRole);
-    QPushButton* resetButton =
-        msgBox.addButton(tr("Reset"), QMessageBox::ResetRole);
+    auto* centralWidget = new QWidget(dialog);
+    auto* layout = new QVBoxLayout(centralWidget);
+    layout->addWidget(new ElaText(
+        tr("An error occurred: %1\n\nHow would you like to proceed?")
+            .arg(error.message),
+        centralWidget));
+    dialog->setCentralWidget(centralWidget);
 
-    msgBox.setDefaultButton(retryButton);
+    dialog->setLeftButtonText(tr("Ignore"));
+    dialog->setMiddleButtonText(tr("Reset"));
+    dialog->setRightButtonText(tr("Retry"));
 
-    int result = msgBox.exec();
+    enum class Choice { Ignore, Reset, Retry };
+    Choice userChoice = Choice::Ignore;
 
-    if (msgBox.clickedButton() == retryButton) {
+    connect(dialog, &ElaContentDialog::rightButtonClicked, parent,
+            [&userChoice, dialog]() {
+                userChoice = Choice::Retry;
+                dialog->close();
+            });
+    connect(dialog, &ElaContentDialog::middleButtonClicked, parent,
+            [&userChoice, dialog]() {
+                userChoice = Choice::Reset;
+                dialog->close();
+            });
+    connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+            &ElaContentDialog::close);
+
+    dialog->exec();
+    dialog->deleteLater();
+
+    if (userChoice == Choice::Retry) {
         return tryAutomaticRetry(parent, error);
-    } else if (msgBox.clickedButton() == resetButton) {
+    } else if (userChoice == Choice::Reset) {
         return tryResetToDefault(parent, error);
     }
 

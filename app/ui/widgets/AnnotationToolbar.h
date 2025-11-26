@@ -4,11 +4,12 @@
 #include <QActionGroup>
 #include <QButtonGroup>
 #include <QColorDialog>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QToolBar>
 #include <QVBoxLayout>
 #include <QWidget>
+
+class ElaScrollPageArea;
 #include "../../model/AnnotationModel.h"
 #include "ElaComboBox.h"
 #include "ElaPushButton.h"
@@ -81,7 +82,8 @@ private:
     void retranslateUi();
 
     // Tool selection
-    QGroupBox* m_toolGroup;
+    ElaScrollPageArea* m_toolGroup;
+    ElaText* m_toolTitle;
     QHBoxLayout* m_toolLayout;
     QButtonGroup* m_toolButtonGroup;
 
@@ -97,7 +99,8 @@ private:
     ElaPushButton* m_inkBtn;
 
     // Properties
-    QGroupBox* m_propertiesGroup;
+    ElaScrollPageArea* m_propertiesGroup;
+    ElaText* m_propertiesTitle;
     QVBoxLayout* m_propertiesLayout;
 
     ElaPushButton* m_colorButton;
@@ -116,7 +119,8 @@ private:
     ElaComboBox* m_fontFamilyCombo;
 
     // Actions
-    QGroupBox* m_actionsGroup;
+    ElaScrollPageArea* m_actionsGroup;
+    ElaText* m_actionsTitle;
     QHBoxLayout* m_actionsLayout;
 
     ElaPushButton* m_clearAllBtn;

@@ -35,7 +35,7 @@ This document outlines the comprehensive platform support for SAST Readium, incl
 
 ```bash
 # System dependencies
-sudo apt install qt6-base-dev qt6-svg-dev qt6-tools-dev libpoppler-qt6-dev
+sudo apt install qt6-base-dev qt6-svg-dev qt6-tools-dev qt6-speech-dev libpoppler-qt6-dev
 
 # Build
 cmake --preset=Release-Unix
@@ -123,8 +123,8 @@ cmake --build --preset=Release-Windows
 ### Windows x86_64 (MSYS2 - Recommended)
 
 ```bash
-# Install dependencies
-pacman -S mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-svg mingw-w64-x86_64-poppler-qt6
+# System dependencies
+pacman -S mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-svg mingw-w64-x86_64-qt6-speech mingw-w64-x86_64-poppler-qt6
 
 # Build
 cmake --preset=Release-MSYS2

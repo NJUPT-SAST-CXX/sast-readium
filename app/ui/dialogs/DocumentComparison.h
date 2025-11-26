@@ -1,10 +1,9 @@
-#pragma once
+﻿#pragma once
 
-#include <poppler-qt6.h>
+#include <poppler/qt6/poppler-qt6.h>
 
 #include <QFuture>
 #include <QFutureWatcher>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 
@@ -110,6 +109,7 @@ class ElaProgressBar;
 class ElaCheckBox;
 class ElaSlider;
 class ElaSpinBox;
+class ElaScrollPageArea;
 /**
  * Widget for comparing two PDF documents
  */
@@ -230,7 +230,7 @@ private:
     ElaProgressBar* m_progressBar = nullptr;
 
     // Options panel
-    QGroupBox* m_optionsGroup = nullptr;
+    ElaScrollPageArea* m_optionsGroup = nullptr;
     ElaCheckBox* m_compareTextCheck = nullptr;
     ElaCheckBox* m_compareImagesCheck = nullptr;
     ElaCheckBox* m_compareLayoutCheck = nullptr;

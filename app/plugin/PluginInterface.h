@@ -14,6 +14,10 @@ class ServiceLocator;
 class EventBus;
 class CommandManager;
 class ConfigurationManager;
+class IPluginHost;
+namespace SastLogging {
+class CategoryLogger;
+}
 
 /**
  * @brief IPluginInterface - Base interface for all plugins
@@ -228,7 +232,7 @@ public:
     virtual void shutdownPlugin(const QString& name) = 0;
 
     // Plugin communication
-    virtual bool sendPluginMessage(const QString& from, const QString& to,
+    virtual bool sendPluginMessage(const QString& from, const QString& target,
                                    const QVariant& message) = 0;
     virtual void broadcastPluginMessage(const QString& from,
                                         const QVariant& message) = 0;

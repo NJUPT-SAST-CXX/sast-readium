@@ -7,13 +7,21 @@ A Qt6-based PDF reader application with comprehensive build support for multiple
 ### Core Functionality
 
 - **PDF Viewing**: High-quality PDF rendering with zoom, rotation, and navigation
+- **Native Link Support**: Support for internal PDF links (page jumps) and external web links
 - **Search Functionality**: Advanced text search with highlighting, incremental search, and error recovery
 - **Bookmarks**: Create, manage, and navigate bookmarks
 - **Annotations**: Add and manage PDF annotations
 - **Thumbnails**: Chrome-style thumbnails with GPU fallback rendering and virtual scrolling
 - **Multi-Document Support**: Open and manage multiple PDF documents with recent files tracking
 - **Internationalization**: Support for multiple languages (English/Chinese)
-- **Theme Support**: Light and dark theme options with modern UI design
+- **Theme Support**: Light, Dark, and Sepia theme options for eye comfort
+
+### Advanced Features
+
+- **Text-to-Speech (TTS)**: Built-in accessibility with adjustable reading rate, volume control, and auto-advance
+- **Security**: Support for password-protected PDF files with secure dialog handling
+- **Watermarking**: Customizable text watermarks with adjustable color, opacity, size, and rotation
+- **Spatial Indexing**: Optimized text selection using spatial indexing for high performance on text-heavy pages
 
 ### Architecture & Design Patterns
 
@@ -363,16 +371,20 @@ See the [Feature Testing Checklist](docs/packaging/feature-testing-checklist.md)
 ### Getting Started
 
 - [Documentation Index](docs/index.md) - Main documentation hub
-- [MSYS2 Build Guide](docs/setup/msys2-build.md) - Comprehensive MSYS2 setup and build instructions (Recommended)
 - [Dependency Management Guide](docs/getting-started/dependency-management.md) - Detailed dependency management
 - [Platform Support](docs/getting-started/platform-support.md) - Supported platforms and architectures
+
+### Setup & Configuration
+
+- [MSYS2 Build Guide](docs/setup/msys2-build.md) - Comprehensive MSYS2 setup/build instructions (Recommended)
+- [clangd Setup Guide](docs/setup/clangd-setup.md) - IDE integration and clangd configuration
+- [Build Artifact Management](docs/setup/build-artifact-management.md) - Keep build outputs organized and IDE-aware
 
 ### Build System Documentation
 
 - [Build System Comparison](docs/build-systems/build-system-comparison.md) - CMake vs xmake feature comparison
 - [CMake Modules Documentation](cmake/README.md) - Detailed CMake module documentation
 - [Migration Guide](docs/MIGRATION-GUIDE.md) - Guide for migrating to the new build system
-- [clangd Setup Guide](docs/setup/clangd-setup.md) - IDE integration and clangd configuration
 
 ### Packaging Documentation
 
@@ -384,13 +396,19 @@ See the [Feature Testing Checklist](docs/packaging/feature-testing-checklist.md)
 - [Architecture Guide](docs/architecture.md) - Comprehensive architecture documentation
 - [Logging System](docs/logging-system.md) - Logging system documentation and usage
 - [Thumbnail System](docs/features/thumbnail-system.md) - Chrome-style thumbnail system
+- [Text-to-Speech](docs/features/text-to-speech.md) - Accessibility and playback controls
+- [Security & Protection](docs/features/security-and-protection.md) - Password protection and watermarking
+- [Viewing Experience](docs/features/viewing-experience.md) - Themes and navigation
 - [Thread Safety Guidelines](docs/thread-safety-guidelines.md) - Thread safety best practices
+
+### Debugging
+
+- [Debugging Setup](docs/debugging/index.md) - Cross-platform debugger/IDE configuration
+- [Freeze & Deadlock Debugging](docs/debugging/freeze-debugging.md) - GDB workflow for diagnosing hangs
 
 ### Advanced Topics
 
 - [API Reference](docs/api-reference.md) - API documentation for core components
-- [PDF Performance Optimizations](docs/PDF_Performance_Optimizations.md) - Performance optimization techniques
-- [QGraphics PDF Support](docs/QGraphics_PDF_Support.md) - QGraphics-based PDF rendering
 
 ## Dependencies
 

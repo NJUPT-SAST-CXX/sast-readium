@@ -111,9 +111,29 @@ nav:
     - Overview: setup/index.md
     - MSYS2 Build Setup: setup/msys2-build.md
     - clangd IDE Setup: setup/clangd-setup.md
+    - Build Artifact Management: setup/build-artifact-management.md
   - Features:
     - Overview: features/index.md
+    - Highlight System: features/highlight-system.md
+    - Security & Protection: features/security-and-protection.md
+    - Text-to-Speech: features/text-to-speech.md
     - Thumbnail System: features/thumbnail-system.md
+    - Viewing Experience: features/viewing-experience.md
+  - Plugin System:
+    - Overview: plugins/index.md
+    - Development Guide: plugins/development-guide.md
+    - Architecture: plugins/architecture.md
+    - UI Integration: plugins/ui-integration.md
+    - Specialized Plugins: plugins/specialized-plugins.md
+  - Technical Documentation:
+    - Architecture: architecture.md
+    - API Reference: api-reference.md
+    - Logging System: logging-system.md
+    - Packaging Guide: packaging/index.md
+    - Thread Safety: thread-safety-guidelines.md
+  - Debugging:
+    - Overview: debugging/index.md
+    - Freeze & Deadlock Debugging: debugging/freeze-debugging.md
 
 # Extra
 extra:

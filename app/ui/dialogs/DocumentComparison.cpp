@@ -4,20 +4,20 @@
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QGridLayout>
-#include <QGroupBox>
 #include <QGuiApplication>
 #include <QHeaderView>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QMessageBox>
 #include <QPainter>
 #include <QSplitter>
 #include <QTextStream>
+#include "../widgets/ToastNotification.h"
 #include "ElaCheckBox.h"
 #include "ElaComboBox.h"
 #include "ElaProgressBar.h"
 #include "ElaPushButton.h"
+#include "ElaScrollPageArea.h"
 #include "ElaSlider.h"
 #include "ElaSpinBox.h"
 #include "ElaText.h"
@@ -94,17 +94,24 @@ void DocumentComparison::initializeToolbar(StyleManager& styleManager) {
 }
 
 void DocumentComparison::initializeOptionsPanel(StyleManager& styleManager) {
-    m_optionsGroup = new QGroupBox("Comparison Options", this);
+    m_optionsGroup = new ElaScrollPageArea(this);
     m_optionsGroup->setVisible(false);
     m_optionsGroup->setSizePolicy(QSizePolicy::Expanding,
                                   QSizePolicy::Preferred);
 
-    auto* optionsLayout = new QGridLayout(m_optionsGroup);
-    optionsLayout->setContentsMargins(
-        styleManager.spacingMD(), styleManager.spacingMD(),
-        styleManager.spacingMD(), styleManager.spacingMD());
+    auto* optionsVLayout = new QVBoxLayout(m_optionsGroup);
+    optionsVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* optionsTitle = new ElaText("Comparison Options", m_optionsGroup);
+    optionsTitle->setTextPixelSize(14);
+    optionsVLayout->addWidget(optionsTitle);
+
+    auto* optionsContent = new QWidget(m_optionsGroup);
+    auto* optionsLayout = new QGridLayout(optionsContent);
+    optionsLayout->setContentsMargins(0, styleManager.spacingSM(), 0, 0);
     optionsLayout->setHorizontalSpacing(styleManager.spacingMD());
     optionsLayout->setVerticalSpacing(styleManager.spacingSM());
+    optionsVLayout->addWidget(optionsContent);
 
     m_compareTextCheck = new ElaCheckBox("Compare Text", this);
     m_compareTextCheck->setChecked(true);
@@ -275,11 +282,10 @@ void DocumentComparison::startComparison() {
         // This allows tests to run in offscreen mode without hanging
         emit comparisonError("Please load both documents first.");
 
-        // Only show message box in non-offscreen mode to avoid blocking in
+        // Only show toast in non-offscreen mode to avoid blocking in
         // tests
         if (QGuiApplication::platformName() != "offscreen") {
-            QMessageBox::warning(this, "Warning",
-                                 "Please load both documents first.");
+            TOAST_WARNING(this, "Please load both documents first.");
         }
         return;
     }
@@ -332,7 +338,8 @@ void DocumentComparison::startComparison() {
             [this](const QString& error) {
                 emit comparisonError(error);
                 if (QGuiApplication::platformName() != "offscreen") {
-                    QMessageBox::critical(this, "Comparison Error", error);
+                    TOAST_ERROR(this,
+                                QString("Comparison Error: %1").arg(error));
                 }
                 stopComparison();
             });

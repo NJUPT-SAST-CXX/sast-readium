@@ -15,15 +15,15 @@
 // Qt
 #include <QEvent>
 #include <QFileDialog>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
-#include <QMessageBox>
 #include <QSplitter>
+
 #include <QStandardItemModel>
 #include <QTextEdit>
 #include <QVBoxLayout>
+#include "ElaContentDialog.h"
 
 // Logging
 #include "logging/SimpleLogging.h"
@@ -542,13 +542,36 @@ void PluginManagerPage::onInstallClicked() {
     }
 
     if (m_pluginManager->installPlugin(filePath)) {
-        QMessageBox::information(this, tr("Success"),
-                                 tr("Plugin installed successfully"));
+        auto* dialog = new ElaContentDialog(this);
+        dialog->setWindowTitle(tr("Success"));
+        auto* w = new QWidget(dialog);
+        auto* l = new QVBoxLayout(w);
+        l->addWidget(new ElaText(tr("Plugin installed successfully"), w));
+        dialog->setCentralWidget(w);
+        dialog->setLeftButtonText(QString());
+        dialog->setMiddleButtonText(QString());
+        dialog->setRightButtonText(tr("OK"));
+        connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
+                &ElaContentDialog::close);
+        dialog->exec();
+        dialog->deleteLater();
+
         refreshPluginList();
         emit pluginInstalled(filePath);
     } else {
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Failed to install plugin"));
+        auto* dialog = new ElaContentDialog(this);
+        dialog->setWindowTitle(tr("Error"));
+        auto* w = new QWidget(dialog);
+        auto* l = new QVBoxLayout(w);
+        l->addWidget(new ElaText(tr("Failed to install plugin"), w));
+        dialog->setCentralWidget(w);
+        dialog->setLeftButtonText(QString());
+        dialog->setMiddleButtonText(QString());
+        dialog->setRightButtonText(tr("OK"));
+        connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
+                &ElaContentDialog::close);
+        dialog->exec();
+        dialog->deleteLater();
     }
 }
 
@@ -557,25 +580,65 @@ void PluginManagerPage::onUninstallClicked() {
         return;
     }
 
-    QMessageBox::StandardButton reply = QMessageBox::question(
-        this, tr("Confirm Uninstall"),
-        tr("Are you sure you want to uninstall plugin '%1'?")
-            .arg(m_selectedPluginName),
-        QMessageBox::Yes | QMessageBox::No);
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("Confirm Uninstall"));
+    auto* w = new QWidget(dialog);
+    auto* l = new QVBoxLayout(w);
+    l->addWidget(
+        new ElaText(tr("Are you sure you want to uninstall plugin '%1'?")
+                        .arg(m_selectedPluginName),
+                    w));
+    dialog->setCentralWidget(w);
+    dialog->setLeftButtonText(tr("Cancel"));
+    dialog->setRightButtonText(tr("Uninstall"));
 
-    if (reply != QMessageBox::Yes) {
+    bool confirmed = false;
+    connect(dialog, &ElaContentDialog::rightButtonClicked, this,
+            [&confirmed, dialog]() {
+                confirmed = true;
+                dialog->close();
+            });
+    connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
+
+    if (!confirmed) {
         return;
     }
 
     if (m_pluginManager->uninstallPlugin(m_selectedPluginName)) {
-        QMessageBox::information(this, tr("Success"),
-                                 tr("Plugin uninstalled successfully"));
+        auto* successDialog = new ElaContentDialog(this);
+        successDialog->setWindowTitle(tr("Success"));
+        auto* sw = new QWidget(successDialog);
+        auto* sl = new QVBoxLayout(sw);
+        sl->addWidget(new ElaText(tr("Plugin uninstalled successfully"), sw));
+        successDialog->setCentralWidget(sw);
+        successDialog->setLeftButtonText(QString());
+        successDialog->setMiddleButtonText(QString());
+        successDialog->setRightButtonText(tr("OK"));
+        connect(successDialog, &ElaContentDialog::rightButtonClicked,
+                successDialog, &ElaContentDialog::close);
+        successDialog->exec();
+        successDialog->deleteLater();
+
         refreshPluginList();
         clearPluginDetails();
         emit pluginUninstalled(m_selectedPluginName);
     } else {
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Failed to uninstall plugin"));
+        auto* errorDialog = new ElaContentDialog(this);
+        errorDialog->setWindowTitle(tr("Error"));
+        auto* ew = new QWidget(errorDialog);
+        auto* el = new QVBoxLayout(ew);
+        el->addWidget(new ElaText(tr("Failed to uninstall plugin"), ew));
+        errorDialog->setCentralWidget(ew);
+        errorDialog->setLeftButtonText(QString());
+        errorDialog->setMiddleButtonText(QString());
+        errorDialog->setRightButtonText(tr("OK"));
+        connect(errorDialog, &ElaContentDialog::rightButtonClicked, errorDialog,
+                &ElaContentDialog::close);
+        errorDialog->exec();
+        errorDialog->deleteLater();
     }
 }
 
@@ -585,8 +648,19 @@ void PluginManagerPage::onConfigureClicked() {
     }
 
     // TODO: Implement plugin configuration dialog
-    QMessageBox::information(this, tr("Plugin Configuration"),
-                             tr("Plugin configuration coming soon!"));
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("Plugin Configuration"));
+    auto* w = new QWidget(dialog);
+    auto* l = new QVBoxLayout(w);
+    l->addWidget(new ElaText(tr("Plugin configuration coming soon!"), w));
+    dialog->setCentralWidget(w);
+    dialog->setLeftButtonText(QString());
+    dialog->setMiddleButtonText(QString());
+    dialog->setRightButtonText(tr("OK"));
+    connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
 }
 
 void PluginManagerPage::onRefreshClicked() { refreshPluginList(); }
@@ -648,9 +722,20 @@ void PluginManagerPage::onPluginError(const QString& pluginName,
     SLOG_ERROR(QString("PluginManagerPage: Plugin error [%1]: %2")
                    .arg(pluginName, error));
 
-    QMessageBox::warning(
-        this, tr("Plugin Error"),
-        tr("Plugin '%1' encountered an error:\n%2").arg(pluginName, error));
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("Plugin Error"));
+    auto* w = new QWidget(dialog);
+    auto* l = new QVBoxLayout(w);
+    l->addWidget(new ElaText(
+        tr("Plugin '%1' encountered an error:\n%2").arg(pluginName, error), w));
+    dialog->setCentralWidget(w);
+    dialog->setLeftButtonText(QString());
+    dialog->setMiddleButtonText(QString());
+    dialog->setRightButtonText(tr("OK"));
+    connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
 
     refreshPluginList();
 }

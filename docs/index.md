@@ -33,23 +33,43 @@ Development environment setup guides:
 
 - [MSYS2 Build Setup](setup/msys2-build.md) - Windows MSYS2 environment setup
 - [clangd IDE Setup](setup/clangd-setup.md) - IDE integration and language server configuration
+- [Build Artifact Management](setup/build-artifact-management.md) - Keep build outputs organized and IDE-aware
 
 ### ✨ [Features](features/)
 
 Application features and implementation details:
 
 - [Thumbnail System](features/thumbnail-system.md) - Chrome-style PDF thumbnail system
-- [Logging System](logging-system.md) - High-performance logging with spdlog
-- [Search Engine](PDF_Performance_Optimizations.md) - Advanced search capabilities
-- [PDF Rendering](QGraphics_PDF_Support.md) - QGraphics-based PDF rendering
+- [Highlight System](features/highlight-system.md) - Comprehensive text highlighting functionality
+- [Viewing Experience](features/viewing-experience.md) - Themes, links, and navigation
+- [Security & Protection](features/security-and-protection.md) - Passwords and watermarks
+- [Text-to-Speech](features/text-to-speech.md) - Accessibility features
 
-### 📚 [Advanced Topics](/)
+### [Plugin System](plugins/index.md)
+
+Extensible plugin architecture:
+
+- [Development Guide](plugins/development-guide.md) - Create your first plugin
+- [Architecture](plugins/architecture.md) - Internal design and components
+- [UI Integration](plugins/ui-integration.md) - Extending the user interface
+- [Specialized Plugins](plugins/specialized-plugins.md) - Deep integration plugins
+
+### [Technical Documentation](architecture.md)
 
 In-depth technical documentation:
 
-- [PDF Performance Optimizations](PDF_Performance_Optimizations.md) - Performance optimization techniques
-- [Internationalization](i18n_implementation.md) - I18n implementation details
-- [Debugging Setup](debugging-setup.md) - Debugging tools and techniques
+- [Architecture](architecture.md) - System architecture and design patterns
+- [API Reference](api-reference.md) - API documentation
+- [Logging System](logging-system.md) - Logging infrastructure
+- [Packaging Guide](packaging/index.md) - Packaging instructions
+- [Thread Safety](thread-safety-guidelines.md) - Thread safety guidelines
+
+### 🛠️ [Debugging](debugging/)
+
+Troubleshooting and diagnostics:
+
+- [Debugging Setup](debugging/index.md) - Cross-platform debugger and IDE setup
+- [Freeze & Deadlock Debugging](debugging/freeze-debugging.md) - GDB workflow for freeze investigations
 
 ## About SAST Readium
 

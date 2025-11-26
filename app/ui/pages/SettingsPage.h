@@ -5,27 +5,44 @@
 #include "ElaScrollPage.h"
 
 // Forward declarations
+class QStackedWidget;
+class QListWidget;
 class ElaComboBox;
-class ElaCheckBox;
 class ElaSlider;
 class ElaPushButton;
 class ElaLineEdit;
-class QGroupBox;
-class QFormLayout;
-class QLabel;
 class ElaText;
+class ElaToggleSwitch;
+class ElaSpinBox;
 class I18nManager;
 class StyleManager;
+class ConfigurationManager;
+
+// Settings widgets
+class ShortcutSettingsWidget;
+class AccessibilitySettingsWidget;
+class SystemTraySettingsWidget;
+class LoggingSettingsWidget;
+class CacheSettingsWidget;
+class AnnotationSettingsWidget;
+class SearchSettingsWidget;
+class PluginSettingsWidget;
+class DocumentSettingsWidget;
 
 /**
- * @brief SettingsPage - 设置页面
+ * @brief SettingsPage - Comprehensive settings page
  *
- * 提供应用程序设置：
- * - 外观设置（主题、语言）
- * - 查看器设置（默认缩放、视图模式）
- * - 性能设置（缓存大小、渲染质量）
- * - 高级设置（快捷键、插件）
- * Inherits from ElaScrollPage following ElaWidgetTools example pattern
+ * Provides a modern settings interface with multiple sections:
+ * - Appearance (theme, language, font)
+ * - Viewer (zoom, view mode, scrolling)
+ * - Cache & Performance
+ * - System Tray
+ * - Keyboard Shortcuts
+ * - Accessibility
+ * - Logging & Debug
+ *
+ * Uses ElaWidgetTools components for consistent styling.
+ * Inherits from ElaScrollPage following ElaWidgetTools example pattern.
  */
 class SettingsPage : public ElaScrollPage {
     Q_OBJECT
@@ -34,14 +51,30 @@ public:
     explicit SettingsPage(QWidget* parent = nullptr);
     ~SettingsPage() override;
 
-    // 设置管理
+    // Settings management
     void loadSettings();
     void saveSettings();
     void resetToDefaults();
 
-    // 业务逻辑集成
+    // Business logic integration
     void setI18nManager(I18nManager* manager);
     void setStyleManager(StyleManager* manager);
+
+    // Section navigation
+    enum class SettingsSection {
+        Appearance,
+        Viewer,
+        Document,
+        Annotations,
+        Search,
+        Cache,
+        SystemTray,
+        Shortcuts,
+        Accessibility,
+        Plugins,
+        Logging
+    };
+    void navigateToSection(SettingsSection section);
 
 signals:
     void settingsChanged();
@@ -51,69 +84,68 @@ signals:
 protected:
     void changeEvent(QEvent* event) override;
 
+private slots:
+    void onSectionChanged(int index);
+    void onSaveClicked();
+    void onCancelClicked();
+    void onResetClicked();
+    void onSettingsModified();
+
 private:
-    // 外观设置
-    ElaComboBox* m_themeCombo;
-    ElaComboBox* m_languageCombo;
-
-    // 查看器设置
-    ElaComboBox* m_defaultZoomCombo;
-    ElaComboBox* m_defaultViewModeCombo;
-    ElaCheckBox* m_rememberLastPageCheck;
-    ElaCheckBox* m_smoothScrollCheck;
-
-    // 性能设置
-    ElaSlider* m_cacheSizeSlider;
-    ElaComboBox* m_renderQualityCombo;
-    ElaCheckBox* m_hardwareAccelCheck;
-
-    // 高级设置
-    ElaCheckBox* m_autoSaveCheck;
-    ElaLineEdit* m_autoSaveIntervalEdit;
-    ElaPushButton* m_resetShortcutsBtn;
-    ElaPushButton* m_managePluginsBtn;
-
-    // 按钮
-    ElaPushButton* m_saveBtn;
-    ElaPushButton* m_cancelBtn;
-    ElaPushButton* m_resetBtn;
-
-    // 业务逻辑
-    I18nManager* m_i18nManager;
-    StyleManager* m_styleManager;
-
-    // 分组引用（用于重翻译）
-    QGroupBox* m_appearanceGroup{nullptr};
-    QFormLayout* m_appearanceFormLayout{nullptr};
-    QGroupBox* m_viewerGroup{nullptr};
-    QFormLayout* m_viewerFormLayout{nullptr};
-    QGroupBox* m_performanceGroup{nullptr};
-    QFormLayout* m_performanceFormLayout{nullptr};
-    QGroupBox* m_advancedGroup{nullptr};
-    QFormLayout* m_advancedFormLayout{nullptr};
-    ElaText* m_autoSaveIntervalLabel{nullptr};
-    ElaText* m_autoSaveIntervalUnitLabel{nullptr};
-
     void setupUi();
-    void setupAppearanceSection();
-    void setupViewerSection();
-    void setupPerformanceSection();
-    void setupAdvancedSection();
+    void setupNavigation();
+    void setupSections();
     void setupButtons();
     void connectSignals();
     void retranslateUi();
     void applySettings();
 
-    QGroupBox* createAppearanceGroup();
-    QGroupBox* createViewerGroup();
-    QGroupBox* createPerformanceGroup();
-    QGroupBox* createAdvancedGroup();
+    // Create section widgets
+    QWidget* createAppearanceSection();
+    QWidget* createViewerSection();
 
-    void updateAppearanceTexts();
-    void updateViewerTexts();
-    void updatePerformanceTexts();
-    void updateAdvancedTexts();
-    void updateButtonTexts();
+    // Navigation
+    QListWidget* m_navigationList;
+    QStackedWidget* m_contentStack;
+
+    // Section widgets
+    QWidget* m_appearanceWidget;
+    QWidget* m_viewerWidget;
+    DocumentSettingsWidget* m_documentWidget;
+    AnnotationSettingsWidget* m_annotationWidget;
+    SearchSettingsWidget* m_searchWidget;
+    CacheSettingsWidget* m_cacheWidget;
+    SystemTraySettingsWidget* m_systemTrayWidget;
+    ShortcutSettingsWidget* m_shortcutsWidget;
+    AccessibilitySettingsWidget* m_accessibilityWidget;
+    PluginSettingsWidget* m_pluginWidget;
+    LoggingSettingsWidget* m_loggingWidget;
+
+    // Appearance section controls
+    ElaComboBox* m_themeCombo;
+    ElaComboBox* m_languageCombo;
+    ElaSpinBox* m_fontSizeSpin;
+    ElaToggleSwitch* m_animationsSwitch;
+
+    // Viewer section controls
+    ElaComboBox* m_defaultZoomCombo;
+    ElaComboBox* m_defaultViewModeCombo;
+    ElaToggleSwitch* m_rememberLastPageSwitch;
+    ElaToggleSwitch* m_smoothScrollSwitch;
+    ElaComboBox* m_renderQualityCombo;
+    ElaToggleSwitch* m_antiAliasingSwitch;
+
+    // Action buttons
+    ElaPushButton* m_saveBtn;
+    ElaPushButton* m_cancelBtn;
+    ElaPushButton* m_resetBtn;
+
+    // Business logic references
+    I18nManager* m_i18nManager;
+    StyleManager* m_styleManager;
+
+    // State tracking
+    bool m_hasUnsavedChanges;
 };
 
 #endif  // SETTINGSPAGE_H

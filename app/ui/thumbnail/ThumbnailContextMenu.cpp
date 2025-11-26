@@ -1,12 +1,11 @@
-#include "ThumbnailContextMenu.h"
-#include <poppler-qt6.h>
+﻿#include "ThumbnailContextMenu.h"
+#include <poppler/qt6/poppler-qt6.h>
 #include <QApplication>
 #include <QClipboard>
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
 #include <QFileDialog>
-#include <QMessageBox>
 #include <QRegularExpression>
 #include <QStandardPaths>
 #include <stdexcept>
@@ -293,9 +292,8 @@ void ThumbnailContextMenu::onCopyPageNumber() {
 
         // 显示提示消息
         if (parentWidget()) {
-            QMessageBox::information(
-                parentWidget(), "复制成功",
-                QString("页码 %1 已复制到剪贴板").arg(pageText));
+            TOAST_SUCCESS(parentWidget(),
+                          QString("页码 %1 已复制到剪贴板").arg(pageText));
         }
     }
 }
@@ -343,9 +341,8 @@ void ThumbnailContextMenu::onSetAsBookmark() {
         emit bookmarkRequested(m_currentPage);
 
         // Show confirmation message
-        QMessageBox::information(
-            parentWidget(), "书签",
-            QString("已在第 %1 页添加书签").arg(m_currentPage + 1));
+        TOAST_SUCCESS(parentWidget(),
+                      QString("已在第 %1 页添加书签").arg(m_currentPage + 1));
     }
 }
 
@@ -357,14 +354,14 @@ void ThumbnailContextMenu::copyPageToClipboard(int pageNumber) {
     try {
         std::unique_ptr<Poppler::Page> page(m_document->page(pageNumber));
         if (!page) {
-            QMessageBox::warning(parentWidget(), "错误", "无法获取页面内容");
+            TOAST_WARNING(parentWidget(), "无法获取页面内容");
             return;
         }
 
         // 渲染页面为图像
         QImage image = page->renderToImage(COPY_DPI, COPY_DPI);
         if (image.isNull()) {
-            QMessageBox::warning(parentWidget(), "错误", "无法渲染页面图像");
+            TOAST_WARNING(parentWidget(), "无法渲染页面图像");
             return;
         }
 
@@ -373,13 +370,13 @@ void ThumbnailContextMenu::copyPageToClipboard(int pageNumber) {
         m_clipboard->setPixmap(pixmap);
 
         // 显示成功消息
-        QMessageBox::information(
-            parentWidget(), "复制成功",
+        TOAST_SUCCESS(
+            parentWidget(),
             QString("第 %1 页图像已复制到剪贴板").arg(pageNumber + 1));
 
     } catch (const std::exception& e) {
-        QMessageBox::critical(parentWidget(), "错误",
-                              QString("复制页面时发生错误: %1").arg(e.what()));
+        TOAST_ERROR(parentWidget(),
+                    QString("复制页面时发生错误: %1").arg(e.what()));
     }
 }
 
@@ -402,7 +399,7 @@ void ThumbnailContextMenu::exportPageToFile(int pageNumber) {
     try {
         std::unique_ptr<Poppler::Page> page(m_document->page(pageNumber));
         if (!page) {
-            QMessageBox::warning(parentWidget(), "错误", "无法获取页面内容");
+            TOAST_WARNING(parentWidget(), "无法获取页面内容");
             return;
         }
 
@@ -416,15 +413,14 @@ void ThumbnailContextMenu::exportPageToFile(int pageNumber) {
             // 导出为图像格式
             QImage image = page->renderToImage(EXPORT_DPI, EXPORT_DPI);
             if (image.isNull()) {
-                QMessageBox::warning(parentWidget(), "错误",
-                                     "无法渲染页面图像");
+                TOAST_WARNING(parentWidget(), "无法渲染页面图像");
                 return;
             }
 
             QString format =
                 (extension == "jpg" || extension == "jpeg") ? "JPEG" : "PNG";
             if (!image.save(filePath, format.toUtf8().constData())) {
-                QMessageBox::critical(parentWidget(), "错误", "保存文件失败");
+                TOAST_ERROR(parentWidget(), "保存文件失败");
                 return;
             }
         }
@@ -529,9 +525,8 @@ void ThumbnailContextMenu::exportPageAsPDF(Poppler::Page* page,
 
     // Inform user about format change if needed
     if (pngFilePath != filePath) {
-        QMessageBox::information(
-            parentWidget(), "格式提示",
-            QString("PDF导出功能暂不可用，已保存为高质量PNG格式:\n%1")
-                .arg(pngFilePath));
+        TOAST_INFO(parentWidget(),
+                   QString("PDF导出功能暂不可用，已保存为高质量PNG格式:\n%1")
+                       .arg(pngFilePath));
     }
 }

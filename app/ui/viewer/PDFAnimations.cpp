@@ -29,6 +29,39 @@ void PDFAnimationManager::animateZoom(QWidget* target, double fromScale,
         return;
     }
 
+    // Check if target has scaleFactor property
+    if (target->metaObject()->indexOfProperty("scaleFactor") == -1) {
+        qWarning()
+            << "PDFAnimationManager::animateZoom: target widget does not "
+               "have 'scaleFactor' property. Use SmoothZoomWidget or add "
+               "Q_PROPERTY(double scaleFactor ...) to your widget.";
+        return;
+    }
+
+    QPropertyAnimation* animation =
+        new QPropertyAnimation(target, "scaleFactor");
+    setupAnimation(animation, duration);
+
+    animation->setStartValue(fromScale);
+    animation->setEndValue(toScale);
+
+    connect(animation, &QPropertyAnimation::finished, this,
+            &PDFAnimationManager::onAnimationFinished);
+
+    m_runningAnimations.append(animation);
+    m_activeAnimations++;
+
+    emit animationStarted(AnimationType::ZoomIn);
+    animation->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+void PDFAnimationManager::animateZoom(SmoothZoomWidget* target,
+                                      double fromScale, double toScale,
+                                      int duration) {
+    if (!target) {
+        return;
+    }
+
     QPropertyAnimation* animation =
         new QPropertyAnimation(target, "scaleFactor");
     setupAnimation(animation, duration);

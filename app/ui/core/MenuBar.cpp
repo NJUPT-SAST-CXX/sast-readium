@@ -18,9 +18,11 @@
 #include <QEvent>
 #include <QFileInfo>
 #include <QKeySequence>
-#include <QMessageBox>
+#include <QVBoxLayout>
 
 // Widgets
+#include "ElaContentDialog.h"
+#include "ElaText.h"
 #include "ui/widgets/ToastNotification.h"
 
 MenuBar::MenuBar(QWidget* parent)
@@ -235,15 +237,30 @@ void MenuBar::onClearRecentFilesTriggered() {
     }
 
     // Show confirmation dialog
-    QMessageBox::StandardButton reply = QMessageBox::question(
-        this, tr("Clear Recent Files"),
-        tr("Are you sure you want to clear all recent files?\n\n"
-           "This action cannot be undone."),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No  // Default button
-    );
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("Clear Recent Files"));
+    auto* w = new QWidget(dialog);
+    auto* l = new QVBoxLayout(w);
+    l->addWidget(
+        new ElaText(tr("Are you sure you want to clear all recent files?\n\n"
+                       "This action cannot be undone."),
+                    w));
+    dialog->setCentralWidget(w);
+    dialog->setLeftButtonText(tr("Cancel"));
+    dialog->setRightButtonText(tr("Clear"));
 
-    if (reply == QMessageBox::Yes) {
+    bool confirmed = false;
+    connect(dialog, &ElaContentDialog::rightButtonClicked, this,
+            [&confirmed, dialog]() {
+                confirmed = true;
+                dialog->close();
+            });
+    connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
+
+    if (confirmed) {
         m_recentFilesManager->clearRecentFiles();
     }
 }

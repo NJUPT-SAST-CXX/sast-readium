@@ -3,7 +3,6 @@
 #include <poppler/qt6/poppler-qt6.h>
 #include <QFormLayout>
 #include <QFrame>
-#include <QGroupBox>
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -11,6 +10,8 @@
 // Forward declarations for Ela widgets
 class ElaLineEdit;
 class ElaPushButton;
+class ElaScrollPageArea;
+class ElaText;
 
 /**
  * @brief Compact document properties panel for sidebar display
@@ -79,21 +80,24 @@ private:
     QVBoxLayout* m_contentLayout;
 
     // Property sections
-    QGroupBox* m_fileInfoGroup;
+    ElaScrollPageArea* m_fileInfoGroup;
+    ElaText* m_fileInfoTitle;
     QFormLayout* m_fileInfoLayout;
     ElaLineEdit* m_fileNameField;
     ElaLineEdit* m_fileSizeField;
     ElaLineEdit* m_pageCountField;
     ElaLineEdit* m_pdfVersionField;
 
-    QGroupBox* m_documentInfoGroup;
+    ElaScrollPageArea* m_documentInfoGroup;
+    ElaText* m_documentInfoTitle;
     QFormLayout* m_documentInfoLayout;
     ElaLineEdit* m_titleField;
     ElaLineEdit* m_authorField;
     ElaLineEdit* m_subjectField;
     ElaLineEdit* m_creatorField;
 
-    QGroupBox* m_datesGroup;
+    ElaScrollPageArea* m_datesGroup;
+    ElaText* m_datesTitle;
     QFormLayout* m_datesLayout;
     ElaLineEdit* m_creationDateField;
     ElaLineEdit* m_modificationDateField;

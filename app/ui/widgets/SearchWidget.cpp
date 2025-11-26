@@ -7,12 +7,10 @@
 #include <QDebug>
 #include <QDir>
 #include <QEvent>
-#include <QGroupBox>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
-#include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSettings>
@@ -23,12 +21,14 @@
 #include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
 #include "../core/UIErrorHandler.h"
+#include "ToastNotification.h"
 
 #include "ElaCheckBox.h"
 #include "ElaComboBox.h"
 #include "ElaListView.h"
 #include "ElaProgressBar.h"
 #include "ElaPushButton.h"
+#include "ElaScrollPageArea.h"
 #include "ElaSpinBox.h"
 #include "ElaText.h"
 
@@ -47,6 +47,7 @@ SearchWidget::SearchWidget(QWidget* parent)
       m_nextButton(nullptr),
       m_resultInfoLabel(nullptr),
       m_optionsGroup(nullptr),
+      m_optionsTitle(nullptr),
       m_caseSensitiveCheck(nullptr),
       m_wholeWordsCheck(nullptr),
       m_regexCheck(nullptr),
@@ -55,6 +56,7 @@ SearchWidget::SearchWidget(QWidget* parent)
       m_fuzzyThresholdSpin(nullptr),
       m_fuzzyThresholdLabel(nullptr),
       m_pageRangeGroup(nullptr),
+      m_pageRangeTitle(nullptr),
       m_pageRangeCheck(nullptr),
       m_startPageSpin(nullptr),
       m_endPageSpin(nullptr),
@@ -166,9 +168,14 @@ void SearchWidget::setupUI() {
     m_navigationLayout->addStretch();
     m_navigationLayout->addWidget(m_resultInfoLabel);
 
-    // Search options group
-    m_optionsGroup = new QGroupBox(tr("Search Options"));
+    // Search options group using ElaScrollPageArea
+    m_optionsGroup = new ElaScrollPageArea(this);
     auto* optionsLayout = new QVBoxLayout(m_optionsGroup);
+    optionsLayout->setContentsMargins(12, 8, 12, 8);
+
+    m_optionsTitle = new ElaText(tr("Search Options"), this);
+    m_optionsTitle->setTextPixelSize(14);
+    optionsLayout->addWidget(m_optionsTitle);
 
     // Basic options
     m_caseSensitiveCheck = new ElaCheckBox(tr("Case Sensitive"));
@@ -197,9 +204,14 @@ void SearchWidget::setupUI() {
 
     optionsLayout->addLayout(fuzzyLayout);
 
-    // Page range options
-    m_pageRangeGroup = new QGroupBox(tr("Page Range"));
+    // Page range options using ElaScrollPageArea
+    m_pageRangeGroup = new ElaScrollPageArea(this);
     auto* pageRangeLayout = new QVBoxLayout(m_pageRangeGroup);
+    pageRangeLayout->setContentsMargins(12, 8, 12, 8);
+
+    m_pageRangeTitle = new ElaText(tr("Page Range"), this);
+    m_pageRangeTitle->setTextPixelSize(14);
+    pageRangeLayout->addWidget(m_pageRangeTitle);
 
     m_pageRangeCheck = new ElaCheckBox(tr("Limit Search Range"));
     m_pageRangeLabel = new ElaText(tr("From Page:"));
@@ -731,7 +743,7 @@ void SearchWidget::onSearchFinished(int resultCount) {
 void SearchWidget::onSearchError(const QString& error) {
     setSearchInProgress(false);
     m_statusLabel->setText(tr("Search error: %1").arg(error));
-    QMessageBox::warning(this, tr("Search Error"), error);
+    TOAST_WARNING(this, tr("Search Error: %1").arg(error));
 }
 
 void SearchWidget::onCurrentResultChanged(int index) {
@@ -848,7 +860,7 @@ void SearchWidget::retranslateUi() {
     m_previousButton->setText(tr("Previous"));
     m_nextButton->setText(tr("Next"));
 
-    m_optionsGroup->setTitle(tr("Search Options"));
+    m_optionsTitle->setText(tr("Search Options"));
     m_caseSensitiveCheck->setText(tr("Case Sensitive"));
     m_wholeWordsCheck->setText(tr("Whole Words"));
     m_regexCheck->setText(tr("Regular Expression"));
@@ -857,7 +869,7 @@ void SearchWidget::retranslateUi() {
     m_fuzzySearchCheck->setText(tr("Fuzzy Search"));
     m_fuzzyThresholdLabel->setText(tr("Fuzzy Threshold:"));
 
-    m_pageRangeGroup->setTitle(tr("Page Range"));
+    m_pageRangeTitle->setText(tr("Page Range"));
     m_pageRangeCheck->setText(tr("Limit Search Range"));
     m_pageRangeLabel->setText(tr("From Page:"));
     // Find "To Page:" label and update it

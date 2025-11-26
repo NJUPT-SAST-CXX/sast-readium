@@ -582,6 +582,9 @@ public:
     void firstPage();
     void lastPage();
 
+    // Accessibility
+    AccessibilityManager* accessibilityManager() const;
+
     // Page state
     int currentPage() const;
     int pageCount() const;
@@ -591,6 +594,41 @@ public:
 signals:
     void currentPageChanged(int pageIndex);
     void pageCountChanged(int count);
+};
+```
+
+### AccessibilityManager
+
+Compatibility wrapper for accessibility features.
+
+**Header:** `app/accessibility/AccessibilityManager.h`
+
+#### Key Methods
+
+```cpp
+class AccessibilityManager : public QObject {
+public:
+    // Screen reader support
+    void enableScreenReaderMode(bool enable);
+    bool isScreenReaderEnabled() const;
+    void announceText(const QString& text);
+
+    // High contrast mode
+    void setHighContrastMode(bool enable);
+    bool isHighContrastMode() const;
+
+    // Text-to-speech
+    void startTextToSpeech(const QString& text);
+    void stopTextToSpeech();
+    void pauseTextToSpeech() const;
+    void resumeTextToSpeech() const;
+    void setTextToSpeechRate(qreal rate);
+    void setTextToSpeechVolume(qreal volume);
+
+signals:
+    void screenReaderModeChanged(bool enabled);
+    void highContrastModeChanged(bool enabled);
+    void textToSpeechStateChanged(bool active);
 };
 ```
 

@@ -694,9 +694,9 @@ QPixmap PDFRenderWorker::renderPage(
     {
         // Lock the document mutex if available to serialize access
         // This protects against concurrent access from other workers
-        std::unique_ptr<QMutexLocker> docLocker;
+        std::unique_ptr<QMutexLocker<QMutex>> docLocker;
         if (m_docMutex) {
-            docLocker = std::make_unique<QMutexLocker>(m_docMutex);
+            docLocker = std::make_unique<QMutexLocker<QMutex>>(m_docMutex);
         }
         image = renderer.safeRenderPage(page.get(), dpi, &renderInfo);
     }

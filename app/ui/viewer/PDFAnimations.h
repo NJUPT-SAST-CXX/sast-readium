@@ -19,6 +19,9 @@
 #include <QtGui>
 #include <QtWidgets>
 
+// Forward declarations
+class SmoothZoomWidget;
+
 /**
  * Animation manager for PDF viewer with smooth transitions and effects
  */
@@ -42,7 +45,11 @@ public:
     ~PDFAnimationManager();
 
     // Zoom animations
+    // Note: target must have a Q_PROPERTY named "scaleFactor" (e.g.,
+    // SmoothZoomWidget)
     void animateZoom(QWidget* target, double fromScale, double toScale,
+                     int duration = 300);
+    void animateZoom(SmoothZoomWidget* target, double fromScale, double toScale,
                      int duration = 300);
     void animateZoomWithCenter(QWidget* target, double fromScale,
                                double toScale, const QPoint& center,
@@ -140,8 +147,16 @@ signals:
  */
 class PageTransitionWidget : public QWidget {
     Q_OBJECT
+    Q_PROPERTY(double transitionProgress READ transitionProgress WRITE
+                   setTransitionProgress)
 
 public:
+    double transitionProgress() const { return m_transitionProgress; }
+    void setTransitionProgress(double progress) {
+        m_transitionProgress = progress;
+        update();
+    }
+
     enum class TransitionType {
         None,
         Fade,

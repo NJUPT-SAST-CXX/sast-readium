@@ -17,9 +17,10 @@
 #include <QToolBar>
 #include <QWidget>
 
+#include "PluginInterface.h"
+
 // Forward declarations for plugin interfaces
 class IExtensionPoint;
-class IPluginInterface;
 class IDocumentProcessorPlugin;
 class IRenderPlugin;
 class ISearchPlugin;
@@ -128,20 +129,20 @@ private:
 /**
  * Manages plugin loading, unloading, and lifecycle
  */
-class PluginManager : public QObject {
+class PluginManager : public QObject, public IPluginHost {
     Q_OBJECT
 
 public:
     static PluginManager& instance();
-    ~PluginManager() = default;
+    ~PluginManager() override = default;
 
     // Plugin discovery and loading
     void setPluginDirectories(const QStringList& directories);
     QStringList getPluginDirectories() const { return m_pluginDirectories; }
 
     void scanForPlugins();
-    bool loadPlugin(const QString& pluginName);
-    bool unloadPlugin(const QString& pluginName);
+    bool loadPlugin(const QString& pluginName) override;
+    bool unloadPlugin(const QString& pluginName) override;
     void loadAllPlugins();
     void unloadAllPlugins();
 
@@ -154,12 +155,24 @@ public:
     bool isPluginEnabled(const QString& pluginName) const;
     void setPluginEnabled(const QString& pluginName, bool enabled);
 
-    // Plugin access
-    IPlugin* getPlugin(const QString& pluginName) const;
+    // Plugin access (IPlugin-based)
+    IPlugin* getPluginByName(const QString& pluginName) const;
     template <typename T>
-    T* getPlugin(const QString& pluginName) const {
-        return qobject_cast<T*>(getPlugin(pluginName));
+    T* getPluginByName(const QString& pluginName) const {
+        return qobject_cast<T*>(getPluginByName(pluginName));
     }
+
+    // IPluginHost interface implementation
+    IPluginInterface* getPlugin(const QString& name) override;
+    QList<IPluginInterface*> getPlugins() const override;
+    void scanPluginDirectory(const QString& directory) override;
+    QStringList availablePlugins() const override;
+    bool initializePlugin(const QString& name) override;
+    void shutdownPlugin(const QString& name) override;
+    bool sendPluginMessage(const QString& from, const QString& target,
+                           const QVariant& message) override;
+    void broadcastPluginMessage(const QString& from,
+                                const QVariant& message) override;
 
     QList<IPlugin*> getPluginsByType(const QString& interfaceId) const;
     QList<IDocumentPlugin*> getDocumentPlugins() const;

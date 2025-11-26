@@ -6,9 +6,9 @@
 #include <QFileInfo>
 #include <QHeaderView>
 #include <QInputDialog>
-#include <QMessageBox>
 #include <QSortFilterProxyModel>
 #include "ElaComboBox.h"
+#include "ElaContentDialog.h"
 #include "ElaLineEdit.h"
 #include "ElaMenu.h"
 #include "ElaPushButton.h"
@@ -219,15 +219,32 @@ void BookmarkWidget::setupContextMenu() {
         m_contextMenu->addAction(tr("Add to Category"), [this]() {
             Bookmark bookmark = getSelectedBookmark();
             if (!bookmark.id.isEmpty()) {
-                bool ok = false;
-                QString category = QInputDialog::getText(
-                    this, tr("Add to Category"), tr("Category Name:"),
-                    QLineEdit::Normal, bookmark.category, &ok);
-                if (ok) {
-                    m_bookmarkModel->moveBookmarkToCategory(bookmark.id,
-                                                            category);
-                    updateCategoryFilter();
-                }
+                auto* dialog = new ElaContentDialog(this);
+                dialog->setWindowTitle(tr("Add to Category"));
+
+                auto* centralWidget = new QWidget(dialog);
+                auto* layout = new QVBoxLayout(centralWidget);
+                auto* label = new ElaText(tr("Category Name:"), centralWidget);
+                auto* lineEdit = new ElaLineEdit(centralWidget);
+                lineEdit->setText(bookmark.category);
+                layout->addWidget(label);
+                layout->addWidget(lineEdit);
+                dialog->setCentralWidget(centralWidget);
+
+                dialog->setLeftButtonText(tr("Cancel"));
+                dialog->setRightButtonText(tr("OK"));
+
+                connect(dialog, &ElaContentDialog::rightButtonClicked, this,
+                        [this, dialog, lineEdit, bookmarkId = bookmark.id]() {
+                            m_bookmarkModel->moveBookmarkToCategory(
+                                bookmarkId, lineEdit->text());
+                            updateCategoryFilter();
+                            dialog->close();
+                        });
+                connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+                        &ElaContentDialog::close);
+                dialog->exec();
+                dialog->deleteLater();
             }
         });
 
@@ -340,15 +357,30 @@ void BookmarkWidget::onRemoveBookmarkRequested() {
         return;
     }
 
-    int ret = QMessageBox::question(
-        this, tr("Delete Bookmark"),
-        tr("Are you sure you want to delete bookmark \"%1\"?")
-            .arg(bookmark.title),
-        QMessageBox::Yes | QMessageBox::No);
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("Delete Bookmark"));
 
-    if (ret == QMessageBox::Yes) {
-        removeBookmark(bookmark.id);
-    }
+    auto* centralWidget = new QWidget(dialog);
+    auto* layout = new QVBoxLayout(centralWidget);
+    auto* label =
+        new ElaText(tr("Are you sure you want to delete bookmark \"%1\"?")
+                        .arg(bookmark.title),
+                    centralWidget);
+    layout->addWidget(label);
+    dialog->setCentralWidget(centralWidget);
+
+    dialog->setLeftButtonText(tr("Cancel"));
+    dialog->setRightButtonText(tr("Delete"));
+
+    connect(dialog, &ElaContentDialog::rightButtonClicked, this,
+            [this, dialog, bookmarkId = bookmark.id]() {
+                removeBookmark(bookmarkId);
+                dialog->close();
+            });
+    connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
 }
 
 void BookmarkWidget::onEditBookmarkRequested() {
@@ -357,14 +389,34 @@ void BookmarkWidget::onEditBookmarkRequested() {
         return;
     }
 
-    bool ok = false;
-    QString newTitle =
-        QInputDialog::getText(this, tr("Edit Bookmark"), tr("Bookmark Title:"),
-                              QLineEdit::Normal, bookmark.title, &ok);
-    if (ok && newTitle != bookmark.title) {
-        bookmark.title = newTitle;
-        m_bookmarkModel->updateBookmark(bookmark.id, bookmark);
-    }
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("Edit Bookmark"));
+
+    auto* centralWidget = new QWidget(dialog);
+    auto* layout = new QVBoxLayout(centralWidget);
+    auto* label = new ElaText(tr("Bookmark Title:"), centralWidget);
+    auto* lineEdit = new ElaLineEdit(centralWidget);
+    lineEdit->setText(bookmark.title);
+    layout->addWidget(label);
+    layout->addWidget(lineEdit);
+    dialog->setCentralWidget(centralWidget);
+
+    dialog->setLeftButtonText(tr("Cancel"));
+    dialog->setRightButtonText(tr("OK"));
+
+    connect(dialog, &ElaContentDialog::rightButtonClicked, this,
+            [this, dialog, lineEdit, bm = bookmark]() mutable {
+                QString newTitle = lineEdit->text();
+                if (newTitle != bm.title) {
+                    bm.title = newTitle;
+                    m_bookmarkModel->updateBookmark(bm.id, bm);
+                }
+                dialog->close();
+            });
+    connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
 }
 
 void BookmarkWidget::showContextMenu(const QPoint& position) {

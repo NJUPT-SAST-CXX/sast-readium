@@ -16,7 +16,6 @@ class ElaCheckBox;
 // Forward declarations - Qt
 class QVBoxLayout;
 class QHBoxLayout;
-class QGroupBox;
 class QLabel;
 class QSplitter;
 class QTextEdit;

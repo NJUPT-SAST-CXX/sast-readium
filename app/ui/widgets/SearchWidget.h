@@ -1,13 +1,15 @@
 #pragma once
 
 #include <QColorDialog>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QRegularExpression>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
+
+// Forward declarations
+class ElaScrollPageArea;
 
 // ElaWidgetTools forward declarations
 class ElaPushButton;
@@ -147,7 +149,8 @@ private:
     ElaText* m_resultInfoLabel;
 
     // Search options
-    QGroupBox* m_optionsGroup;
+    ElaScrollPageArea* m_optionsGroup;
+    ElaText* m_optionsTitle;
     ElaCheckBox* m_caseSensitiveCheck;
     ElaCheckBox* m_wholeWordsCheck;
     ElaCheckBox* m_regexCheck;
@@ -159,7 +162,8 @@ private:
     ElaText* m_fuzzyThresholdLabel;
 
     // Page range search
-    QGroupBox* m_pageRangeGroup;
+    ElaScrollPageArea* m_pageRangeGroup;
+    ElaText* m_pageRangeTitle;
     ElaCheckBox* m_pageRangeCheck;
     ElaSpinBox* m_startPageSpin;
     ElaSpinBox* m_endPageSpin;

@@ -1,5 +1,5 @@
-#include "SearchEngine.h"
-#include <poppler-qt6.h>
+﻿#include "SearchEngine.h"
+#include <poppler/qt6/poppler-qt6.h>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QElapsedTimer>

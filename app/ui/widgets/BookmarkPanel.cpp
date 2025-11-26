@@ -15,9 +15,11 @@
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QInputDialog>
-#include <QMessageBox>
 #include <QUuid>
 #include <QVBoxLayout>
+
+#include "ElaContentDialog.h"
+#include "ElaText.h"
 
 // Logging
 #include "logging/SimpleLogging.h"
@@ -123,12 +125,28 @@ void BookmarkPanel::connectSignals() {
     // 清除所有书签
     connect(m_clearBtn, &ElaToolButton::clicked, this, [this]() {
         if (m_model) {
-            QMessageBox::StandardButton reply = QMessageBox::question(
-                this, tr("Clear Bookmarks"),
-                tr("Are you sure you want to clear all bookmarks?"),
-                QMessageBox::Yes | QMessageBox::No);
+            auto* dialog = new ElaContentDialog(this);
+            dialog->setWindowTitle(tr("Clear Bookmarks"));
+            auto* w = new QWidget(dialog);
+            auto* l = new QVBoxLayout(w);
+            l->addWidget(new ElaText(
+                tr("Are you sure you want to clear all bookmarks?"), w));
+            dialog->setCentralWidget(w);
+            dialog->setLeftButtonText(tr("Cancel"));
+            dialog->setRightButtonText(tr("Clear"));
 
-            if (reply == QMessageBox::Yes) {
+            bool confirmed = false;
+            connect(dialog, &ElaContentDialog::rightButtonClicked, this,
+                    [&confirmed, dialog]() {
+                        confirmed = true;
+                        dialog->close();
+                    });
+            connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+                    &ElaContentDialog::close);
+            dialog->exec();
+            dialog->deleteLater();
+
+            if (confirmed) {
                 m_model->clearAllBookmarks();
             }
         }

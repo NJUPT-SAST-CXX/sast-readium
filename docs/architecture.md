@@ -38,6 +38,7 @@ The application follows the MVC pattern with Qt's Model/View framework:
   - `SearchModel` - Search state and results
   - `BookmarkModel` - Bookmark management
   - `AnnotationModel` - Annotation data
+  - `AccessibilityModel` - Accessibility state (TTS, high contrast)
 
 - **Views** (`app/ui/`): User interface components
   - `ViewWidget` - Main PDF viewing area
@@ -50,6 +51,7 @@ The application follows the MVC pattern with Qt's Model/View framework:
   - `DocumentController` - Document lifecycle
   - `PageController` - Page navigation
   - `ConfigurationManager` - Settings management
+  - `AccessibilityController` - Accessibility logic coordination
 
 ### Command Pattern
 
@@ -313,6 +315,24 @@ High-performance logging based on spdlog:
 - Thread-safe logging
 
 See [Logging System Documentation](logging-system.md) for detailed information.
+
+### Accessibility System
+
+Comprehensive accessibility support including TTS and screen readers:
+
+**Components:**
+
+- `AccessibilityManager` - Main interface and compatibility wrapper
+- `AccessibilityController` - Logic coordination and service access
+- `AccessibilityModel` - State management
+- `TextToSpeech` - QtTextToSpeech integration
+
+**Features:**
+
+- Screen Reader support
+- High Contrast mode
+- Text-to-Speech with rate and volume control
+- Keyboard navigation enhancements
 
 ### Managers
 

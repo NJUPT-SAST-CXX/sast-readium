@@ -1,5 +1,5 @@
-#include "ThumbnailGenerator.h"
-#include <poppler-qt6.h>
+﻿#include "ThumbnailGenerator.h"
+#include <poppler/qt6/poppler-qt6.h>
 #include <QApplication>
 #include <QBuffer>
 #include <QDateTime>

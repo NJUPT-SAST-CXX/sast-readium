@@ -1,5 +1,5 @@
-#include "SearchExecutor.h"
-#include <poppler-qt6.h>
+﻿#include "SearchExecutor.h"
+#include <poppler/qt6/poppler-qt6.h>
 #include <QDebug>
 #include "SearchErrorRecovery.h"
 #include "SearchValidator.h"

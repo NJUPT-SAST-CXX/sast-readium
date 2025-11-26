@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Build System & Tooling
+
 - **Cross-Compilation Toolchains**: Comprehensive toolchain support for macOS (Intel & Apple Silicon), Linux (x86_64 & ARM64), and Windows (MinGW & MSYS2)
   - `arm64-apple-darwin.cmake` - macOS Apple Silicon targeting
   - `x86_64-apple-darwin.cmake` - macOS Intel targeting
@@ -30,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Build System Documentation**: Comprehensive documentation in `cmake/README.md` and `docs/MIGRATION-GUIDE.md`
 
 #### Architecture & Design Patterns
+
 - **Command Pattern**: Full implementation with undo/redo support
   - `CommandManager` - Centralized command execution and history management
   - `DocumentCommands` - Document-related commands (open, close, save)
@@ -53,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `PluginManager` - Plugin discovery, loading, and lifecycle management
 
 #### Core Features
+
 - **Centralized Logging System**: High-performance logging based on spdlog
   - Multiple sinks (console, file, rotating file, Qt widget)
   - Qt integration with automatic message redirection
@@ -77,7 +80,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Minimize to tray functionality
   - Quick access to recent documents
 
+#### Viewing Experience & Accessibility
+- **Text-to-Speech (TTS)**: Integrated accessibility feature
+  - Controls for reading rate, volume, and playback
+  - Auto-advance functionality for continuous reading
+  - Multi-language support via system voice engines
+- **Enhanced Viewing Modes**:
+  - **Sepia Theme**: Eye-comfort mode reducing blue light
+  - **Watermarking**: Customizable text overlays with adjustable opacity/color
+- **Native Link Support**:
+  - Internal PDF links (page jumps, TOC)
+  - External web links with browser integration
+  - Hover effects and tooltips
+- **Security**:
+  - **Password Protection**: Secure dialog for encrypted PDFs
+  - Automatic detection and retry mechanisms
+
 #### UI Enhancements
+
 - **File Type Icon Management**: Visual file type identification
   - `FileTypeIconManager` - SVG-based file type icons
   - Support for PDF, EPUB, DOC, TXT, and default icons
@@ -92,6 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Copy-to-clipboard functionality
 
 #### Testing Infrastructure
+
 - **Comprehensive Test Suite**: 100+ unit and integration tests
   - Command pattern tests (CommandManager, all command types)
   - Controller tests (ApplicationController, DocumentController, PageController)
@@ -108,6 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 #### Build System
+
 - **Simplified CMake Configuration**: Reduced complexity while maintaining functionality
   - Consolidated 8 CMake modules into 3 focused modules
   - Reduced CMake presets from 22+ to 6 essential configurations
@@ -123,6 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Build directory detection and validation
 
 #### Architecture
+
 - **Logging System Reorganization**: Moved from `app/utils/` to `app/logging/`
   - Better organization and discoverability
   - Simplified API with `SimpleLogging.h`
@@ -139,6 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `SearchModel` - Search state and results
 
 #### Performance
+
 - **Memory Optimization**: Improved memory management across the application
   - Smart caching with multiple eviction strategies
   - Memory-aware search result management
@@ -151,27 +175,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Virtual scrolling for large documents
 
 ### Fixed
+
+#### Build System Issues
+
 - **Build System Issues**:
   - Fixed vcpkg dependency detection in MSYS2 environment
   - Resolved spdlog and Qt6TextToSpeech missing dependencies
   - Fixed clangd configuration drift issues
+
+#### UI Issues
+
 - **UI Issues**:
   - Fixed incorrect page number updates when opening PDF files
   - Fixed scale factor exceeding limits
   - Resolved enum naming conflict with unistd.h (`close` → `closeFile`)
   - Fixed horizontal scrollbar and view widget styles
+
+#### Performance Issues
+
 - **Performance Issues**:
   - Optimized search performance with better caching
   - Reduced memory usage in thumbnail generation
   - Improved rendering performance with QGraphicsView
 
 ### Deprecated
+
 - **Old Build Scripts**: Replaced with unified scripts
   - `update-clangd-config.bat` → `clangd-config.ps1`
   - `update-clangd-config.sh` → `clangd-config.sh`
   - Multiple test scripts consolidated into `run_tests.ps1` and `run_tests.py`
 
 ### Removed
+
 - **Obsolete Build System Files**:
   - Removed xmake build system (CMake is now the only build system)
   - Removed Makefile-based build (use CMake presets instead)
@@ -182,6 +217,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `migrate_tests.py`, `reorganize_tests.*`, `restart-clangd.*`
 
 ### Security
+
 - **Clang Security Hardening**: Enhanced security features for Linux builds
   - Stack protector enabled
   - RELRO (Relocation Read-Only) protection
@@ -190,6 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - Initial Release
 
 ### Added
+
 - Basic PDF viewing functionality
 - Page navigation
 - Zoom and rotation controls
@@ -210,6 +247,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 If you're upgrading from an earlier version:
 
 1. **Update Build Configuration**: Use new simplified CMake presets
+
    ```bash
    cmake --preset Release-Unix      # Linux/macOS
    cmake --preset Release-Windows   # Windows with vcpkg
@@ -217,12 +255,14 @@ If you're upgrading from an earlier version:
    ```
 
 2. **Update clangd Configuration**: Use new unified scripts
+
    ```bash
    ./scripts/clangd-config.sh --auto        # Unix/Linux/macOS
    .\scripts\clangd-config.ps1 -Auto        # Windows
    ```
 
 3. **Update Logging Includes**: Logging moved to dedicated directory
+
    ```cpp
    // Old
    #include "utils/LoggingMacros.h"

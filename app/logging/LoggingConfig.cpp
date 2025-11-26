@@ -2,6 +2,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
+#include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <QHash>
 #include <QJsonArray>
@@ -12,6 +13,7 @@
 #include <QMutexLocker>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QtGlobal>
 #include "Logger.h"
 
 // LoggingConfig Implementation class
@@ -73,6 +75,9 @@ public:
     // Environment variable helpers
     QString getEnvironmentVariable(
         const QString& name, const QString& defaultValue = QString()) const;
+    void applyEnvironmentOverrides();
+    void setupFileWatcher();
+    void teardownFileWatcher();
     Logger::LogLevel parseLogLevelFromString(const QString& levelStr) const;
     QString logLevelToString(Logger::LogLevel level) const;
 
@@ -292,6 +297,9 @@ bool LoggingConfig::loadFromJsonFile(const QString& filename) {
     if (result) {
         d->configSource = ConfigSource::JsonFile;
         d->watchedConfigFile = filename;
+        if (d->autoReload) {
+            d->setupFileWatcher();
+        }
     }
     return result;
 }
@@ -489,6 +497,38 @@ void LoggingConfig::enableDefaultConfiguration() {
     emit configurationChanged();
 }
 
+void LoggingConfig::setAutoReload(bool enabled) {
+    QMutexLocker locker(&d->mutex);
+    if (d->autoReload == enabled) {
+        return;
+    }
+
+    d->autoReload = enabled;
+    if (enabled && !d->watchedConfigFile.isEmpty()) {
+        d->setupFileWatcher();
+    } else {
+        d->teardownFileWatcher();
+    }
+}
+
+void LoggingConfig::watchConfigurationFile(const QString& filename) {
+    QMutexLocker locker(&d->mutex);
+    if (filename.isEmpty()) {
+        return;
+    }
+
+    d->watchedConfigFile = filename;
+    if (d->autoReload) {
+        d->setupFileWatcher();
+    }
+}
+
+void LoggingConfig::stopWatchingConfigurationFile() {
+    QMutexLocker locker(&d->mutex);
+    d->watchedConfigFile.clear();
+    d->teardownFileWatcher();
+}
+
 void LoggingConfig::loadDevelopmentPreset() {
     resetToDefaults();
 
@@ -657,15 +697,15 @@ void LoggingConfig::resetToDefaults() {
 }
 
 void LoggingConfig::handleFileSystemChange(const QString& path) {
-    Q_UNUSED(path)
-    // Handle file system changes for configuration file watching
-    // This could trigger a reload of the configuration
+    if (path != d->watchedConfigFile || d->watchedConfigFile.isEmpty()) {
+        return;
+    }
+
+    reloadConfiguration();
 }
 
 void LoggingConfig::onConfigurationFileChanged(const QString& path) {
-    Q_UNUSED(path)
-    // Handle configuration file changes
-    // This could trigger a reload of the configuration
+    handleFileSystemChange(path);
 }
 
 void LoggingConfig::onGlobalLevelChanged(int level) {
@@ -886,6 +926,10 @@ LoggingConfig::Implementation::categoryConfigFromJson(
     config.level = parseLogLevelFromString(json["level"].toString("info"));
     config.enabled = json["enabled"].toBool(true);
     config.pattern = json["pattern"].toString();
+    QJsonArray enabledSinksArray = json["enabledSinks"].toArray();
+    for (const auto& value : enabledSinksArray) {
+        config.enabledSinks.append(value.toString());
+    }
     return config;
 }
 
@@ -935,6 +979,11 @@ QJsonObject LoggingConfig::Implementation::categoryConfigToJson(
     json["level"] = logLevelToString(config.level);
     json["enabled"] = config.enabled;
     json["pattern"] = config.pattern;
+    QJsonArray enabledSinksArray;
+    for (const auto& sink : config.enabledSinks) {
+        enabledSinksArray.append(sink);
+    }
+    json["enabledSinks"] = enabledSinksArray;
     return json;
 }
 

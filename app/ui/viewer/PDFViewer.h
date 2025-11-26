@@ -411,6 +411,9 @@ private:
     void applyContinuousMode();
     void applyTwoPageMode();
     void applyBookMode();
+
+    // 虚拟滚动辅助
+    void updateVisiblePages();
 };
 
 // Backward-compatibility alias for tests expecting a top-level PDFViewMode

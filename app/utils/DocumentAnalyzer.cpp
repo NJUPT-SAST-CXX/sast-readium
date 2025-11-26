@@ -1,5 +1,5 @@
-#include "DocumentAnalyzer.h"
-#include <poppler-qt6.h>
+﻿#include "DocumentAnalyzer.h"
+#include <poppler/qt6/poppler-qt6.h>
 #include <QBuffer>
 #include <QCryptographicHash>
 #include <QDateTime>

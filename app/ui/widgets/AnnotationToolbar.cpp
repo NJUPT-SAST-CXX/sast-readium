@@ -5,10 +5,12 @@
 #include <QFontDatabase>
 #include <QStyle>
 #include "../../managers/I18nManager.h"
+#include "ElaScrollPageArea.h"
 
 AnnotationToolbar::AnnotationToolbar(QWidget* parent)
     : QWidget(parent),
       m_toolGroup(nullptr),
+      m_toolTitle(nullptr),
       m_toolLayout(nullptr),
       m_toolButtonGroup(nullptr),
       m_highlightBtn(nullptr),
@@ -22,6 +24,7 @@ AnnotationToolbar::AnnotationToolbar(QWidget* parent)
       m_arrowBtn(nullptr),
       m_inkBtn(nullptr),
       m_propertiesGroup(nullptr),
+      m_propertiesTitle(nullptr),
       m_propertiesLayout(nullptr),
       m_colorButton(nullptr),
       m_colorDialog(nullptr),
@@ -34,6 +37,7 @@ AnnotationToolbar::AnnotationToolbar(QWidget* parent)
       m_fontFamilyLabel(nullptr),
       m_fontFamilyCombo(nullptr),
       m_actionsGroup(nullptr),
+      m_actionsTitle(nullptr),
       m_actionsLayout(nullptr),
       m_clearAllBtn(nullptr),
       m_saveBtn(nullptr),
@@ -61,8 +65,19 @@ void AnnotationToolbar::setupUI() {
     mainLayout->setSpacing(8);
 
     // Tool selection group
-    m_toolGroup = new QGroupBox(tr("Annotation Tools"), this);
-    m_toolLayout = new QHBoxLayout(m_toolGroup);
+    m_toolGroup = new ElaScrollPageArea(this);
+    auto* toolVLayout = new QVBoxLayout(m_toolGroup);
+    toolVLayout->setContentsMargins(12, 8, 12, 12);
+
+    m_toolTitle = new ElaText(tr("Annotation Tools"), m_toolGroup);
+    m_toolTitle->setTextPixelSize(14);
+    toolVLayout->addWidget(m_toolTitle);
+
+    auto* toolContent = new QWidget(m_toolGroup);
+    m_toolLayout = new QHBoxLayout(toolContent);
+    m_toolLayout->setContentsMargins(0, 6, 0, 0);
+    toolVLayout->addWidget(toolContent);
+
     m_toolButtonGroup = new QButtonGroup(this);
 
     // Create tool buttons
@@ -136,8 +151,18 @@ void AnnotationToolbar::setupUI() {
     m_highlightBtn->setChecked(true);  // Default selection
 
     // Properties group
-    m_propertiesGroup = new QGroupBox(tr("Properties"), this);
-    m_propertiesLayout = new QVBoxLayout(m_propertiesGroup);
+    m_propertiesGroup = new ElaScrollPageArea(this);
+    auto* propsVLayout = new QVBoxLayout(m_propertiesGroup);
+    propsVLayout->setContentsMargins(12, 8, 12, 12);
+
+    m_propertiesTitle = new ElaText(tr("Properties"), m_propertiesGroup);
+    m_propertiesTitle->setTextPixelSize(14);
+    propsVLayout->addWidget(m_propertiesTitle);
+
+    auto* propsContent = new QWidget(m_propertiesGroup);
+    m_propertiesLayout = new QVBoxLayout(propsContent);
+    m_propertiesLayout->setContentsMargins(0, 6, 0, 0);
+    propsVLayout->addWidget(propsContent);
 
     // Color selection
     auto* colorLayout = new QHBoxLayout();
@@ -195,8 +220,18 @@ void AnnotationToolbar::setupUI() {
     m_propertiesLayout->addLayout(fontFamilyLayout);
 
     // Actions group
-    m_actionsGroup = new QGroupBox(tr("Actions"), this);
-    m_actionsLayout = new QHBoxLayout(m_actionsGroup);
+    m_actionsGroup = new ElaScrollPageArea(this);
+    auto* actionsVLayout = new QVBoxLayout(m_actionsGroup);
+    actionsVLayout->setContentsMargins(12, 8, 12, 12);
+
+    m_actionsTitle = new ElaText(tr("Actions"), m_actionsGroup);
+    m_actionsTitle->setTextPixelSize(14);
+    actionsVLayout->addWidget(m_actionsTitle);
+
+    auto* actionsContent = new QWidget(m_actionsGroup);
+    m_actionsLayout = new QHBoxLayout(actionsContent);
+    m_actionsLayout->setContentsMargins(0, 6, 0, 0);
+    actionsVLayout->addWidget(actionsContent);
 
     m_clearAllBtn = new ElaPushButton(tr("Clear All"));
     m_clearAllBtn->setIcon(
@@ -404,15 +439,15 @@ void AnnotationToolbar::changeEvent(QEvent* event) {
 }
 
 void AnnotationToolbar::retranslateUi() {
-    // Update group box titles
-    if (m_toolGroup) {
-        m_toolGroup->setTitle(tr("Annotation Tools"));
+    // Update section titles
+    if (m_toolTitle) {
+        m_toolTitle->setText(tr("Annotation Tools"));
     }
-    if (m_propertiesGroup) {
-        m_propertiesGroup->setTitle(tr("Properties"));
+    if (m_propertiesTitle) {
+        m_propertiesTitle->setText(tr("Properties"));
     }
-    if (m_actionsGroup) {
-        m_actionsGroup->setTitle(tr("Actions"));
+    if (m_actionsTitle) {
+        m_actionsTitle->setText(tr("Actions"));
     }
 
     // Update tool button texts and tooltips

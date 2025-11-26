@@ -1,15 +1,14 @@
 #include "ViewWidget.h"
 #include <QContextMenuEvent>
 #include <QDebug>
-
-#include <QMessageBox>
-
 #include <QTimer>
+#include <QVBoxLayout>
 #include "../../logging/LoggingMacros.h"
 #include "../../managers/StyleManager.h"
 #include "../viewer/PDFViewer.h"
 #include "../widgets/SkeletonWidget.h"
 #include "../widgets/ToastNotification.h"
+#include "ElaContentDialog.h"
 #include "ElaProgressBar.h"
 #include "ElaText.h"
 #include "UIErrorHandler.h"
@@ -1057,26 +1056,33 @@ bool ViewWidget::confirmCloseDocument(int index) {
 
     QString documentName = getDocumentDisplayName(index);
 
-    QMessageBox msgBox(this);
-    msgBox.setIcon(QMessageBox::Question);
-    msgBox.setWindowTitle(tr("Unsaved Changes"));
-    msgBox.setText(
-        tr("The document '%1' has unsaved changes.").arg(documentName));
-    msgBox.setInformativeText(tr("Do you want to close it anyway?"));
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No |
-                              QMessageBox::Cancel);
-    msgBox.setDefaultButton(QMessageBox::No);
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("Unsaved Changes"));
 
-    int result = msgBox.exec();
+    auto* centralWidget = new QWidget(dialog);
+    auto* layout = new QVBoxLayout(centralWidget);
+    layout->addWidget(
+        new ElaText(tr("The document '%1' has unsaved changes.\n\nDo you want "
+                       "to close it anyway?")
+                        .arg(documentName),
+                    centralWidget));
+    dialog->setCentralWidget(centralWidget);
 
-    switch (result) {
-        case QMessageBox::Yes:
-            return true;  // User confirmed close despite unsaved changes
-        case QMessageBox::No:
-        case QMessageBox::Cancel:
-        default:
-            return false;  // User cancelled close operation
-    }
+    dialog->setLeftButtonText(tr("Cancel"));
+    dialog->setRightButtonText(tr("Close Anyway"));
+
+    bool confirmed = false;
+    connect(dialog, &ElaContentDialog::rightButtonClicked, this,
+            [&confirmed, dialog]() {
+                confirmed = true;
+                dialog->close();
+            });
+    connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
+
+    return confirmed;
 }
 
 void ViewWidget::markDocumentModified(int index, bool modified) {

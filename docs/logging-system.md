@@ -19,7 +19,7 @@ SAST Readium uses a modern logging system based on [spdlog](https://github.com/g
 ### Basic Usage
 
 ```cpp
-#include "utils/LoggingMacros.h"
+#include "logging/LoggingMacros.h"
 
 // Simple logging
 LOG_INFO("Application started");
@@ -34,7 +34,7 @@ LOG_DEBUG("Processing {} items in {} seconds", count, duration);
 ### Initialization
 
 ```cpp
-#include "utils/LoggingManager.h"
+#include "logging/LoggingManager.h"
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
@@ -47,6 +47,19 @@ int main(int argc, char* argv[]) {
     // Shutdown logging system
     LoggingManager::instance().shutdown();
     return app.exec();
+}
+```
+
+### Simplified Logging
+
+For simple use cases, you can use the simplified API:
+
+```cpp
+#include "logging/SimpleLogging.h"
+
+void myFunction() {
+    sLogInfo("Simple info message");
+    sLogDebug("Simple debug with arg: {}", 42);
 }
 ```
 
@@ -277,7 +290,7 @@ export SAST_READIUM_LOG_FILE_PATH=/custom/path/app.log
 ### Common Issues
 
 **Q: Logging macros not recognized**
-A: Make sure to include `"utils/LoggingMacros.h"` in your source files.
+A: Make sure to include `"logging/LoggingMacros.h"` in your source files.
 
 **Q: Qt logging not redirected**
 A: Ensure `redirectQtMessages` is enabled in your configuration and the QtSpdlogBridge is initialized.
@@ -300,7 +313,7 @@ LoggingManager::instance().setGlobalLogLevel(Logger::LogLevel::Trace);
 
 If you're migrating from Qt's built-in logging system:
 
-1. Replace `#include <QDebug>` with `#include "utils/LoggingMacros.h"`
+1. Replace `#include <QDebug>` with `#include "logging/LoggingMacros.h"`
 2. Replace `qDebug()` with `LOG_DEBUG()`
 3. Replace `qWarning()` with `LOG_WARNING()`
 4. Replace `qCritical()` with `LOG_CRITICAL()`

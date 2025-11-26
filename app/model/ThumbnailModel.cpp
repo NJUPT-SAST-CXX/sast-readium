@@ -1,5 +1,5 @@
-#include "ThumbnailModel.h"
-#include <poppler-qt6.h>
+﻿#include "ThumbnailModel.h"
+#include <poppler/qt6/poppler-qt6.h>
 #include <QApplication>
 #include <QDateTime>
 #include <QDebug>

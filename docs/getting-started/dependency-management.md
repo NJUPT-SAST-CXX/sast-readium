@@ -27,9 +27,9 @@ The project uses a **tiered dependency management approach**:
 
   - Components: Core, Gui, Widgets, Svg, LinguistTools
   - System package names:
-    - Ubuntu: `qt6-base-dev qt6-svg-dev qt6-tools-dev qt6-l10n-tools`
+    - Ubuntu: `qt6-base-dev qt6-svg-dev qt6-tools-dev qt6-speech-dev qt6-l10n-tools`
     - macOS: `qt@6`
-    - MSYS2: `mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-svg mingw-w64-x86_64-qt6-tools`
+    - MSYS2: `mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-svg mingw-w64-x86_64-qt6-tools mingw-w64-x86_64-qt6-speech`
 
 - **Poppler-Qt6**
   - PDF rendering library
@@ -185,7 +185,7 @@ cmake --preset <your-preset> -DUSE_VCPKG=OFF  # or ON
 
    ```bash
    # Ubuntu
-   sudo apt install qt6-base-dev qt6-svg-dev qt6-tools-dev libpoppler-qt6-dev
+   sudo apt install qt6-base-dev qt6-svg-dev qt6-tools-dev qt6-speech-dev libpoppler-qt6-dev
 
    # macOS
    brew install qt@6
@@ -193,7 +193,7 @@ cmake --preset <your-preset> -DUSE_VCPKG=OFF  # or ON
    # For local development, see manual build instructions below
 
    # MSYS2
-   pacman -S mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-svg mingw-w64-x86_64-poppler-qt6
+   pacman -S mingw-w64-x86_64-qt6-base mingw-w64-x86_64-qt6-svg mingw-w64-x86_64-qt6-speech mingw-w64-x86_64-poppler-qt6
    ```
 
 2. **Use system package presets**:

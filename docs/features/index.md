@@ -8,6 +8,14 @@ SAST Readium is designed as a modern, high-performance PDF reader with a focus o
 
 ## Documentation in this Section
 
+### [Highlight System](highlight-system.md)
+
+Comprehensive text highlighting functionality:
+
+- **Core Features**: Text selection, creation, editing, and persistence.
+- **Architecture**: Command pattern, event bus integration, and lazy loading.
+- **Rendering**: Optimized rendering with custom colors and notes.
+
 ### [Thumbnail System](thumbnail-system.md)
 
 Comprehensive documentation of the Chrome-style PDF thumbnail system:
@@ -15,9 +23,28 @@ Comprehensive documentation of the Chrome-style PDF thumbnail system:
 - **High-Performance Design**: Virtual scrolling with QAbstractListModel
 - **Modern UI**: Chrome-style design with rounded corners and shadows
 - **Smart Loading**: Intelligent lazy loading and async thumbnail generation
-- **Responsive Interface**: Hover and selection state animations
-- **Theme Support**: Light and dark theme compatibility
-- **Memory Optimization**: Efficient caching and memory management
+
+### [Viewing Experience](viewing-experience.md)
+
+Enhancements to the core reading environment:
+
+- **Theme Support**: Light, Dark, and Sepia modes for visual comfort.
+- **Native Link Support**: Seamless navigation of internal and external links.
+- **Spatial Indexing**: Optimized text selection performance.
+
+### [Security & Protection](security-and-protection.md)
+
+Features ensuring document security and integrity:
+
+- **Password Protection**: Secure handling of encrypted PDFs.
+- **Watermarking**: Customizable overlays for document status or ownership.
+
+### [Text-to-Speech](text-to-speech.md)
+
+Accessibility and convenience features:
+
+- **Integrated TTS**: Read documents aloud with system voices.
+- **Playback Controls**: Speed, volume, and auto-advance settings.
 
 ## Feature Highlights
 

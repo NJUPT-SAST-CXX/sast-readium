@@ -1,4 +1,4 @@
-// Platform-specific headers MUST come first to avoid type conflicts
+﻿// Platform-specific headers MUST come first to avoid type conflicts
 // NOTE: Use _WIN32 instead of Q_OS_WIN because Q_OS_WIN is not defined yet
 #ifdef _WIN32
 #include "../../app/platform/WindowsCompat.h"  // Windows headers with macro cleanup
@@ -10,7 +10,7 @@
 #endif
 
 // Qt and other headers
-#include <poppler-qt6.h>
+#include <poppler/qt6/poppler-qt6.h>
 #include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>

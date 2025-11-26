@@ -533,8 +533,8 @@ EventBus::instance().subscribe("plugin.loaded", this, [model]() {
 
 ## References
 
-- **Core Plugin System**: See `docs/plugin-development.md`
-- **Specialized Plugins**: See `docs/specialized-plugins-guide.md`
+- **Core Plugin System**: See [Plugin Development Guide](development-guide.md)
+- **Specialized Plugins**: See [Specialized Plugins Guide](specialized-plugins.md)
 - **MVC Architecture**: See `docs/architecture.md`
 - **Command Pattern**: See `app/command/README.md` (if exists)
 - **ServiceLocator**: See `app/controller/ServiceLocator.h`

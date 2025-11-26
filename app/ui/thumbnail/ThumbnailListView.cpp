@@ -24,6 +24,7 @@
 #include <cmath>
 #include "../../delegate/ThumbnailDelegate.h"
 #include "../../model/ThumbnailModel.h"
+#include "../widgets/ToastNotification.h"
 #include "ElaMenu.h"
 
 namespace {
@@ -799,7 +800,7 @@ void ThumbnailListView::copyPageToClipboard(int pageNumber) {
 
     QPixmap pixmap = index.data(Qt::DecorationRole).value<QPixmap>();
     if (pixmap.isNull()) {
-        QMessageBox::warning(this, "错误", "无法获取页面图像");
+        TOAST_WARNING(this, "无法获取页面图像");
         return;
     }
 
@@ -807,9 +808,8 @@ void ThumbnailListView::copyPageToClipboard(int pageNumber) {
     QClipboard* clipboard = QApplication::clipboard();
     if (clipboard) {
         clipboard->setPixmap(pixmap);
-        QMessageBox::information(
-            this, "复制成功",
-            QString("第 %1 页图像已复制到剪贴板").arg(pageNumber + 1));
+        TOAST_SUCCESS(
+            this, QString("第 %1 页图像已复制到剪贴板").arg(pageNumber + 1));
     }
 }
 
@@ -836,13 +836,13 @@ void ThumbnailListView::exportPageToFile(int pageNumber) {
     // Get the thumbnail pixmap from the model
     QModelIndex index = m_thumbnailModel->index(pageNumber, 0);
     if (!index.isValid()) {
-        QMessageBox::warning(this, "错误", "无法获取页面数据");
+        TOAST_WARNING(this, "无法获取页面数据");
         return;
     }
 
     QPixmap pixmap = index.data(Qt::DecorationRole).value<QPixmap>();
     if (pixmap.isNull()) {
-        QMessageBox::warning(this, "错误", "无法获取页面图像");
+        TOAST_WARNING(this, "无法获取页面图像");
         return;
     }
 
@@ -854,12 +854,11 @@ void ThumbnailListView::exportPageToFile(int pageNumber) {
 
     // Save the image
     if (pixmap.save(filePath, format.toUtf8().constData())) {
-        QMessageBox::information(this, "导出成功",
-                                 QString("第 %1 页已成功导出到:\n%2")
-                                     .arg(pageNumber + 1)
-                                     .arg(filePath));
+        TOAST_SUCCESS(this, QString("第 %1 页已成功导出到:\n%2")
+                                .arg(pageNumber + 1)
+                                .arg(filePath));
     } else {
-        QMessageBox::critical(this, "错误", "保存文件失败");
+        TOAST_ERROR(this, "保存文件失败");
     }
 }
 

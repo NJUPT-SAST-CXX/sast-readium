@@ -9,7 +9,6 @@
 #include <QFileInfo>
 #include <QIcon>
 #include <QLocale>
-#include <QMessageBox>
 #include <QMimeData>
 #include <QStringConverter>
 #include <QStyle>
@@ -18,8 +17,10 @@
 #include "../../managers/I18nManager.h"
 #include "../../managers/StyleManager.h"
 #include "../widgets/ToastNotification.h"
+#include "ElaContentDialog.h"
 #include "ElaLineEdit.h"
 #include "ElaPushButton.h"
+#include "ElaScrollPageArea.h"
 #include "ElaText.h"
 
 DocumentMetadataDialog::DocumentMetadataDialog(QWidget* parent)
@@ -80,15 +81,21 @@ void DocumentMetadataDialog::initializeMainLayout(StyleManager& styleManager) {
 
 void DocumentMetadataDialog::createBasicInfoSection(
     StyleManager& styleManager) {
-    m_basicInfoGroup =
-        new QGroupBox(tr("Basic Information"), m_propertiesContentWidget);
-    m_basicInfoLayout = new QGridLayout(m_basicInfoGroup);
-    m_basicInfoLayout->setContentsMargins(
-        styleManager.spacingMD(), styleManager.spacingLG(),
-        styleManager.spacingMD(), styleManager.spacingMD());
+    m_basicInfoGroup = new ElaScrollPageArea(m_propertiesContentWidget);
+    auto* basicInfoVLayout = new QVBoxLayout(m_basicInfoGroup);
+    basicInfoVLayout->setContentsMargins(12, 8, 12, 12);
+
+    m_basicInfoTitle = new ElaText(tr("Basic Information"), m_basicInfoGroup);
+    m_basicInfoTitle->setTextPixelSize(14);
+    basicInfoVLayout->addWidget(m_basicInfoTitle);
+
+    auto* basicInfoContent = new QWidget(m_basicInfoGroup);
+    m_basicInfoLayout = new QGridLayout(basicInfoContent);
+    m_basicInfoLayout->setContentsMargins(0, styleManager.spacingSM(), 0, 0);
     m_basicInfoLayout->setHorizontalSpacing(styleManager.spacingMD());
     m_basicInfoLayout->setVerticalSpacing(styleManager.spacingSM());
     m_basicInfoLayout->setColumnStretch(1, 1);
+    basicInfoVLayout->addWidget(basicInfoContent);
 
     auto* fileNameLabel = new ElaText(tr("File Name:"), m_basicInfoGroup);
     m_basicInfoLayout->addWidget(fileNameLabel, 0, 0);
@@ -139,15 +146,22 @@ void DocumentMetadataDialog::createBasicInfoSection(
 
 void DocumentMetadataDialog::createPropertiesSection(
     StyleManager& styleManager) {
-    m_propertiesGroup =
-        new QGroupBox(tr("Document Properties"), m_propertiesContentWidget);
-    m_propertiesLayout = new QGridLayout(m_propertiesGroup);
-    m_propertiesLayout->setContentsMargins(
-        styleManager.spacingMD(), styleManager.spacingLG(),
-        styleManager.spacingMD(), styleManager.spacingMD());
+    m_propertiesGroup = new ElaScrollPageArea(m_propertiesContentWidget);
+    auto* propertiesVLayout = new QVBoxLayout(m_propertiesGroup);
+    propertiesVLayout->setContentsMargins(12, 8, 12, 12);
+
+    m_propertiesTitle =
+        new ElaText(tr("Document Properties"), m_propertiesGroup);
+    m_propertiesTitle->setTextPixelSize(14);
+    propertiesVLayout->addWidget(m_propertiesTitle);
+
+    auto* propertiesContent = new QWidget(m_propertiesGroup);
+    m_propertiesLayout = new QGridLayout(propertiesContent);
+    m_propertiesLayout->setContentsMargins(0, styleManager.spacingSM(), 0, 0);
     m_propertiesLayout->setHorizontalSpacing(styleManager.spacingMD());
     m_propertiesLayout->setVerticalSpacing(styleManager.spacingSM());
     m_propertiesLayout->setColumnStretch(1, 1);
+    propertiesVLayout->addWidget(propertiesContent);
 
     auto* titleLabel = new ElaText(tr("Title:"), m_propertiesGroup);
     m_propertiesLayout->addWidget(titleLabel, 0, 0);
@@ -202,15 +216,21 @@ void DocumentMetadataDialog::createPropertiesSection(
 }
 
 void DocumentMetadataDialog::createSecuritySection(StyleManager& styleManager) {
-    m_securityGroup =
-        new QGroupBox(tr("Security Information"), m_propertiesContentWidget);
-    m_securityLayout = new QGridLayout(m_securityGroup);
-    m_securityLayout->setContentsMargins(
-        styleManager.spacingMD(), styleManager.spacingLG(),
-        styleManager.spacingMD(), styleManager.spacingMD());
+    m_securityGroup = new ElaScrollPageArea(m_propertiesContentWidget);
+    auto* securityVLayout = new QVBoxLayout(m_securityGroup);
+    securityVLayout->setContentsMargins(12, 8, 12, 12);
+
+    m_securityTitle = new ElaText(tr("Security Information"), m_securityGroup);
+    m_securityTitle->setTextPixelSize(14);
+    securityVLayout->addWidget(m_securityTitle);
+
+    auto* securityContent = new QWidget(m_securityGroup);
+    m_securityLayout = new QGridLayout(securityContent);
+    m_securityLayout->setContentsMargins(0, styleManager.spacingSM(), 0, 0);
     m_securityLayout->setHorizontalSpacing(styleManager.spacingMD());
     m_securityLayout->setVerticalSpacing(styleManager.spacingSM());
     m_securityLayout->setColumnStretch(1, 1);
+    securityVLayout->addWidget(securityContent);
 
     auto* encryptedLabel = new ElaText(tr("Encrypted:"), m_securityGroup);
     m_securityLayout->addWidget(encryptedLabel, 0, 0);
@@ -573,8 +593,19 @@ QString DocumentMetadataDialog::getPdfVersion(Poppler::Document* document) {
 
 void DocumentMetadataDialog::exportMetadata() {
     if (m_currentFilePath.isEmpty()) {
-        QMessageBox::warning(this, tr("Export Error"),
-                             tr("No document information to export"));
+        auto* dialog = new ElaContentDialog(this);
+        dialog->setWindowTitle(tr("Export Error"));
+        auto* w = new QWidget(dialog);
+        auto* l = new QVBoxLayout(w);
+        l->addWidget(new ElaText(tr("No document information to export"), w));
+        dialog->setCentralWidget(w);
+        dialog->setLeftButtonText(QString());
+        dialog->setMiddleButtonText(QString());
+        dialog->setRightButtonText(tr("OK"));
+        connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
+                &ElaContentDialog::close);
+        dialog->exec();
+        dialog->deleteLater();
         return;
     }
 
@@ -662,9 +693,20 @@ void DocumentMetadataDialog::exportMetadata() {
                           .arg(QFileInfo(fileName).fileName()));
 
     } catch (const std::exception& e) {
-        QMessageBox::critical(
-            this, tr("Export Error"),
-            tr("Error exporting document information: %1").arg(e.what()));
+        auto* dialog = new ElaContentDialog(this);
+        dialog->setWindowTitle(tr("Export Error"));
+        auto* w = new QWidget(dialog);
+        auto* l = new QVBoxLayout(w);
+        l->addWidget(new ElaText(
+            tr("Error exporting document information: %1").arg(e.what()), w));
+        dialog->setCentralWidget(w);
+        dialog->setLeftButtonText(QString());
+        dialog->setMiddleButtonText(QString());
+        dialog->setRightButtonText(tr("OK"));
+        connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
+                &ElaContentDialog::close);
+        dialog->exec();
+        dialog->deleteLater();
     }
 }
 
@@ -672,19 +714,19 @@ void DocumentMetadataDialog::retranslateUi() {
     // Update window title
     setWindowTitle(tr("Document Details"));
 
-    // Update basic info section
-    if (m_basicInfoGroup) {
-        m_basicInfoGroup->setTitle(tr("Basic Information"));
+    // Update basic info section title
+    if (m_basicInfoTitle) {
+        m_basicInfoTitle->setText(tr("Basic Information"));
     }
 
-    // Update properties section
-    if (m_propertiesGroup) {
-        m_propertiesGroup->setTitle(tr("Document Properties"));
+    // Update properties section title
+    if (m_propertiesTitle) {
+        m_propertiesTitle->setText(tr("Document Properties"));
     }
 
-    // Update security section
-    if (m_securityGroup) {
-        m_securityGroup->setTitle(tr("Security Information"));
+    // Update security section title
+    if (m_securityTitle) {
+        m_securityTitle->setText(tr("Security Information"));
     }
 
     // Update buttons

@@ -846,7 +846,7 @@ Each example includes:
 
 ## See Also
 
-- [Plugin Development Guide](plugin-development.md) - Basic plugin development
-- [Plugin UI Integration](plugin-ui-integration.md) - UI extension plugins
+- [Plugin Development Guide](development-guide.md) - Basic plugin development
+- [Plugin UI Integration](ui-integration.md) - UI extension plugins
 - [Plugin System Architecture](../llmdoc/feature/plugin-system.md) - Technical details
 - [API Reference](../docs/api-reference.md) - Complete API documentation

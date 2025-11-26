@@ -12,7 +12,6 @@
 #include <QFile>
 #include <QFont>
 #include <QGridLayout>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QHideEvent>
@@ -20,7 +19,6 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
-#include <QMessageBox>
 #include <QMutexLocker>
 #include <QOverload>
 #include <QProgressBar>
@@ -34,11 +32,10 @@
 #include <QShowEvent>
 #include <QSizePolicy>
 #include <QSplitter>
+#include <QStandardItemModel>
 #include <QStandardPaths>
 #include <QStringConverter>
 #include <QStringList>
-#include <QTableWidget>
-#include <QTableWidgetItem>
 #include <QTextCharFormat>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -58,7 +55,9 @@
 #include "ElaMenu.h"
 #include "ElaProgressBar.h"
 #include "ElaPushButton.h"
+#include "ElaScrollPageArea.h"
 #include "ElaSpinBox.h"
+#include "ElaTableView.h"
 #include "ElaText.h"
 
 const QString DebugLogPanel::SETTINGS_GROUP = QStringLiteral("DebugLogPanel");
@@ -73,6 +72,7 @@ DebugLogPanel::DebugLogPanel(QWidget* parent)
       m_logDisplay(nullptr),
       m_scrollBar(nullptr),
       m_filterGroup(nullptr),
+      m_filterTitle(nullptr),
       m_logLevelFilter(nullptr),
       m_categoryFilter(nullptr),
       m_searchEdit(nullptr),
@@ -88,7 +88,9 @@ DebugLogPanel::DebugLogPanel(QWidget* parent)
       m_settingsBtn(nullptr),
       m_autoScrollCheck(nullptr),
       m_statsGroup(nullptr),
+      m_statsTitle(nullptr),
       m_statsTable(nullptr),
+      m_statsModel(nullptr),
       m_messagesPerSecLabel(nullptr),
       m_memoryUsageBar(nullptr),
       m_contextMenu(nullptr),
@@ -184,11 +186,16 @@ void DebugLogPanel::setupLogDisplay() {
 }
 
 void DebugLogPanel::setupFilterControls() {
-    m_filterGroup = new QGroupBox(tr("Filters"), this);
+    m_filterGroup = new ElaScrollPageArea(this);
     QGridLayout* filterLayout = new QGridLayout(m_filterGroup);
+    filterLayout->setContentsMargins(12, 8, 12, 8);
+
+    m_filterTitle = new ElaText(tr("Filters"), this);
+    m_filterTitle->setTextPixelSize(14);
+    filterLayout->addWidget(m_filterTitle, 0, 0, 1, 4);
 
     // Log level filter
-    filterLayout->addWidget(new ElaText(tr("Level:")), 0, 0);
+    filterLayout->addWidget(new ElaText(tr("Level:")), 1, 0);
     m_logLevelFilter = new ElaComboBox();
     m_logLevelFilter->addItem(tr("All"),
                               static_cast<int>(Logger::LogLevel::Trace));
@@ -203,20 +210,20 @@ void DebugLogPanel::setupFilterControls() {
     m_logLevelFilter->addItem(tr("Critical"),
                               static_cast<int>(Logger::LogLevel::Critical));
     m_logLevelFilter->setCurrentIndex(1);  // Default to Debug+
-    filterLayout->addWidget(m_logLevelFilter, 0, 1);
+    filterLayout->addWidget(m_logLevelFilter, 1, 1);
 
     // Category filter
-    filterLayout->addWidget(new ElaText(tr("Category:")), 0, 2);
+    filterLayout->addWidget(new ElaText(tr("Category:")), 1, 2);
     m_categoryFilter = new ElaComboBox();
     m_categoryFilter->addItem(tr("All Categories"));
     m_categoryFilter->setEditable(true);
-    filterLayout->addWidget(m_categoryFilter, 0, 3);
+    filterLayout->addWidget(m_categoryFilter, 1, 3);
 
     // Search controls
-    filterLayout->addWidget(new ElaText(tr("Search:")), 1, 0);
+    filterLayout->addWidget(new ElaText(tr("Search:")), 2, 0);
     m_searchEdit = new ElaLineEdit();
     m_searchEdit->setPlaceholderText(tr("Search log messages..."));
-    filterLayout->addWidget(m_searchEdit, 1, 1, 1, 2);
+    filterLayout->addWidget(m_searchEdit, 2, 1, 1, 2);
 
     // Search buttons
     QHBoxLayout* searchBtnLayout = new QHBoxLayout();
@@ -227,7 +234,7 @@ void DebugLogPanel::setupFilterControls() {
     searchBtnLayout->addWidget(m_searchPrevBtn);
     searchBtnLayout->addWidget(m_searchNextBtn);
     searchBtnLayout->addStretch();
-    filterLayout->addLayout(searchBtnLayout, 1, 3);
+    filterLayout->addLayout(searchBtnLayout, 2, 3);
 
     // Search options
     QHBoxLayout* searchOptionsLayout = new QHBoxLayout();
@@ -236,7 +243,7 @@ void DebugLogPanel::setupFilterControls() {
     searchOptionsLayout->addWidget(m_caseSensitiveCheck);
     searchOptionsLayout->addWidget(m_regexCheck);
     searchOptionsLayout->addStretch();
-    filterLayout->addLayout(searchOptionsLayout, 2, 0, 1, 4);
+    filterLayout->addLayout(searchOptionsLayout, 3, 0, 1, 4);
 
     m_mainSplitter->addWidget(m_filterGroup);
 }
@@ -280,23 +287,31 @@ void DebugLogPanel::setupActionButtons() {
 }
 
 void DebugLogPanel::setupStatisticsDisplay() {
-    m_statsGroup = new QGroupBox(tr("Statistics"), this);
+    m_statsGroup = new ElaScrollPageArea(this);
     QVBoxLayout* statsLayout = new QVBoxLayout(m_statsGroup);
+    statsLayout->setContentsMargins(12, 8, 12, 8);
 
-    // Statistics table
-    m_statsTable = new QTableWidget(6, 2);
-    m_statsTable->setHorizontalHeaderLabels({tr("Metric"), tr("Value")});
-    m_statsTable->setVerticalHeaderLabels({tr("Total"), tr("Debug"), tr("Info"),
+    m_statsTitle = new ElaText(tr("Statistics"), this);
+    m_statsTitle->setTextPixelSize(14);
+    statsLayout->addWidget(m_statsTitle);
+
+    // Statistics table using ElaTableView
+    m_statsModel = new QStandardItemModel(6, 2, this);
+    m_statsModel->setHorizontalHeaderLabels({tr("Metric"), tr("Value")});
+    m_statsModel->setVerticalHeaderLabels({tr("Total"), tr("Debug"), tr("Info"),
                                            tr("Warning"), tr("Error"),
                                            tr("Critical")});
+
+    m_statsTable = new ElaTableView(this);
+    m_statsTable->setModel(m_statsModel);
     m_statsTable->horizontalHeader()->setStretchLastSection(true);
     m_statsTable->setMaximumHeight(150);
     m_statsTable->setAlternatingRowColors(true);
 
     // Initialize statistics display
     for (int i = 0; i < 6; ++i) {
-        m_statsTable->setItem(i, 0, new QTableWidgetItem("0"));
-        m_statsTable->setItem(i, 1, new QTableWidgetItem("0%"));
+        m_statsModel->setItem(i, 0, new QStandardItem("0"));
+        m_statsModel->setItem(i, 1, new QStandardItem("0%"));
     }
 
     statsLayout->addWidget(m_statsTable);
@@ -962,39 +977,39 @@ void DebugLogPanel::jumpToSearchResult(int index) {
 }
 
 void DebugLogPanel::updateStatisticsDisplay() {
-    if (!m_statsTable || !m_messagesPerSecLabel) {
+    if (!m_statsModel || !m_messagesPerSecLabel) {
         return;
     }
 
     LogStatistics stats = getStatistics();
 
     // Update statistics table
-    m_statsTable->item(0, 0)->setText(QString::number(stats.totalMessages));
-    m_statsTable->item(1, 0)->setText(QString::number(stats.debugMessages));
-    m_statsTable->item(2, 0)->setText(QString::number(stats.infoMessages));
-    m_statsTable->item(3, 0)->setText(QString::number(stats.warningMessages));
-    m_statsTable->item(4, 0)->setText(QString::number(stats.errorMessages));
-    m_statsTable->item(5, 0)->setText(QString::number(stats.criticalMessages));
+    m_statsModel->item(0, 0)->setText(QString::number(stats.totalMessages));
+    m_statsModel->item(1, 0)->setText(QString::number(stats.debugMessages));
+    m_statsModel->item(2, 0)->setText(QString::number(stats.infoMessages));
+    m_statsModel->item(3, 0)->setText(QString::number(stats.warningMessages));
+    m_statsModel->item(4, 0)->setText(QString::number(stats.errorMessages));
+    m_statsModel->item(5, 0)->setText(QString::number(stats.criticalMessages));
 
     // Update percentages
     if (stats.totalMessages > 0) {
-        m_statsTable->item(1, 1)->setText(
+        m_statsModel->item(1, 1)->setText(
             QString::number((stats.debugMessages * 100.0) / stats.totalMessages,
                             'f', 1) +
             "%");
-        m_statsTable->item(2, 1)->setText(
+        m_statsModel->item(2, 1)->setText(
             QString::number((stats.infoMessages * 100.0) / stats.totalMessages,
                             'f', 1) +
             "%");
-        m_statsTable->item(3, 1)->setText(
+        m_statsModel->item(3, 1)->setText(
             QString::number(
                 (stats.warningMessages * 100.0) / stats.totalMessages, 'f', 1) +
             "%");
-        m_statsTable->item(4, 1)->setText(
+        m_statsModel->item(4, 1)->setText(
             QString::number((stats.errorMessages * 100.0) / stats.totalMessages,
                             'f', 1) +
             "%");
-        m_statsTable->item(5, 1)->setText(
+        m_statsModel->item(5, 1)->setText(
             QString::number(
                 (stats.criticalMessages * 100.0) / stats.totalMessages, 'f',
                 1) +
@@ -1274,44 +1289,6 @@ void DebugLogPanel::applyTheme() {
                 .arg(backgroundColor, textColor, borderColor, highlightColor));
     }
 
-    // Apply styles to filter group
-    if (m_filterGroup) {
-        m_filterGroup->setStyleSheet(
-            QString("QGroupBox {"
-                    "    font-weight: bold;"
-                    "    border: 1px solid %1;"
-                    "    border-radius: 3px;"
-                    "    margin-top: 5px;"
-                    "    background-color: %2;"
-                    "    color: %3;"
-                    "}"
-                    "QGroupBox::title {"
-                    "    subcontrol-origin: margin;"
-                    "    left: 10px;"
-                    "    padding: 0 5px 0 5px;"
-                    "}")
-                .arg(borderColor, backgroundColor, textColor));
-    }
-
-    // Apply styles to statistics group
-    if (m_statsGroup) {
-        m_statsGroup->setStyleSheet(
-            QString("QGroupBox {"
-                    "    font-weight: bold;"
-                    "    border: 1px solid %1;"
-                    "    border-radius: 3px;"
-                    "    margin-top: 5px;"
-                    "    background-color: %2;"
-                    "    color: %3;"
-                    "}"
-                    "QGroupBox::title {"
-                    "    subcontrol-origin: margin;"
-                    "    left: 10px;"
-                    "    padding: 0 5px 0 5px;"
-                    "}")
-                .arg(borderColor, backgroundColor, textColor));
-    }
-
     // Apply styles to buttons
     QString buttonStyle =
         QString(
@@ -1458,12 +1435,12 @@ void DebugLogPanel::applyTheme() {
 }
 
 void DebugLogPanel::retranslateUi() {
-    // Update group box titles
-    if (m_filterGroup) {
-        m_filterGroup->setTitle(tr("Filters"));
+    // Update section titles
+    if (m_filterTitle) {
+        m_filterTitle->setText(tr("Filters"));
     }
-    if (m_statsGroup) {
-        m_statsGroup->setTitle(tr("Statistics"));
+    if (m_statsTitle) {
+        m_statsTitle->setText(tr("Statistics"));
     }
 
     // Update filter labels (we need to find them as children since they're not
@@ -1555,9 +1532,9 @@ void DebugLogPanel::retranslateUi() {
     }
 
     // Update statistics table headers
-    if (m_statsTable) {
-        m_statsTable->setHorizontalHeaderLabels({tr("Metric"), tr("Value")});
-        m_statsTable->setVerticalHeaderLabels({tr("Total"), tr("Debug"),
+    if (m_statsModel) {
+        m_statsModel->setHorizontalHeaderLabels({tr("Metric"), tr("Value")});
+        m_statsModel->setVerticalHeaderLabels({tr("Total"), tr("Debug"),
                                                tr("Info"), tr("Warning"),
                                                tr("Error"), tr("Critical")});
     }

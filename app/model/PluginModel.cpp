@@ -69,8 +69,9 @@ void PluginModel::applyFilters() {
 
     endResetModel();
 
-    m_logger.info("Applied filters: {} plugins visible out of {}",
-                  m_pluginNames.size(), m_allPluginNames.size());
+    m_logger.info(QString("Applied filters: %1 plugins visible out of %2")
+                      .arg(m_pluginNames.size())
+                      .arg(m_allPluginNames.size()));
 
     emit filterChanged();
 }
@@ -228,29 +229,32 @@ QString PluginModel::getPluginType(const PluginMetadata& metadata) const {
     // Check if it's a specialized plugin
     if (m_pluginManager->getDocumentProcessorPlugins().size() > 0) {
         auto* plugin =
-            m_pluginManager->getPlugin<IDocumentProcessorPlugin>(metadata.name);
+            m_pluginManager->getPluginByName<IDocumentProcessorPlugin>(
+                metadata.name);
         if (plugin) {
             return tr("Document Processor");
         }
     }
 
     if (m_pluginManager->getRenderPlugins().size() > 0) {
-        auto* plugin = m_pluginManager->getPlugin<IRenderPlugin>(metadata.name);
+        auto* plugin =
+            m_pluginManager->getPluginByName<IRenderPlugin>(metadata.name);
         if (plugin) {
             return tr("Render");
         }
     }
 
     if (m_pluginManager->getSearchPlugins().size() > 0) {
-        auto* plugin = m_pluginManager->getPlugin<ISearchPlugin>(metadata.name);
+        auto* plugin =
+            m_pluginManager->getPluginByName<ISearchPlugin>(metadata.name);
         if (plugin) {
             return tr("Search");
         }
     }
 
     if (m_pluginManager->getCacheStrategyPlugins().size() > 0) {
-        auto* plugin =
-            m_pluginManager->getPlugin<ICacheStrategyPlugin>(metadata.name);
+        auto* plugin = m_pluginManager->getPluginByName<ICacheStrategyPlugin>(
+            metadata.name);
         if (plugin) {
             return tr("Cache Strategy");
         }
@@ -258,21 +262,21 @@ QString PluginModel::getPluginType(const PluginMetadata& metadata) const {
 
     if (m_pluginManager->getAnnotationPlugins().size() > 0) {
         auto* plugin =
-            m_pluginManager->getPlugin<IAnnotationPlugin>(metadata.name);
+            m_pluginManager->getPluginByName<IAnnotationPlugin>(metadata.name);
         if (plugin) {
             return tr("Annotation");
         }
     }
 
     // Check if it's a UI plugin
-    auto* uiPlugin = m_pluginManager->getPlugin<IUIPlugin>(metadata.name);
+    auto* uiPlugin = m_pluginManager->getPluginByName<IUIPlugin>(metadata.name);
     if (uiPlugin) {
         return tr("UI");
     }
 
     // Check if it's a document plugin
     auto* docPlugin =
-        m_pluginManager->getPlugin<IDocumentPlugin>(metadata.name);
+        m_pluginManager->getPluginByName<IDocumentPlugin>(metadata.name);
     if (docPlugin) {
         return tr("Document");
     }
@@ -286,14 +290,14 @@ bool PluginModel::loadPlugin(int row) {
     }
 
     const QString& pluginName = m_pluginNames[row];
-    m_logger.info("Loading plugin: {}", pluginName.toStdString());
+    m_logger.info(QString("Loading plugin: %1").arg(pluginName));
 
     bool success = m_pluginManager->loadPlugin(pluginName);
 
     if (!success) {
         QString error = m_pluginManager->getPluginErrors(pluginName).join("; ");
-        m_logger.error("Failed to load plugin {}: {}", pluginName.toStdString(),
-                       error.toStdString());
+        m_logger.error(
+            QString("Failed to load plugin %1: %2").arg(pluginName, error));
         emit pluginErrorOccurred(pluginName, error);
     }
 
@@ -306,7 +310,7 @@ bool PluginModel::unloadPlugin(int row) {
     }
 
     const QString& pluginName = m_pluginNames[row];
-    m_logger.info("Unloading plugin: {}", pluginName.toStdString());
+    m_logger.info(QString("Unloading plugin: %1").arg(pluginName));
 
     return m_pluginManager->unloadPlugin(pluginName);
 }
@@ -317,7 +321,7 @@ bool PluginModel::enablePlugin(int row) {
     }
 
     const QString& pluginName = m_pluginNames[row];
-    m_logger.info("Enabling plugin: {}", pluginName.toStdString());
+    m_logger.info(QString("Enabling plugin: %1").arg(pluginName));
 
     m_pluginManager->setPluginEnabled(pluginName, true);
     return true;
@@ -329,7 +333,7 @@ bool PluginModel::disablePlugin(int row) {
     }
 
     const QString& pluginName = m_pluginNames[row];
-    m_logger.info("Disabling plugin: {}", pluginName.toStdString());
+    m_logger.info(QString("Disabling plugin: %1").arg(pluginName));
 
     m_pluginManager->setPluginEnabled(pluginName, false);
     return true;
@@ -341,7 +345,7 @@ bool PluginModel::reloadPlugin(int row) {
     }
 
     const QString& pluginName = m_pluginNames[row];
-    m_logger.info("Reloading plugin: {}", pluginName.toStdString());
+    m_logger.info(QString("Reloading plugin: %1").arg(pluginName));
 
     m_pluginManager->reloadPlugin(pluginName);
     return m_pluginManager->isPluginLoaded(pluginName);
@@ -451,7 +455,7 @@ int PluginModel::enabledPluginCount() const {
 }
 
 void PluginModel::onPluginLoaded(const QString& pluginName) {
-    m_logger.info("Plugin loaded: {}", pluginName.toStdString());
+    m_logger.info(QString("Plugin loaded: %1").arg(pluginName));
 
     // Update metadata cache
     if (m_pluginManager) {
@@ -470,7 +474,7 @@ void PluginModel::onPluginLoaded(const QString& pluginName) {
 }
 
 void PluginModel::onPluginUnloaded(const QString& pluginName) {
-    m_logger.info("Plugin unloaded: {}", pluginName.toStdString());
+    m_logger.info(QString("Plugin unloaded: %1").arg(pluginName));
 
     // Update metadata cache
     if (m_pluginManager) {
@@ -489,7 +493,7 @@ void PluginModel::onPluginUnloaded(const QString& pluginName) {
 }
 
 void PluginModel::onPluginEnabled(const QString& pluginName) {
-    m_logger.info("Plugin enabled: {}", pluginName.toStdString());
+    m_logger.info(QString("Plugin enabled: %1").arg(pluginName));
 
     // Update metadata cache
     if (m_pluginManager) {
@@ -508,7 +512,7 @@ void PluginModel::onPluginEnabled(const QString& pluginName) {
 }
 
 void PluginModel::onPluginDisabled(const QString& pluginName) {
-    m_logger.info("Plugin disabled: {}", pluginName.toStdString());
+    m_logger.info(QString("Plugin disabled: %1").arg(pluginName));
 
     // Update metadata cache
     if (m_pluginManager) {
@@ -528,8 +532,7 @@ void PluginModel::onPluginDisabled(const QString& pluginName) {
 
 void PluginModel::onPluginError(const QString& pluginName,
                                 const QString& error) {
-    m_logger.error("Plugin error in {}: {}", pluginName.toStdString(),
-                   error.toStdString());
+    m_logger.error(QString("Plugin error in %1: %2").arg(pluginName, error));
 
     // Notify views
     int row = findPluginRow(pluginName);
@@ -542,6 +545,6 @@ void PluginModel::onPluginError(const QString& pluginName,
 }
 
 void PluginModel::onPluginsScanned(int count) {
-    m_logger.info("Plugins scanned: {} plugins found", count);
+    m_logger.info(QString("Plugins scanned: %1 plugins found").arg(count));
     refresh();
 }

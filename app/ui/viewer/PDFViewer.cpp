@@ -154,40 +154,8 @@ protected:
         }
 
         // 绘制文本选择
-        if (m_selectionManager && m_selectionManager->hasSelection() &&
-            m_selectionManager->getSelection().pageNumber == m_pageNumber) {
-            m_selectionManager->renderSelection(
-                painter, 1.0);  // PageWidget coordinates match page image
-                                // coordinates (mostly)
-            // Wait, if image is zoomed, PageWidget size matches zoomed size.
-            // TextSelectionManager rects are in PDF coordinates (points).
-            // We need to scale them. But m_image is already scaled by
-            // m_zoomFactor? Yes, renderPage generates image at dpi = 72 * zoom.
-            // So image pixels = PDF points * zoom.
-            // TextSelectionManager usually stores rects in PDF points.
-            // renderSelection takes a scaleFactor.
-            // Since we are painting on the image which is already scaled,
-            // we should pass m_zoomFactor to renderSelection?
-            // Actually TextSelectionManager::renderSelection scales the rects.
-            // If we are painting on the widget surface, and the widget surface
-            // is size of image... The image size is PDF_Size * Zoom. So we
-            // should pass m_zoomFactor.
-
-            // However, the painter might already be transformed if we had
-            // scrolling/scaling on the view... But here we are inside
-            // PageWidget paintEvent. 0,0 is top-left of page. So we need to
-            // scale from PDF points to Pixels. 1 PDF point = 1/72 inch. 1 Pixel
-            // = 1/DPI inch. But Poppler::Page::renderToImage takes DPI. We used
-            // DPI = 72 * zoomFactor. So 1 PDF point maps to 'zoomFactor'
-            // pixels. Example: zoom=1.0 -> 72 DPI -> 1 pt = 1 px. Example:
-            // zoom=2.0 -> 144 DPI -> 1 pt = 2 px. So yes, pass m_zoomFactor.
-
-            // Note: renderSelection sets the brush/pen.
-            // We need to ensure we are in the right coordinate system.
-            // If we rotated, we are already transformed.
-        }
-
-        // Need to call renderSelection logic here manually or via helper
+        // Note: Rects are in PDF points, need to scale by m_zoomFactor
+        // since image is rendered at DPI = 72 * zoomFactor
         if (m_selectionManager && m_selectionManager->hasSelection() &&
             m_selectionManager->getSelection().pageNumber == m_pageNumber) {
             painter.save();
@@ -308,8 +276,56 @@ public:
     bool isNightMode = false;
     QPoint lastMousePos;
 
+    // Virtual scrolling for continuous mode
+    int visibleRangeStart = 0;
+    int visibleRangeEnd = 0;
+    static constexpr int PAGE_BUFFER =
+        3;  // Pages to keep rendered around visible area
+    QList<QWidget*> placeholderWidgets;  // Placeholders for non-rendered pages
+
+    // Link hover cache
+    QMap<int, std::vector<std::unique_ptr<Poppler::Link>>> cachedLinks;
+    int lastHoveredPage = -1;
+    QRectF lastHoveredLinkArea;
+
     // 辅助方法
     void clearCache() { renderCache.clear(); }
+
+    void clearLinkCache() {
+        cachedLinks.clear();
+        lastHoveredPage = -1;
+        lastHoveredLinkArea = QRectF();
+    }
+
+    QList<Poppler::Link*> getLinksForPage(int pageNumber) {
+        if (!document)
+            return {};
+
+        // Check cache first
+        QList<Poppler::Link*> cached;
+        if (cachedLinks.contains(pageNumber)) {
+            const auto& storedLinks = cachedLinks[pageNumber];
+            cached.reserve(static_cast<int>(storedLinks.size()));
+            for (const auto& linkPtr : storedLinks) {
+                cached.append(linkPtr.get());
+            }
+            return cached;
+        }
+
+        // Load and cache links
+        std::unique_ptr<Poppler::Page> page(document->page(pageNumber - 1));
+        if (!page)
+            return {};
+
+        auto pageLinks = page->links();
+        QList<Poppler::Link*> rawLinks;
+        rawLinks.reserve(static_cast<int>(pageLinks.size()));
+        for (auto& linkPtr : pageLinks) {
+            rawLinks.append(linkPtr.get());
+        }
+        cachedLinks[pageNumber] = std::move(pageLinks);
+        return rawLinks;
+    }
 
     void addToCache(int pageNumber, const QImage& image) {
         if (renderCache.size() >= maxCacheSize) {
@@ -458,7 +474,10 @@ void PDFViewer::clearDocument() {
     m_impl->totalPages = 0;
     m_impl->currentPage = 1;
     m_impl->clearCache();
+    m_impl->clearLinkCache();
     m_impl->searchHighlights.clear();
+    m_impl->visibleRangeStart = 0;
+    m_impl->visibleRangeEnd = 0;
 
     // 显示空状态占位符
     showEmptyState();
@@ -876,6 +895,72 @@ void PDFViewer::resizeEvent(QResizeEvent* event) {
 
     // 如果是适应宽度/页面模式，需要重新计算缩放
     // 这里可以添加自动调整逻辑
+
+    // Update visible pages for continuous mode
+    if (m_impl->viewMode == ViewMode::Continuous && hasDocument()) {
+        updateVisiblePages();
+    }
+}
+
+// ============================================================================
+// 虚拟滚动辅助方法
+// ============================================================================
+
+void PDFViewer::updateVisiblePages() {
+    if (!hasDocument() || m_impl->viewMode != ViewMode::Continuous) {
+        return;
+    }
+
+    // Calculate visible range based on scroll position
+    QScrollBar* vScroll = verticalScrollBar();
+    if (!vScroll)
+        return;
+
+    int viewportTop = vScroll->value();
+    int viewportHeight = viewport()->height();
+    int viewportBottom = viewportTop + viewportHeight;
+
+    // Find visible pages by checking widget positions
+    int newStart = m_impl->totalPages;
+    int newEnd = 0;
+
+    for (int i = 0; i < m_impl->pageWidgets.size(); ++i) {
+        PageWidget* widget = m_impl->pageWidgets[i];
+        if (!widget)
+            continue;
+
+        QRect widgetRect = widget->geometry();
+        // Check if widget overlaps with viewport
+        if (widgetRect.bottom() >= viewportTop &&
+            widgetRect.top() <= viewportBottom) {
+            int pageNum = i + 1;
+            newStart = qMin(newStart, pageNum);
+            newEnd = qMax(newEnd, pageNum);
+        }
+    }
+
+    // Expand range with buffer
+    newStart = qMax(1, newStart - m_impl->PAGE_BUFFER);
+    newEnd = qMin(m_impl->totalPages, newEnd + m_impl->PAGE_BUFFER);
+
+    // Only update if range changed
+    if (newStart != m_impl->visibleRangeStart ||
+        newEnd != m_impl->visibleRangeEnd) {
+        m_impl->visibleRangeStart = newStart;
+        m_impl->visibleRangeEnd = newEnd;
+
+        // Render newly visible pages
+        for (int i = newStart; i <= newEnd; ++i) {
+            int widgetIndex = i - 1;
+            if (widgetIndex >= 0 && widgetIndex < m_impl->pageWidgets.size()) {
+                PageWidget* widget = m_impl->pageWidgets[widgetIndex];
+                // Check if page needs rendering (no image set yet)
+                if (widget && widget->sizeHint() == QSize(100, 100)) {
+                    renderPage(i);
+                }
+            }
+        }
+    }
 }
 
 void PDFViewer::wheelEvent(QWheelEvent* event) {
@@ -896,6 +981,12 @@ void PDFViewer::wheelEvent(QWheelEvent* event) {
             // Negative delta = scroll down = direction 1 (next pages)
             int direction = (event->angleDelta().y() > 0) ? -1 : 1;
             m_impl->prerenderer->updateScrollDirection(direction);
+        }
+
+        // Update visible pages for continuous mode lazy loading
+        if (m_impl->viewMode == ViewMode::Continuous) {
+            // Use timer to debounce rapid scroll events
+            QTimer::singleShot(50, this, &PDFViewer::updateVisiblePages);
         }
     }
 }
@@ -932,8 +1023,14 @@ void PDFViewer::mousePressEvent(QMouseEvent* event) {
     // 1. Check for Form Fields
     if (m_impl->formFieldManager) {
         // Need to ensure form manager has current page set
-        m_impl->formFieldManager->setPage(m_impl->document->page(pageNum - 1),
-                                          pageNum);
+        std::unique_ptr<Poppler::Page> formPage;
+        if (m_impl->document) {
+            formPage = m_impl->document->page(pageNum - 1);
+        }
+        if (formPage) {
+            // FormFieldManager takes ownership
+            m_impl->formFieldManager->setPage(formPage.release(), pageNum);
+        }
 
         if (auto* field = m_impl->formFieldManager->getFieldAtPoint(pdfPoint)) {
             // Let form manager handle it (focus, edit, etc.)
@@ -948,8 +1045,9 @@ void PDFViewer::mousePressEvent(QMouseEvent* event) {
         std::unique_ptr<Poppler::Page> page(
             m_impl->document->page(pageNum - 1));
         if (page) {
-            QList<Poppler::Link*> links = page->links();
-            for (Poppler::Link* link : links) {
+            auto pageLinks = page->links();
+            for (const auto& linkPtr : pageLinks) {
+                Poppler::Link* link = linkPtr.get();
                 if (link->linkArea().contains(pdfPoint)) {
                     // Handle link click
                     if (link->linkType() == Poppler::Link::Goto) {
@@ -974,22 +1072,26 @@ void PDFViewer::mousePressEvent(QMouseEvent* event) {
                         QDesktopServices::openUrl(QUrl(url));
                         emit linkClicked(url);
                     }
-                    qDeleteAll(links);  // Clean up
                     return;
                 }
             }
-            qDeleteAll(links);
         }
     }
 
     // 3. Handle Text Selection
     if (m_impl->toolMode == ToolMode::SelectText &&
         m_impl->textSelectionManager) {
-        // Set current page for selection manager
-        m_impl->textSelectionManager->setPage(
-            m_impl->document->page(pageNum - 1), pageNum);
-        m_impl->textSelectionManager->setScaleFactor(zoom);
-        m_impl->textSelectionManager->startSelection(pdfPoint);
+        std::unique_ptr<Poppler::Page> selectionPage;
+        if (m_impl->document) {
+            selectionPage = m_impl->document->page(pageNum - 1);
+        }
+        if (selectionPage) {
+            // TextSelectionManager takes ownership of the Poppler::Page
+            m_impl->textSelectionManager->setPage(selectionPage.release(),
+                                                  pageNum);
+            m_impl->textSelectionManager->setScaleFactor(zoom);
+            m_impl->textSelectionManager->startSelection(pdfPoint);
+        }
     }
 
     ElaScrollArea::mousePressEvent(event);
@@ -1032,13 +1134,31 @@ void PDFViewer::mouseMoveEvent(QMouseEvent* event) {
             }
         }
 
-        // Change cursor over links
-        bool isOverLink = false;
-        if (m_impl->document) {
-            // Note: getting page and links on every mouse move is expensive
-            // Should optimize by caching links for current visible pages
-            // For now, implementing simply
-            // Use a simplified check or cached check if possible
+        // Change cursor over links using cached links
+        if (m_impl->document && m_impl->toolMode == ToolMode::Browse) {
+            int pageNum = pageWidget->pageNumber();
+            QList<Poppler::Link*> links = m_impl->getLinksForPage(pageNum);
+
+            bool isOverLink = false;
+            for (Poppler::Link* link : links) {
+                if (link->linkArea().contains(pdfPoint)) {
+                    isOverLink = true;
+                    // Only update cursor if we entered a new link area
+                    if (m_impl->lastHoveredPage != pageNum ||
+                        m_impl->lastHoveredLinkArea != link->linkArea()) {
+                        m_impl->lastHoveredPage = pageNum;
+                        m_impl->lastHoveredLinkArea = link->linkArea();
+                        setCursor(Qt::PointingHandCursor);
+                    }
+                    break;
+                }
+            }
+
+            if (!isOverLink && m_impl->lastHoveredPage != -1) {
+                m_impl->lastHoveredPage = -1;
+                m_impl->lastHoveredLinkArea = QRectF();
+                setCursor(Qt::ArrowCursor);
+            }
         }
     }
 
@@ -1508,20 +1628,49 @@ void PDFViewer::applyContinuousMode() {
 
     clearLayout();
 
-    // 显示所有页面
+    // Reset visible range tracking
+    m_impl->visibleRangeStart = 0;
+    m_impl->visibleRangeEnd = 0;
+
+    // For large documents (>50 pages), lazy loading provides better memory
+    // usage All documents use the same lazy rendering approach now
+    const bool isLargeDocument = m_impl->totalPages > 50;
+    Q_UNUSED(isLargeDocument);  // Keep for future optimization
+
+    // Get estimated page size for placeholder sizing
+    QSizeF estimatedPageSize(595, 842);  // A4 default
+    if (m_impl->document) {
+        std::unique_ptr<Poppler::Page> firstPage(m_impl->document->page(0));
+        if (firstPage) {
+            estimatedPageSize = firstPage->pageSizeF();
+        }
+    }
+    QSize scaledSize(
+        static_cast<int>(estimatedPageSize.width() * m_impl->zoomFactor),
+        static_cast<int>(estimatedPageSize.height() * m_impl->zoomFactor));
+
+    // 创建所有页面 widget（但只渲染可见的）
     for (int i = 1; i <= m_impl->totalPages; ++i) {
         PageWidget* pageWidget = new PageWidget(
             i, m_impl->annotationHelper, m_impl->textSelectionManager.get(),
             m_impl->formFieldManager.get(), m_impl->zoomFactor,
             m_impl->contentWidget);
         pageWidget->setNightMode(m_impl->isNightMode);
+
+        // Set minimum size to estimated page size for proper scroll area sizing
+        pageWidget->setMinimumSize(scaledSize);
+
         m_impl->pageWidgets.append(pageWidget);
         m_impl->mainLayout->addWidget(pageWidget, 0, Qt::AlignCenter);
     }
 
     // 渲染可见页面（当前页及前后几页）
-    int startPage = qMax(1, m_impl->currentPage - 2);
-    int endPage = qMin(m_impl->totalPages, m_impl->currentPage + 2);
+    int startPage = qMax(1, m_impl->currentPage - Implementation::PAGE_BUFFER);
+    int endPage = qMin(m_impl->totalPages,
+                       m_impl->currentPage + Implementation::PAGE_BUFFER);
+
+    m_impl->visibleRangeStart = startPage;
+    m_impl->visibleRangeEnd = endPage;
 
     for (int i = startPage; i <= endPage; ++i) {
         renderPage(i);
@@ -1534,6 +1683,8 @@ void PDFViewer::applyContinuousMode() {
         QTimer::singleShot(100, this, [this]() {
             PageWidget* widget = m_impl->pageWidgets[m_impl->currentPage - 1];
             ensureWidgetVisible(widget, 0, 0);
+            // Trigger visible page update after scroll completes
+            QTimer::singleShot(150, this, &PDFViewer::updateVisiblePages);
         });
     }
 }
@@ -1551,15 +1702,20 @@ void PDFViewer::applyTwoPageMode() {
         rowLayout->setSpacing(10);
 
         // 左页
-        PageWidget* leftPage = new PageWidget(i, m_impl->annotationHelper,
-                                              m_impl->zoomFactor, rowWidget);
+        PageWidget* leftPage = new PageWidget(
+            i, m_impl->annotationHelper, m_impl->textSelectionManager.get(),
+            m_impl->formFieldManager.get(), m_impl->zoomFactor, rowWidget);
+        leftPage->setNightMode(m_impl->isNightMode);
         m_impl->pageWidgets.append(leftPage);
         rowLayout->addWidget(leftPage);
 
         // 右页（如果存在）
         if (i + 1 <= m_impl->totalPages) {
             PageWidget* rightPage = new PageWidget(
-                i + 1, m_impl->annotationHelper, m_impl->zoomFactor, rowWidget);
+                i + 1, m_impl->annotationHelper,
+                m_impl->textSelectionManager.get(),
+                m_impl->formFieldManager.get(), m_impl->zoomFactor, rowWidget);
+            rightPage->setNightMode(m_impl->isNightMode);
             m_impl->pageWidgets.append(rightPage);
             rowLayout->addWidget(rightPage);
         } else {

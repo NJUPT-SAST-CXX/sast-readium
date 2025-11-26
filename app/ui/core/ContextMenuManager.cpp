@@ -4,9 +4,9 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QMenu>
-#include <QMessageBox>
 #include <QStandardPaths>
 #include "../../logging/LoggingMacros.h"
+#include "../widgets/ToastNotification.h"
 
 ContextMenuManager::ContextMenuManager(QObject* parent)
     : QObject(parent), m_errorHandlingEnabled(true) {
@@ -845,16 +845,15 @@ void ContextMenuManager::executeAction(ActionMap action,
             "{}",
             static_cast<int>(action), e.what());
 
-        QMessageBox::warning(nullptr, tr("Action Error"),
-                             tr("Failed to execute action: %1").arg(e.what()));
+        TOAST_ERROR(nullptr, tr("Failed to execute action: %1").arg(e.what()));
     } catch (...) {
         LOG_ERROR(
             "ContextMenuManager::executeAction() - Unknown error executing "
             "action: {}",
             static_cast<int>(action));
 
-        QMessageBox::warning(
-            nullptr, tr("Action Error"),
+        TOAST_ERROR(
+            nullptr,
             tr("An unknown error occurred while executing the action."));
     }
 }
@@ -878,8 +877,8 @@ void ContextMenuManager::executeCustomAction(const QString& actionId,
             "custom action {}: {}",
             actionId.toStdString(), e.what());
 
-        QMessageBox::warning(
-            nullptr, tr("Action Error"),
+        TOAST_ERROR(
+            nullptr,
             tr("Failed to execute action '%1': %2").arg(actionId, e.what()));
     } catch (...) {
         LOG_ERROR(
@@ -887,10 +886,9 @@ void ContextMenuManager::executeCustomAction(const QString& actionId,
             "executing custom action: {}",
             actionId.toStdString());
 
-        QMessageBox::warning(
-            nullptr, tr("Action Error"),
-            tr("An unknown error occurred while executing action '%1'.")
-                .arg(actionId));
+        TOAST_ERROR(nullptr,
+                    tr("An unknown error occurred while executing action '%1'.")
+                        .arg(actionId));
     }
 }
 

@@ -1,53 +1,53 @@
-# 缩略图系统文档
+# Thumbnail System Documentation
 
-## 概述
+## Overview
 
-本项目实现了一个高性能、Chrome 风格的 PDF 缩略图系统，提供流畅的用户体验和优秀的性能表现。
+This project implements a high-performance, Chrome-style PDF thumbnail system, providing a smooth user experience and excellent performance.
 
-## 核心特性
+## Core Features
 
-### 🎨 Chrome 风格设计
+### 🎨 Chrome-style Design
 
-- 圆角边框和阴影效果
-- 悬停和选中状态动画
-- 现代化的视觉设计
-- 支持明暗主题
+- Rounded corners and shadow effects
+- Hover and selection state animations
+- Modern visual design
+- Light and dark theme support
 
-### ⚡ 高性能优化
+### ⚡ High Performance Optimization
 
-- 基于 QAbstractListModel 的虚拟滚动
-- 智能懒加载机制
-- 异步缩略图生成
-- 内存使用优化
-- 多线程渲染
+- Virtual scrolling based on `QAbstractListModel`
+- Intelligent lazy loading mechanism
+- Asynchronous thumbnail generation
+- Memory usage optimization
+- Multi-threaded rendering
 
-### 🔧 丰富功能
+### 🔧 Rich Functionality
 
-- 点击跳转页面
-- 右键菜单操作
-- 键盘导航支持
-- 拖拽操作（可选）
-- 缓存管理
+- Click to jump to page
+- Context menu operations
+- Keyboard navigation support
+- Drag and drop support (optional)
+- Cache management
 
-## 架构设计
+## Architecture Design
 
-### 核心组件
+### Core Components
 
 ```
 ThumbnailSystem
-├── ThumbnailWidget          # 单个缩略图组件
-├── ThumbnailModel          # 数据模型（虚拟滚动）
-├── ThumbnailDelegate       # 渲染委托
-├── ThumbnailGenerator      # 异步生成器
-├── ThumbnailListView       # 列表容器
-├── ThumbnailContextMenu    # 右键菜单
-├── ThumbnailAnimations     # 动画管理
-├── ThumbnailVirtualizer    # 虚拟滚动优化
-├── ThumbnailCacheAdapter   # 缓存适配器
-└── ThumbnailPerformanceOptimizer # 性能优化器
+├── ThumbnailWidget          # Individual thumbnail widget
+├── ThumbnailModel          # Data model (virtual scrolling)
+├── ThumbnailDelegate       # Rendering delegate
+├── ThumbnailGenerator      # Asynchronous generator
+├── ThumbnailListView       # List view container
+├── ThumbnailContextMenu    # Context menu
+├── ThumbnailAnimations     # Animation management
+├── ThumbnailVirtualizer    # Virtual scrolling optimization
+├── ThumbnailCacheAdapter   # Cache adapter
+└── ThumbnailPerformanceOptimizer # Performance optimizer
 ```
 
-### 数据流
+### Data Flow
 
 ```mermaid
 graph TD
@@ -61,58 +61,58 @@ graph TD
     H --> I[Page Navigation]
 ```
 
-## 使用方法
+## Usage
 
-### 基础集成
+### Basic Integration
 
 ```cpp
-// 1. 创建组件
+// 1. Create components
 auto thumbnailModel = std::make_unique<ThumbnailModel>(this);
 auto thumbnailDelegate = std::make_unique<ThumbnailDelegate>(this);
 auto thumbnailView = new ThumbnailListView(this);
 
-// 2. 设置关联
+// 2. Set up associations
 thumbnailView->setThumbnailModel(thumbnailModel.get());
 thumbnailView->setThumbnailDelegate(thumbnailDelegate.get());
 
-// 3. 配置文档
+// 3. Configure document
 std::shared_ptr<Poppler::Document> document = loadPDFDocument(filePath);
 thumbnailModel->setDocument(document);
 
-// 4. 连接信号
+// 4. Connect signals
 connect(thumbnailView, &ThumbnailListView::pageClicked,
         this, &MainWindow::onThumbnailPageClicked);
 ```
 
-### 高级配置
+### Advanced Configuration
 
 ```cpp
-// 设置缩略图尺寸
+// Set thumbnail size
 QSize thumbnailSize(150, 200);
 thumbnailView->setThumbnailSize(thumbnailSize);
 thumbnailModel->setThumbnailSize(thumbnailSize);
 thumbnailDelegate->setThumbnailSize(thumbnailSize);
 
-// 配置性能参数
-thumbnailModel->setCacheSize(200);           // 缓存200个缩略图
-thumbnailModel->setMemoryLimit(512 * 1024 * 1024); // 512MB内存限制
-thumbnailModel->setPreloadRange(5);          // 预加载5页
+// Configure performance parameters
+thumbnailModel->setCacheSize(200);           // Cache 200 thumbnails
+thumbnailModel->setMemoryLimit(512 * 1024 * 1024); // 512MB memory limit
+thumbnailModel->setPreloadRange(5);          // Preload 5 pages
 
-// 配置生成器
+// Configure generator
 auto generator = thumbnailModel->getGenerator();
-generator->setMaxConcurrentJobs(4);          // 4个并发任务
-generator->setQuality(1.2);                  // 120%质量
+generator->setMaxConcurrentJobs(4);          // 4 concurrent jobs
+generator->setQuality(1.2);                  // 120% quality
 ```
 
-### 样式自定义
+### Custom Styling
 
 ```cpp
-// 设置主题
-thumbnailDelegate->setLightTheme();  // 亮色主题
-// 或
-thumbnailDelegate->setDarkTheme();   // 暗色主题
+// Set theme
+thumbnailDelegate->setLightTheme();  // Light theme
+// or
+thumbnailDelegate->setDarkTheme();   // Dark theme
 
-// 自定义颜色
+// Custom colors
 QColor background = QColor(255, 255, 255);
 QColor border = QColor(200, 200, 200);
 QColor text = QColor(60, 60, 60);
@@ -120,55 +120,55 @@ QColor accent = QColor(66, 133, 244);
 thumbnailDelegate->setCustomColors(background, border, text, accent);
 ```
 
-## 性能优化建议
+## Performance Optimization Tips
 
-### 内存管理
+### Memory Management
 
-- 合理设置缓存大小，避免内存溢出
-- 使用内存限制功能自动管理缓存
-- 定期清理不需要的缓存项
+- Set reasonable cache sizes to avoid memory overflows
+- Use memory limits to automatically manage cache
+- Periodically clear unnecessary cache items
 
-### 渲染优化
+### Rendering Optimization
 
-- 根据显示需求调整缩略图质量
-- 使用预加载提升用户体验
-- 限制并发渲染任务数量
+- Adjust thumbnail quality based on display needs
+- Use preloading to improve user experience
+- Limit the number of concurrent rendering tasks
 
-### 用户体验
+### User Experience
 
-- 启用动画效果提升视觉体验
-- 使用懒加载避免界面卡顿
-- 提供加载指示器和错误提示
+- Enable animations for better visual experience
+- Use lazy loading to avoid UI freezing
+- Provide loading indicators and error prompts
 
-## 故障排除
+## Troubleshooting
 
-### 常见问题
+### Common Issues
 
-**Q: 缩略图显示空白**
-A: 检查 PDF 文档是否正确加载，确认 Poppler 库版本兼容性
+**Q: Thumbnails show as blank**
+A: Check if the PDF document is correctly loaded and verify Poppler library version compatibility.
 
-**Q: 内存使用过高**
-A: 调整缓存大小和内存限制，启用自动内存管理
+**Q: High memory usage**
+A: Adjust cache size and memory limits, enable automatic memory management.
 
-**Q: 加载速度慢**
-A: 增加并发任务数，调整预加载范围，检查磁盘 I/O 性能
+**Q: Slow loading speed**
+A: Increase concurrent task count, adjust preload range, check disk I/O performance.
 
-**Q: 动画不流畅**
-A: 检查系统性能，考虑禁用部分动画效果
+**Q: Choppy animations**
+A: Check system performance, consider disabling some animation effects.
 
-### 调试信息
+### Debugging Info
 
-启用调试输出：
+Enable debug output:
 
 ```cpp
-// 在main函数中添加
+// Add in main function
 QLoggingCategory::setFilterRules("thumbnail.*=true");
 ```
 
-查看性能统计：
+View performance statistics:
 
 ```cpp
-// 获取缓存统计
+// Get cache statistics
 int hits = thumbnailModel->cacheHitCount();
 int misses = thumbnailModel->cacheMissCount();
 qint64 memory = thumbnailModel->currentMemoryUsage();
@@ -177,78 +177,78 @@ qDebug() << "Cache hits:" << hits << "misses:" << misses
          << "memory:" << memory / 1024 / 1024 << "MB";
 ```
 
-## API 参考
+## API Reference
 
 ### ThumbnailModel
 
-主要的数据模型类，负责管理缩略图数据和缓存。
+The main data model class, responsible for managing thumbnail data and caching.
 
-**关键方法：**
+**Key Methods:**
 
-- `setDocument()` - 设置 PDF 文档
-- `setThumbnailSize()` - 设置缩略图尺寸
-- `setCacheSize()` - 设置缓存大小
-- `requestThumbnail()` - 请求生成缩略图
+- `setDocument()` - Set PDF document
+- `setThumbnailSize()` - Set thumbnail size
+- `setCacheSize()` - Set cache size
+- `requestThumbnail()` - Request thumbnail generation
 
 ### ThumbnailListView
 
-主要的视图组件，提供用户交互界面。
+The main view component, providing the user interaction interface.
 
-**关键方法：**
+**Key Methods:**
 
-- `setThumbnailModel()` - 设置数据模型
-- `scrollToPage()` - 滚动到指定页面
-- `setCurrentPage()` - 设置当前页面
+- `setThumbnailModel()` - Set data model
+- `scrollToPage()` - Scroll to specific page
+- `setCurrentPage()` - Set current page
 
 ### ThumbnailDelegate
 
-渲染委托，负责缩略图的视觉效果。
+Rendering delegate, responsible for thumbnail visual effects.
 
-**关键方法：**
+**Key Methods:**
 
-- `setThumbnailSize()` - 设置渲染尺寸
-- `setLightTheme()` / `setDarkTheme()` - 设置主题
-- `setAnimationEnabled()` - 启用/禁用动画
+- `setThumbnailSize()` - Set rendering size
+- `setLightTheme()` / `setDarkTheme()` - Set theme
+- `setAnimationEnabled()` - Enable/disable animations
 
-## 扩展开发
+## Extension Development
 
-### 添加自定义动作
+### Adding Custom Actions
 
 ```cpp
-// 创建自定义右键菜单动作
-QAction* customAction = new QAction("自定义操作", this);
+// Create custom context menu action
+QAction* customAction = new QAction("Custom Action", this);
 connect(customAction, &QAction::triggered, [this]() {
-    // 自定义逻辑
+    // Custom logic
 });
 
-// 添加到右键菜单
+// Add to context menu
 thumbnailView->addContextMenuAction(customAction);
 ```
 
-### 自定义渲染效果
+### Custom Rendering Effects
 
 ```cpp
-// 继承ThumbnailDelegate实现自定义渲染
+// Inherit from ThumbnailDelegate to implement custom rendering
 class CustomThumbnailDelegate : public ThumbnailDelegate {
 protected:
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
                const QModelIndex& index) const override {
-        // 自定义绘制逻辑
+        // Custom drawing logic
         ThumbnailDelegate::paint(painter, option, index);
 
-        // 添加额外效果
+        // Add extra effects
         // ...
     }
 };
 ```
 
-## 版本历史
+## Version History
 
-- **v1.0.0** - 初始版本，基础缩略图功能
-- **v1.1.0** - 添加 Chrome 风格设计和动画效果
-- **v1.2.0** - 性能优化和虚拟滚动
-- **v1.3.0** - 右键菜单和交互功能
+- **v1.0.0** - Initial version, basic thumbnail functionality
+- **v1.1.0** - Added Chrome-style design and animation effects
+- **v1.2.0** - Performance optimization and virtual scrolling
+- **v1.3.0** - Context menu and interaction features
 
-## 许可证
+## License
 
-本缩略图系统遵循项目的整体许可证协议。
+This thumbnail system follows the project's overall license agreement.

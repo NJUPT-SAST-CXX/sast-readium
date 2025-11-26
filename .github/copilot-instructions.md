@@ -61,6 +61,6 @@ Purpose: give AI coding agents just enough context to be productive in this C++/
 - Entry: `app/main.cpp`, `app/MainWindow.*`.
 - Patterns: `app/command/CommandManager.*`, `app/controller/ServiceLocator.*`, `app/controller/EventBus.*`.
 - Subsystems: `app/cache/*`, `app/search/*`, `app/logging/*`.
-- Docs: `docs/architecture.md`, `docs/debugging-setup.md`, `docs/logging-system.md`.
+- Docs: `docs/architecture.md`, `docs/debugging/index.md`, `docs/logging-system.md`.
 
 If any of the above feels off (e.g., missing registration points or build targets), check `cmake/` and the docs listed in README; this project centralizes those details there.

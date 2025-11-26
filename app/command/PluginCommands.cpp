@@ -50,22 +50,22 @@ bool LoadPluginCommand::execute() {
         return false;
     }
 
-    m_logger.info("Loading plugin: {}", m_pluginName.toStdString());
+    m_logger.info(QStringLiteral("Loading plugin: %1").arg(m_pluginName));
     emit statusMessage(QString("Loading plugin %1...").arg(m_pluginName));
 
     bool success = pluginManager()->loadPlugin(m_pluginName);
 
     if (success) {
-        m_logger.info("Plugin loaded successfully: {}",
-                      m_pluginName.toStdString());
+        m_logger.info(
+            QStringLiteral("Plugin loaded successfully: %1").arg(m_pluginName));
         emit statusMessage(
             QString("Plugin %1 loaded successfully").arg(m_pluginName));
     } else {
         QString error =
             pluginManager()->getPluginErrors(m_pluginName).join("; ");
         setErrorMessage(error.isEmpty() ? "Unknown error" : error);
-        m_logger.error("Failed to load plugin {}: {}",
-                       m_pluginName.toStdString(), error.toStdString());
+        m_logger.error(QStringLiteral("Failed to load plugin %1: %2")
+                           .arg(m_pluginName, error));
         emit statusMessage(
             QString("Failed to load plugin %1").arg(m_pluginName));
     }
@@ -108,20 +108,20 @@ bool UnloadPluginCommand::execute() {
         return false;
     }
 
-    m_logger.info("Unloading plugin: {}", m_pluginName.toStdString());
+    m_logger.info(QStringLiteral("Unloading plugin: %1").arg(m_pluginName));
     emit statusMessage(QString("Unloading plugin %1...").arg(m_pluginName));
 
     bool success = pluginManager()->unloadPlugin(m_pluginName);
 
     if (success) {
-        m_logger.info("Plugin unloaded successfully: {}",
-                      m_pluginName.toStdString());
+        m_logger.info(QStringLiteral("Plugin unloaded successfully: %1")
+                          .arg(m_pluginName));
         emit statusMessage(
             QString("Plugin %1 unloaded successfully").arg(m_pluginName));
     } else {
         setErrorMessage("Failed to unload plugin");
-        m_logger.error("Failed to unload plugin: {}",
-                       m_pluginName.toStdString());
+        m_logger.error(
+            QStringLiteral("Failed to unload plugin: %1").arg(m_pluginName));
         emit statusMessage(
             QString("Failed to unload plugin %1").arg(m_pluginName));
     }
@@ -165,7 +165,7 @@ bool EnablePluginCommand::execute() {
         return false;
     }
 
-    m_logger.info("Enabling plugin: {}", m_pluginName.toStdString());
+    m_logger.info(QStringLiteral("Enabling plugin: %1").arg(m_pluginName));
     emit statusMessage(QString("Enabling plugin %1...").arg(m_pluginName));
 
     pluginManager()->setPluginEnabled(m_pluginName, true);
@@ -174,13 +174,14 @@ bool EnablePluginCommand::execute() {
     bool loadSuccess = pluginManager()->loadPlugin(m_pluginName);
 
     if (loadSuccess) {
-        m_logger.info("Plugin enabled and loaded successfully: {}",
-                      m_pluginName.toStdString());
+        m_logger.info(
+            QStringLiteral("Plugin enabled and loaded successfully: %1")
+                .arg(m_pluginName));
         emit statusMessage(
             QString("Plugin %1 enabled successfully").arg(m_pluginName));
     } else {
-        m_logger.warning("Plugin enabled but failed to load: {}",
-                         m_pluginName.toStdString());
+        m_logger.warning(QStringLiteral("Plugin enabled but failed to load: %1")
+                             .arg(m_pluginName));
         emit statusMessage(
             QString("Plugin %1 enabled (load failed)").arg(m_pluginName));
     }
@@ -224,7 +225,7 @@ bool DisablePluginCommand::execute() {
         return false;
     }
 
-    m_logger.info("Disabling plugin: {}", m_pluginName.toStdString());
+    m_logger.info(QStringLiteral("Disabling plugin: %1").arg(m_pluginName));
     emit statusMessage(QString("Disabling plugin %1...").arg(m_pluginName));
 
     // Unload plugin if it's loaded
@@ -234,8 +235,8 @@ bool DisablePluginCommand::execute() {
 
     pluginManager()->setPluginEnabled(m_pluginName, false);
 
-    m_logger.info("Plugin disabled successfully: {}",
-                  m_pluginName.toStdString());
+    m_logger.info(
+        QStringLiteral("Plugin disabled successfully: %1").arg(m_pluginName));
     emit statusMessage(
         QString("Plugin %1 disabled successfully").arg(m_pluginName));
 
@@ -280,7 +281,8 @@ bool InstallPluginCommand::execute() {
         return false;
     }
 
-    m_logger.info("Installing plugin from: {}", m_pluginPath.toStdString());
+    m_logger.info(
+        QStringLiteral("Installing plugin from: %1").arg(m_pluginPath));
     emit statusMessage(
         QString("Installing plugin from %1...").arg(m_pluginPath));
 
@@ -288,13 +290,13 @@ bool InstallPluginCommand::execute() {
 
     if (success) {
         QString pluginName = QFileInfo(m_pluginPath).baseName();
-        m_logger.info("Plugin installed successfully: {}",
-                      pluginName.toStdString());
+        m_logger.info(QStringLiteral("Plugin installed successfully: %1")
+                          .arg(pluginName));
         emit statusMessage(QString("Plugin installed successfully"));
     } else {
         setErrorMessage("Failed to install plugin");
-        m_logger.error("Failed to install plugin from: {}",
-                       m_pluginPath.toStdString());
+        m_logger.error(QStringLiteral("Failed to install plugin from: %1")
+                           .arg(m_pluginPath));
         emit statusMessage(QString("Failed to install plugin"));
     }
 
@@ -338,20 +340,20 @@ bool UninstallPluginCommand::execute() {
         return false;
     }
 
-    m_logger.info("Uninstalling plugin: {}", m_pluginName.toStdString());
+    m_logger.info(QStringLiteral("Uninstalling plugin: %1").arg(m_pluginName));
     emit statusMessage(QString("Uninstalling plugin %1...").arg(m_pluginName));
 
     bool success = pluginManager()->uninstallPlugin(m_pluginName);
 
     if (success) {
-        m_logger.info("Plugin uninstalled successfully: {}",
-                      m_pluginName.toStdString());
+        m_logger.info(QStringLiteral("Plugin uninstalled successfully: %1")
+                          .arg(m_pluginName));
         emit statusMessage(
             QString("Plugin %1 uninstalled successfully").arg(m_pluginName));
     } else {
         setErrorMessage("Failed to uninstall plugin");
-        m_logger.error("Failed to uninstall plugin: {}",
-                       m_pluginName.toStdString());
+        m_logger.error(
+            QStringLiteral("Failed to uninstall plugin: %1").arg(m_pluginName));
         emit statusMessage(
             QString("Failed to uninstall plugin %1").arg(m_pluginName));
     }
@@ -396,7 +398,7 @@ bool ReloadPluginCommand::execute() {
         return false;
     }
 
-    m_logger.info("Reloading plugin: {}", m_pluginName.toStdString());
+    m_logger.info(QStringLiteral("Reloading plugin: %1").arg(m_pluginName));
     emit statusMessage(QString("Reloading plugin %1...").arg(m_pluginName));
 
     pluginManager()->reloadPlugin(m_pluginName);
@@ -404,14 +406,14 @@ bool ReloadPluginCommand::execute() {
     bool isLoaded = pluginManager()->isPluginLoaded(m_pluginName);
 
     if (isLoaded) {
-        m_logger.info("Plugin reloaded successfully: {}",
-                      m_pluginName.toStdString());
+        m_logger.info(QStringLiteral("Plugin reloaded successfully: %1")
+                          .arg(m_pluginName));
         emit statusMessage(
             QString("Plugin %1 reloaded successfully").arg(m_pluginName));
     } else {
         setErrorMessage("Plugin failed to reload");
-        m_logger.error("Failed to reload plugin: {}",
-                       m_pluginName.toStdString());
+        m_logger.error(
+            QStringLiteral("Failed to reload plugin: %1").arg(m_pluginName));
         emit statusMessage(
             QString("Failed to reload plugin %1").arg(m_pluginName));
     }
@@ -460,7 +462,8 @@ bool ScanPluginsCommand::execute() {
     pluginManager()->scanForPlugins();
 
     int count = pluginManager()->getAvailablePlugins().size();
-    m_logger.info("Plugin scan complete. Found {} plugins", count);
+    m_logger.info(
+        QStringLiteral("Plugin scan complete. Found %1 plugins").arg(count));
     emit statusMessage(QString("Found %1 plugins").arg(count));
 
     emit executed(true);
@@ -495,7 +498,7 @@ bool ConfigurePluginCommand::execute() {
         return false;
     }
 
-    m_logger.info("Configuring plugin: {}", m_pluginName.toStdString());
+    m_logger.info(QStringLiteral("Configuring plugin: %1").arg(m_pluginName));
     emit statusMessage(QString("Configuring plugin %1...").arg(m_pluginName));
 
     // Store old configuration for undo
@@ -504,8 +507,8 @@ bool ConfigurePluginCommand::execute() {
     // Apply new configuration
     pluginManager()->setPluginConfiguration(m_pluginName, m_newConfig);
 
-    m_logger.info("Plugin configured successfully: {}",
-                  m_pluginName.toStdString());
+    m_logger.info(
+        QStringLiteral("Plugin configured successfully: %1").arg(m_pluginName));
     emit statusMessage(
         QString("Plugin %1 configured successfully").arg(m_pluginName));
 
@@ -539,8 +542,8 @@ bool ConfigurePluginCommand::undo() {
         return false;
     }
 
-    m_logger.info("Undoing configuration for plugin: {}",
-                  m_pluginName.toStdString());
+    m_logger.info(QStringLiteral("Undoing configuration for plugin: %1")
+                      .arg(m_pluginName));
 
     // Restore old configuration
     pluginManager()->setPluginConfiguration(m_pluginName, m_oldConfig);
@@ -603,21 +606,29 @@ std::unique_ptr<PluginCommand> PluginCommandFactory::createCommandFromType(
     const QString& type, PluginManager* manager) {
     if (type == "load") {
         return std::make_unique<LoadPluginCommand>(manager, QString());
-    } else if (type == "unload") {
+    }
+    if (type == "unload") {
         return std::make_unique<UnloadPluginCommand>(manager, QString());
-    } else if (type == "enable") {
+    }
+    if (type == "enable") {
         return std::make_unique<EnablePluginCommand>(manager, QString());
-    } else if (type == "disable") {
+    }
+    if (type == "disable") {
         return std::make_unique<DisablePluginCommand>(manager, QString());
-    } else if (type == "install") {
+    }
+    if (type == "install") {
         return std::make_unique<InstallPluginCommand>(manager, QString());
-    } else if (type == "uninstall") {
+    }
+    if (type == "uninstall") {
         return std::make_unique<UninstallPluginCommand>(manager, QString());
-    } else if (type == "reload") {
+    }
+    if (type == "reload") {
         return std::make_unique<ReloadPluginCommand>(manager, QString());
-    } else if (type == "scan") {
+    }
+    if (type == "scan") {
         return std::make_unique<ScanPluginsCommand>(manager);
-    } else if (type == "configure") {
+    }
+    if (type == "configure") {
         return std::make_unique<ConfigurePluginCommand>(manager, QString(),
                                                         QJsonObject());
     }

@@ -1,17 +1,18 @@
 ﻿#include "AboutPage.h"
 
 // ElaWidgetTools
+#include "ElaContentDialog.h"
 #include "ElaPushButton.h"
 #include "ElaText.h"
 
 // Qt
 #include <QHBoxLayout>
+#include <QScrollArea>
 #include <QVBoxLayout>
 
 #include <QDesktopServices>
 #include <QEvent>
 #include <QIcon>
-#include <QMessageBox>
 #include <QUrl>
 
 // Logging
@@ -151,7 +152,26 @@ void AboutPage::showLicense() {
            "DEALINGS IN THE\n"
            "SOFTWARE.");
 
-    QMessageBox::information(this, tr("License"), licenseText);
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("License"));
+
+    auto* centralWidget = new QWidget(dialog);
+    auto* layout = new QVBoxLayout(centralWidget);
+    layout->setContentsMargins(20, 10, 20, 10);
+
+    auto* textLabel = new ElaText(licenseText, centralWidget);
+    textLabel->setWordWrap(true);
+    layout->addWidget(textLabel);
+
+    dialog->setCentralWidget(centralWidget);
+    dialog->setLeftButtonText(QString());
+    dialog->setMiddleButtonText(QString());
+    dialog->setRightButtonText(tr("OK"));
+
+    connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
 }
 
 void AboutPage::showCredits() {
@@ -168,7 +188,26 @@ void AboutPage::showCredits() {
            "• All contributors and testers\n"
            "• The open-source community");
 
-    QMessageBox::information(this, tr("Credits"), creditsText);
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("Credits"));
+
+    auto* centralWidget = new QWidget(dialog);
+    auto* layout = new QVBoxLayout(centralWidget);
+    layout->setContentsMargins(20, 10, 20, 10);
+
+    auto* textLabel = new ElaText(creditsText, centralWidget);
+    textLabel->setWordWrap(true);
+    layout->addWidget(textLabel);
+
+    dialog->setCentralWidget(centralWidget);
+    dialog->setLeftButtonText(QString());
+    dialog->setMiddleButtonText(QString());
+    dialog->setRightButtonText(tr("OK"));
+
+    connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
 }
 
 void AboutPage::openWebsite() {

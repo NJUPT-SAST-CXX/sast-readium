@@ -408,10 +408,6 @@ void PluginManager::setPluginEnabled(const QString& pluginName, bool enabled) {
     }
 }
 
-IPluginInterface* PluginManager::getPlugin(const QString& pluginName) const {
-    return m_loadedPlugins.value(pluginName, nullptr);
-}
-
 QList<IPluginInterface*> PluginManager::getPluginsByType(
     const QString& interfaceId) const {
     QList<IPluginInterface*> result;
@@ -1246,11 +1242,12 @@ bool PluginManager::initializePlugin(const QString& name) {
 
 void PluginManager::shutdownPlugin(const QString& name) { unloadPlugin(name); }
 
-bool PluginManager::sendPluginMessage(const QString& from, const QString& to,
+bool PluginManager::sendPluginMessage(const QString& from,
+                                      const QString& target,
                                       const QVariant& message) {
-    IPluginInterface* target = m_loadedPlugins.value(to, nullptr);
-    if (target) {
-        target->handleMessage(from, message);
+    IPluginInterface* targetPlugin = m_loadedPlugins.value(target, nullptr);
+    if (targetPlugin != nullptr) {
+        targetPlugin->handleMessage(from, message);
         return true;
     }
     return false;

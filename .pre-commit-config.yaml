@@ -80,6 +80,8 @@ repos:
           (?x)^(
               build/.*|
               tests/.*|
+              examples/.*|
+              libs/.*|
               .*_autogen/.*|
               .*\.moc$|
               .*moc_.*\.cpp$|

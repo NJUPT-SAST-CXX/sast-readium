@@ -1,5 +1,5 @@
-#include "TextExtractor.h"
-#include <poppler-qt6.h>
+﻿#include "TextExtractor.h"
+#include <poppler/qt6/poppler-qt6.h>
 #include <QDebug>
 #include <QMutexLocker>
 #include <QRectF>

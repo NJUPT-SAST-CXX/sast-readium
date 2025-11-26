@@ -8,6 +8,7 @@
 // ElaWidgetTools
 #include "ElaLineEdit.h"
 #include "ElaPushButton.h"
+#include "ElaScrollPageArea.h"
 #include "ElaText.h"
 
 DocumentPropertiesPanel::DocumentPropertiesPanel(QWidget* parent)
@@ -17,18 +18,21 @@ DocumentPropertiesPanel::DocumentPropertiesPanel(QWidget* parent)
       m_contentWidget(nullptr),
       m_contentLayout(nullptr),
       m_fileInfoGroup(nullptr),
+      m_fileInfoTitle(nullptr),
       m_fileInfoLayout(nullptr),
       m_fileNameField(nullptr),
       m_fileSizeField(nullptr),
       m_pageCountField(nullptr),
       m_pdfVersionField(nullptr),
       m_documentInfoGroup(nullptr),
+      m_documentInfoTitle(nullptr),
       m_documentInfoLayout(nullptr),
       m_titleField(nullptr),
       m_authorField(nullptr),
       m_subjectField(nullptr),
       m_creatorField(nullptr),
       m_datesGroup(nullptr),
+      m_datesTitle(nullptr),
       m_datesLayout(nullptr),
       m_creationDateField(nullptr),
       m_modificationDateField(nullptr),
@@ -58,10 +62,19 @@ void DocumentPropertiesPanel::setupUI() {
     m_contentLayout->setSpacing(12);
 
     // File Information Group
-    m_fileInfoGroup = new QGroupBox(tr("File Information"));
-    m_fileInfoLayout = new QFormLayout(m_fileInfoGroup);
+    m_fileInfoGroup = new ElaScrollPageArea(m_contentWidget);
+    auto* fileInfoVLayout = new QVBoxLayout(m_fileInfoGroup);
+    fileInfoVLayout->setContentsMargins(12, 8, 12, 12);
+
+    m_fileInfoTitle = new ElaText(tr("File Information"), m_fileInfoGroup);
+    m_fileInfoTitle->setTextPixelSize(14);
+    fileInfoVLayout->addWidget(m_fileInfoTitle);
+
+    auto* fileInfoContent = new QWidget(m_fileInfoGroup);
+    m_fileInfoLayout = new QFormLayout(fileInfoContent);
     m_fileInfoLayout->setSpacing(6);
-    m_fileInfoLayout->setContentsMargins(8, 12, 8, 8);
+    m_fileInfoLayout->setContentsMargins(0, 6, 0, 0);
+    fileInfoVLayout->addWidget(fileInfoContent);
 
     m_fileNameField = new ElaLineEdit();
     m_fileNameField->setReadOnly(true);
@@ -90,10 +103,20 @@ void DocumentPropertiesPanel::setupUI() {
     m_contentLayout->addWidget(m_fileInfoGroup);
 
     // Document Information Group
-    m_documentInfoGroup = new QGroupBox(tr("Document Information"));
-    m_documentInfoLayout = new QFormLayout(m_documentInfoGroup);
+    m_documentInfoGroup = new ElaScrollPageArea(m_contentWidget);
+    auto* docInfoVLayout = new QVBoxLayout(m_documentInfoGroup);
+    docInfoVLayout->setContentsMargins(12, 8, 12, 12);
+
+    m_documentInfoTitle =
+        new ElaText(tr("Document Information"), m_documentInfoGroup);
+    m_documentInfoTitle->setTextPixelSize(14);
+    docInfoVLayout->addWidget(m_documentInfoTitle);
+
+    auto* docInfoContent = new QWidget(m_documentInfoGroup);
+    m_documentInfoLayout = new QFormLayout(docInfoContent);
     m_documentInfoLayout->setSpacing(6);
-    m_documentInfoLayout->setContentsMargins(8, 12, 8, 8);
+    m_documentInfoLayout->setContentsMargins(0, 6, 0, 0);
+    docInfoVLayout->addWidget(docInfoContent);
 
     m_titleField = new ElaLineEdit();
     m_titleField->setReadOnly(true);
@@ -122,10 +145,19 @@ void DocumentPropertiesPanel::setupUI() {
     m_contentLayout->addWidget(m_documentInfoGroup);
 
     // Dates Group
-    m_datesGroup = new QGroupBox(tr("Dates"));
-    m_datesLayout = new QFormLayout(m_datesGroup);
+    m_datesGroup = new ElaScrollPageArea(m_contentWidget);
+    auto* datesVLayout = new QVBoxLayout(m_datesGroup);
+    datesVLayout->setContentsMargins(12, 8, 12, 12);
+
+    m_datesTitle = new ElaText(tr("Dates"), m_datesGroup);
+    m_datesTitle->setTextPixelSize(14);
+    datesVLayout->addWidget(m_datesTitle);
+
+    auto* datesContent = new QWidget(m_datesGroup);
+    m_datesLayout = new QFormLayout(datesContent);
     m_datesLayout->setSpacing(6);
-    m_datesLayout->setContentsMargins(8, 12, 8, 8);
+    m_datesLayout->setContentsMargins(0, 6, 0, 0);
+    datesVLayout->addWidget(datesContent);
 
     m_creationDateField = new ElaLineEdit();
     m_creationDateField->setReadOnly(true);
@@ -241,9 +273,9 @@ void DocumentPropertiesPanel::changeEvent(QEvent* event) {
 }
 
 void DocumentPropertiesPanel::retranslateUi() {
-    m_fileInfoGroup->setTitle(tr("File Information"));
-    m_documentInfoGroup->setTitle(tr("Document Information"));
-    m_datesGroup->setTitle(tr("Dates"));
+    m_fileInfoTitle->setText(tr("File Information"));
+    m_documentInfoTitle->setText(tr("Document Information"));
+    m_datesTitle->setText(tr("Dates"));
     m_viewFullDetailsButton->setText(tr("View Full Details..."));
 
     // Re-apply current document to update labels

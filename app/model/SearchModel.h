@@ -1,6 +1,6 @@
-#pragma once
+﻿#pragma once
 
-#include <poppler-qt6.h>
+#include <poppler/qt6/poppler-qt6.h>
 #include <QAbstractListModel>
 #include <QFuture>
 #include <QFutureWatcher>

@@ -35,13 +35,15 @@
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QKeyEvent>
-#include <QMessageBox>
 #include <QResizeEvent>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
+
+#include "ElaContentDialog.h"
 #include "ElaText.h"
+#include "ui/widgets/ToastNotification.h"
 
 // Logging
 #include "logging/SimpleLogging.h"
@@ -599,8 +601,7 @@ bool PDFViewerPage::openFile(const QString& filePath) {
     if (!document) {
         SLOG_ERROR_F("PDFViewerPage: Failed to load document: {}",
                      path.toStdString());
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Failed to open file: %1").arg(path));
+        TOAST_ERROR(this, tr("Failed to open file: %1").arg(path));
         return false;
     }
 
@@ -615,8 +616,7 @@ bool PDFViewerPage::openFile(const QString& filePath) {
     // 设置文档到查看器
     if (!viewer->setDocument(document)) {
         SLOG_ERROR("PDFViewerPage: Failed to set document to viewer");
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Failed to display file: %1").arg(path));
+        TOAST_ERROR(this, tr("Failed to display file: %1").arg(path));
         viewer->deleteLater();
         return false;
     }

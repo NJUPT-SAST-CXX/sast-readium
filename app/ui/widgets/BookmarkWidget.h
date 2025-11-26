@@ -3,7 +3,6 @@
 #include <QAction>
 
 #include <QContextMenuEvent>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QItemSelectionModel>
 #include <QLabel>

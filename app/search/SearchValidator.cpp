@@ -1,5 +1,5 @@
-#include "SearchValidator.h"
-#include <poppler-qt6.h>
+﻿#include "SearchValidator.h"
+#include <poppler/qt6/poppler-qt6.h>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QRegularExpression>

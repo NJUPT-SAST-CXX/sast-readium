@@ -1,4 +1,4 @@
-#include <poppler-qt6.h>
+﻿#include <poppler/qt6/poppler-qt6.h>
 #include <QApplication>
 #include <QPropertyAnimation>
 #include <QSignalSpy>

@@ -4,42 +4,75 @@
 #include "managers/I18nManager.h"
 #include "managers/StyleManager.h"
 
-// ElaWidgetTools
-#include "ElaCheckBox.h"
-#include "ElaComboBox.h"
-#include "ElaLineEdit.h"
-#include "ElaPushButton.h"
-#include "ElaScrollArea.h"
-#include "ElaSlider.h"
+// Settings widgets
+#include "ui/widgets/AccessibilitySettingsWidget.h"
+#include "ui/widgets/AnnotationSettingsWidget.h"
+#include "ui/widgets/CacheSettingsWidget.h"
+#include "ui/widgets/DocumentSettingsWidget.h"
+#include "ui/widgets/LoggingSettingsWidget.h"
+#include "ui/widgets/PluginSettingsWidget.h"
+#include "ui/widgets/SearchSettingsWidget.h"
+#include "ui/widgets/ShortcutSettingsWidget.h"
+#include "ui/widgets/SystemTraySettingsWidget.h"
 
+// ElaWidgetTools
+#include "ElaComboBox.h"
+#include "ElaPushButton.h"
+#include "ElaScrollPageArea.h"
+#include "ElaSpinBox.h"
 #include "ElaText.h"
+#include "ElaToggleSwitch.h"
+
 // Qt
 #include <QEvent>
-#include <QFormLayout>
-#include <QGroupBox>
 #include <QHBoxLayout>
-#include <QLabel>
+#include <QListWidget>
 #include <QSettings>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 
 // Logging
 #include "logging/SimpleLogging.h"
 
 // ============================================================================
-// 构造和析构
+// Construction and destruction
 // ============================================================================
 
 SettingsPage::SettingsPage(QWidget* parent)
-    : ElaScrollPage(parent), m_i18nManager(nullptr), m_styleManager(nullptr) {
+    : ElaScrollPage(parent),
+      m_navigationList(nullptr),
+      m_contentStack(nullptr),
+      m_appearanceWidget(nullptr),
+      m_viewerWidget(nullptr),
+      m_documentWidget(nullptr),
+      m_annotationWidget(nullptr),
+      m_searchWidget(nullptr),
+      m_cacheWidget(nullptr),
+      m_systemTrayWidget(nullptr),
+      m_shortcutsWidget(nullptr),
+      m_accessibilityWidget(nullptr),
+      m_pluginWidget(nullptr),
+      m_loggingWidget(nullptr),
+      m_themeCombo(nullptr),
+      m_languageCombo(nullptr),
+      m_fontSizeSpin(nullptr),
+      m_animationsSwitch(nullptr),
+      m_defaultZoomCombo(nullptr),
+      m_defaultViewModeCombo(nullptr),
+      m_rememberLastPageSwitch(nullptr),
+      m_smoothScrollSwitch(nullptr),
+      m_renderQualityCombo(nullptr),
+      m_antiAliasingSwitch(nullptr),
+      m_saveBtn(nullptr),
+      m_cancelBtn(nullptr),
+      m_resetBtn(nullptr),
+      m_i18nManager(nullptr),
+      m_styleManager(nullptr),
+      m_hasUnsavedChanges(false) {
     SLOG_INFO("SettingsPage: Constructor started");
 
-    // Set window title for navigation
     setWindowTitle(tr("Settings"));
-
-    // Set title visibility (following example pattern)
     setTitleVisible(false);
-
-    // Set margins following HomePage pattern for consistency
     setContentsMargins(2, 2, 0, 0);
 
     setupUi();
@@ -52,216 +85,429 @@ SettingsPage::SettingsPage(QWidget* parent)
 SettingsPage::~SettingsPage() { SLOG_INFO("SettingsPage: Destructor called"); }
 
 // ============================================================================
-// UI 初始化
+// UI Setup
 // ============================================================================
 
 void SettingsPage::setupUi() {
-    // Create central widget
     QWidget* centralWidget = new QWidget(this);
-    QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
+    QHBoxLayout* mainLayout = new QHBoxLayout(centralWidget);
     mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(20);
+    mainLayout->setSpacing(16);
 
-    // Create content widget
-    QWidget* scrollWidget = new QWidget(centralWidget);
-    QVBoxLayout* scrollLayout = new QVBoxLayout(scrollWidget);
-    scrollLayout->setSpacing(20);
+    // Left navigation panel
+    QWidget* navPanel = new QWidget(this);
+    navPanel->setFixedWidth(200);
+    QVBoxLayout* navLayout = new QVBoxLayout(navPanel);
+    navLayout->setContentsMargins(0, 0, 0, 0);
 
-    // 外观设置
-    setupAppearanceSection();
-    m_appearanceGroup = createAppearanceGroup();
-    scrollLayout->addWidget(m_appearanceGroup);
+    m_navigationList = new QListWidget(this);
+    m_navigationList->setSpacing(2);
+    m_navigationList->setFrameShape(QFrame::NoFrame);
+    navLayout->addWidget(m_navigationList);
 
-    // 查看器设置
-    setupViewerSection();
-    m_viewerGroup = createViewerGroup();
-    scrollLayout->addWidget(m_viewerGroup);
+    mainLayout->addWidget(navPanel);
 
-    // 性能设置
-    setupPerformanceSection();
-    m_performanceGroup = createPerformanceGroup();
-    scrollLayout->addWidget(m_performanceGroup);
+    // Right content area
+    QWidget* contentPanel = new QWidget(this);
+    QVBoxLayout* contentLayout = new QVBoxLayout(contentPanel);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setSpacing(16);
 
-    // 高级设置
-    setupAdvancedSection();
-    m_advancedGroup = createAdvancedGroup();
-    scrollLayout->addWidget(m_advancedGroup);
+    m_contentStack = new QStackedWidget(this);
+    contentLayout->addWidget(m_contentStack, 1);
 
-    scrollLayout->addStretch();
-
-    mainLayout->addWidget(scrollWidget);
-
-    // 按钮
+    // Setup sections
+    setupNavigation();
+    setupSections();
     setupButtons();
+
+    // Action buttons at bottom
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->addStretch();
     buttonLayout->addWidget(m_saveBtn);
     buttonLayout->addWidget(m_cancelBtn);
     buttonLayout->addWidget(m_resetBtn);
-    mainLayout->addLayout(buttonLayout);
+    contentLayout->addLayout(buttonLayout);
 
-    // Add central widget using ElaScrollPage method (following example pattern)
+    mainLayout->addWidget(contentPanel, 1);
+
     addCentralWidget(centralWidget, true, true, 0.5);
 }
 
-void SettingsPage::setupAppearanceSection() {
-    m_themeCombo = new ElaComboBox(this);
-    m_themeCombo->addItem(tr("Light"));
-    m_themeCombo->addItem(tr("Dark"));
-    m_themeCombo->addItem(tr("Auto"));
-
-    m_languageCombo = new ElaComboBox(this);
-    m_languageCombo->addItem(tr("English"), "en");
-    m_languageCombo->addItem(tr("中文"), "zh_CN");
+void SettingsPage::setupNavigation() {
+    m_navigationList->addItem(tr("Appearance"));
+    m_navigationList->addItem(tr("Viewer"));
+    m_navigationList->addItem(tr("Document"));
+    m_navigationList->addItem(tr("Annotations"));
+    m_navigationList->addItem(tr("Search"));
+    m_navigationList->addItem(tr("Cache"));
+    m_navigationList->addItem(tr("System Tray"));
+    m_navigationList->addItem(tr("Shortcuts"));
+    m_navigationList->addItem(tr("Accessibility"));
+    m_navigationList->addItem(tr("Plugins"));
+    m_navigationList->addItem(tr("Logging"));
+    m_navigationList->setCurrentRow(0);
 }
 
-void SettingsPage::setupViewerSection() {
-    m_defaultZoomCombo = new ElaComboBox(this);
-    m_defaultZoomCombo->addItem(tr("Fit Width"), -1);
-    m_defaultZoomCombo->addItem(tr("Fit Page"), -2);
-    m_defaultZoomCombo->addItem(tr("Fit Height"), -3);
-    m_defaultZoomCombo->addItem(tr("50%"), 0.5);
-    m_defaultZoomCombo->addItem(tr("75%"), 0.75);
-    m_defaultZoomCombo->addItem(tr("100%"), 1.0);
-    m_defaultZoomCombo->addItem(tr("125%"), 1.25);
-    m_defaultZoomCombo->addItem(tr("150%"), 1.5);
-    m_defaultZoomCombo->addItem(tr("200%"), 2.0);
+void SettingsPage::setupSections() {
+    // Appearance section
+    m_appearanceWidget = createAppearanceSection();
+    m_contentStack->addWidget(m_appearanceWidget);
 
-    m_defaultViewModeCombo = new ElaComboBox(this);
-    m_defaultViewModeCombo->addItem(tr("Single Page"), 0);
-    m_defaultViewModeCombo->addItem(tr("Continuous"), 1);
-    m_defaultViewModeCombo->addItem(tr("Two Pages"), 2);
-    m_defaultViewModeCombo->addItem(tr("Book Mode"), 3);
+    // Viewer section
+    m_viewerWidget = createViewerSection();
+    m_contentStack->addWidget(m_viewerWidget);
 
-    m_rememberLastPageCheck = new ElaCheckBox(tr("Remember last page"), this);
-    m_smoothScrollCheck = new ElaCheckBox(tr("Smooth scrolling"), this);
-}
+    // Document section
+    m_documentWidget = new DocumentSettingsWidget(this);
+    m_contentStack->addWidget(m_documentWidget);
 
-void SettingsPage::setupPerformanceSection() {
-    m_cacheSizeSlider = new ElaSlider(Qt::Horizontal, this);
-    m_cacheSizeSlider->setRange(10, 100);
-    m_cacheSizeSlider->setValue(50);
+    // Annotations section
+    m_annotationWidget = new AnnotationSettingsWidget(this);
+    m_contentStack->addWidget(m_annotationWidget);
 
-    m_renderQualityCombo = new ElaComboBox(this);
-    m_renderQualityCombo->addItem(tr("Low"), 0);
-    m_renderQualityCombo->addItem(tr("Medium"), 1);
-    m_renderQualityCombo->addItem(tr("High"), 2);
-    m_renderQualityCombo->addItem(tr("Very High"), 3);
+    // Search section
+    m_searchWidget = new SearchSettingsWidget(this);
+    m_contentStack->addWidget(m_searchWidget);
 
-    m_hardwareAccelCheck = new ElaCheckBox(tr("Hardware acceleration"), this);
-}
+    // Cache section
+    m_cacheWidget = new CacheSettingsWidget(this);
+    m_contentStack->addWidget(m_cacheWidget);
 
-void SettingsPage::setupAdvancedSection() {
-    m_autoSaveCheck = new ElaCheckBox(tr("Auto-save settings"), this);
-    m_autoSaveIntervalEdit = new ElaLineEdit(this);
-    m_autoSaveIntervalEdit->setText("5");
-    m_autoSaveIntervalEdit->setPlaceholderText(tr("Minutes"));
+    // System Tray section
+    m_systemTrayWidget = new SystemTraySettingsWidget(this);
+    m_contentStack->addWidget(m_systemTrayWidget);
 
-    m_resetShortcutsBtn = new ElaPushButton(tr("Reset Shortcuts"), this);
-    m_managePluginsBtn = new ElaPushButton(tr("Manage Plugins"), this);
+    // Shortcuts section
+    m_shortcutsWidget = new ShortcutSettingsWidget(this);
+    m_contentStack->addWidget(m_shortcutsWidget);
+
+    // Accessibility section
+    m_accessibilityWidget = new AccessibilitySettingsWidget(this);
+    m_contentStack->addWidget(m_accessibilityWidget);
+
+    // Plugins section
+    m_pluginWidget = new PluginSettingsWidget(this);
+    m_contentStack->addWidget(m_pluginWidget);
+
+    // Logging section
+    m_loggingWidget = new LoggingSettingsWidget(this);
+    m_contentStack->addWidget(m_loggingWidget);
 }
 
 void SettingsPage::setupButtons() {
-    m_saveBtn = new ElaPushButton(this);
-    m_cancelBtn = new ElaPushButton(this);
-    m_resetBtn = new ElaPushButton(this);
-    updateButtonTexts();
+    m_saveBtn = new ElaPushButton(tr("Save"), this);
+    m_cancelBtn = new ElaPushButton(tr("Cancel"), this);
+    m_resetBtn = new ElaPushButton(tr("Reset to Defaults"), this);
 }
 
-QGroupBox* SettingsPage::createAppearanceGroup() {
-    QGroupBox* group = new QGroupBox(tr("Appearance"), this);
-    QFormLayout* layout = new QFormLayout(group);
-    layout->addRow(tr("Theme:"), m_themeCombo);
-    layout->addRow(tr("Language:"), m_languageCombo);
-    m_appearanceFormLayout = layout;
-    return group;
+QWidget* SettingsPage::createAppearanceSection() {
+    QWidget* widget = new QWidget(this);
+    QVBoxLayout* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(16);
+
+    // Theme section
+    auto* themeArea = new ElaScrollPageArea(this);
+    auto* themeLayout = new QVBoxLayout(themeArea);
+    themeLayout->setContentsMargins(16, 12, 16, 12);
+
+    auto* themeTitle = new ElaText(tr("Theme"), this);
+    themeTitle->setTextPixelSize(14);
+    themeLayout->addWidget(themeTitle);
+
+    auto* themeRow = new QHBoxLayout();
+    auto* themeLabel = new ElaText(tr("Application theme:"), this);
+    themeRow->addWidget(themeLabel);
+    m_themeCombo = new ElaComboBox(this);
+    m_themeCombo->addItem(tr("Light"), "light");
+    m_themeCombo->addItem(tr("Dark"), "dark");
+    m_themeCombo->addItem(tr("Auto"), "auto");
+    themeRow->addWidget(m_themeCombo);
+    themeRow->addStretch();
+    themeLayout->addLayout(themeRow);
+
+    layout->addWidget(themeArea);
+
+    // Language section
+    auto* langArea = new ElaScrollPageArea(this);
+    auto* langLayout = new QVBoxLayout(langArea);
+    langLayout->setContentsMargins(16, 12, 16, 12);
+
+    auto* langTitle = new ElaText(tr("Language"), this);
+    langTitle->setTextPixelSize(14);
+    langLayout->addWidget(langTitle);
+
+    auto* langRow = new QHBoxLayout();
+    auto* langLabel = new ElaText(tr("Interface language:"), this);
+    langRow->addWidget(langLabel);
+    m_languageCombo = new ElaComboBox(this);
+    m_languageCombo->addItem(tr("English"), "en");
+    m_languageCombo->addItem(tr("中文"), "zh_CN");
+    langRow->addWidget(m_languageCombo);
+    langRow->addStretch();
+    langLayout->addLayout(langRow);
+
+    layout->addWidget(langArea);
+
+    // Font section
+    auto* fontArea = new ElaScrollPageArea(this);
+    auto* fontLayout = new QVBoxLayout(fontArea);
+    fontLayout->setContentsMargins(16, 12, 16, 12);
+
+    auto* fontTitle = new ElaText(tr("Font"), this);
+    fontTitle->setTextPixelSize(14);
+    fontLayout->addWidget(fontTitle);
+
+    auto* fontRow = new QHBoxLayout();
+    auto* fontLabel = new ElaText(tr("Font size:"), this);
+    fontRow->addWidget(fontLabel);
+    m_fontSizeSpin = new ElaSpinBox(this);
+    m_fontSizeSpin->setRange(8, 24);
+    m_fontSizeSpin->setValue(12);
+    m_fontSizeSpin->setSuffix(" pt");
+    fontRow->addWidget(m_fontSizeSpin);
+    fontRow->addStretch();
+    fontLayout->addLayout(fontRow);
+
+    layout->addWidget(fontArea);
+
+    // Effects section
+    auto* effectsArea = new ElaScrollPageArea(this);
+    auto* effectsLayout = new QVBoxLayout(effectsArea);
+    effectsLayout->setContentsMargins(16, 12, 16, 12);
+
+    auto* effectsTitle = new ElaText(tr("Effects"), this);
+    effectsTitle->setTextPixelSize(14);
+    effectsLayout->addWidget(effectsTitle);
+
+    auto* animRow = new QHBoxLayout();
+    auto* animLabel = new ElaText(tr("Enable animations"), this);
+    animRow->addWidget(animLabel);
+    animRow->addStretch();
+    m_animationsSwitch = new ElaToggleSwitch(this);
+    m_animationsSwitch->setIsToggled(true);
+    animRow->addWidget(m_animationsSwitch);
+    effectsLayout->addLayout(animRow);
+
+    layout->addWidget(effectsArea);
+    layout->addStretch();
+
+    return widget;
 }
 
-QGroupBox* SettingsPage::createViewerGroup() {
-    QGroupBox* group = new QGroupBox(tr("Viewer"), this);
-    QFormLayout* layout = new QFormLayout(group);
-    layout->addRow(tr("Default zoom:"), m_defaultZoomCombo);
-    layout->addRow(tr("Default view mode:"), m_defaultViewModeCombo);
-    layout->addRow(m_rememberLastPageCheck);
-    layout->addRow(m_smoothScrollCheck);
-    m_viewerFormLayout = layout;
-    return group;
-}
+QWidget* SettingsPage::createViewerSection() {
+    QWidget* widget = new QWidget(this);
+    QVBoxLayout* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(16);
 
-QGroupBox* SettingsPage::createPerformanceGroup() {
-    QGroupBox* group = new QGroupBox(tr("Performance"), this);
-    QFormLayout* layout = new QFormLayout(group);
-    layout->addRow(tr("Cache size (MB):"), m_cacheSizeSlider);
-    layout->addRow(tr("Render quality:"), m_renderQualityCombo);
-    layout->addRow(m_hardwareAccelCheck);
-    m_performanceFormLayout = layout;
-    return group;
-}
+    // Default view section
+    auto* viewArea = new ElaScrollPageArea(this);
+    auto* viewLayout = new QVBoxLayout(viewArea);
+    viewLayout->setContentsMargins(16, 12, 16, 12);
 
-QGroupBox* SettingsPage::createAdvancedGroup() {
-    QGroupBox* group = new QGroupBox(tr("Advanced"), this);
-    QFormLayout* layout = new QFormLayout(group);
-    layout->addRow(m_autoSaveCheck);
+    auto* viewTitle = new ElaText(tr("Default View Settings"), this);
+    viewTitle->setTextPixelSize(14);
+    viewLayout->addWidget(viewTitle);
 
-    QHBoxLayout* intervalLayout = new QHBoxLayout();
-    m_autoSaveIntervalLabel = new ElaText(tr("Auto-save interval:"), this);
-    intervalLayout->addWidget(m_autoSaveIntervalLabel);
-    intervalLayout->addWidget(m_autoSaveIntervalEdit);
-    m_autoSaveIntervalUnitLabel = new ElaText(tr("minutes"), this);
-    intervalLayout->addWidget(m_autoSaveIntervalUnitLabel);
-    layout->addRow(intervalLayout);
+    auto* zoomRow = new QHBoxLayout();
+    auto* zoomLabel = new ElaText(tr("Default zoom:"), this);
+    zoomRow->addWidget(zoomLabel);
+    m_defaultZoomCombo = new ElaComboBox(this);
+    m_defaultZoomCombo->addItem(tr("Fit Width"), "fitWidth");
+    m_defaultZoomCombo->addItem(tr("Fit Page"), "fitPage");
+    m_defaultZoomCombo->addItem(tr("Fit Height"), "fitHeight");
+    m_defaultZoomCombo->addItem(tr("50%"), "50");
+    m_defaultZoomCombo->addItem(tr("75%"), "75");
+    m_defaultZoomCombo->addItem(tr("100%"), "100");
+    m_defaultZoomCombo->addItem(tr("125%"), "125");
+    m_defaultZoomCombo->addItem(tr("150%"), "150");
+    m_defaultZoomCombo->addItem(tr("200%"), "200");
+    zoomRow->addWidget(m_defaultZoomCombo);
+    zoomRow->addStretch();
+    viewLayout->addLayout(zoomRow);
 
-    layout->addRow(m_resetShortcutsBtn);
-    layout->addRow(m_managePluginsBtn);
-    m_advancedFormLayout = layout;
-    return group;
+    auto* modeRow = new QHBoxLayout();
+    auto* modeLabel = new ElaText(tr("Default view mode:"), this);
+    modeRow->addWidget(modeLabel);
+    m_defaultViewModeCombo = new ElaComboBox(this);
+    m_defaultViewModeCombo->addItem(tr("Single Page"), "single");
+    m_defaultViewModeCombo->addItem(tr("Continuous"), "continuous");
+    m_defaultViewModeCombo->addItem(tr("Two Pages"), "twoPage");
+    m_defaultViewModeCombo->addItem(tr("Book Mode"), "book");
+    modeRow->addWidget(m_defaultViewModeCombo);
+    modeRow->addStretch();
+    viewLayout->addLayout(modeRow);
+
+    layout->addWidget(viewArea);
+
+    // Behavior section
+    auto* behaviorArea = new ElaScrollPageArea(this);
+    auto* behaviorLayout = new QVBoxLayout(behaviorArea);
+    behaviorLayout->setContentsMargins(16, 12, 16, 12);
+
+    auto* behaviorTitle = new ElaText(tr("Behavior"), this);
+    behaviorTitle->setTextPixelSize(14);
+    behaviorLayout->addWidget(behaviorTitle);
+
+    auto* rememberRow = new QHBoxLayout();
+    auto* rememberLabel = new ElaText(tr("Remember last page position"), this);
+    rememberRow->addWidget(rememberLabel);
+    rememberRow->addStretch();
+    m_rememberLastPageSwitch = new ElaToggleSwitch(this);
+    m_rememberLastPageSwitch->setIsToggled(true);
+    rememberRow->addWidget(m_rememberLastPageSwitch);
+    behaviorLayout->addLayout(rememberRow);
+
+    auto* scrollRow = new QHBoxLayout();
+    auto* scrollLabel = new ElaText(tr("Smooth scrolling"), this);
+    scrollRow->addWidget(scrollLabel);
+    scrollRow->addStretch();
+    m_smoothScrollSwitch = new ElaToggleSwitch(this);
+    m_smoothScrollSwitch->setIsToggled(true);
+    scrollRow->addWidget(m_smoothScrollSwitch);
+    behaviorLayout->addLayout(scrollRow);
+
+    layout->addWidget(behaviorArea);
+
+    // Rendering section
+    auto* renderArea = new ElaScrollPageArea(this);
+    auto* renderLayout = new QVBoxLayout(renderArea);
+    renderLayout->setContentsMargins(16, 12, 16, 12);
+
+    auto* renderTitle = new ElaText(tr("Rendering"), this);
+    renderTitle->setTextPixelSize(14);
+    renderLayout->addWidget(renderTitle);
+
+    auto* qualityRow = new QHBoxLayout();
+    auto* qualityLabel = new ElaText(tr("Render quality:"), this);
+    qualityRow->addWidget(qualityLabel);
+    m_renderQualityCombo = new ElaComboBox(this);
+    m_renderQualityCombo->addItem(tr("Low (Faster)"), "low");
+    m_renderQualityCombo->addItem(tr("Medium"), "medium");
+    m_renderQualityCombo->addItem(tr("High"), "high");
+    m_renderQualityCombo->addItem(tr("Very High (Best Quality)"), "veryHigh");
+    m_renderQualityCombo->setCurrentIndex(2);
+    qualityRow->addWidget(m_renderQualityCombo);
+    qualityRow->addStretch();
+    renderLayout->addLayout(qualityRow);
+
+    auto* aaRow = new QHBoxLayout();
+    auto* aaLabel = new ElaText(tr("Anti-aliasing"), this);
+    aaRow->addWidget(aaLabel);
+    aaRow->addStretch();
+    m_antiAliasingSwitch = new ElaToggleSwitch(this);
+    m_antiAliasingSwitch->setIsToggled(true);
+    aaRow->addWidget(m_antiAliasingSwitch);
+    renderLayout->addLayout(aaRow);
+
+    layout->addWidget(renderArea);
+    layout->addStretch();
+
+    return widget;
 }
 
 void SettingsPage::connectSignals() {
-    // 保存按钮
-    connect(m_saveBtn, &ElaPushButton::clicked, this, [this]() {
-        saveSettings();
-        applySettings();
-        emit settingsChanged();
-    });
+    // Navigation
+    connect(m_navigationList, &QListWidget::currentRowChanged, this,
+            &SettingsPage::onSectionChanged);
 
-    // 取消按钮
+    // Save button
+    connect(m_saveBtn, &ElaPushButton::clicked, this,
+            &SettingsPage::onSaveClicked);
+
+    // Cancel button
     connect(m_cancelBtn, &ElaPushButton::clicked, this,
-            &SettingsPage::loadSettings);
+            &SettingsPage::onCancelClicked);
 
-    // 重置按钮
+    // Reset button
     connect(m_resetBtn, &ElaPushButton::clicked, this,
-            &SettingsPage::resetToDefaults);
+            &SettingsPage::onResetClicked);
 
-    // 主题变化
+    // Theme change
     connect(m_themeCombo, QOverload<int>::of(&ElaComboBox::currentIndexChanged),
             this, [this](int index) {
-                QString theme;
-                switch (index) {
-                    case 0:
-                        theme = "light";
-                        break;
-                    case 1:
-                        theme = "dark";
-                        break;
-                    case 2:
-                        theme = "auto";
-                        break;
-                }
+                QString theme = m_themeCombo->itemData(index).toString();
                 emit themeChanged(theme);
+                m_hasUnsavedChanges = true;
             });
 
-    // 语言变化
+    // Language change
     connect(m_languageCombo,
             QOverload<int>::of(&ElaComboBox::currentIndexChanged), this,
             [this](int index) {
                 QString language = m_languageCombo->itemData(index).toString();
                 emit languageChanged(language);
+                m_hasUnsavedChanges = true;
             });
+
+    // Connect sub-widget signals
+    if (m_documentWidget) {
+        connect(m_documentWidget, &DocumentSettingsWidget::settingsChanged,
+                this, &SettingsPage::onSettingsModified);
+    }
+    if (m_annotationWidget) {
+        connect(m_annotationWidget, &AnnotationSettingsWidget::settingsChanged,
+                this, &SettingsPage::onSettingsModified);
+    }
+    if (m_searchWidget) {
+        connect(m_searchWidget, &SearchSettingsWidget::settingsChanged, this,
+                &SettingsPage::onSettingsModified);
+    }
+    if (m_cacheWidget) {
+        connect(m_cacheWidget, &CacheSettingsWidget::settingsChanged, this,
+                &SettingsPage::onSettingsModified);
+    }
+    if (m_systemTrayWidget) {
+        connect(m_systemTrayWidget, &SystemTraySettingsWidget::settingsChanged,
+                this, &SettingsPage::onSettingsModified);
+    }
+    if (m_shortcutsWidget) {
+        connect(m_shortcutsWidget, &ShortcutSettingsWidget::shortcutsChanged,
+                this, &SettingsPage::onSettingsModified);
+    }
+    if (m_accessibilityWidget) {
+        connect(m_accessibilityWidget,
+                &AccessibilitySettingsWidget::settingsChanged, this,
+                &SettingsPage::onSettingsModified);
+    }
+    if (m_pluginWidget) {
+        connect(m_pluginWidget, &PluginSettingsWidget::settingsChanged, this,
+                &SettingsPage::onSettingsModified);
+    }
+    if (m_loggingWidget) {
+        connect(m_loggingWidget, &LoggingSettingsWidget::settingsChanged, this,
+                &SettingsPage::onSettingsModified);
+    }
+}
+
+void SettingsPage::onSectionChanged(int index) {
+    m_contentStack->setCurrentIndex(index);
+}
+
+void SettingsPage::onSaveClicked() {
+    saveSettings();
+    applySettings();
+    m_hasUnsavedChanges = false;
+    emit settingsChanged();
+}
+
+void SettingsPage::onCancelClicked() {
+    loadSettings();
+    m_hasUnsavedChanges = false;
+}
+
+void SettingsPage::onResetClicked() { resetToDefaults(); }
+
+void SettingsPage::onSettingsModified() { m_hasUnsavedChanges = true; }
+
+void SettingsPage::navigateToSection(SettingsSection section) {
+    m_navigationList->setCurrentRow(static_cast<int>(section));
 }
 
 // ============================================================================
-// 设置管理
+// Settings Management
 // ============================================================================
 
 void SettingsPage::loadSettings() {
@@ -269,38 +515,69 @@ void SettingsPage::loadSettings() {
 
     QSettings settings("SAST", "Readium");
 
-    // 外观
-    m_themeCombo->setCurrentIndex(
-        settings.value("appearance/theme", 0).toInt());
+    // Appearance
+    int themeIndex = m_themeCombo->findData(
+        settings.value("appearance/theme", "light").toString());
+    if (themeIndex >= 0) {
+        m_themeCombo->setCurrentIndex(themeIndex);
+    }
+
     QString language = settings.value("appearance/language", "en").toString();
     int langIndex = m_languageCombo->findData(language);
     if (langIndex >= 0) {
         m_languageCombo->setCurrentIndex(langIndex);
     }
 
-    // 查看器
-    m_defaultZoomCombo->setCurrentIndex(
-        settings.value("viewer/defaultZoom", 5).toInt());
-    m_defaultViewModeCombo->setCurrentIndex(
-        settings.value("viewer/defaultViewMode", 1).toInt());
-    m_rememberLastPageCheck->setChecked(
+    m_fontSizeSpin->setValue(settings.value("appearance/fontSize", 12).toInt());
+    m_animationsSwitch->setIsToggled(
+        settings.value("appearance/animations", true).toBool());
+
+    // Viewer
+    int zoomIndex = m_defaultZoomCombo->findData(
+        settings.value("viewer/defaultZoom", "fitWidth").toString());
+    if (zoomIndex >= 0) {
+        m_defaultZoomCombo->setCurrentIndex(zoomIndex);
+    }
+
+    int modeIndex = m_defaultViewModeCombo->findData(
+        settings.value("viewer/defaultViewMode", "continuous").toString());
+    if (modeIndex >= 0) {
+        m_defaultViewModeCombo->setCurrentIndex(modeIndex);
+    }
+
+    m_rememberLastPageSwitch->setIsToggled(
         settings.value("viewer/rememberLastPage", true).toBool());
-    m_smoothScrollCheck->setChecked(
+    m_smoothScrollSwitch->setIsToggled(
         settings.value("viewer/smoothScroll", true).toBool());
 
-    // 性能
-    m_cacheSizeSlider->setValue(
-        settings.value("performance/cacheSize", 50).toInt());
-    m_renderQualityCombo->setCurrentIndex(
-        settings.value("performance/renderQuality", 2).toInt());
-    m_hardwareAccelCheck->setChecked(
-        settings.value("performance/hardwareAccel", true).toBool());
+    int qualityIndex = m_renderQualityCombo->findData(
+        settings.value("viewer/renderQuality", "high").toString());
+    if (qualityIndex >= 0) {
+        m_renderQualityCombo->setCurrentIndex(qualityIndex);
+    }
 
-    // 高级
-    m_autoSaveCheck->setChecked(
-        settings.value("advanced/autoSave", true).toBool());
-    m_autoSaveIntervalEdit->setText(
-        settings.value("advanced/autoSaveInterval", "5").toString());
+    m_antiAliasingSwitch->setIsToggled(
+        settings.value("viewer/antiAliasing", true).toBool());
+
+    // Load sub-widget settings
+    if (m_documentWidget)
+        m_documentWidget->loadSettings();
+    if (m_annotationWidget)
+        m_annotationWidget->loadSettings();
+    if (m_searchWidget)
+        m_searchWidget->loadSettings();
+    if (m_cacheWidget)
+        m_cacheWidget->loadSettings();
+    if (m_systemTrayWidget)
+        m_systemTrayWidget->loadSettings();
+    if (m_shortcutsWidget)
+        m_shortcutsWidget->loadShortcuts();
+    if (m_accessibilityWidget)
+        m_accessibilityWidget->loadSettings();
+    if (m_pluginWidget)
+        m_pluginWidget->loadSettings();
+    if (m_loggingWidget)
+        m_loggingWidget->loadSettings();
 }
 
 void SettingsPage::saveSettings() {
@@ -308,69 +585,102 @@ void SettingsPage::saveSettings() {
 
     QSettings settings("SAST", "Readium");
 
-    // 外观
-    settings.setValue("appearance/theme", m_themeCombo->currentIndex());
+    // Appearance
+    settings.setValue("appearance/theme",
+                      m_themeCombo->currentData().toString());
     settings.setValue("appearance/language",
                       m_languageCombo->currentData().toString());
+    settings.setValue("appearance/fontSize", m_fontSizeSpin->value());
+    settings.setValue("appearance/animations",
+                      m_animationsSwitch->getIsToggled());
 
-    // 查看器
-    settings.setValue("viewer/defaultZoom", m_defaultZoomCombo->currentIndex());
+    // Viewer
+    settings.setValue("viewer/defaultZoom",
+                      m_defaultZoomCombo->currentData().toString());
     settings.setValue("viewer/defaultViewMode",
-                      m_defaultViewModeCombo->currentIndex());
+                      m_defaultViewModeCombo->currentData().toString());
     settings.setValue("viewer/rememberLastPage",
-                      m_rememberLastPageCheck->isChecked());
-    settings.setValue("viewer/smoothScroll", m_smoothScrollCheck->isChecked());
+                      m_rememberLastPageSwitch->getIsToggled());
+    settings.setValue("viewer/smoothScroll",
+                      m_smoothScrollSwitch->getIsToggled());
+    settings.setValue("viewer/renderQuality",
+                      m_renderQualityCombo->currentData().toString());
+    settings.setValue("viewer/antiAliasing",
+                      m_antiAliasingSwitch->getIsToggled());
 
-    // 性能
-    settings.setValue("performance/cacheSize", m_cacheSizeSlider->value());
-    settings.setValue("performance/renderQuality",
-                      m_renderQualityCombo->currentIndex());
-    settings.setValue("performance/hardwareAccel",
-                      m_hardwareAccelCheck->isChecked());
-
-    // 高级
-    settings.setValue("advanced/autoSave", m_autoSaveCheck->isChecked());
-    settings.setValue("advanced/autoSaveInterval",
-                      m_autoSaveIntervalEdit->text());
+    // Save sub-widget settings
+    if (m_documentWidget)
+        m_documentWidget->saveSettings();
+    if (m_annotationWidget)
+        m_annotationWidget->saveSettings();
+    if (m_searchWidget)
+        m_searchWidget->saveSettings();
+    if (m_cacheWidget)
+        m_cacheWidget->saveSettings();
+    if (m_systemTrayWidget)
+        m_systemTrayWidget->saveSettings();
+    if (m_shortcutsWidget)
+        m_shortcutsWidget->saveShortcuts();
+    if (m_accessibilityWidget)
+        m_accessibilityWidget->saveSettings();
+    if (m_pluginWidget)
+        m_pluginWidget->saveSettings();
+    if (m_loggingWidget)
+        m_loggingWidget->saveSettings();
 }
 
 void SettingsPage::resetToDefaults() {
     SLOG_INFO("SettingsPage: Resetting to defaults");
 
+    // Appearance
     m_themeCombo->setCurrentIndex(0);
     m_languageCombo->setCurrentIndex(0);
-    m_defaultZoomCombo->setCurrentIndex(5);
+    m_fontSizeSpin->setValue(12);
+    m_animationsSwitch->setIsToggled(true);
+
+    // Viewer
+    m_defaultZoomCombo->setCurrentIndex(0);
     m_defaultViewModeCombo->setCurrentIndex(1);
-    m_rememberLastPageCheck->setChecked(true);
-    m_smoothScrollCheck->setChecked(true);
-    m_cacheSizeSlider->setValue(50);
+    m_rememberLastPageSwitch->setIsToggled(true);
+    m_smoothScrollSwitch->setIsToggled(true);
     m_renderQualityCombo->setCurrentIndex(2);
-    m_hardwareAccelCheck->setChecked(true);
-    m_autoSaveCheck->setChecked(true);
-    m_autoSaveIntervalEdit->setText("5");
+    m_antiAliasingSwitch->setIsToggled(true);
+
+    // Reset sub-widgets
+    if (m_documentWidget)
+        m_documentWidget->resetToDefaults();
+    if (m_annotationWidget)
+        m_annotationWidget->resetToDefaults();
+    if (m_searchWidget)
+        m_searchWidget->resetToDefaults();
+    if (m_cacheWidget)
+        m_cacheWidget->resetToDefaults();
+    if (m_systemTrayWidget)
+        m_systemTrayWidget->resetToDefaults();
+    if (m_shortcutsWidget)
+        m_shortcutsWidget->resetToDefaults();
+    if (m_accessibilityWidget)
+        m_accessibilityWidget->resetToDefaults();
+    if (m_pluginWidget)
+        m_pluginWidget->resetToDefaults();
+    if (m_loggingWidget)
+        m_loggingWidget->resetToDefaults();
 }
 
 void SettingsPage::applySettings() {
     SLOG_INFO("SettingsPage: Applying settings");
 
-    // 应用主题
+    // Apply theme
     if (m_styleManager != nullptr) {
+        QString themeStr = m_themeCombo->currentData().toString();
         Theme theme = Theme::Light;
-        switch (m_themeCombo->currentIndex()) {
-            case 0:
-                theme = Theme::Light;
-                break;
-            case 1:
-                theme = Theme::Dark;
-                break;
-            case 2:
-                theme = Theme::Light;
-                break;  // "auto" defaults to Light for now
+        if (themeStr == "dark") {
+            theme = Theme::Dark;
         }
         m_styleManager->setTheme(theme);
     }
 
-    // 应用语言
+    // Apply language
     if (m_i18nManager != nullptr) {
         QString languageCode = m_languageCombo->currentData().toString();
         m_i18nManager->loadLanguage(languageCode);
@@ -378,7 +688,7 @@ void SettingsPage::applySettings() {
 }
 
 // ============================================================================
-// 业务逻辑集成
+// Business Logic Integration
 // ============================================================================
 
 void SettingsPage::setI18nManager(I18nManager* manager) {
@@ -390,7 +700,7 @@ void SettingsPage::setStyleManager(StyleManager* manager) {
 }
 
 // ============================================================================
-// 事件处理
+// Event Handling
 // ============================================================================
 
 void SettingsPage::changeEvent(QEvent* event) {
@@ -404,25 +714,29 @@ void SettingsPage::retranslateUi() {
     SLOG_INFO("SettingsPage: Retranslating UI");
     setWindowTitle(tr("Settings"));
 
-    updateAppearanceTexts();
-    updateViewerTexts();
-    updatePerformanceTexts();
-    updateAdvancedTexts();
-    updateButtonTexts();
-}
-
-void SettingsPage::updateAppearanceTexts() {
-    if (m_appearanceGroup != nullptr) {
-        m_appearanceGroup->setTitle(tr("Appearance"));
+    // Update navigation items
+    if (m_navigationList && m_navigationList->count() >= 11) {
+        m_navigationList->item(0)->setText(tr("Appearance"));
+        m_navigationList->item(1)->setText(tr("Viewer"));
+        m_navigationList->item(2)->setText(tr("Document"));
+        m_navigationList->item(3)->setText(tr("Annotations"));
+        m_navigationList->item(4)->setText(tr("Search"));
+        m_navigationList->item(5)->setText(tr("Cache"));
+        m_navigationList->item(6)->setText(tr("System Tray"));
+        m_navigationList->item(7)->setText(tr("Shortcuts"));
+        m_navigationList->item(8)->setText(tr("Accessibility"));
+        m_navigationList->item(9)->setText(tr("Plugins"));
+        m_navigationList->item(10)->setText(tr("Logging"));
     }
 
-    if (m_themeCombo != nullptr && m_themeCombo->count() >= 3) {
+    // Update combo box items
+    if (m_themeCombo && m_themeCombo->count() >= 3) {
         m_themeCombo->setItemText(0, tr("Light"));
         m_themeCombo->setItemText(1, tr("Dark"));
         m_themeCombo->setItemText(2, tr("Auto"));
     }
 
-    if (m_languageCombo != nullptr) {
+    if (m_languageCombo) {
         int englishIndex = m_languageCombo->findData("en");
         if (englishIndex >= 0) {
             m_languageCombo->setItemText(englishIndex, tr("English"));
@@ -433,160 +747,11 @@ void SettingsPage::updateAppearanceTexts() {
         }
     }
 
-    if (m_appearanceFormLayout != nullptr) {
-        if (auto* themeLabel = qobject_cast<QLabel*>(
-                m_appearanceFormLayout->labelForField(m_themeCombo))) {
-            themeLabel->setText(tr("Theme:"));
-        }
-        if (auto* languageLabel = qobject_cast<QLabel*>(
-                m_appearanceFormLayout->labelForField(m_languageCombo))) {
-            languageLabel->setText(tr("Language:"));
-        }
-    }
-}
-
-void SettingsPage::updateViewerTexts() {
-    if (m_viewerGroup != nullptr) {
-        m_viewerGroup->setTitle(tr("Viewer"));
-    }
-
-    if (m_defaultZoomCombo != nullptr) {
-        const struct {
-            double value;
-            QString text;
-        } zoomOptions[] = {
-            {-1, tr("Fit Width")}, {-2, tr("Fit Page")}, {-3, tr("Fit Height")},
-            {0.5, tr("50%")},      {0.75, tr("75%")},    {1.0, tr("100%")},
-            {1.25, tr("125%")},    {1.5, tr("150%")},    {2.0, tr("200%")}};
-
-        for (const auto& option : zoomOptions) {
-            int index = m_defaultZoomCombo->findData(option.value);
-            if (index >= 0) {
-                m_defaultZoomCombo->setItemText(index, option.text);
-            }
-        }
-    }
-
-    if (m_defaultViewModeCombo != nullptr) {
-        const struct {
-            int value;
-            QString text;
-        } viewOptions[] = {{0, tr("Single Page")},
-                           {1, tr("Continuous")},
-                           {2, tr("Two Pages")},
-                           {3, tr("Book Mode")}};
-
-        for (const auto& option : viewOptions) {
-            int index = m_defaultViewModeCombo->findData(option.value);
-            if (index >= 0) {
-                m_defaultViewModeCombo->setItemText(index, option.text);
-            }
-        }
-    }
-
-    if (m_rememberLastPageCheck != nullptr) {
-        m_rememberLastPageCheck->setText(tr("Remember last page"));
-    }
-    if (m_smoothScrollCheck != nullptr) {
-        m_smoothScrollCheck->setText(tr("Smooth scrolling"));
-    }
-
-    if (m_viewerFormLayout != nullptr) {
-        if (auto* zoomLabel = qobject_cast<QLabel*>(
-                m_viewerFormLayout->labelForField(m_defaultZoomCombo))) {
-            zoomLabel->setText(tr("Default zoom:"));
-        }
-        if (auto* viewModeLabel = qobject_cast<QLabel*>(
-                m_viewerFormLayout->labelForField(m_defaultViewModeCombo))) {
-            viewModeLabel->setText(tr("Default view mode:"));
-        }
-    }
-}
-
-void SettingsPage::updatePerformanceTexts() {
-    if (m_performanceGroup != nullptr) {
-        m_performanceGroup->setTitle(tr("Performance"));
-    }
-
-    if (m_renderQualityCombo != nullptr) {
-        const struct {
-            int value;
-            QString text;
-        } qualityOptions[] = {{0, tr("Low")},
-                              {1, tr("Medium")},
-                              {2, tr("High")},
-                              {3, tr("Very High")}};
-
-        for (const auto& option : qualityOptions) {
-            int index = m_renderQualityCombo->findData(option.value);
-            if (index >= 0) {
-                m_renderQualityCombo->setItemText(index, option.text);
-            }
-        }
-    }
-
-    if (m_cacheSizeSlider != nullptr) {
-        // Slider has no text to translate.
-    }
-
-    if (m_hardwareAccelCheck != nullptr) {
-        m_hardwareAccelCheck->setText(tr("Hardware acceleration"));
-    }
-
-    if (m_performanceFormLayout != nullptr) {
-        if (auto* cacheLabel = qobject_cast<QLabel*>(
-                m_performanceFormLayout->labelForField(m_cacheSizeSlider))) {
-            cacheLabel->setText(tr("Cache size (MB):"));
-        }
-        if (auto* renderLabel = qobject_cast<QLabel*>(
-                m_performanceFormLayout->labelForField(m_renderQualityCombo))) {
-            renderLabel->setText(tr("Render quality:"));
-        }
-    }
-}
-
-void SettingsPage::updateAdvancedTexts() {
-    if (m_advancedGroup != nullptr) {
-        m_advancedGroup->setTitle(tr("Advanced"));
-    }
-
-    if (m_autoSaveCheck != nullptr) {
-        m_autoSaveCheck->setText(tr("Auto-save settings"));
-    }
-
-    if (m_autoSaveIntervalEdit != nullptr) {
-        m_autoSaveIntervalEdit->setPlaceholderText(tr("Minutes"));
-    }
-
-    if (m_autoSaveIntervalLabel != nullptr) {
-        m_autoSaveIntervalLabel->setText(tr("Auto-save interval:"));
-    }
-
-    if (m_autoSaveIntervalUnitLabel != nullptr) {
-        m_autoSaveIntervalUnitLabel->setText(tr("minutes"));
-    }
-
-    if (m_resetShortcutsBtn != nullptr) {
-        m_resetShortcutsBtn->setText(tr("Reset Shortcuts"));
-    }
-
-    if (m_managePluginsBtn != nullptr) {
-        m_managePluginsBtn->setText(tr("Manage Plugins"));
-    }
-
-    if (m_advancedFormLayout != nullptr && m_autoSaveCheck != nullptr) {
-        // The checkbox row does not require additional labels.
-    }
-}
-
-void SettingsPage::updateButtonTexts() {
-    if (m_saveBtn != nullptr) {
+    // Update buttons
+    if (m_saveBtn)
         m_saveBtn->setText(tr("Save"));
-    }
-    if (m_cancelBtn != nullptr) {
+    if (m_cancelBtn)
         m_cancelBtn->setText(tr("Cancel"));
-    }
-    if (m_resetBtn != nullptr) {
+    if (m_resetBtn)
         m_resetBtn->setText(tr("Reset to Defaults"));
-    }
 }

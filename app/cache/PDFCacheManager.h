@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file PDFCacheManager.h
  * @brief PDF cache manager with intelligent caching strategies
  * @author SAST Team
@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <poppler-qt6.h>
+#include <poppler/qt6/poppler-qt6.h>
 #include <QCache>
 #include <QElapsedTimer>
 #include <QMutex>

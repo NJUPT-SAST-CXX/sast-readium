@@ -5,7 +5,6 @@
 #include <QDialog>
 #include <QFrame>
 #include <QGridLayout>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 
@@ -27,6 +26,8 @@ class StyleManager;
 class ElaPushButton;
 class ElaToolButton;
 class ElaLineEdit;
+class ElaScrollPageArea;
+class ElaText;
 class DocumentMetadataDialog : public QDialog {
     Q_OBJECT
 
@@ -87,7 +88,8 @@ protected:
     QVBoxLayout* m_basicContentLayout = nullptr;
 
     // 基本信息组
-    QGroupBox* m_basicInfoGroup = nullptr;
+    ElaScrollPageArea* m_basicInfoGroup = nullptr;
+    ElaText* m_basicInfoTitle = nullptr;
     QGridLayout* m_basicInfoLayout = nullptr;
     ElaLineEdit* m_fileNameEdit = nullptr;
     ElaLineEdit* m_filePathEdit = nullptr;
@@ -99,7 +101,8 @@ protected:
     ElaToolButton* m_copyPathButton = nullptr;
 
     // 页面信息组
-    QGroupBox* m_pageInfoGroup = nullptr;
+    ElaScrollPageArea* m_pageInfoGroup = nullptr;
+    ElaText* m_pageInfoTitle = nullptr;
     QGridLayout* m_pageInfoLayout = nullptr;
     ElaLineEdit* m_pageSizeEdit = nullptr;
     ElaLineEdit* m_pageOrientationEdit = nullptr;
@@ -113,7 +116,8 @@ protected:
     QVBoxLayout* m_propertiesContentLayout = nullptr;
 
     // 文档属性组
-    QGroupBox* m_propertiesGroup = nullptr;
+    ElaScrollPageArea* m_propertiesGroup = nullptr;
+    ElaText* m_propertiesTitle = nullptr;
     QGridLayout* m_propertiesLayout = nullptr;
     ElaLineEdit* m_titleEdit = nullptr;
     ElaLineEdit* m_authorEdit = nullptr;
@@ -129,7 +133,8 @@ protected:
     QVBoxLayout* m_securityTabLayout = nullptr;
 
     // 安全信息组
-    QGroupBox* m_securityGroup = nullptr;
+    ElaScrollPageArea* m_securityGroup = nullptr;
+    ElaText* m_securityTitle = nullptr;
     QGridLayout* m_securityLayout = nullptr;
     ElaLineEdit* m_encryptedEdit = nullptr;
     ElaLineEdit* m_encryptionMethodEdit = nullptr;
@@ -146,12 +151,14 @@ protected:
     QVBoxLayout* m_advancedTabLayout = nullptr;
 
     // 字体信息组
-    QGroupBox* m_fontGroup = nullptr;
+    ElaScrollPageArea* m_fontGroup = nullptr;
+    ElaText* m_fontTitle = nullptr;
     QVBoxLayout* m_fontLayout = nullptr;
     QTreeWidget* m_fontTree = nullptr;
 
     // 其他信息组
-    QGroupBox* m_advancedGroup = nullptr;
+    ElaScrollPageArea* m_advancedGroup = nullptr;
+    ElaText* m_advancedTitle = nullptr;
     QGridLayout* m_advancedLayout = nullptr;
     ElaLineEdit* m_linearizedEdit = nullptr;
     ElaLineEdit* m_hasFormsEdit = nullptr;

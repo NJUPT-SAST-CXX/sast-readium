@@ -1,7 +1,6 @@
 #include "SettingsDialog.h"
 #include <QEvent>
 #include <QFileDialog>
-#include <QMessageBox>
 #include <QSettings>
 #include <QStandardPaths>
 #include "../../managers/I18nManager.h"
@@ -12,9 +11,11 @@
 // ElaWidgetTools replacements
 #include "ElaCheckBox.h"
 #include "ElaComboBox.h"
+#include "ElaContentDialog.h"
 #include "ElaLineEdit.h"
 #include "ElaPushButton.h"
 #include "ElaRadioButton.h"
+#include "ElaScrollPageArea.h"
 #include "ElaSpinBox.h"
 #include "ElaTabWidget.h"
 #include "ElaText.h"
@@ -118,13 +119,31 @@ void SettingsDialog::setupConnections() {
     // Connect clear cache button
     if (m_clearCacheButton) {
         connect(m_clearCacheButton, &QPushButton::clicked, this, [this]() {
-            QMessageBox::StandardButton reply = QMessageBox::question(
-                this, tr("Clear Cache"),
+            auto* dialog =
+                new ElaContentDialog(const_cast<SettingsDialog*>(this));
+            dialog->setWindowTitle(tr("Clear Cache"));
+            auto* w = new QWidget(dialog);
+            auto* l = new QVBoxLayout(w);
+            l->addWidget(new ElaText(
                 tr("Are you sure you want to clear the cache? This will remove "
                    "all cached thumbnails and page data."),
-                QMessageBox::Yes | QMessageBox::No);
+                w));
+            dialog->setCentralWidget(w);
+            dialog->setLeftButtonText(tr("Cancel"));
+            dialog->setRightButtonText(tr("Clear"));
 
-            if (reply == QMessageBox::Yes) {
+            bool confirmed = false;
+            connect(dialog, &ElaContentDialog::rightButtonClicked, this,
+                    [&confirmed, dialog]() {
+                        confirmed = true;
+                        dialog->close();
+                    });
+            connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+                    &ElaContentDialog::close);
+            dialog->exec();
+            dialog->deleteLater();
+
+            if (confirmed) {
                 // Cache clearing would be implemented here
                 TOAST_SUCCESS(this, tr("Cache cleared successfully"));
             }
@@ -151,8 +170,18 @@ QWidget* SettingsDialog::createAppearanceTab() {
     layout->setSpacing(16);
 
     // Theme selection
-    QGroupBox* themeGroup = new QGroupBox(tr("Theme"));
-    QVBoxLayout* themeLayout = new QVBoxLayout(themeGroup);
+    auto* themeGroup = new ElaScrollPageArea(m_appearanceTab);
+    auto* themeVLayout = new QVBoxLayout(themeGroup);
+    themeVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* themeTitle = new ElaText(tr("Theme"), themeGroup);
+    themeTitle->setTextPixelSize(14);
+    themeVLayout->addWidget(themeTitle);
+
+    auto* themeContent = new QWidget(themeGroup);
+    auto* themeLayout = new QVBoxLayout(themeContent);
+    themeLayout->setContentsMargins(0, 6, 0, 0);
+    themeVLayout->addWidget(themeContent);
 
     m_themeGroup = new QButtonGroup(this);
     m_lightThemeRadio = new ElaRadioButton(tr("Light"));
@@ -167,8 +196,18 @@ QWidget* SettingsDialog::createAppearanceTab() {
     layout->addWidget(themeGroup);
 
     // Language selection
-    QGroupBox* languageGroup = new QGroupBox(tr("Language"));
-    QFormLayout* languageLayout = new QFormLayout(languageGroup);
+    auto* languageGroup = new ElaScrollPageArea(m_appearanceTab);
+    auto* languageVLayout = new QVBoxLayout(languageGroup);
+    languageVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* languageTitle = new ElaText(tr("Language"), languageGroup);
+    languageTitle->setTextPixelSize(14);
+    languageVLayout->addWidget(languageTitle);
+
+    auto* languageContent = new QWidget(languageGroup);
+    auto* languageLayout = new QFormLayout(languageContent);
+    languageLayout->setContentsMargins(0, 6, 0, 0);
+    languageVLayout->addWidget(languageContent);
 
     m_languageCombo = new ElaComboBox();
     m_languageCombo->addItem(tr("English"), "en");
@@ -189,8 +228,18 @@ QWidget* SettingsDialog::createPerformanceTab() {
     layout->setSpacing(16);
 
     // Cache settings
-    QGroupBox* cacheGroup = new QGroupBox(tr("Cache Settings"));
-    QFormLayout* cacheLayout = new QFormLayout(cacheGroup);
+    auto* cacheGroup = new ElaScrollPageArea(m_performanceTab);
+    auto* cacheVLayout = new QVBoxLayout(cacheGroup);
+    cacheVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* cacheTitle = new ElaText(tr("Cache Settings"), cacheGroup);
+    cacheTitle->setTextPixelSize(14);
+    cacheVLayout->addWidget(cacheTitle);
+
+    auto* cacheContent = new QWidget(cacheGroup);
+    auto* cacheLayout = new QFormLayout(cacheContent);
+    cacheLayout->setContentsMargins(0, 6, 0, 0);
+    cacheVLayout->addWidget(cacheContent);
 
     m_enableCacheCheckBox = new ElaCheckBox(tr("Enable caching"));
     m_enableCacheCheckBox->setChecked(true);
@@ -205,8 +254,18 @@ QWidget* SettingsDialog::createPerformanceTab() {
     layout->addWidget(cacheGroup);
 
     // Rendering settings
-    QGroupBox* renderGroup = new QGroupBox(tr("Rendering"));
-    QFormLayout* renderLayout = new QFormLayout(renderGroup);
+    auto* renderGroup = new ElaScrollPageArea(m_performanceTab);
+    auto* renderVLayout = new QVBoxLayout(renderGroup);
+    renderVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* renderTitle = new ElaText(tr("Rendering"), renderGroup);
+    renderTitle->setTextPixelSize(14);
+    renderVLayout->addWidget(renderTitle);
+
+    auto* renderContent = new QWidget(renderGroup);
+    auto* renderLayout = new QFormLayout(renderContent);
+    renderLayout->setContentsMargins(0, 6, 0, 0);
+    renderVLayout->addWidget(renderContent);
 
     m_preloadPagesCheckBox = new ElaCheckBox(tr("Preload adjacent pages"));
     m_preloadPagesCheckBox->setChecked(true);
@@ -237,8 +296,18 @@ QWidget* SettingsDialog::createBehaviorTab() {
     layout->setSpacing(16);
 
     // Default view settings
-    QGroupBox* viewGroup = new QGroupBox(tr("Default View Settings"));
-    QFormLayout* viewLayout = new QFormLayout(viewGroup);
+    auto* viewGroup = new ElaScrollPageArea(m_behaviorTab);
+    auto* viewVLayout = new QVBoxLayout(viewGroup);
+    viewVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* viewTitle = new ElaText(tr("Default View Settings"), viewGroup);
+    viewTitle->setTextPixelSize(14);
+    viewVLayout->addWidget(viewTitle);
+
+    auto* viewContent = new QWidget(viewGroup);
+    auto* viewLayout = new QFormLayout(viewContent);
+    viewLayout->setContentsMargins(0, 6, 0, 0);
+    viewVLayout->addWidget(viewContent);
 
     m_defaultZoomCombo = new ElaComboBox();
     m_defaultZoomCombo->addItem(tr("Fit Width"), "fitWidth");
@@ -258,8 +327,18 @@ QWidget* SettingsDialog::createBehaviorTab() {
     layout->addWidget(viewGroup);
 
     // Session settings
-    QGroupBox* sessionGroup = new QGroupBox(tr("Session"));
-    QVBoxLayout* sessionLayout = new QVBoxLayout(sessionGroup);
+    auto* sessionGroup = new ElaScrollPageArea(m_behaviorTab);
+    auto* sessionVLayout = new QVBoxLayout(sessionGroup);
+    sessionVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* sessionTitle = new ElaText(tr("Session"), sessionGroup);
+    sessionTitle->setTextPixelSize(14);
+    sessionVLayout->addWidget(sessionTitle);
+
+    auto* sessionContent = new QWidget(sessionGroup);
+    auto* sessionLayout = new QVBoxLayout(sessionContent);
+    sessionLayout->setContentsMargins(0, 6, 0, 0);
+    sessionVLayout->addWidget(sessionContent);
 
     m_recentFilesCountSpinBox = new ElaSpinBox();
     m_recentFilesCountSpinBox->setRange(5, 50);
@@ -291,8 +370,18 @@ QWidget* SettingsDialog::createAdvancedTab() {
     layout->setSpacing(16);
 
     // Debug settings
-    QGroupBox* debugGroup = new QGroupBox(tr("Debug"));
-    QFormLayout* debugLayout = new QFormLayout(debugGroup);
+    auto* debugGroup = new ElaScrollPageArea(m_advancedTab);
+    auto* debugVLayout = new QVBoxLayout(debugGroup);
+    debugVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* debugTitle = new ElaText(tr("Debug"), debugGroup);
+    debugTitle->setTextPixelSize(14);
+    debugVLayout->addWidget(debugTitle);
+
+    auto* debugContent = new QWidget(debugGroup);
+    auto* debugLayout = new QFormLayout(debugContent);
+    debugLayout->setContentsMargins(0, 6, 0, 0);
+    debugVLayout->addWidget(debugContent);
 
     m_logLevelCombo = new ElaComboBox();
     m_logLevelCombo->addItem(tr("Error"), "error");
@@ -308,8 +397,18 @@ QWidget* SettingsDialog::createAdvancedTab() {
     layout->addWidget(debugGroup);
 
     // Startup settings
-    QGroupBox* startupGroup = new QGroupBox(tr("Startup"));
-    QVBoxLayout* startupLayout = new QVBoxLayout(startupGroup);
+    auto* startupGroup = new ElaScrollPageArea(m_advancedTab);
+    auto* startupVLayout = new QVBoxLayout(startupGroup);
+    startupVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* startupTitle = new ElaText(tr("Startup"), startupGroup);
+    startupTitle->setTextPixelSize(14);
+    startupVLayout->addWidget(startupTitle);
+
+    auto* startupContent = new QWidget(startupGroup);
+    auto* startupLayout = new QVBoxLayout(startupContent);
+    startupLayout->setContentsMargins(0, 6, 0, 0);
+    startupVLayout->addWidget(startupContent);
 
     m_showWelcomeScreenCheckBox =
         new ElaCheckBox(tr("Show welcome screen on startup"));
@@ -319,8 +418,18 @@ QWidget* SettingsDialog::createAdvancedTab() {
     layout->addWidget(startupGroup);
 
     // Cache path settings
-    QGroupBox* cachePathGroup = new QGroupBox(tr("Cache Location"));
-    QVBoxLayout* cachePathLayout = new QVBoxLayout(cachePathGroup);
+    auto* cachePathGroup = new ElaScrollPageArea(m_advancedTab);
+    auto* cachePathVLayout = new QVBoxLayout(cachePathGroup);
+    cachePathVLayout->setContentsMargins(12, 8, 12, 12);
+
+    auto* cachePathTitle = new ElaText(tr("Cache Location"), cachePathGroup);
+    cachePathTitle->setTextPixelSize(14);
+    cachePathVLayout->addWidget(cachePathTitle);
+
+    auto* cachePathContent = new QWidget(cachePathGroup);
+    auto* cachePathLayout = new QVBoxLayout(cachePathContent);
+    cachePathLayout->setContentsMargins(0, 6, 0, 0);
+    cachePathVLayout->addWidget(cachePathContent);
 
     QHBoxLayout* pathLayout = new QHBoxLayout();
     m_customCachePathEdit = new ElaLineEdit();
@@ -444,8 +553,20 @@ void SettingsDialog::saveSettings() {
         }
 
     } catch (const std::exception& e) {
-        QMessageBox::critical(this, tr("Settings Error"),
-                              tr("Failed to save settings: %1").arg(e.what()));
+        auto* dialog = new ElaContentDialog(const_cast<SettingsDialog*>(this));
+        dialog->setWindowTitle(tr("Settings Error"));
+        auto* w = new QWidget(dialog);
+        auto* l = new QVBoxLayout(w);
+        l->addWidget(
+            new ElaText(tr("Failed to save settings: %1").arg(e.what()), w));
+        dialog->setCentralWidget(w);
+        dialog->setLeftButtonText(QString());
+        dialog->setMiddleButtonText(QString());
+        dialog->setRightButtonText(tr("OK"));
+        connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
+                &ElaContentDialog::close);
+        dialog->exec();
+        dialog->deleteLater();
         throw;  // Re-throw to prevent dialog from closing
     }
 }
@@ -472,13 +593,30 @@ void SettingsDialog::applySettings() {
 }
 
 void SettingsDialog::restoreDefaults() {
-    QMessageBox::StandardButton reply = QMessageBox::question(
-        this, tr("Restore Defaults"),
+    auto* dialog = new ElaContentDialog(this);
+    dialog->setWindowTitle(tr("Restore Defaults"));
+    auto* w = new QWidget(dialog);
+    auto* l = new QVBoxLayout(w);
+    l->addWidget(new ElaText(
         tr("Are you sure you want to restore all settings to their default "
            "values?"),
-        QMessageBox::Yes | QMessageBox::No);
+        w));
+    dialog->setCentralWidget(w);
+    dialog->setLeftButtonText(tr("Cancel"));
+    dialog->setRightButtonText(tr("Restore"));
 
-    if (reply == QMessageBox::Yes) {
+    bool confirmed = false;
+    connect(dialog, &ElaContentDialog::rightButtonClicked, this,
+            [&confirmed, dialog]() {
+                confirmed = true;
+                dialog->close();
+            });
+    connect(dialog, &ElaContentDialog::leftButtonClicked, dialog,
+            &ElaContentDialog::close);
+    dialog->exec();
+    dialog->deleteLater();
+
+    if (confirmed) {
         // Restore appearance defaults
         m_lightThemeRadio->setChecked(true);
         m_languageCombo->setCurrentIndex(0);
