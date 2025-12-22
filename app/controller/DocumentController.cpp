@@ -18,6 +18,9 @@
 #include "../logging/LoggingMacros.h"
 #include "../managers/I18nManager.h"
 #include "../managers/StyleManager.h"
+#include "../plugin/IDocumentProcessorPlugin.h"
+#include "../plugin/PluginHookRegistry.h"
+#include "../plugin/PluginManager.h"
 #include "../ui/core/StatusBar.h"
 #include "../ui/dialogs/DocumentMetadataDialog.h"
 #include "../ui/dialogs/SettingsDialog.h"
@@ -306,6 +309,11 @@ bool DocumentController::openDocument(const QString& filePath) {
     LOG_INFO("DocumentController::openDocument() - Opening document: {}",
              filePath.toStdString());
 
+    // Execute pre-load hook for plugins
+    PluginHookRegistry::instance().executeHook(
+        StandardHooks::DOCUMENT_PRE_LOAD,
+        {{"filePath", filePath}, {"fileName", fileInfo.fileName()}});
+
     bool success = documentModel->openFromFile(filePath);
 
     if (success) {
@@ -329,6 +337,32 @@ bool DocumentController::openDocument(const QString& filePath) {
                 }
             });
         }
+
+        // Execute post-load hook for plugins
+        Poppler::Document* currentDoc = documentModel->getCurrentDocument();
+        int pageCount = currentDoc ? currentDoc->numPages() : 0;
+        PluginHookRegistry::instance().executeHook(
+            StandardHooks::DOCUMENT_POST_LOAD,
+            {{"filePath", filePath},
+             {"fileName", fileInfo.fileName()},
+             {"pageCount", pageCount},
+             {"success", true}});
+
+        // Allow document processor plugins to process the loaded document
+        QList<IDocumentProcessorPlugin*> docProcessors =
+            PluginManager::instance().getDocumentProcessorPlugins();
+        for (IDocumentProcessorPlugin* processor : docProcessors) {
+            if (processor != nullptr && processor->canProcessFile(filePath)) {
+                QJsonObject context;
+                context["pageCount"] = pageCount;
+                context["fileName"] = fileInfo.fileName();
+                processor->processDocument(
+                    PluginWorkflowStage::PostDocumentLoad, filePath, context);
+            }
+        }
+
+        // Publish event for EventBus subscribers
+        EventBus::instance().publish("document.opened", filePath);
 
         LOG_INFO(
             "DocumentController::openDocument() - Document opened "
@@ -433,7 +467,27 @@ bool DocumentController::closeDocument(int index) {
         // DocumentModel is null - cannot proceed
         return false;
     }
+
+    // Get document info before closing for hooks
+    QString filePath = documentModel->getDocumentFilePath(index);
+
+    // Execute pre-close hook for plugins
+    PluginHookRegistry::instance().executeHook(
+        StandardHooks::DOCUMENT_PRE_CLOSE,
+        {{"filePath", filePath}, {"index", index}});
+
     bool result = documentModel->closeDocument(index);
+
+    // Execute post-close hook for plugins
+    PluginHookRegistry::instance().executeHook(
+        StandardHooks::DOCUMENT_POST_CLOSE,
+        {{"filePath", filePath}, {"index", index}, {"success", result}});
+
+    // Publish event for EventBus subscribers
+    if (result) {
+        EventBus::instance().publish("document.closed", filePath);
+    }
+
     emit documentOperationCompleted(ActionMap::closeTab, result);
     return result;
 }
@@ -443,7 +497,28 @@ bool DocumentController::closeCurrentDocument() {
         // DocumentModel is null - cannot proceed
         return false;
     }
+
+    // Get current document info before closing for hooks
+    QString filePath = documentModel->getCurrentFilePath();
+    int currentIndex = documentModel->getCurrentDocumentIndex();
+
+    // Execute pre-close hook for plugins
+    PluginHookRegistry::instance().executeHook(
+        StandardHooks::DOCUMENT_PRE_CLOSE,
+        {{"filePath", filePath}, {"index", currentIndex}});
+
     bool result = documentModel->closeCurrentDocument();
+
+    // Execute post-close hook for plugins
+    PluginHookRegistry::instance().executeHook(
+        StandardHooks::DOCUMENT_POST_CLOSE,
+        {{"filePath", filePath}, {"index", currentIndex}, {"success", result}});
+
+    // Publish event for EventBus subscribers
+    if (result) {
+        EventBus::instance().publish("document.closed", filePath);
+    }
+
     emit documentOperationCompleted(ActionMap::closeCurrentTab, result);
     return result;
 }

@@ -1,0 +1,19 @@
+{
+    "name": "Document Statistics",
+    "version": "1.0.0",
+    "description": "Document analysis with word count, page statistics, reading time estimation, and export capabilities.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "document.statistics",
+        "document.analysis",
+        "document.processor",
+        "ui.dock",
+        "export.statistics"
+    ],
+    "configuration": {
+        "wordsPerMinute": 200,
+        "autoAnalyze": true,
+        "showInStatusBar": true
+    }
+}

@@ -10,6 +10,9 @@
 #include "controller/CachePresenter.h"
 #include "controller/EventBus.h"
 #include "logging/SimpleLogging.h"
+#include "plugin/ICacheStrategyPlugin.h"
+#include "plugin/PluginHookRegistry.h"
+#include "plugin/PluginManager.h"
 
 using enum CacheType;
 
@@ -197,6 +200,35 @@ public:
 
         qint64 bytesToFree = totalUsage - targetUsage;
 
+        // Check if any cache strategy plugin wants to handle eviction
+        QList<ICacheStrategyPlugin*> cachePlugins =
+            PluginManager::instance().getCacheStrategyPlugins();
+        for (ICacheStrategyPlugin* plugin : cachePlugins) {
+            if (plugin != nullptr) {
+                // Build cache entry metadata for plugin decision
+                QList<CacheEntryMetadata> entries;
+                for (auto it = registeredCaches.constBegin();
+                     it != registeredCaches.constEnd(); ++it) {
+                    ICacheComponent* cache = it.value();
+                    if (cache != nullptr) {
+                        CacheEntryMetadata meta;
+                        meta.key = QString::number(static_cast<int>(it.key()));
+                        meta.size = cache->getMemoryUsage();
+                        meta.accessCount = cache->getHitCount();
+                        entries.append(meta);
+                    }
+                }
+
+                // Let plugin suggest eviction candidate
+                QString evictKey =
+                    plugin->selectEvictionCandidate(entries, bytesToFree);
+                if (!evictKey.isEmpty()) {
+                    // Plugin provided a suggestion - log it for now
+                    // In full implementation, would use this to guide eviction
+                }
+            }
+        }
+
         // Prioritize eviction based on cache importance and usage patterns
         QList<QPair<CacheType, double>> evictionPriority;
 
@@ -235,8 +267,20 @@ public:
                 std::min(bytesToFree,
                          cacheUsage / 2);  // Evict up to 50% from each cache
 
+            // Execute pre-evict hook for plugins
+            PluginHookRegistry::instance().executeHook(
+                StandardHooks::CACHE_PRE_EVICT,
+                {{"cacheType", static_cast<int>(type)},
+                 {"bytesToEvict", toEvictFromCache}});
+
             cache->evictLRU(toEvictFromCache);
             bytesToFree -= toEvictFromCache;
+
+            // Execute post-evict hook for plugins
+            PluginHookRegistry::instance().executeHook(
+                StandardHooks::CACHE_POST_EVICT,
+                {{"cacheType", static_cast<int>(type)},
+                 {"bytesEvicted", toEvictFromCache}});
 
             emit q_ptr->cacheEvictionRequested(type, toEvictFromCache);
         }
@@ -1206,8 +1250,21 @@ void CacheManager::requestCacheEviction(CacheType type, qint64 bytesToFree) {
     // Calculate how many items to evict based on bytes to free
     qint64 currentUsage = cache->getMemoryUsage();
     if (currentUsage > 0) {
+        // Execute pre-evict hook for plugins
+        PluginHookRegistry::instance().executeHook(
+            StandardHooks::CACHE_PRE_EVICT,
+            {{"cacheType", static_cast<int>(type)},
+             {"bytesToEvict", bytesToFree},
+             {"currentUsage", currentUsage}});
+
         // Try to free the requested amount of memory
         cache->evictLRU(bytesToFree);
+
+        // Execute post-evict hook for plugins
+        PluginHookRegistry::instance().executeHook(
+            StandardHooks::CACHE_POST_EVICT,
+            {{"cacheType", static_cast<int>(type)},
+             {"bytesEvicted", bytesToFree}});
     }
 }
 

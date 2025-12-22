@@ -194,6 +194,19 @@ public:
     void setPluginConfiguration(const QString& pluginName,
                                 const QJsonObject& config);
 
+    // Configuration Schema Management
+    QJsonObject getPluginConfigSchema(const QString& pluginName) const;
+    bool hasConfigSchema(const QString& pluginName) const;
+    bool validatePluginConfiguration(const QString& pluginName,
+                                     QStringList* errors = nullptr) const;
+
+    // First-run and Setup Wizard Support
+    bool isPluginConfigured(const QString& pluginName) const;
+    void markPluginConfigured(const QString& pluginName,
+                              bool configured = true);
+    bool needsSetupWizard(const QString& pluginName) const;
+    QStringList getRequiredConfigKeys(const QString& pluginName) const;
+
     // Feature queries
     QStringList getPluginsWithFeature(const QString& feature) const;
     QStringList getPluginsForFileType(const QString& fileType) const;

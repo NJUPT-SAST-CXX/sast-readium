@@ -125,13 +125,17 @@ target("sast-readium")
     add_files("$(projectdir)/app/main.cpp")
     set_targetdir("$(buildir)")
 
-    -- Assets copy
+    -- Assets copy and post-build optimizations
     after_build(function (target)
         local targetdir = target:targetdir()
         os.cp(path.join(os.projectdir(), "assets/styles"), path.join(targetdir, "styles"))
         if not has_config("quiet") then
             cprint("${dim}Copied assets/styles to %s${clear}", path.join(targetdir, "styles"))
         end
+
+        -- Apply UPX compression if enabled
+        includes("../modules/package.lua")
+        compress_with_upx(target)
     end)
 target_end()
 

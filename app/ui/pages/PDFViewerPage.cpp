@@ -7,11 +7,22 @@
 #include "ui/core/StatusBar.h"
 #include "ui/core/ToolBar.h"
 #include "ui/viewer/PDFViewer.h"
+#include "ui/widgets/AnnotationToolbar.h"
 #include "ui/widgets/DebugLogPanel.h"
 #include "ui/widgets/DocumentTabWidget.h"
 #include "ui/widgets/SearchPanel.h"
+#include "ui/widgets/SkeletonWidget.h"
+
+// Dialogs
+#include "ui/dialogs/DocumentComparison.h"
+#include "ui/dialogs/DocumentMetadataDialog.h"
+
+// Models
+#include "model/AnnotationModel.h"
 
 // ElaWidgetTools
+#include "ElaBreadcrumbBar.h"
+#include "ElaProgressRing.h"
 #include "ElaTheme.h"
 
 // Adapters
@@ -64,6 +75,12 @@ PDFViewerPage::PDFViewerPage(QWidget* parent)
       m_viewDelegate(nullptr),
       m_searchEngine(nullptr),
       m_searchAdapter(nullptr),
+      m_documentComparison(nullptr),
+      m_metadataDialog(nullptr),
+      m_annotationToolbar(nullptr),
+      m_loadingSkeleton(nullptr),
+      m_loadingRing(nullptr),
+      m_breadcrumbBar(nullptr),
       m_isFullScreen(false),
       m_isPresentation(false),
       m_lastActiveIndex(-1) {
@@ -719,6 +736,120 @@ bool PDFViewerPage::exportDocument(const QString& filePath,
     }
 
     return false;
+}
+
+// ============================================================================
+// 文档元数据和比较
+// ============================================================================
+
+void PDFViewerPage::showDocumentMetadata() {
+    if (!hasDocument()) {
+        SLOG_WARNING(
+            "PDFViewerPage: Cannot show metadata - no document loaded");
+        return;
+    }
+
+    SLOG_INFO("PDFViewerPage: Showing document metadata dialog");
+
+    if (!m_metadataDialog) {
+        m_metadataDialog = new DocumentMetadataDialog(this);
+    }
+
+    PDFViewer* viewer = getCurrentViewer();
+    if (viewer && viewer->document()) {
+        m_metadataDialog->setDocument(viewer->document().get(),
+                                      currentFilePath());
+        m_metadataDialog->exec();
+    }
+}
+
+void PDFViewerPage::showDocumentComparison() {
+    SLOG_INFO("PDFViewerPage: Showing document comparison dialog");
+
+    if (!m_documentComparison) {
+        m_documentComparison = new DocumentComparison(this);
+        m_documentComparison->setWindowTitle(tr("Document Comparison"));
+        m_documentComparison->resize(1200, 800);
+
+        // Connect comparison signals
+        connect(
+            m_documentComparison, &DocumentComparison::comparisonFinished, this,
+            [this](const ComparisonResults& results) {
+                SLOG_INFO_F(
+                    "PDFViewerPage: Comparison finished with {} differences",
+                    results.differences.size());
+                m_statusBar->showMessage(
+                    tr("Comparison complete: %1 differences found")
+                        .arg(results.differences.size()),
+                    StatusBar::MessagePriority::Normal, 5000);
+            });
+
+        connect(m_documentComparison, &DocumentComparison::differenceSelected,
+                this, [this](const DocumentDifference& diff) {
+                    SLOG_INFO_F(
+                        "PDFViewerPage: Navigating to difference on page {}",
+                        diff.pageNumber1);
+                    goToPage(diff.pageNumber1);
+                });
+    }
+
+    // If we have a current document, set it as the first document
+    PDFViewer* viewer = getCurrentViewer();
+    if (viewer && viewer->document()) {
+        m_documentComparison->setDocumentPaths(currentFilePath(), QString());
+    }
+
+    m_documentComparison->show();
+    m_documentComparison->raise();
+    m_documentComparison->activateWindow();
+}
+
+// ============================================================================
+// 注释工具栏
+// ============================================================================
+
+void PDFViewerPage::toggleAnnotationToolbar() {
+    if (m_annotationToolbar && m_annotationToolbar->isVisible()) {
+        hideAnnotationToolbar();
+    } else {
+        showAnnotationToolbar();
+    }
+}
+
+void PDFViewerPage::showAnnotationToolbar() {
+    if (!m_annotationToolbar) {
+        m_annotationToolbar = new AnnotationToolbar(this);
+        // Insert annotation toolbar after the main toolbar
+        auto* mainLayout = qobject_cast<QVBoxLayout*>(layout());
+        if (mainLayout) {
+            // Find toolbar index and insert after it
+            int toolbarIndex = mainLayout->indexOf(m_toolBar);
+            if (toolbarIndex >= 0) {
+                mainLayout->insertWidget(toolbarIndex + 1, m_annotationToolbar);
+            } else {
+                mainLayout->insertWidget(
+                    2, m_annotationToolbar);  // Fallback position
+            }
+        }
+
+        // Connect annotation toolbar signals
+        connect(m_annotationToolbar, &AnnotationToolbar::toolChanged, this,
+                [this](AnnotationType tool) {
+                    SLOG_INFO_F("PDFViewerPage: Annotation tool changed to: {}",
+                                static_cast<int>(tool));
+                    // TODO: Activate the selected annotation tool in PDFViewer
+                });
+    }
+
+    m_annotationToolbar->setVisible(true);
+    SLOG_INFO("PDFViewerPage: Annotation toolbar shown");
+}
+
+void PDFViewerPage::hideAnnotationToolbar() {
+    if (m_annotationToolbar) {
+        m_annotationToolbar->setVisible(false);
+        SLOG_INFO("PDFViewerPage: Annotation toolbar hidden");
+    }
 }
 
 // ============================================================================

@@ -20,6 +20,11 @@ class AnnotationSelectionManager : public QObject {
     Q_OBJECT
 
 public:
+    static AnnotationSelectionManager& instance() {
+        static AnnotationSelectionManager instance;
+        return instance;
+    }
+
     enum class HandlePosition {
         None,
         TopLeft,

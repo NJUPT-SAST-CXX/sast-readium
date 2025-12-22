@@ -1,0 +1,23 @@
+{
+    "name": "Smart Search",
+    "version": "1.0.0",
+    "description": "Enhanced search with fuzzy matching, relevance ranking, and indexing. Demonstrates ISearchPlugin interface.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "search.plugin",
+        "search.fuzzy",
+        "search.ranking",
+        "search.index",
+        "hooks"
+    ],
+    "configuration": {
+        "enableFuzzySearch": true,
+        "fuzzyThreshold": 2,
+        "caseSensitive": false,
+        "maxResults": 100,
+        "defaultStrategy": "relevance",
+        "autoIndex": false,
+        "clearIndexOnClose": false
+    }
+}

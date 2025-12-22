@@ -1,19 +1,102 @@
 {
     "name": "Hello Plugin",
-    "version": "1.0.0",
-    "description": "Example plugin demonstrating SAST Readium plugin system",
+    "version": "2.0.0",
+    "description": "Example plugin demonstrating SAST Readium plugin system with UI extensions, hooks, and inter-plugin communication",
     "author": "SAST Readium Team",
     "dependencies": [],
-    "supportedTypes": [],
     "features": [
         "example",
         "demo",
         "event-handling",
-        "configuration"
+        "configuration",
+        "menu",
+        "toolbar",
+        "context_menu",
+        "status_bar",
+        "hooks",
+        "inter-plugin-communication"
     ],
     "configuration": {
-        "greeting": "Hello from SAST Readium Plugin System!",
-        "enableLogging": true,
-        "maxDocuments": 100
+        "configSchema": {
+            "groups": {
+                "general": {
+                    "displayName": "General Settings",
+                    "description": "Basic plugin configuration",
+                    "order": 0
+                },
+                "ui": {
+                    "displayName": "UI Settings",
+                    "description": "User interface customization",
+                    "order": 1
+                },
+                "advanced": {
+                    "displayName": "Advanced Settings",
+                    "description": "Advanced configuration options",
+                    "order": 2,
+                    "advanced": true
+                }
+            },
+            "properties": {
+                "greeting": {
+                    "type": "string",
+                    "displayName": "Greeting Message",
+                    "description": "The message to display when the plugin is activated",
+                    "default": "Hello from SAST Readium Plugin System!",
+                    "placeholder": "Enter your greeting message...",
+                    "group": "general",
+                    "order": 0
+                },
+                "enableLogging": {
+                    "type": "bool",
+                    "displayName": "Enable Logging",
+                    "description": "Enable detailed logging for debugging",
+                    "default": true,
+                    "group": "advanced",
+                    "order": 0
+                },
+                "enableMenu": {
+                    "type": "bool",
+                    "displayName": "Show Menu Items",
+                    "description": "Add plugin actions to the menu bar",
+                    "default": true,
+                    "group": "ui",
+                    "order": 0
+                },
+                "enableToolbar": {
+                    "type": "bool",
+                    "displayName": "Show Toolbar Button",
+                    "description": "Add a quick access button to the toolbar",
+                    "default": true,
+                    "group": "ui",
+                    "order": 1
+                },
+                "enableContextMenu": {
+                    "type": "bool",
+                    "displayName": "Enable Context Menu",
+                    "description": "Add plugin actions to context menus",
+                    "default": true,
+                    "group": "ui",
+                    "order": 2
+                },
+                "enableStatusBar": {
+                    "type": "bool",
+                    "displayName": "Show Status Bar",
+                    "description": "Display plugin status in the status bar",
+                    "default": true,
+                    "group": "ui",
+                    "order": 3
+                },
+                "maxDocuments": {
+                    "type": "int",
+                    "displayName": "Max Documents",
+                    "description": "Maximum number of documents to track",
+                    "default": 100,
+                    "minimum": 1,
+                    "maximum": 1000,
+                    "group": "advanced",
+                    "order": 1
+                }
+            }
+        }
     }
 }

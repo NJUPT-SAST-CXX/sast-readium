@@ -31,6 +31,11 @@ class EnhancedFocusIndicator : public QWidget {
     Q_PROPERTY(int borderWidth READ borderWidth WRITE setBorderWidth)
 
 public:
+    static EnhancedFocusIndicator& instance() {
+        static EnhancedFocusIndicator instance;
+        return instance;
+    }
+
     enum class Style {
         Solid,    // Solid border
         Dashed,   // Dashed border

@@ -5,14 +5,23 @@
 #include "ElaFlowLayout.h"
 #include "ElaImageCard.h"
 #include "ElaPopularCard.h"
+#include "ElaProgressRing.h"
 #include "ElaPushButton.h"
 #include "ElaScrollArea.h"
 #include "ElaScrollPageArea.h"
 #include "ElaText.h"
 
+// Enhanced widgets
+#include "ui/widgets/OnboardingWidget.h"
+#include "ui/widgets/SkeletonWidget.h"
+#include "ui/widgets/TutorialCard.h"
+#include "ui/widgets/WelcomeWidget.h"
+
 // Business Logic
 #include "config.h"  // For PROJECT_VER
+#include "managers/OnboardingManager.h"
 #include "managers/RecentFilesManager.h"
+#include "ui/managers/WelcomeScreenManager.h"
 
 // Qt
 #include <QDesktopServices>
@@ -32,6 +41,12 @@
 HomePage::HomePage(QWidget* parent)
     : ElaScrollPage(parent),
       m_recentFilesManager(nullptr),
+      m_onboardingManager(nullptr),
+      m_welcomeScreenManager(nullptr),
+      m_commandManager(nullptr),
+      m_welcomeWidget(nullptr),
+      m_onboardingWidget(nullptr),
+      m_loadingSkeleton(nullptr),
       m_backgroundCard(nullptr),
       m_titleText(nullptr),
       m_subtitleText(nullptr),
@@ -52,7 +67,16 @@ HomePage::HomePage(QWidget* parent)
       m_infoContainer(nullptr),
       m_versionText(nullptr),
       m_copyrightText(nullptr),
-      m_isInitialized(false) {
+      m_tutorialTitle(nullptr),
+      m_tutorialContainer(nullptr),
+      m_tutorialLayout(nullptr),
+      m_tipsContainer(nullptr),
+      m_tipsTitle(nullptr),
+      m_currentTipLabel(nullptr),
+      m_nextTipButton(nullptr),
+      m_currentTipIndex(0),
+      m_isInitialized(false),
+      m_useEnhancedWelcome(false) {
     // Set window title for navigation
     setWindowTitle(tr("Home"));
 
@@ -109,12 +133,156 @@ void HomePage::initUI() {
     // Info Section
     mainLayout->addWidget(m_infoContainer);
 
+    // Tutorial Section
+    setupTutorialSection();
+    QHBoxLayout* tutorialTitleLayout = new QHBoxLayout();
+    tutorialTitleLayout->setContentsMargins(33, 0, 0, 0);
+    tutorialTitleLayout->addWidget(m_tutorialTitle);
+    mainLayout->addLayout(tutorialTitleLayout);
+    mainLayout->addWidget(m_tutorialContainer);
+
+    // Tips Section
+    setupTipsSection();
+    mainLayout->addWidget(m_tipsContainer);
+
     mainLayout->addStretch();
 
     // Add central widget using ElaScrollPage method (following example pattern)
     addCentralWidget(centralWidget, true, true, 0.5);
 
+    // Initialize tips
+    initializeTips();
+
     retranslateUi();
+}
+
+void HomePage::setupTutorialSection() {
+    m_tutorialTitle = new ElaText(tr("Getting Started"), this);
+    m_tutorialTitle->setTextPixelSize(20);
+
+    m_tutorialContainer = new QWidget(this);
+    m_tutorialLayout = new QHBoxLayout(m_tutorialContainer);
+    m_tutorialLayout->setContentsMargins(33, 0, 33, 0);
+    m_tutorialLayout->setSpacing(15);
+
+    // Create tutorial cards
+    auto* openFileTutorial =
+        new TutorialCard("open_file", tr("Opening Documents"),
+                         tr("Learn how to open and navigate PDF documents"),
+                         QIcon(":/icons/open_file"), this);
+    openFileTutorial->setDuration(tr("2 min"));
+    openFileTutorial->setDifficulty(tr("Beginner"));
+    connect(openFileTutorial, &TutorialCard::clicked, this,
+            &HomePage::tutorialRequested);
+
+    auto* annotationTutorial = new TutorialCard(
+        "annotations", tr("Annotations & Highlights"),
+        tr("Add notes, highlights, and bookmarks to your documents"),
+        QIcon(":/icons/annotation"), this);
+    annotationTutorial->setDuration(tr("5 min"));
+    annotationTutorial->setDifficulty(tr("Intermediate"));
+    connect(annotationTutorial, &TutorialCard::clicked, this,
+            &HomePage::tutorialRequested);
+
+    auto* searchTutorial = new TutorialCard(
+        "search", tr("Search & Navigation"),
+        tr("Find text and navigate efficiently through documents"),
+        QIcon(":/icons/search"), this);
+    searchTutorial->setDuration(tr("3 min"));
+    searchTutorial->setDifficulty(tr("Beginner"));
+    connect(searchTutorial, &TutorialCard::clicked, this,
+            &HomePage::tutorialRequested);
+
+    m_tutorialLayout->addWidget(openFileTutorial);
+    m_tutorialLayout->addWidget(annotationTutorial);
+    m_tutorialLayout->addWidget(searchTutorial);
+    m_tutorialLayout->addStretch();
+}
+
+void HomePage::setupTipsSection() {
+    m_tipsContainer = new ElaScrollPageArea(this);
+    m_tipsContainer->setFixedHeight(100);
+    m_tipsContainer->setBorderRadius(8);
+
+    auto* tipsLayout = new QVBoxLayout(m_tipsContainer);
+    tipsLayout->setContentsMargins(20, 15, 20, 15);
+    tipsLayout->setSpacing(8);
+
+    auto* headerLayout = new QHBoxLayout();
+    m_tipsTitle = new ElaText(tr("💡 Tip of the Day"), this);
+    m_tipsTitle->setTextPixelSize(14);
+    headerLayout->addWidget(m_tipsTitle);
+    headerLayout->addStretch();
+
+    m_nextTipButton = new ElaPushButton(tr("Next Tip"), this);
+    m_nextTipButton->setFixedSize(80, 28);
+    connect(m_nextTipButton, &ElaPushButton::clicked, this, [this]() {
+        m_currentTipIndex = (m_currentTipIndex + 1) % m_tips.size();
+        if (m_currentTipLabel && !m_tips.isEmpty()) {
+            m_currentTipLabel->setText(m_tips[m_currentTipIndex]);
+        }
+    });
+    headerLayout->addWidget(m_nextTipButton);
+
+    tipsLayout->addLayout(headerLayout);
+
+    m_currentTipLabel = new ElaText("", this);
+    m_currentTipLabel->setTextPixelSize(13);
+    m_currentTipLabel->setWordWrap(true);
+    tipsLayout->addWidget(m_currentTipLabel);
+    tipsLayout->addStretch();
+}
+
+void HomePage::initializeTips() {
+    m_tips = {tr("Press Ctrl+O to quickly open a PDF file."),
+              tr("Use Ctrl+F to search for text in the current document."),
+              tr("Press F11 to toggle full-screen mode for distraction-free "
+                 "reading."),
+              tr("Double-click on a page thumbnail to jump to that page."),
+              tr("Use Ctrl+B to add a bookmark at the current page."),
+              tr("Press Ctrl++ or Ctrl+- to zoom in and out."),
+              tr("Enable Night Mode from the View menu for comfortable reading "
+                 "in dark environments."),
+              tr("Right-click on selected text to copy or highlight it."),
+              tr("Use the outline panel on the left to navigate through "
+                 "document sections."),
+              tr("Press Ctrl+G to go to a specific page number.")};
+
+    if (!m_tips.isEmpty() && m_currentTipLabel) {
+        m_currentTipLabel->setText(m_tips[0]);
+    }
+}
+
+void HomePage::setupWelcomeWidget() {
+    // This method can be used to switch to enhanced WelcomeWidget mode
+    if (m_useEnhancedWelcome && !m_welcomeWidget) {
+        m_welcomeWidget = new WelcomeWidget(this);
+        connect(m_welcomeWidget, &WelcomeWidget::fileOpenRequested, this,
+                &HomePage::openRecentFileRequested);
+        connect(m_welcomeWidget, &WelcomeWidget::openFileRequested, this,
+                &HomePage::openFileRequested);
+        connect(m_welcomeWidget, &WelcomeWidget::showSettingsRequested, this,
+                &HomePage::showSettingsRequested);
+        connect(m_welcomeWidget, &WelcomeWidget::tutorialRequested, this,
+                &HomePage::tutorialRequested);
+    }
+}
+
+void HomePage::showLoadingSkeleton() {
+    if (!m_loadingSkeleton) {
+        m_loadingSkeleton =
+            new SkeletonWidget(SkeletonWidget::Shape::Rectangle, this);
+        m_loadingSkeleton->setFixedHeight(200);
+    }
+    m_loadingSkeleton->startAnimation();
+    m_loadingSkeleton->show();
+}
+
+void HomePage::hideLoadingSkeleton() {
+    if (m_loadingSkeleton) {
+        m_loadingSkeleton->stopAnimation();
+        m_loadingSkeleton->hide();
+    }
 }
 
 void HomePage::setupTitleSection() {
@@ -432,6 +600,51 @@ void HomePage::onClearRecentFilesClicked() {
     }
 }
 
+void HomePage::setOnboardingManager(OnboardingManager* manager) {
+    m_onboardingManager = manager;
+    if (m_onboardingWidget && m_onboardingManager) {
+        m_onboardingWidget->setOnboardingManager(m_onboardingManager);
+    }
+    if (m_welcomeWidget && m_onboardingManager) {
+        m_welcomeWidget->setOnboardingManager(m_onboardingManager);
+    }
+}
+
+void HomePage::setWelcomeScreenManager(WelcomeScreenManager* manager) {
+    m_welcomeScreenManager = manager;
+    if (m_welcomeWidget && m_welcomeScreenManager) {
+        m_welcomeWidget->setWelcomeScreenManager(m_welcomeScreenManager);
+    }
+}
+
+void HomePage::setCommandManager(CommandManager* manager) {
+    m_commandManager = manager;
+    if (m_welcomeWidget && m_commandManager) {
+        m_welcomeWidget->setCommandManager(m_commandManager);
+    }
+}
+
+void HomePage::startOnboarding() {
+    if (!m_onboardingWidget) {
+        m_onboardingWidget = new OnboardingWidget(this);
+        if (m_onboardingManager) {
+            m_onboardingWidget->setOnboardingManager(m_onboardingManager);
+        }
+    }
+    m_onboardingWidget->show();
+    m_onboardingWidget->raise();
+}
+
+void HomePage::stopOnboarding() {
+    if (m_onboardingWidget) {
+        m_onboardingWidget->hide();
+    }
+}
+
+bool HomePage::isOnboardingActive() const {
+    return m_onboardingWidget && m_onboardingWidget->isVisible();
+}
+
 void HomePage::retranslateUi() {
     // Update translatable strings
     setWindowTitle(tr("Home"));
@@ -488,6 +701,19 @@ void HomePage::retranslateUi() {
         m_versionText->setText(tr("Version %1").arg(PROJECT_VER));
     if (m_copyrightText)
         m_copyrightText->setText(tr("© 2024 SAST Team. All rights reserved."));
+
+    // Tutorial section
+    if (m_tutorialTitle)
+        m_tutorialTitle->setText(tr("Getting Started"));
+
+    // Tips section
+    if (m_tipsTitle)
+        m_tipsTitle->setText(tr("💡 Tip of the Day"));
+    if (m_nextTipButton)
+        m_nextTipButton->setText(tr("Next Tip"));
+
+    // Re-initialize tips with translated strings
+    initializeTips();
 }
 
 void HomePage::changeEvent(QEvent* event) {

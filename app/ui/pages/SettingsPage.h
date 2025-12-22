@@ -14,6 +14,11 @@ class ElaLineEdit;
 class ElaText;
 class ElaToggleSwitch;
 class ElaSpinBox;
+class ElaScrollPageArea;
+class ElaColorDialog;
+class ElaKeyBinder;
+class ElaCheckBox;
+class ElaRadioButton;
 class I18nManager;
 class StyleManager;
 class ConfigurationManager;
@@ -134,6 +139,16 @@ private:
     ElaToggleSwitch* m_smoothScrollSwitch;
     ElaComboBox* m_renderQualityCombo;
     ElaToggleSwitch* m_antiAliasingSwitch;
+
+    // Enhanced controls
+    ElaSlider* m_uiScaleSlider;
+    ElaSlider* m_scrollSpeedSlider;
+    ElaSlider* m_thumbnailSizeSlider;
+    ElaPushButton* m_accentColorButton;
+    QColor m_accentColor;
+    ElaKeyBinder* m_keyBinder;
+    ElaCheckBox* m_autoSaveCheckbox;
+    ElaCheckBox* m_restoreSessionCheckbox;
 
     // Action buttons
     ElaPushButton* m_saveBtn;

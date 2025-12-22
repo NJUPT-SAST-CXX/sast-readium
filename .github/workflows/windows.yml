@@ -76,6 +76,12 @@ jobs:
             build_type: Release
             cache_key: msys2-clangarm64
             cross_compile: true
+          # MinSizeRel build for optimized package size
+          - sys: ucrt64
+            arch: ucrt-x86_64
+            build_type: MinSizeRel
+            cache_key: msys2-ucrt64-minsizerel
+            size_optimized: true
           # MINGW64 - Legacy GCC environment (x86_64, MSVCRT)
           - sys: mingw64
             arch: x86_64
@@ -172,7 +178,12 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake --preset=${{ matrix.build_type }}-MSYS2
+          CMAKE_OPTS=""
+          if [[ "${{ matrix.size_optimized }}" == "true" ]]; then
+            CMAKE_OPTS="-DSAST_ENABLE_LTO=ON -DSAST_STRIP_BINARIES=ON"
+            echo "Size optimization enabled: LTO + Strip"
+          fi
+          cmake --preset=${{ matrix.build_type }}-MSYS2 $CMAKE_OPTS
 
       - name: Build
         run: |

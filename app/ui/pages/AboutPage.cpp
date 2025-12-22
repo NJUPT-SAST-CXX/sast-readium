@@ -1,8 +1,11 @@
 ﻿#include "AboutPage.h"
 
 // ElaWidgetTools
+#include "ElaAcrylicUrlCard.h"
 #include "ElaContentDialog.h"
+#include "ElaImageCard.h"
 #include "ElaPushButton.h"
+#include "ElaScrollPageArea.h"
 #include "ElaText.h"
 
 // Qt
@@ -22,7 +25,21 @@
 // 构造和析构
 // ============================================================================
 
-AboutPage::AboutPage(QWidget* parent) : ElaDialog(parent) {
+AboutPage::AboutPage(QWidget* parent)
+    : ElaDialog(parent),
+      m_appNameLabel(nullptr),
+      m_versionLabel(nullptr),
+      m_copyrightLabel(nullptr),
+      m_descriptionLabel(nullptr),
+      m_licenseBtn(nullptr),
+      m_creditsBtn(nullptr),
+      m_websiteBtn(nullptr),
+      m_logoCard(nullptr),
+      m_githubCard(nullptr),
+      m_docsCard(nullptr),
+      m_issuesCard(nullptr),
+      m_infoContainer(nullptr),
+      m_linksContainer(nullptr) {
     SLOG_INFO("AboutPage: Constructor started");
 
     // Set dialog properties (following ElaWidgetTools example pattern)
@@ -101,6 +118,45 @@ void AboutPage::setupUi() {
     buttonLayout->addWidget(m_websiteBtn);
 
     mainLayout->addLayout(buttonLayout);
+
+    mainLayout->addSpacing(20);
+
+    // Links section with ElaAcrylicUrlCard
+    m_linksContainer = new ElaScrollPageArea(this);
+    m_linksContainer->setBorderRadius(8);
+    auto* linksLayout = new QHBoxLayout(m_linksContainer);
+    linksLayout->setContentsMargins(15, 15, 15, 15);
+    linksLayout->setSpacing(15);
+
+    m_githubCard = new ElaAcrylicUrlCard(this);
+    m_githubCard->setTitle(tr("GitHub"));
+    m_githubCard->setSubTitle(tr("Source Code"));
+    m_githubCard->setUrl("https://github.com/NJUPT-SAST-CXX/sast-readium");
+    m_githubCard->setCardPixmap(
+        QPixmap(":/icons/github")
+            .scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    linksLayout->addWidget(m_githubCard);
+
+    m_docsCard = new ElaAcrylicUrlCard(this);
+    m_docsCard->setTitle(tr("Documentation"));
+    m_docsCard->setSubTitle(tr("User Guide"));
+    m_docsCard->setUrl("https://njupt-sast-cxx.github.io/sast-readium/");
+    m_docsCard->setCardPixmap(
+        QPixmap(":/icons/docs")
+            .scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    linksLayout->addWidget(m_docsCard);
+
+    m_issuesCard = new ElaAcrylicUrlCard(this);
+    m_issuesCard->setTitle(tr("Report Issue"));
+    m_issuesCard->setSubTitle(tr("Bug Tracker"));
+    m_issuesCard->setUrl(
+        "https://github.com/NJUPT-SAST-CXX/sast-readium/issues");
+    m_issuesCard->setCardPixmap(
+        QPixmap(":/icons/bug")
+            .scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    linksLayout->addWidget(m_issuesCard);
+
+    mainLayout->addWidget(m_linksContainer);
 
     mainLayout->addStretch();
 }

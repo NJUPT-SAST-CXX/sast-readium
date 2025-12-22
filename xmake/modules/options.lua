@@ -75,6 +75,37 @@ option("legacy_ui")
     set_showmenu(true)
 option_end()
 
+-- Build size optimization options
+option("strip_binaries")
+    set_default(false)
+    set_description("Strip debug symbols from binaries (significant size reduction)")
+    set_showmenu(true)
+option_end()
+
+option("split_debug_info")
+    set_default(true)
+    set_description("Split debug info to separate files (reduces exe size)")
+    set_showmenu(true)
+option_end()
+
+option("minimal_deployment")
+    set_default(true)
+    set_description("Create minimal deployment (exclude unnecessary Qt plugins)")
+    set_showmenu(true)
+option_end()
+
+option("upx_compress")
+    set_default(false)
+    set_description("Compress executables with UPX (50-70% size reduction)")
+    set_showmenu(true)
+option_end()
+
+option("enable_sanitizers")
+    set_default(false)
+    set_description("Enable AddressSanitizer and UBSan in Debug builds (increases binary size)")
+    set_showmenu(true)
+option_end()
+
 -- Global requirements
 add_requires("pkgconfig::poppler-qt6")
 add_requires("spdlog")

@@ -212,8 +212,9 @@ void AnnotationRenderDelegate::renderSquiggly(QPainter* painter,
     path.moveTo(x, y);
     while (x < rect.right()) {
         x += wavelength / 2;
-        y = (x / wavelength) % 2 == 0 ? rect.bottom() - amplitude
-                                      : rect.bottom() + amplitude;
+        y = static_cast<int>(x / wavelength) % 2 == 0
+                ? rect.bottom() - amplitude
+                : rect.bottom() + amplitude;
         path.lineTo(x, y);
     }
 

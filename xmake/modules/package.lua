@@ -154,7 +154,10 @@ function create_zip_package(target)
     end
     os.cd(os.projectdir())
 
-    -- Cleanup
+    -- Cleanup development files from package
+    cleanup_package_directory(app_dir)
+
+    -- Cleanup temp dir
     os.rm(temp_dir)
 
     cprint("${green}Portable ZIP created: %s${clear}", zip_name)
@@ -328,6 +331,111 @@ function generate_checksum(file_path)
     if not has_config("quiet") then
         cprint("${dim}Generated SHA256: %s${clear}", checksum_file)
     end
+end
+
+-- Compress executable with UPX
+function compress_with_upx(target)
+    if not has_config("upx_compress") then
+        return
+    end
+
+    -- Only compress for release builds
+    if not is_mode("release") then
+        cprint("${dim}UPX compression skipped for non-release build${clear}")
+        return
+    end
+
+    import("lib.detect.find_program")
+    local upx = find_program("upx")
+    if not upx then
+        cprint("${yellow}UPX not found - executable compression disabled. Install UPX for smaller binaries.${clear}")
+        return
+    end
+
+    local target_file = target:targetfile()
+    cprint("${cyan}Compressing %s with UPX...${clear}", path.filename(target_file))
+
+    -- Use --best --lzma for maximum compression
+    os.execv(upx, {"--best", "--lzma", "-q", target_file})
+
+    -- Show compression result
+    local file_size = os.filesize(target_file)
+    cprint("${green}Compressed size: %.2f MB${clear}", file_size / 1024 / 1024)
+end
+
+-- Clean up development files from package directory
+function cleanup_package_directory(package_dir)
+    if not has_config("minimal_deployment") then
+        return
+    end
+
+    cprint("${dim}Cleaning up development files...${clear}")
+
+    -- File patterns to remove
+    local patterns_to_remove = {
+        "*.h", "*.hpp", "*.hxx",           -- Header files
+        "*.a", "*.lib",                     -- Static libraries
+        "*.pdb", "*.ilk", "*.exp",          -- Debug/build artifacts
+        "*.cmake", "CMakeLists.txt",        -- CMake files
+        "*.pc", "*.pri", "*.prl",           -- pkg-config and Qt files
+        "*d.dll",                           -- Debug DLLs
+    }
+
+    -- Directories to remove
+    local dirs_to_remove = {
+        "include", "lib/cmake", "lib/pkgconfig",
+        "share/doc", "share/man", "doc", "docs",
+        "mkspecs", "qml", "examples", "tests"
+    }
+
+    local removed_count = 0
+
+    -- Remove files matching patterns
+    for _, pattern in ipairs(patterns_to_remove) do
+        local files = os.files(path.join(package_dir, "**", pattern))
+        for _, file in ipairs(files) do
+            os.rm(file)
+            removed_count = removed_count + 1
+        end
+    end
+
+    -- Remove directories
+    for _, dir in ipairs(dirs_to_remove) do
+        local full_path = path.join(package_dir, dir)
+        if os.isdir(full_path) then
+            os.rmdir(full_path)
+            removed_count = removed_count + 1
+        end
+    end
+
+    if removed_count > 0 then
+        cprint("${dim}Removed %d development files/directories${clear}", removed_count)
+    end
+end
+
+-- Get list of Qt plugins to exclude for minimal deployment
+function get_excluded_qt_plugins()
+    if not has_config("minimal_deployment") then
+        return {}
+    end
+
+    return {
+        -- Plugin categories not needed for PDF reader
+        "qmltooling",       -- QML debugging
+        "generic",          -- Generic input plugins
+        "networkinformation", -- Network status
+        "position",         -- GPS/positioning
+        "sensors",          -- Hardware sensors
+        "webview",          -- Web browser
+        "multimedia",       -- Audio/video (not needed)
+        "sqldrivers",       -- Database plugins
+        "scenegraph",       -- QML scene graph
+        -- Specific plugins
+        "qtuiotouchplugin",
+        "qtvirtualkeyboardplugin",
+        "qoffscreen",
+        "qminimal",
+    }
 end
 
 -- Main packaging function

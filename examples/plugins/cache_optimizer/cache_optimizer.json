@@ -1,0 +1,20 @@
+{
+    "name": "Cache Optimizer",
+    "version": "1.0.0",
+    "description": "LFU-based cache strategy with persistence and optimization. Demonstrates ICacheStrategyPlugin interface.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "cache.strategy",
+        "cache.lfu",
+        "cache.persistence",
+        "cache.optimize",
+        "hooks"
+    ],
+    "configuration": {
+        "minSizeToCache": 1024,
+        "maxSizeToCache": 104857600,
+        "priorityBoostForRecent": 10,
+        "priorityDecayRate": 1
+    }
+}

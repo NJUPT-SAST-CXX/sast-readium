@@ -38,6 +38,14 @@ class ContextMenuManager : public QObject {
 
 public:
     /**
+     * @brief Get the singleton instance
+     */
+    static ContextMenuManager& instance() {
+        static ContextMenuManager instance;
+        return instance;
+    }
+
+    /**
      * @brief Context menu types for different UI components
      */
     enum class MenuType {

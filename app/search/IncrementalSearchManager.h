@@ -13,6 +13,11 @@ class IncrementalSearchManager : public QObject {
     Q_OBJECT
 
 public:
+    static IncrementalSearchManager& instance() {
+        static IncrementalSearchManager instance;
+        return instance;
+    }
+
     explicit IncrementalSearchManager(QObject* parent = nullptr);
     ~IncrementalSearchManager();
 

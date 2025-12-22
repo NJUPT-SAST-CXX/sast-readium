@@ -408,18 +408,30 @@ void PluginManager::setPluginEnabled(const QString& pluginName, bool enabled) {
     }
 }
 
-QList<IPluginInterface*> PluginManager::getPluginsByType(
+QList<IPlugin*> PluginManager::getPluginsByType(
     const QString& interfaceId) const {
-    QList<IPluginInterface*> result;
+    QList<IPlugin*> result;
 
     for (IPluginInterface* plugin : m_loadedPlugins.values()) {
-        QObject* obj = dynamic_cast<QObject*>(plugin);
-        if (obj != nullptr && obj->inherits(interfaceId.toUtf8().constData())) {
-            result.append(plugin);
+        IPlugin* iplugin = dynamic_cast<IPlugin*>(plugin);
+        if (iplugin != nullptr) {
+            QObject* obj = dynamic_cast<QObject*>(plugin);
+            if (obj != nullptr &&
+                obj->inherits(interfaceId.toUtf8().constData())) {
+                result.append(iplugin);
+            }
         }
     }
 
     return result;
+}
+
+IPlugin* PluginManager::getPluginByName(const QString& pluginName) const {
+    auto it = m_loadedPlugins.find(pluginName);
+    if (it != m_loadedPlugins.end()) {
+        return dynamic_cast<IPlugin*>(it.value());
+    }
+    return nullptr;
 }
 
 QList<IDocumentProcessorPlugin*> PluginManager::getDocumentProcessorPlugins()
@@ -1209,6 +1221,177 @@ void PluginManager::unregisterAllHooks(const QString& pluginName) {
 
     LOG_INFO("PluginManager: Unregistered all hooks for plugin '{}'",
              pluginName.toStdString());
+}
+
+// ============================================================================
+// Configuration Schema Management
+// ============================================================================
+
+QJsonObject PluginManager::getPluginConfigSchema(
+    const QString& pluginName) const {
+    if (!m_pluginMetadata.contains(pluginName)) {
+        return QJsonObject();
+    }
+
+    QJsonObject config = m_pluginMetadata[pluginName].configuration;
+
+    // Check for explicit configSchema
+    if (config.contains("configSchema")) {
+        return config["configSchema"].toObject();
+    }
+
+    // Fallback: return the configuration itself as simple schema
+    return config;
+}
+
+bool PluginManager::hasConfigSchema(const QString& pluginName) const {
+    if (!m_pluginMetadata.contains(pluginName)) {
+        return false;
+    }
+
+    QJsonObject config = m_pluginMetadata[pluginName].configuration;
+    return !config.isEmpty();
+}
+
+bool PluginManager::validatePluginConfiguration(const QString& pluginName,
+                                                QStringList* errors) const {
+    if (!m_pluginMetadata.contains(pluginName)) {
+        if (errors) {
+            errors->append(tr("Plugin '%1' not found").arg(pluginName));
+        }
+        return false;
+    }
+
+    QJsonObject schema = getPluginConfigSchema(pluginName);
+    if (schema.isEmpty()) {
+        return true;  // No schema = no validation needed
+    }
+
+    QJsonObject currentConfig = getPluginConfiguration(pluginName);
+    bool valid = true;
+
+    // Check required fields
+    QJsonObject properties = schema.value("properties").toObject();
+    if (properties.isEmpty()) {
+        properties = schema;  // Fallback
+    }
+
+    for (auto it = properties.begin(); it != properties.end(); ++it) {
+        if (it.key() == "groups")
+            continue;
+
+        QJsonObject propSchema = it.value().toObject();
+        bool isRequired = propSchema.value("required").toBool(false);
+
+        if (isRequired) {
+            if (!currentConfig.contains(it.key())) {
+                valid = false;
+                if (errors) {
+                    QString displayName =
+                        propSchema.value("displayName").toString(it.key());
+                    errors->append(tr("Required field '%1' is not configured")
+                                       .arg(displayName));
+                }
+            } else {
+                QJsonValue val = currentConfig.value(it.key());
+                if (val.isNull() ||
+                    (val.isString() && val.toString().isEmpty())) {
+                    valid = false;
+                    if (errors) {
+                        QString displayName =
+                            propSchema.value("displayName").toString(it.key());
+                        errors->append(tr("Required field '%1' is empty")
+                                           .arg(displayName));
+                    }
+                }
+            }
+        }
+    }
+
+    return valid;
+}
+
+// ============================================================================
+// First-run and Setup Wizard Support
+// ============================================================================
+
+bool PluginManager::isPluginConfigured(const QString& pluginName) const {
+    if (!m_settings) {
+        return true;  // Assume configured if no settings
+    }
+
+    return m_settings->value(pluginName + "/configured", false).toBool();
+}
+
+void PluginManager::markPluginConfigured(const QString& pluginName,
+                                         bool configured) {
+    if (!m_settings) {
+        return;
+    }
+
+    m_settings->setValue(pluginName + "/configured", configured);
+    m_settings->sync();
+
+    LOG_INFO("PluginManager: Marked plugin '{}' as {}",
+             pluginName.toStdString(),
+             configured ? "configured" : "not configured");
+}
+
+bool PluginManager::needsSetupWizard(const QString& pluginName) const {
+    // Check if already configured
+    if (isPluginConfigured(pluginName)) {
+        return false;
+    }
+
+    // Check if has required config that needs to be set
+    QStringList requiredKeys = getRequiredConfigKeys(pluginName);
+    if (requiredKeys.isEmpty()) {
+        // No required config, mark as configured and return false
+        // (const_cast needed since this is a const method but we want to
+        // auto-mark)
+        return false;
+    }
+
+    // Check if required config is set
+    QJsonObject currentConfig = getPluginConfiguration(pluginName);
+    for (const QString& key : requiredKeys) {
+        if (!currentConfig.contains(key)) {
+            return true;
+        }
+        QJsonValue val = currentConfig.value(key);
+        if (val.isNull() || (val.isString() && val.toString().isEmpty())) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+QStringList PluginManager::getRequiredConfigKeys(
+    const QString& pluginName) const {
+    QStringList requiredKeys;
+
+    QJsonObject schema = getPluginConfigSchema(pluginName);
+    if (schema.isEmpty()) {
+        return requiredKeys;
+    }
+
+    QJsonObject properties = schema.value("properties").toObject();
+    if (properties.isEmpty()) {
+        properties = schema;  // Fallback
+    }
+
+    for (auto it = properties.begin(); it != properties.end(); ++it) {
+        if (it.key() == "groups")
+            continue;
+
+        QJsonObject propSchema = it.value().toObject();
+        if (propSchema.value("required").toBool(false)) {
+            requiredKeys.append(it.key());
+        }
+    }
+
+    return requiredKeys;
 }
 
 // ============================================================================

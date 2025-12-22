@@ -1,7 +1,12 @@
 #pragma once
 
 #include <QAction>
+#include <QDrag>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QGraphicsOpacityEffect>
+#include <QMimeData>
 #include "ElaListView.h"
 
 #include <QPropertyAnimation>
@@ -90,6 +95,12 @@ public:
     void removeContextMenuAction(QAction* action);
     void clearContextMenuActions();
 
+    // 拖拽重排功能
+    void setDragDropEnabled(bool enabled);
+    [[nodiscard]] auto dragDropEnabled() const -> bool {
+        return m_dragDropEnabled;
+    }
+
 signals:
     void pageClicked(int pageNumber);
     void pageDoubleClicked(int pageNumber);
@@ -98,6 +109,7 @@ signals:
     void pageSelectionChanged(const QList<int>& selectedPages);
     void scrollPositionChanged(int position, int maximum);
     void visibleRangeChanged(int firstVisible, int lastVisible);
+    void pageReorderRequested(int fromPage, int toPage);
 
 protected:
     void wheelEvent(QWheelEvent* event) override;
@@ -109,6 +121,12 @@ protected:
     void scrollContentsBy(int dx, int dy) override;
     void paintEvent(QPaintEvent* event) override;
     void showEvent(QShowEvent* event) override;
+
+    // 拖拽事件处理
+    void startDrag(Qt::DropActions supportedActions) override;
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dragMoveEvent(QDragMoveEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
 
 private slots:
     void onScrollBarValueChanged(int value);
@@ -199,6 +217,11 @@ private:
     ElaMenu* m_contextMenu;
     QList<QAction*> m_contextMenuActions;
     int m_contextMenuPage;
+
+    // 拖拽重排
+    bool m_dragDropEnabled;
+    int m_dragStartPage;
+    QPoint m_dragStartPos;
 
     // 状态跟踪
     int m_currentPage;

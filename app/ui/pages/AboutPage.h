@@ -6,6 +6,9 @@
 // Forward declarations
 class ElaText;
 class ElaPushButton;
+class ElaImageCard;
+class ElaAcrylicUrlCard;
+class ElaScrollPageArea;
 
 /**
  * @brief AboutPage - 关于页面
@@ -37,6 +40,14 @@ private:
     ElaPushButton* m_licenseBtn;
     ElaPushButton* m_creditsBtn;
     ElaPushButton* m_websiteBtn;
+
+    // Enhanced UI components
+    ElaImageCard* m_logoCard;
+    ElaAcrylicUrlCard* m_githubCard;
+    ElaAcrylicUrlCard* m_docsCard;
+    ElaAcrylicUrlCard* m_issuesCard;
+    ElaScrollPageArea* m_infoContainer;
+    ElaScrollPageArea* m_linksContainer;
 
     void setupUi();
     void connectSignals();

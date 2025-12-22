@@ -132,7 +132,8 @@ private:
 
     // Dependencies
     AnnotationModel* m_model;
-    QPointer<Poppler::Document> m_document;
+    Poppler::Document*
+        m_document;  // Raw pointer - Poppler::Document is not a QObject
     QString m_currentFilePath;
 
     // Settings

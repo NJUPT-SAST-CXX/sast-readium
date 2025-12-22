@@ -6,9 +6,8 @@
 #include <QString>
 #include <memory>
 
-// Forward declarations
-class AccessibilityController;
-class AccessibilityModel;
+#include "../controller/AccessibilityController.h"
+#include "../model/AccessibilityModel.h"
 
 /**
  * @brief Legacy compatibility wrapper for accessibility features

@@ -1,0 +1,101 @@
+{
+    "name": "Reading Progress",
+    "version": "1.0.0",
+    "description": "Track reading progress, sessions, statistics, and reading history across documents.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "progress.tracking",
+        "progress.statistics",
+        "progress.history",
+        "ui.dock",
+        "settings.persistence"
+    ],
+    "configuration": {
+        "configSchema": {
+            "groups": {
+                "tracking": {
+                    "displayName": "Tracking Settings",
+                    "description": "Configure how reading progress is tracked",
+                    "order": 0
+                },
+                "storage": {
+                    "displayName": "Storage Settings",
+                    "description": "Data storage configuration",
+                    "order": 1
+                },
+                "display": {
+                    "displayName": "Display Settings",
+                    "description": "How progress is displayed",
+                    "order": 2
+                }
+            },
+            "properties": {
+                "storageLocation": {
+                    "type": "path",
+                    "displayName": "Storage Location",
+                    "description": "Directory where reading progress data is saved",
+                    "placeholder": "Select storage directory...",
+                    "group": "storage",
+                    "required": true,
+                    "order": 0
+                },
+                "sessionTimeoutMinutes": {
+                    "type": "int",
+                    "displayName": "Session Timeout",
+                    "description": "Minutes of inactivity before ending a reading session",
+                    "default": 30,
+                    "minimum": 5,
+                    "maximum": 120,
+                    "group": "tracking",
+                    "order": 0
+                },
+                "trackReadingSpeed": {
+                    "type": "bool",
+                    "displayName": "Track Reading Speed",
+                    "description": "Calculate and display pages per minute",
+                    "default": true,
+                    "group": "tracking",
+                    "order": 1
+                },
+                "autoSaveInterval": {
+                    "type": "int",
+                    "displayName": "Auto-save Interval",
+                    "description": "Seconds between automatic progress saves",
+                    "default": 60,
+                    "minimum": 10,
+                    "maximum": 300,
+                    "group": "storage",
+                    "order": 1
+                },
+                "maxHistoryItems": {
+                    "type": "int",
+                    "displayName": "History Size",
+                    "description": "Maximum number of documents to keep in history",
+                    "default": 100,
+                    "minimum": 10,
+                    "maximum": 500,
+                    "group": "storage",
+                    "order": 2
+                },
+                "displayMode": {
+                    "type": "string",
+                    "displayName": "Progress Display",
+                    "description": "How to show reading progress",
+                    "default": "percentage",
+                    "enum": ["percentage", "pages", "both"],
+                    "group": "display",
+                    "order": 0
+                },
+                "showEstimatedTime": {
+                    "type": "bool",
+                    "displayName": "Show Estimated Time",
+                    "description": "Display estimated time to finish document",
+                    "default": true,
+                    "group": "display",
+                    "order": 1
+                }
+            }
+        }
+    }
+}

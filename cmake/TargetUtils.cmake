@@ -37,9 +37,9 @@ function(discover_app_sources output_var)
 
     # Define standard application components
     set(app_components
-        ui/core ui/viewer ui/widgets ui/dialogs ui/thumbnail ui/managers ui/pages
-        managers model controller delegate view cache utils adapters interaction
-        plugin factory command search logging
+        ui/core ui/viewer ui/widgets ui/dialogs ui/thumbnail ui/managers ui/pages ui/theme
+        managers model controller delegate view cache utils adapters interaction forms
+        plugin factory command search logging accessibility
     )
 
     set(discovered_sources)
@@ -303,6 +303,24 @@ function(create_test_target test_name)
     # Reduce GNU ld memory footprint when linking large test binaries on MinGW
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         target_link_options(${test_name} PRIVATE "-Wl,--no-keep-memory" "-Wl,--reduce-memory-overheads")
+
+        # Use minimal debug info for tests to reduce executable size (50-70% reduction)
+        if(SAST_MINIMAL_TEST_DEBUG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+            target_compile_options(${test_name} PRIVATE -g1)
+        endif()
+
+        # Strip test executables if requested
+        if(SAST_STRIP_TESTS)
+            target_link_options(${test_name} PRIVATE "-s")
+        endif()
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # Use minimal debug info for tests with Clang
+        if(SAST_MINIMAL_TEST_DEBUG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+            target_compile_options(${test_name} PRIVATE -g1)
+        endif()
+        if(SAST_STRIP_TESTS)
+            target_link_options(${test_name} PRIVATE "-s")
+        endif()
     endif()
 
     # Add include directories for tests to access app sources

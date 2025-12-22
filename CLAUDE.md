@@ -67,6 +67,16 @@ make clangd-auto # Update clangd config
 make dev         # Setup development environment (installs pre-commit hooks)
 ```
 
+**Packaging:**
+
+```powershell
+# Windows packaging
+.\scripts\package.ps1                      # Create MSI installer (MSVC)
+.\scripts\package.ps1 -PackageType nsis    # Create NSIS installer (MSYS2)
+.\scripts\package.ps1 -PackageType zip     # Create portable ZIP
+.\scripts\package.ps1 -Verify              # Create and verify package
+```
+
 ## Architecture
 
 The application follows a modular Qt6 architecture with clear separation of concerns:
@@ -89,7 +99,7 @@ The application follows a modular Qt6 architecture with clear separation of conc
 **Key Subsystems:**
 
 1. **Search Engine (`app/search/`):**
-   - `SearchEngine` - Core search functionality
+   - `SearchEngine` - Core search functionality with async execution
    - `IncrementalSearchManager` - Real-time search
    - `BackgroundProcessor` - Asynchronous search operations
    - `TextExtractor` - PDF text extraction
@@ -100,13 +110,16 @@ The application follows a modular Qt6 architecture with clear separation of conc
    - `DocumentModel` - PDF document state management
    - `RenderModel` - Page rendering coordination
    - `ThumbnailModel` + `ThumbnailDelegate` - Thumbnail generation with GPU fallback
+   - `ThumbnailGenerator` - GPU/CPU rendering with `SafePDFRenderer` integration
    - `AsyncDocumentLoader` - Background document loading
+   - `TextSelectionManager` - Spatial indexing with QMultiHash grid for O(1) character lookup
 
 3. **Caching System (`app/cache/`):**
-   - `CacheManager` - Unified cache interface
-   - `PDFCacheManager` - PDF-specific caching
+   - `CacheManager` - Unified cache interface with MVP architecture
+   - `PDFCacheManager` - PDF-specific caching with thread-safe document access
    - `SearchResultCache` - Search result persistence
    - `PageTextCache` - Extracted text caching
+   - Specialized models: `CacheEntryModel`, `CacheDataModel`, `CacheConfigModel`, `CacheStatsModel`
 
 4. **Logging System (`app/logging/`):**
    - `Logger` - Main logging interface
@@ -114,12 +127,31 @@ The application follows a modular Qt6 architecture with clear separation of conc
    - `QtSpdlogBridge` - Qt/spdlog integration
    - Comprehensive macro system in `LoggingMacros.h`
 
-5. **Managers (`app/managers/`):**
+5. **Accessibility System (`app/accessibility/`):**
+   - `AccessibilityManager` - Main interface and compatibility wrapper
+   - `AccessibilityController` - Logic coordination and service access
+   - `AccessibilityModel` - State management (TTS, screen reader, high contrast)
+   - Text-to-Speech with rate/volume control and auto-advance
+
+6. **Plugin System (`app/plugin/`):**
+   - `PluginInterface` - Standard plugin interface
+   - `PluginManager` - Plugin discovery, loading, lifecycle management
+   - `PluginHookRegistry` - 20+ predefined workflow hooks
+   - Specialized interfaces: Document processing, rendering, search, cache, annotations
+
+7. **Annotation System (`app/annotations/`):**
+   - `AnnotationModel` - Data management with Poppler integration
+   - `AnnotationController` - Business logic coordination
+   - `AnnotationCommands` - Undo/redo support
+   - `AnnotationSelectionManager` - Interactive selection and resizing
+
+8. **Managers (`app/managers/`):**
    - `I18nManager` - Internationalization (English/Chinese)
-   - `StyleManager` - Theme management (light/dark)
+   - `StyleManager` - Theme management (light/dark/sepia)
    - `RecentFilesManager` - Recent files tracking
    - `SystemTrayManager` - System tray integration
    - `FileTypeIconManager` - File type associations
+   - `KeyboardShortcutManager` - Centralized shortcut management with conflict detection
 
 ### Testing
 
@@ -258,6 +290,39 @@ When working on the codebase, these files provide essential context:
 - `cmake/README.md` - CMake modules documentation
 - `.cursor/rules/` - Cursor AI rules for coding standards
 
+## Thread Safety & Concurrency
+
+The project has undergone extensive concurrency audits with critical fixes applied:
+
+**Thread-Safe Patterns:**
+
+- `PDFCacheManager` - Uses `documentMutex` to serialize background `PreloadTasks` accessing `Poppler::Document`
+- `PDFPrerenderer` - Uses `QMutex` to serialize `Poppler::Document` access across worker threads
+- `ThumbnailGenerator` - Integrates `SafePDFRenderer` for all rendering operations preventing hangs on corrupted PDFs
+- `SearchEngine` - Executes searches directly in `BackgroundProcessor` worker thread, posts results via `Qt::QueuedConnection`
+- `EventBus` - Lock minimization to prevent deadlocks in event processing
+
+**Fixed Issues:**
+
+- `CacheManager::optimizeCacheDistribution` - Deadlock fix applied
+- `SearchEngine::performSearch` - Removed `Qt::BlockingQueuedConnection` to prevent UI freezes
+- `AsyncDocumentLoader` - Async thread cleanup with timeout-bounded waits
+- Timer callback overlap prevention using atomic flags in `CacheManager`
+
+**Best Practices:**
+
+- Use `QWaitCondition` with mutexes in producer-consumer patterns
+- Avoid `Qt::BlockingQueuedConnection` from background threads to UI thread
+- Use `std::unique_ptr<Poppler::Page>` for proper memory management (fixes leaks in `TextSelectionManager`)
+
+## Performance Optimizations
+
+- **Spatial Indexing:** `TextSelectionManager` uses `QMultiHash` grid system for O(1) character lookup (vs O(N) linear search)
+- **Night Mode Caching:** `PageWidget::paintEvent` caches inverted images to reduce CPU usage
+- **Outline Lookup:** `PDFOutlineWidget` uses `QMultiMap` for O(1) page-to-outline-item lookup
+- **Virtual Scrolling:** `ThumbnailModel` implements lazy loading for large documents
+- **Prerendering:** Smart page preloading based on scroll direction and view history
+
 ## Development Notes
 
 - Source discovery is automatic via `discover_app_sources()` in `TargetUtils.cmake`
@@ -269,3 +334,4 @@ When working on the codebase, these files provide essential context:
   - Install with: `pip install pre-commit && pre-commit install`
   - Run manually: `pre-commit run --all-files`
 - Project documentation system maintained in `llmdoc/` with master index at `llmdoc/index.md`
+- Feature documentation in `llmdoc/feature/` covers accessibility, annotations, plugins, cache architecture, and freeze fixes

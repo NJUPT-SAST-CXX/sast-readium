@@ -21,9 +21,10 @@
  * - Qt Model/View architecture integration
  * - JSON configuration management
  * - Type-aware value editing (bool, int, string, etc.)
- * - Configuration validation
+ * - Configuration validation with schema support
  * - Undo/redo support via ConfigurePluginCommand
  * - Real-time configuration updates
+ * - Configuration schema with constraints, groups, and descriptions
  */
 class PluginConfigModel : public QAbstractTableModel {
     Q_OBJECT
@@ -41,16 +42,26 @@ public:
     };
 
     /**
-     * Configuration entry structure
+     * Configuration entry structure with full schema support
      */
     struct ConfigEntry {
-        QString key;
-        QVariant value;
-        QString type;  // "bool", "int", "double", "string", "object", "array"
-        QString description;  // Optional description
-        bool isReadOnly;      // Cannot be edited
+        QString key;     // Configuration key
+        QVariant value;  // Current value
+        QString type;    // "bool", "int", "double", "string", "enum", "path",
+                         // "color", "object", "array"
+        QString description;  // Human-readable description
+        QString group;    // Configuration group (e.g., "general", "advanced")
+        bool isRequired;  // Whether this config is required
+        bool isReadOnly;  // Cannot be edited
+        QVariant defaultValue;   // Default value
+        QVariant minValue;       // Minimum value (for numeric types)
+        QVariant maxValue;       // Maximum value (for numeric types)
+        QStringList enumValues;  // Valid values for enum type
+        QString placeholder;     // Placeholder text for input fields
+        QString displayName;     // Display name (if different from key)
+        int order;               // Display order within group
 
-        ConfigEntry() : isReadOnly(false) {}
+        ConfigEntry() : isRequired(false), isReadOnly(false), order(0) {}
 
         ConfigEntry(const QString& k, const QVariant& v,
                     const QString& t = "string", const QString& desc = "",
@@ -59,7 +70,35 @@ public:
               value(v),
               type(t),
               description(desc),
-              isReadOnly(readOnly) {}
+              group("general"),
+              isRequired(false),
+              isReadOnly(readOnly),
+              defaultValue(v),
+              order(0) {}
+    };
+
+    /**
+     * Configuration group metadata
+     */
+    struct ConfigGroup {
+        QString id;           // Group identifier
+        QString displayName;  // Display name
+        QString description;  // Group description
+        QString icon;         // Icon name (optional)
+        int order;            // Display order
+        bool isCollapsible;   // Whether group can be collapsed
+        bool isAdvanced;      // Whether this is an advanced group
+
+        ConfigGroup() : order(0), isCollapsible(true), isAdvanced(false) {}
+
+        ConfigGroup(const QString& id, const QString& name,
+                    const QString& desc = "", int ord = 0)
+            : id(id),
+              displayName(name),
+              description(desc),
+              order(ord),
+              isCollapsible(true),
+              isAdvanced(false) {}
     };
 
     explicit PluginConfigModel(PluginManager* manager,
@@ -95,12 +134,33 @@ public:
     [[nodiscard]] QJsonObject getConfiguration() const;
     void setConfiguration(const QJsonObject& config);
 
+    // Schema management
+    void setConfigSchema(const QJsonObject& schema);
+    [[nodiscard]] QJsonObject getConfigSchema() const { return m_configSchema; }
+    [[nodiscard]] bool hasSchema() const { return !m_configSchema.isEmpty(); }
+
+    // Group management
+    [[nodiscard]] QList<ConfigGroup> getGroups() const { return m_groups; }
+    [[nodiscard]] QVector<ConfigEntry> getEntriesForGroup(
+        const QString& groupId) const;
+    [[nodiscard]] QStringList getGroupIds() const;
+    void addGroup(const ConfigGroup& group);
+
+    // Required configuration
+    [[nodiscard]] QVector<ConfigEntry> getRequiredEntries() const;
+    [[nodiscard]] bool hasRequiredUnset() const;
+    [[nodiscard]] QStringList getRequiredUnsetKeys() const;
+
     // Entry management
     Q_INVOKABLE bool addEntry(const QString& key, const QVariant& value,
                               const QString& type = "string",
                               const QString& description = "");
     Q_INVOKABLE bool removeEntry(int row);
     Q_INVOKABLE bool removeEntry(const QString& key);
+
+    // Entry access
+    [[nodiscard]] const ConfigEntry& getEntry(int index) const;
+    [[nodiscard]] int entryCount() const { return m_entries.size(); }
 
     // Query operations
     [[nodiscard]] Q_INVOKABLE bool hasKey(const QString& key) const;
@@ -111,7 +171,10 @@ public:
     // Validation
     [[nodiscard]] bool isValidValue(const QString& type,
                                     const QVariant& value) const;
+    [[nodiscard]] bool validateEntry(const ConfigEntry& entry,
+                                     const QVariant& value) const;
     [[nodiscard]] QString validateConfiguration() const;
+    [[nodiscard]] QStringList validateAllEntries() const;
 
     // State
     [[nodiscard]] bool isModified() const { return m_isModified; }
@@ -129,16 +192,22 @@ signals:
 
 private:
     void buildConfigEntries();
+    void buildConfigEntriesFromSchema();
     void addEntryFromJson(const QString& key, const QVariant& value);
+    void addEntryFromSchema(const QString& key, const QJsonObject& schema);
+    void parseGroupsFromSchema(const QJsonObject& schema);
     [[nodiscard]] QString detectType(const QVariant& value) const;
     [[nodiscard]] int findEntryRow(const QString& key) const;
     [[nodiscard]] QVariant convertValue(const QString& type,
                                         const QVariant& value) const;
+    [[nodiscard]] QVariant getDefaultForType(const QString& type) const;
 
     QPointer<PluginManager> m_pluginManager;
     QString m_pluginName;
     QVector<ConfigEntry> m_entries;
+    QList<ConfigGroup> m_groups;
     QJsonObject m_originalConfig;  // For detecting modifications
+    QJsonObject m_configSchema;    // Configuration schema
     bool m_isModified;
 
     // Logging

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 project(HelloPlugin)
 
 # Find Qt6
-find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)

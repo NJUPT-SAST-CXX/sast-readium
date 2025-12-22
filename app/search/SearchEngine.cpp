@@ -7,6 +7,9 @@
 #include "../cache/CacheManager.h"
 #include "../cache/PageTextCache.h"
 #include "../cache/SearchResultCache.h"
+#include "../plugin/ISearchPlugin.h"
+#include "../plugin/PluginHookRegistry.h"
+#include "../plugin/PluginManager.h"
 #include "BackgroundProcessor.h"
 #include "IncrementalSearchManager.h"
 #include "MemoryManager.h"
@@ -242,6 +245,14 @@ public:
             return;
         }
 
+        // Execute pre-search hook for plugins
+        PluginHookRegistry::instance().executeHook(
+            StandardHooks::SEARCH_PRE_EXECUTE,
+            {{"query", query},
+             {"caseSensitive", options.caseSensitive},
+             {"wholeWords", options.wholeWords},
+             {"useRegex", options.useRegex}});
+
         auto timer = std::make_shared<QElapsedTimer>();
         timer->start();
 
@@ -267,6 +278,14 @@ public:
                 metric.incremental = false;
                 metric.timestamp = QDateTime::currentDateTime();
                 metrics->recordSearch(metric);
+
+                // Execute post-search hook for plugins (cache hit)
+                PluginHookRegistry::instance().executeHook(
+                    StandardHooks::SEARCH_POST_EXECUTE,
+                    {{"query", query},
+                     {"resultCount", cachedResults.size()},
+                     {"cacheHit", true},
+                     {"duration", metric.duration}});
 
                 emit q_ptr->searchFinished(cachedResults);
                 return;
@@ -296,6 +315,15 @@ public:
                 metric.timestamp = QDateTime::currentDateTime();
                 metrics->recordSearch(metric);
 
+                // Execute post-search hook for plugins (incremental)
+                PluginHookRegistry::instance().executeHook(
+                    StandardHooks::SEARCH_POST_EXECUTE,
+                    {{"query", query},
+                     {"resultCount", refinedResults.size()},
+                     {"cacheHit", false},
+                     {"incremental", true},
+                     {"duration", metric.duration}});
+
                 emit q_ptr->searchFinished(refinedResults);
                 return;
             }
@@ -322,11 +350,21 @@ public:
 
                 QMetaObject::invokeMethod(
                     q_ptr,
-                    [this, metric, results]() {
+                    [this, metric, results, query]() {
                         SearchMetrics::Metric metricCopy = metric;
                         metricCopy.pagesSearched =
                             document ? document->numPages() : 0;
                         metrics->recordSearch(metricCopy);
+
+                        // Execute post-search hook for plugins (async full
+                        // search)
+                        PluginHookRegistry::instance().executeHook(
+                            StandardHooks::SEARCH_POST_EXECUTE,
+                            {{"query", query},
+                             {"resultCount", results.size()},
+                             {"cacheHit", false},
+                             {"incremental", false},
+                             {"duration", metricCopy.duration}});
 
                         currentResults.set(results);
                         isSearching.clear();
@@ -348,6 +386,15 @@ public:
             metric.incremental = false;
             metric.timestamp = QDateTime::currentDateTime();
             metrics->recordSearch(metric);
+
+            // Execute post-search hook for plugins (sync full search)
+            PluginHookRegistry::instance().executeHook(
+                StandardHooks::SEARCH_POST_EXECUTE,
+                {{"query", query},
+                 {"resultCount", results.size()},
+                 {"cacheHit", false},
+                 {"incremental", false},
+                 {"duration", metric.duration}});
 
             currentResults.set(results);
             isSearching.clear();
@@ -372,6 +419,39 @@ public:
         // Perform search
         QList<SearchResult> results =
             searchExecutor->searchInPages(pages, query);
+
+        // Allow search plugins to post-process results
+        QList<ISearchPlugin*> searchPlugins =
+            PluginManager::instance().getSearchPlugins();
+        for (ISearchPlugin* plugin : searchPlugins) {
+            if (plugin != nullptr) {
+                QJsonObject jsonOptions;
+                jsonOptions["caseSensitive"] = options.caseSensitive;
+                jsonOptions["wholeWords"] = options.wholeWords;
+                jsonOptions["useRegex"] = options.useRegex;
+
+                if (plugin->canHandleQuery(query, jsonOptions)) {
+                    // Convert SearchResult to PluginSearchResult for processing
+                    QList<PluginSearchResult> pluginResults;
+                    for (const SearchResult& sr : results) {
+                        PluginSearchResult psr;
+                        psr.text = sr.matchedText;
+                        psr.pageNumber = sr.pageNumber;
+                        psr.boundingRect = sr.boundingRect.toRect();
+                        psr.relevanceScore = 1.0;
+                        pluginResults.append(psr);
+                    }
+
+                    // Apply plugin post-processing
+                    pluginResults = plugin->postProcessResults(
+                        pluginResults, query, SearchRankingStrategy::Relevance);
+
+                    // Note: In a full implementation, we would convert back
+                    // and update the results list. For now, plugins can use
+                    // this to add custom ranking metadata.
+                }
+            }
+        }
 
         // Cache results
         if (cacheEnabled.isSet()) {

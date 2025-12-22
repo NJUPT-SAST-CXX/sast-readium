@@ -18,8 +18,8 @@ class PluginHookPoint : public QObject {
     Q_OBJECT
 
 public:
-    explicit PluginHookPoint(const QString& name, QObject* parent = nullptr)
-        : QObject(parent), m_name(name) {}
+    explicit PluginHookPoint(const QString& name, QObject* parent = nullptr);
+    ~PluginHookPoint() override;
 
     QString name() const { return m_name; }
 

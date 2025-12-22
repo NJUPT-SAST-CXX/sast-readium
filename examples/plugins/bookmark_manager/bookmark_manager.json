@@ -1,0 +1,20 @@
+{
+    "name": "Bookmark Manager",
+    "version": "1.0.0",
+    "description": "Bookmark management with categories, navigation, persistence, and cloud sync simulation.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "bookmark.manager",
+        "bookmark.sync",
+        "ui.dock",
+        "ui.menu",
+        "navigation",
+        "settings.persistence"
+    ],
+    "configuration": {
+        "autoSync": false,
+        "defaultCategory": "Default",
+        "maxBookmarksPerDocument": 100
+    }
+}

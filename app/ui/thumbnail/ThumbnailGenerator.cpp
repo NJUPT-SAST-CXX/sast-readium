@@ -7,13 +7,17 @@
 #include <QHash>
 #include <QImageWriter>
 #include <QMutexLocker>
+#include <QOpenGLPaintDevice>
+#include <QPainter>
 #include <QQueue>
 #include <QThread>
 #include <QTimer>
 #include <QtConcurrent/QtConcurrent>
 #include <algorithm>
+#include <limits>
 #include "../../logging/LoggingMacros.h"
 #include "../../model/RenderModel.h"
+#include "../../utils/SafePDFRenderer.h"
 
 // Constants for magic numbers
 namespace {
@@ -52,11 +56,14 @@ ThumbnailGenerator::ThumbnailGenerator(QObject* parent)
       m_compressionEnabled(true),
       m_compressionQuality(DEFAULT_COMPRESSION_QUALITY),
       m_compressedCache(),
+      m_cacheMetadata(),
+      m_cacheMetadataMutex(),
+      m_maxCacheSize(DEFAULT_MAX_CACHE_SIZE),
       m_running(false),
       m_paused(false),
+      m_batchTimer(nullptr),
       m_batchSize(DEFAULT_BATCH_SIZE),
       m_batchInterval(DEFAULT_BATCH_INTERVAL),
-      m_batchTimer(nullptr),
       m_totalGenerated(0),
       m_totalErrors(0),
       m_totalTime(0) {
@@ -549,6 +556,8 @@ QPixmap ThumbnailGenerator::generatePixmap(const GenerationRequest& request) {
             if (cachedData != nullptr) {
                 QPixmap cachedPixmap = decompressPixmap(*cachedData);
                 if (!cachedPixmap.isNull()) {
+                    // 记录缓存访问以更新LRU/LFU统计
+                    recordCacheAccess(request.cacheKey);
                     return cachedPixmap;
                 }
             }
@@ -581,6 +590,8 @@ QPixmap ThumbnailGenerator::generatePixmap(const GenerationRequest& request) {
         if (m_compressionEnabled && !result.isNull()) {
             QByteArray compressedData = compressPixmap(result);
             if (!compressedData.isEmpty()) {
+                // 更新缓存元数据用于LRU/LFU/Adaptive策略
+                updateCacheMetadata(request.cacheKey, compressedData.size());
                 m_compressedCache.insert(request.cacheKey,
                                          new QByteArray(compressedData));
             }
@@ -615,11 +626,17 @@ QPixmap ThumbnailGenerator::renderPageToPixmapOptimized(Poppler::Page* page,
         QSizeF pageSize = page->pageSizeF();
         double dpi = getCachedDPI(size, pageSize, quality);
 
+        // 尝试从内存池获取缓冲区以减少内存分配开销
+        MemoryPoolEntry* poolEntry = acquireMemoryPoolEntry(size);
+
         // 渲染页面 - 直接渲染到目标尺寸附近以减少缩放
         // Use SafePDFRenderer
         QImage image = SafePDFRendering::renderPage(page, dpi);
 
         if (image.isNull()) {
+            if (poolEntry) {
+                releaseMemoryPoolEntry(poolEntry);
+            }
             return {};
         }
 
@@ -627,7 +644,42 @@ QPixmap ThumbnailGenerator::renderPageToPixmapOptimized(Poppler::Page* page,
         if (image.size() != size) {
             Qt::TransformationMode mode =
                 getOptimalTransformationMode(image.size(), size);
+
+            // 如果有内存池条目，使用预分配的缓冲区进行缩放
+            if (poolEntry &&
+                poolEntry->data.size() >= static_cast<qint64>(size.width()) *
+                                              size.height() * BYTES_PER_PIXEL) {
+                // 使用内存池缓冲区创建目标图像
+                QImage scaledImage(
+                    reinterpret_cast<uchar*>(poolEntry->data.data()),
+                    size.width(), size.height(), size.width() * BYTES_PER_PIXEL,
+                    QImage::Format_ARGB32_Premultiplied);
+
+                // 绘制缩放后的图像
+                QPainter painter(&scaledImage);
+                painter.setRenderHint(QPainter::SmoothPixmapTransform,
+                                      mode == Qt::SmoothTransformation);
+                QImage scaledSrc =
+                    image.scaled(size, Qt::KeepAspectRatio, mode);
+
+                // 居中绘制
+                int xOffset = (size.width() - scaledSrc.width()) / 2;
+                int yOffset = (size.height() - scaledSrc.height()) / 2;
+                scaledImage.fill(Qt::transparent);
+                painter.drawImage(xOffset, yOffset, scaledSrc);
+                painter.end();
+
+                // 复制结果（因为内存池缓冲区会被复用）
+                QPixmap result = QPixmap::fromImage(scaledImage.copy());
+                releaseMemoryPoolEntry(poolEntry);
+                return result;
+            }
+
             image = image.scaled(size, Qt::KeepAspectRatio, mode);
+        }
+
+        if (poolEntry) {
+            releaseMemoryPoolEntry(poolEntry);
         }
 
         return QPixmap::fromImage(image);
@@ -853,13 +905,84 @@ void ThumbnailGenerator::generateThumbnailBatch(const QList<int>& pageNumbers,
 }
 
 bool ThumbnailGenerator::initializeGpuContext() {
-    // 简化的GPU初始化 - 在实际项目中需要完整的OpenGL上下文设置
-    // 这里只是检查OpenGL是否可用
     try {
-        // 检查OpenGL支持
-        // 在实际实现中，这里会创建OpenGL上下文
-        return false;  // 暂时禁用GPU加速，直到完整实现
+        // 创建GPU渲染上下文
+        m_gpuContext = std::make_unique<GpuRenderContext>();
+
+        // 设置OpenGL表面格式
+        QSurfaceFormat format;
+        format.setVersion(3, 3);
+        format.setProfile(QSurfaceFormat::CoreProfile);
+        format.setRenderableType(QSurfaceFormat::OpenGL);
+        format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+
+        // 创建离屏表面
+        m_gpuContext->surface = new QOffscreenSurface();
+        m_gpuContext->surface->setFormat(format);
+        m_gpuContext->surface->create();
+
+        if (!m_gpuContext->surface->isValid()) {
+            LOG_WARNING("Failed to create offscreen surface for GPU rendering");
+            cleanupGpuContext();
+            return false;
+        }
+
+        // 创建OpenGL上下文
+        m_gpuContext->context = new QOpenGLContext();
+        m_gpuContext->context->setFormat(format);
+
+        if (!m_gpuContext->context->create()) {
+            LOG_WARNING("Failed to create OpenGL context for GPU rendering");
+            cleanupGpuContext();
+            return false;
+        }
+
+        // 绑定上下文到表面
+        if (!m_gpuContext->context->makeCurrent(m_gpuContext->surface)) {
+            LOG_WARNING("Failed to make OpenGL context current");
+            cleanupGpuContext();
+            return false;
+        }
+
+        // 检查OpenGL版本
+        QOpenGLFunctions* functions = m_gpuContext->context->functions();
+        if (functions == nullptr) {
+            LOG_WARNING("Failed to get OpenGL functions");
+            cleanupGpuContext();
+            return false;
+        }
+
+        // 初始化OpenGL函数
+        functions->initializeOpenGLFunctions();
+
+        // 创建帧缓冲对象用于渲染
+        QOpenGLFramebufferObjectFormat fboFormat;
+        fboFormat.setSamples(4);  // 4x MSAA
+        fboFormat.setAttachment(QOpenGLFramebufferObject::CombinedDepthStencil);
+
+        m_gpuContext->fbo = new QOpenGLFramebufferObject(
+            DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT, fboFormat);
+
+        if (!m_gpuContext->fbo->isValid()) {
+            LOG_WARNING("Failed to create framebuffer object");
+            cleanupGpuContext();
+            return false;
+        }
+
+        m_gpuContext->context->doneCurrent();
+        m_gpuContext->isValid = true;
+
+        LOG_INFO("GPU acceleration initialized successfully");
+        return true;
+
+    } catch (const std::exception& e) {
+        LOG_WARNING("Exception during GPU context initialization: %s",
+                    e.what());
+        cleanupGpuContext();
+        return false;
     } catch (...) {
+        LOG_WARNING("Unknown exception during GPU context initialization");
+        cleanupGpuContext();
         return false;
     }
 }
@@ -874,29 +997,90 @@ void ThumbnailGenerator::cleanupGpuContext() {
 QPixmap ThumbnailGenerator::renderPageToPixmapGpu(Poppler::Page* page,
                                                   const QSize& size,
                                                   double quality) {
-    // GPU rendering is not yet implemented, fall back to CPU rendering
-    // This provides a functional implementation while GPU acceleration can be
-    // added later
     if (page == nullptr) {
         return {};
     }
 
-    // Use CPU rendering as fallback with optimized settings
-    double dpi = 72.0 * quality;  // Scale DPI based on quality
-    QImage image =
-        page->renderToImage(dpi, dpi, -1, -1, -1, -1, Poppler::Page::Rotate0);
-
-    if (image.isNull()) {
-        return {};
+    // 检查GPU上下文是否可用
+    if (!m_gpuContext || !m_gpuContext->isValid) {
+        // 回退到CPU渲染
+        return renderPageToPixmapOptimized(page, size, quality);
     }
 
-    // Scale to requested size if needed
-    if (image.size() != size) {
-        image =
-            image.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    }
+    try {
+        // 绑定OpenGL上下文
+        if (!m_gpuContext->context->makeCurrent(m_gpuContext->surface)) {
+            LOG_WARNING(
+                "Failed to make GPU context current, falling back to CPU");
+            return renderPageToPixmapOptimized(page, size, quality);
+        }
 
-    return QPixmap::fromImage(image);
+        // 确保FBO大小匹配
+        if (m_gpuContext->fbo->size() != size) {
+            delete m_gpuContext->fbo;
+            QOpenGLFramebufferObjectFormat fboFormat;
+            fboFormat.setSamples(4);
+            fboFormat.setAttachment(
+                QOpenGLFramebufferObject::CombinedDepthStencil);
+            m_gpuContext->fbo = new QOpenGLFramebufferObject(size, fboFormat);
+
+            if (!m_gpuContext->fbo->isValid()) {
+                m_gpuContext->context->doneCurrent();
+                return renderPageToPixmapOptimized(page, size, quality);
+            }
+        }
+
+        // 绑定FBO
+        m_gpuContext->fbo->bind();
+
+        // 使用Poppler渲染到QImage
+        double dpi = calculateOptimalDPI(size, page->pageSizeF(), quality);
+        QImage cpuImage = SafePDFRendering::renderPage(page, dpi);
+
+        if (cpuImage.isNull()) {
+            m_gpuContext->fbo->release();
+            m_gpuContext->context->doneCurrent();
+            return {};
+        }
+
+        // 使用QPainter在GPU加速的FBO上绘制
+        QOpenGLPaintDevice paintDevice(size);
+        QPainter painter(&paintDevice);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+
+        // 缩放并绘制
+        QImage scaledImage = cpuImage.scaled(size, Qt::KeepAspectRatio,
+                                             Qt::SmoothTransformation);
+        int xOffset = (size.width() - scaledImage.width()) / 2;
+        int yOffset = (size.height() - scaledImage.height()) / 2;
+
+        painter.fillRect(QRect(QPoint(0, 0), size), Qt::white);
+        painter.drawImage(xOffset, yOffset, scaledImage);
+        painter.end();
+
+        // 从FBO读取结果
+        QImage result = m_gpuContext->fbo->toImage();
+
+        m_gpuContext->fbo->release();
+        m_gpuContext->context->doneCurrent();
+
+        return QPixmap::fromImage(result);
+
+    } catch (const std::exception& e) {
+        LOG_WARNING("GPU rendering failed: %s, falling back to CPU", e.what());
+        if (m_gpuContext && m_gpuContext->context) {
+            m_gpuContext->context->doneCurrent();
+        }
+        return renderPageToPixmapOptimized(page, size, quality);
+    } catch (...) {
+        LOG_WARNING(
+            "GPU rendering failed with unknown error, falling back to CPU");
+        if (m_gpuContext && m_gpuContext->context) {
+            m_gpuContext->context->doneCurrent();
+        }
+        return renderPageToPixmapOptimized(page, size, quality);
+    }
 }
 
 ThumbnailGenerator::MemoryPoolEntry* ThumbnailGenerator::acquireMemoryPoolEntry(
@@ -1036,4 +1220,173 @@ void ThumbnailGenerator::optimizeBatchOrder(
                 return sizeA < sizeB;
             });
     }
+}
+
+// ============================================================================
+// 缓存策略实现
+// ============================================================================
+
+void ThumbnailGenerator::updateCacheMetadata(const QString& key, qint64 size) {
+    QMutexLocker locker(&m_cacheMetadataMutex);
+
+    if (m_cacheMetadata.contains(key)) {
+        // 更新已存在的条目
+        CacheEntryMetadata& metadata = m_cacheMetadata[key];
+        metadata.lastAccessTime = QDateTime::currentMSecsSinceEpoch();
+        metadata.accessCount++;
+        metadata.priority = calculateAdaptivePriority(metadata);
+    } else {
+        // 创建新条目
+        CacheEntryMetadata metadata(key, size);
+        metadata.priority = calculateAdaptivePriority(metadata);
+        m_cacheMetadata[key] = metadata;
+        m_currentCacheSize += size;
+
+        // 检查是否需要驱逐
+        if (m_currentCacheSize > m_maxCacheSize) {
+            locker.unlock();
+            evictCacheEntries(m_currentCacheSize - m_maxCacheSize);
+        }
+    }
+}
+
+void ThumbnailGenerator::recordCacheAccess(const QString& key) {
+    QMutexLocker locker(&m_cacheMetadataMutex);
+
+    auto it = m_cacheMetadata.find(key);
+    if (it != m_cacheMetadata.end()) {
+        it->lastAccessTime = QDateTime::currentMSecsSinceEpoch();
+        it->accessCount++;
+        it->priority = calculateAdaptivePriority(*it);
+    }
+}
+
+QString ThumbnailGenerator::selectEvictionCandidate() const {
+    QMutexLocker locker(&m_cacheMetadataMutex);
+
+    if (m_cacheMetadata.isEmpty()) {
+        return QString();
+    }
+
+    QString candidate;
+    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+
+    switch (m_cacheStrategy) {
+        case CacheStrategy::Lru: {
+            // LRU: 选择最久未访问的条目
+            qint64 oldestTime = std::numeric_limits<qint64>::max();
+            for (auto it = m_cacheMetadata.constBegin();
+                 it != m_cacheMetadata.constEnd(); ++it) {
+                if (it->lastAccessTime < oldestTime) {
+                    oldestTime = it->lastAccessTime;
+                    candidate = it->key;
+                }
+            }
+            break;
+        }
+
+        case CacheStrategy::Lfu: {
+            // LFU: 选择访问次数最少的条目
+            int minCount = std::numeric_limits<int>::max();
+            for (auto it = m_cacheMetadata.constBegin();
+                 it != m_cacheMetadata.constEnd(); ++it) {
+                if (it->accessCount < minCount) {
+                    minCount = it->accessCount;
+                    candidate = it->key;
+                }
+            }
+            break;
+        }
+
+        case CacheStrategy::Adaptive: {
+            // Adaptive: 基于综合优先级选择
+            int lowestPriority = std::numeric_limits<int>::max();
+            for (auto it = m_cacheMetadata.constBegin();
+                 it != m_cacheMetadata.constEnd(); ++it) {
+                if (it->priority < lowestPriority) {
+                    lowestPriority = it->priority;
+                    candidate = it->key;
+                }
+            }
+            break;
+        }
+
+        case CacheStrategy::MemoryAware: {
+            // MemoryAware: 优先驱逐大的、不常用的条目
+            qint64 worstScore = std::numeric_limits<qint64>::max();
+            for (auto it = m_cacheMetadata.constBegin();
+                 it != m_cacheMetadata.constEnd(); ++it) {
+                // 计算得分：(size * age) / accessCount
+                // 更高的得分意味着更应该被驱逐
+                qint64 age = currentTime - it->lastAccessTime;
+                qint64 score = (it->size * age) / qMax(1, it->accessCount);
+                // 我们寻找最高得分来驱逐，但这里用worstScore表示
+                // 反转逻辑：寻找得分最高（最差）的条目
+                if (worstScore == std::numeric_limits<qint64>::max() ||
+                    score > worstScore) {
+                    worstScore = score;
+                    candidate = it->key;
+                }
+            }
+            break;
+        }
+    }
+
+    return candidate;
+}
+
+void ThumbnailGenerator::evictCacheEntries(qint64 requiredSpace) {
+    qint64 freedSpace = 0;
+
+    while (freedSpace < requiredSpace) {
+        QString candidate = selectEvictionCandidate();
+        if (candidate.isEmpty()) {
+            break;
+        }
+
+        // 从压缩缓存中移除
+        m_compressedCache.remove(candidate);
+
+        // 更新元数据
+        QMutexLocker locker(&m_cacheMetadataMutex);
+        auto it = m_cacheMetadata.find(candidate);
+        if (it != m_cacheMetadata.end()) {
+            freedSpace += it->size;
+            m_currentCacheSize -= it->size;
+            m_cacheMetadata.erase(it);
+        }
+    }
+
+    LOG_DEBUG("ThumbnailGenerator: Evicted cache entries, freed %lld bytes",
+              freedSpace);
+}
+
+int ThumbnailGenerator::calculateAdaptivePriority(
+    const CacheEntryMetadata& metadata) const {
+    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+    qint64 age = currentTime - metadata.lastAccessTime;
+
+    // 综合考虑访问频率和新近度
+    // 公式: priority = accessCount * recencyWeight - sizeWeight
+    // 高优先级 = 更多访问 + 更近的访问 - 更小的尺寸
+
+    // 新近度权重：最近1分钟内的访问获得高分
+    int recencyScore = 0;
+    if (age < 60000) {  // 1分钟
+        recencyScore = 100;
+    } else if (age < 300000) {  // 5分钟
+        recencyScore = 50;
+    } else if (age < 600000) {  // 10分钟
+        recencyScore = 20;
+    }
+
+    // 访问频率得分
+    int frequencyScore = qMin(metadata.accessCount * 10, 100);
+
+    // 尺寸惩罚：较大的条目优先级降低
+    int sizePenalty =
+        static_cast<int>(metadata.size / (1024 * 10));  // 每10KB扣1分
+    sizePenalty = qMin(sizePenalty, 50);
+
+    return recencyScore + frequencyScore - sizePenalty;
 }

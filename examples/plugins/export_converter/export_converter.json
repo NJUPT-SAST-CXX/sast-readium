@@ -1,0 +1,19 @@
+{
+    "name": "Export Converter",
+    "version": "1.0.0",
+    "description": "Multi-format document export supporting TXT, HTML, and Markdown with customizable templates.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "export.text",
+        "export.html",
+        "export.markdown",
+        "document.processor",
+        "ui.menu"
+    ],
+    "configuration": {
+        "defaultFormat": "txt",
+        "includeMetadata": true,
+        "htmlTemplate": "default"
+    }
+}

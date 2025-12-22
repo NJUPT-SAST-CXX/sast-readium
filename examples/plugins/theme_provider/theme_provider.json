@@ -1,0 +1,20 @@
+{
+    "name": "Theme Provider",
+    "version": "1.0.0",
+    "description": "Custom theme support with dynamic switching, persistence, and built-in themes (Light, Dark, Sepia, Nord, Solarized).",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "theme.provider",
+        "theme.custom",
+        "settings.persistence",
+        "ui.extension",
+        "menu",
+        "hooks"
+    ],
+    "configuration": {
+        "activeTheme": "light",
+        "enableCustomThemes": true,
+        "autoSaveTheme": true
+    }
+}

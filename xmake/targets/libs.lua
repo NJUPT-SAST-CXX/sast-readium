@@ -78,9 +78,27 @@ target("ElaWidgetTools")
         set_optimize("fastest")
         add_defines("NDEBUG")
         set_symbols("hidden")
+
+        -- Size optimization: dead code elimination
+        add_cxxflags("-ffunction-sections", "-fdata-sections", {tools = {"gcc", "clang"}})
+        if is_plat("windows", "linux") then
+            add_ldflags("-Wl,--gc-sections", {tools = {"gcc", "clang"}})
+        elseif is_plat("macosx") then
+            add_ldflags("-Wl,-dead_strip", {tools = {"gcc", "clang"}})
+        end
+
+        -- Strip shared libraries if requested
+        if has_config("strip_binaries") then
+            add_ldflags("-s", {tools = {"gcc", "clang"}})
+        end
     else
         set_optimize("none")
-        set_symbols("debug")
+        -- Use split debug info in debug mode for smaller binaries
+        if has_config("split_debug_info") then
+            add_cxxflags("-g1", {tools = {"gcc", "clang"}})
+        else
+            set_symbols("debug")
+        end
         add_defines("DEBUG", "_DEBUG")
     end
 
@@ -144,9 +162,27 @@ target("ElaPacketIO")
         set_optimize("fastest")
         add_defines("NDEBUG")
         set_symbols("hidden")
+
+        -- Size optimization: dead code elimination
+        add_cxxflags("-ffunction-sections", "-fdata-sections", {tools = {"gcc", "clang"}})
+        if is_plat("windows", "linux") then
+            add_ldflags("-Wl,--gc-sections", {tools = {"gcc", "clang"}})
+        elseif is_plat("macosx") then
+            add_ldflags("-Wl,-dead_strip", {tools = {"gcc", "clang"}})
+        end
+
+        -- Strip shared libraries if requested
+        if has_config("strip_binaries") then
+            add_ldflags("-s", {tools = {"gcc", "clang"}})
+        end
     else
         set_optimize("none")
-        set_symbols("debug")
+        -- Use split debug info in debug mode for smaller binaries
+        if has_config("split_debug_info") then
+            add_cxxflags("-g1", {tools = {"gcc", "clang"}})
+        else
+            set_symbols("debug")
+        end
         add_defines("DEBUG", "_DEBUG")
     end
 

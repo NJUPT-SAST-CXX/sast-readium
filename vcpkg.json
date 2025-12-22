@@ -1,4 +1,5 @@
 {
+    "$comment": "vcpkg manifest for SAST Readium - optimized for minimal build size",
     "name": "sast-readium",
     "version": "1.0.0",
     "description": "A Qt6-based PDF reader application with comprehensive build support for multiple environments",
@@ -6,15 +7,13 @@
     "license": "MIT",
     "dependencies": [
         {
+            "$comment": "Core Qt6 with minimal features for smaller build",
             "name": "qtbase",
             "default-features": false,
             "features": [
                 "concurrent",
                 "gui",
-                "network",
                 "opengl",
-                "sql-sqlite",
-                "testlib",
                 "thread",
                 "widgets"
             ]

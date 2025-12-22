@@ -1,0 +1,19 @@
+{
+    "name": "Keyboard Shortcuts",
+    "version": "1.0.0",
+    "description": "Custom command registration and keyboard shortcut management with conflict detection and persistence.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "command.register",
+        "shortcut.custom",
+        "command.palette",
+        "ui.extension",
+        "settings.persistence"
+    ],
+    "configuration": {
+        "enableCommandPalette": true,
+        "showShortcutsInMenu": true,
+        "autoSave": true
+    }
+}

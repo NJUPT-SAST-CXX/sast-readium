@@ -74,11 +74,11 @@ void PreloadTask::run() {
 
         // Scope for mutex lock - critical section for document access
         {
-            std::unique_ptr<QMutexLocker> locker;
+            std::unique_ptr<QMutexLocker<QMutex>> locker;
             if (m_mutex) {
-                locker = std::make_unique<QMutexLocker>(m_mutex);
+                locker = std::make_unique<QMutexLocker<QMutex>>(m_mutex);
             }
-            page.reset(m_document->page(m_pageNumber));
+            page = m_document->page(m_pageNumber);
         }
 
         if (!page) {

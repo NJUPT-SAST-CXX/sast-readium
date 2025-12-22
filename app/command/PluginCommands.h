@@ -7,9 +7,7 @@
 #include <memory>
 
 #include "../logging/SimpleLogging.h"
-
-// Forward declarations
-class PluginManager;
+#include "../plugin/PluginManager.h"
 
 /**
  * @brief Base class for plugin-related commands

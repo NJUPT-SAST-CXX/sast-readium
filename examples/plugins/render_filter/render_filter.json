@@ -1,0 +1,27 @@
+{
+    "name": "Render Filter",
+    "version": "1.0.0",
+    "description": "Provides page rendering filters including night mode, sepia, grayscale, and watermark overlay. Demonstrates IRenderPlugin interface.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "render.filter",
+        "render.night_mode",
+        "render.sepia",
+        "render.grayscale",
+        "render.watermark",
+        "render.overlay",
+        "hooks",
+        "thread-safe"
+    ],
+    "configuration": {
+        "activeFilter": "none",
+        "brightness": 0,
+        "contrast": 0,
+        "enableWatermark": false,
+        "watermarkText": "SAMPLE",
+        "watermarkColor": "#808080",
+        "watermarkOpacity": 30,
+        "watermarkSize": 48
+    }
+}

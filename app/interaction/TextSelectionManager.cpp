@@ -5,6 +5,10 @@
 
 #include <QMultiHash>
 
+namespace {
+constexpr int SPATIAL_GRID_SIZE = 50;  // Grid cell size for spatial indexing
+}
+
 TextSelectionManager::TextSelectionManager(QObject* parent)
     : QObject(parent),
       m_currentPage(nullptr),

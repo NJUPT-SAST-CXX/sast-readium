@@ -7,11 +7,17 @@
 #include "model/RenderModel.h"
 
 // Annotation system
-#include "ui/integration/AnnotationIntegrationHelper.h"
+#include "delegate/AnnotationRenderDelegate.h"
+#include "ui/managers/AnnotationSelectionManager.h"
 
 // Interaction managers
 #include "forms/FormFieldManager.h"
 #include "interaction/TextSelectionManager.h"
+
+// Plugin system
+#include "plugin/IRenderPlugin.h"
+#include "plugin/PluginHookRegistry.h"
+#include "plugin/PluginManager.h"
 
 // Logging
 #include "logging/SimpleLogging.h"
@@ -20,6 +26,9 @@
 #include <poppler/qt6/poppler-annotation.h>
 #include <poppler/qt6/poppler-link.h>
 #include <poppler/qt6/poppler-qt6.h>
+
+// STL
+#include <map>
 
 // Qt
 #include <QClipboard>
@@ -44,14 +53,14 @@ class PageWidget : public QWidget {
 
 public:
     explicit PageWidget(int pageNumber,
-                        AnnotationIntegrationHelper* annotationHelper = nullptr,
+                        AnnotationRenderDelegate* annotationDelegate = nullptr,
                         TextSelectionManager* selectionManager = nullptr,
                         FormFieldManager* formManager = nullptr,
                         double zoomFactor = 1.0, QWidget* parent = nullptr)
         : QWidget(parent),
           m_pageNumber(pageNumber),
           m_rotation(0),
-          m_annotationHelper(annotationHelper),
+          m_annotationDelegate(annotationDelegate),
           m_selectionManager(selectionManager),
           m_formManager(formManager),
           m_zoomFactor(zoomFactor),
@@ -202,11 +211,11 @@ protected:
         // ============================================================
         // ANNOTATION RENDERING
         // ============================================================
-        if (m_annotationHelper) {
+        if (m_annotationDelegate) {
             // Render annotations on top of the page
             // Note: pageNumber is 0-based for rendering
-            m_annotationHelper->renderAnnotations(&painter, m_pageNumber,
-                                                  rect(), m_zoomFactor);
+            m_annotationDelegate->renderAnnotations(&painter, m_pageNumber,
+                                                    rect(), m_zoomFactor);
         }
 
         painter.restore();  // Restore rotation transform
@@ -223,7 +232,7 @@ private:
     QImage m_nightImage;  // Cache for night mode
     int m_rotation;
     QList<QRectF> m_highlights;
-    AnnotationIntegrationHelper* m_annotationHelper;
+    AnnotationRenderDelegate* m_annotationDelegate;
     TextSelectionManager* m_selectionManager;
     FormFieldManager* m_formManager;
     double m_zoomFactor;
@@ -258,7 +267,8 @@ public:
     QWidget* emptyStateWidget = nullptr;
 
     // Annotation system
-    AnnotationIntegrationHelper* annotationHelper = nullptr;
+    AnnotationRenderDelegate* annotationDelegate = nullptr;
+    AnnotationSelectionManager* annotationSelectionManager = nullptr;
 
     // Interaction Managers
     std::unique_ptr<TextSelectionManager> textSelectionManager;
@@ -283,8 +293,9 @@ public:
         3;  // Pages to keep rendered around visible area
     QList<QWidget*> placeholderWidgets;  // Placeholders for non-rendered pages
 
-    // Link hover cache
-    QMap<int, std::vector<std::unique_ptr<Poppler::Link>>> cachedLinks;
+    // Link hover cache - using std::map for proper move semantics with
+    // unique_ptr
+    std::map<int, std::vector<std::unique_ptr<Poppler::Link>>> cachedLinks;
     int lastHoveredPage = -1;
     QRectF lastHoveredLinkArea;
 
@@ -301,10 +312,11 @@ public:
         if (!document)
             return {};
 
-        // Check cache first
-        QList<Poppler::Link*> cached;
-        if (cachedLinks.contains(pageNumber)) {
-            const auto& storedLinks = cachedLinks[pageNumber];
+        // Check cache first using find() - std::map supports move-only types
+        auto cacheIt = cachedLinks.find(pageNumber);
+        if (cacheIt != cachedLinks.end()) {
+            QList<Poppler::Link*> cached;
+            const auto& storedLinks = cacheIt->second;
             cached.reserve(static_cast<int>(storedLinks.size()));
             for (const auto& linkPtr : storedLinks) {
                 cached.append(linkPtr.get());
@@ -323,7 +335,8 @@ public:
         for (auto& linkPtr : pageLinks) {
             rawLinks.append(linkPtr.get());
         }
-        cachedLinks[pageNumber] = std::move(pageLinks);
+        // Use emplace to properly move the vector of unique_ptrs
+        cachedLinks.emplace(pageNumber, std::move(pageLinks));
         return rawLinks;
     }
 
@@ -552,6 +565,12 @@ void PDFViewer::setZoom(double zoomFactor) {
     m_impl->zoomFactor = zoomFactor;
     m_impl->clearCache();
 
+    // CACHE FIX: Clear prerenderer cache when zoom changes
+    // Prerendered pages at old zoom level are no longer valid
+    if (m_impl->prerenderer) {
+        m_impl->prerenderer->clearPrerenderQueue();
+    }
+
     // Update zoom factor in all PageWidgets
     for (PageWidget* widget : m_impl->pageWidgets) {
         if (widget) {
@@ -636,9 +655,11 @@ void PDFViewer::rotateLeft() {
     m_impl->rotation = (m_impl->rotation - 90 + 360) % 360;
     SLOG_INFO_F("PDFViewer: Rotated left to {} degrees", m_impl->rotation);
 
-    // 更新所有页面的旋转
+    // NULL CHECK FIX: Validate widget pointer before accessing
     for (PageWidget* widget : m_impl->pageWidgets) {
-        widget->setRotation(m_impl->rotation);
+        if (widget) {
+            widget->setRotation(m_impl->rotation);
+        }
     }
 
     updateLayout();
@@ -750,6 +771,28 @@ void PDFViewer::toggleSearch() {}
 void PDFViewer::findNext() {}
 void PDFViewer::findPrevious() {}
 void PDFViewer::clearSearch() {}
+
+// ============================================================================
+// 夜间模式
+// ============================================================================
+
+void PDFViewer::setNightMode(bool enabled) {
+    if (m_impl->isNightMode == enabled) {
+        return;
+    }
+
+    SLOG_INFO_F("PDFViewer: Setting night mode to {}", enabled);
+    m_impl->isNightMode = enabled;
+
+    // Update all PageWidgets
+    for (PageWidget* widget : m_impl->pageWidgets) {
+        if (widget) {
+            widget->setNightMode(enabled);
+        }
+    }
+}
+
+bool PDFViewer::isNightMode() const { return m_impl->isNightMode; }
 
 // ============================================================================
 // 工具模式
@@ -873,17 +916,16 @@ void PDFViewer::setQGraphicsHighQualityRendering(bool enabled) {
                 enabled ? "enabled" : "disabled");
 }
 
-void PDFViewer::setAnnotationHelper(AnnotationIntegrationHelper* helper) {
-    m_impl->annotationHelper = helper;
-    SLOG_INFO("PDFViewer: AnnotationIntegrationHelper set");
+void PDFViewer::setAnnotationRenderDelegate(
+    AnnotationRenderDelegate* delegate) {
+    m_impl->annotationDelegate = delegate;
+    SLOG_INFO("PDFViewer: AnnotationRenderDelegate set");
+}
 
-    // Update existing PageWidgets if any
-    for (PageWidget* widget : m_impl->pageWidgets) {
-        if (widget) {
-            // Note: PageWidget doesn't have a setter, but it will be set on
-            // next render The helper is passed during PageWidget construction
-        }
-    }
+void PDFViewer::setAnnotationSelectionManager(
+    AnnotationSelectionManager* manager) {
+    m_impl->annotationSelectionManager = manager;
+    SLOG_INFO("PDFViewer: AnnotationSelectionManager set");
 }
 
 // ============================================================================
@@ -1183,6 +1225,101 @@ void PDFViewer::mouseReleaseEvent(QMouseEvent* event) {
     ElaScrollArea::mouseReleaseEvent(event);
 }
 
+void PDFViewer::keyPressEvent(QKeyEvent* event) {
+    if (!hasDocument()) {
+        ElaScrollArea::keyPressEvent(event);
+        return;
+    }
+
+    switch (event->key()) {
+        case Qt::Key_PageDown:
+        case Qt::Key_Space:
+            goToNextPage();
+            event->accept();
+            return;
+
+        case Qt::Key_PageUp:
+        case Qt::Key_Backspace:
+            goToPreviousPage();
+            event->accept();
+            return;
+
+        case Qt::Key_Home:
+            if ((event->modifiers() & Qt::ControlModifier) != 0) {
+                goToFirstPage();
+                event->accept();
+                return;
+            }
+            break;
+
+        case Qt::Key_End:
+            if ((event->modifiers() & Qt::ControlModifier) != 0) {
+                goToLastPage();
+                event->accept();
+                return;
+            }
+            break;
+
+        case Qt::Key_Plus:
+        case Qt::Key_Equal:
+            if ((event->modifiers() & Qt::ControlModifier) != 0) {
+                zoomIn();
+                event->accept();
+                return;
+            }
+            break;
+
+        case Qt::Key_Minus:
+            if ((event->modifiers() & Qt::ControlModifier) != 0) {
+                zoomOut();
+                event->accept();
+                return;
+            }
+            break;
+
+        case Qt::Key_0:
+            if ((event->modifiers() & Qt::ControlModifier) != 0) {
+                setZoom(1.0);  // Reset to 100%
+                event->accept();
+                return;
+            }
+            break;
+
+        case Qt::Key_Left:
+            if (m_impl->viewMode == ViewMode::SinglePage) {
+                goToPreviousPage();
+                event->accept();
+                return;
+            }
+            break;
+
+        case Qt::Key_Right:
+            if (m_impl->viewMode == ViewMode::SinglePage) {
+                goToNextPage();
+                event->accept();
+                return;
+            }
+            break;
+
+        case Qt::Key_C:
+            if ((event->modifiers() & Qt::ControlModifier) != 0) {
+                // Copy selected text
+                if (m_impl->textSelectionManager &&
+                    m_impl->textSelectionManager->hasSelection()) {
+                    m_impl->textSelectionManager->copySelectionToClipboard();
+                    event->accept();
+                    return;
+                }
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    ElaScrollArea::keyPressEvent(event);
+}
+
 // ============================================================================
 // 渲染相关私有方法
 // ============================================================================
@@ -1321,6 +1458,29 @@ void PDFViewer::renderPage(int pageNumber) {
             return;
         }
     }
+
+    // Allow render plugins to apply filters to the rendered image
+    QList<IRenderPlugin*> renderPlugins =
+        PluginManager::instance().getRenderPlugins();
+    for (IRenderPlugin* plugin : renderPlugins) {
+        if (plugin != nullptr) {
+            QJsonObject context;
+            context["pageNumber"] = pageNumber;
+            context["zoomFactor"] = m_impl->zoomFactor;
+            context["rotation"] = m_impl->rotation;
+
+            if (plugin->shouldProcessPage(QString(), pageNumber - 1)) {
+                // Apply filter to image
+                plugin->applyFilter(image, pageNumber - 1, context);
+            }
+        }
+    }
+
+    // Execute post-render hook for plugins
+    PluginHookRegistry::instance().executeHook(
+        StandardHooks::RENDER_POST_PAGE, {{"pageNumber", pageNumber},
+                                          {"zoomFactor", m_impl->zoomFactor},
+                                          {"rotation", m_impl->rotation}});
 
     // 更新本地缓存
     m_impl->addToCache(pageNumber, image);
@@ -1610,7 +1770,7 @@ void PDFViewer::applySinglePageMode() {
 
     // 只显示当前页
     PageWidget* pageWidget = new PageWidget(
-        m_impl->currentPage, m_impl->annotationHelper,
+        m_impl->currentPage, m_impl->annotationDelegate,
         m_impl->textSelectionManager.get(), m_impl->formFieldManager.get(),
         m_impl->zoomFactor, m_impl->contentWidget);
     pageWidget->setNightMode(m_impl->isNightMode);
@@ -1652,7 +1812,7 @@ void PDFViewer::applyContinuousMode() {
     // 创建所有页面 widget（但只渲染可见的）
     for (int i = 1; i <= m_impl->totalPages; ++i) {
         PageWidget* pageWidget = new PageWidget(
-            i, m_impl->annotationHelper, m_impl->textSelectionManager.get(),
+            i, m_impl->annotationDelegate, m_impl->textSelectionManager.get(),
             m_impl->formFieldManager.get(), m_impl->zoomFactor,
             m_impl->contentWidget);
         pageWidget->setNightMode(m_impl->isNightMode);
@@ -1703,7 +1863,7 @@ void PDFViewer::applyTwoPageMode() {
 
         // 左页
         PageWidget* leftPage = new PageWidget(
-            i, m_impl->annotationHelper, m_impl->textSelectionManager.get(),
+            i, m_impl->annotationDelegate, m_impl->textSelectionManager.get(),
             m_impl->formFieldManager.get(), m_impl->zoomFactor, rowWidget);
         leftPage->setNightMode(m_impl->isNightMode);
         m_impl->pageWidgets.append(leftPage);
@@ -1712,7 +1872,7 @@ void PDFViewer::applyTwoPageMode() {
         // 右页（如果存在）
         if (i + 1 <= m_impl->totalPages) {
             PageWidget* rightPage = new PageWidget(
-                i + 1, m_impl->annotationHelper,
+                i + 1, m_impl->annotationDelegate,
                 m_impl->textSelectionManager.get(),
                 m_impl->formFieldManager.get(), m_impl->zoomFactor, rowWidget);
             rightPage->setNightMode(m_impl->isNightMode);
@@ -1745,7 +1905,7 @@ void PDFViewer::applyBookMode() {
     // 第一页单独显示
     if (m_impl->totalPages >= 1) {
         PageWidget* firstPage = new PageWidget(
-            1, m_impl->annotationHelper, m_impl->textSelectionManager.get(),
+            1, m_impl->annotationDelegate, m_impl->textSelectionManager.get(),
             m_impl->formFieldManager.get(), m_impl->zoomFactor,
             m_impl->contentWidget);
         firstPage->setNightMode(m_impl->isNightMode);
@@ -1762,7 +1922,7 @@ void PDFViewer::applyBookMode() {
 
         // 左页
         PageWidget* leftPage = new PageWidget(
-            i, m_impl->annotationHelper, m_impl->textSelectionManager.get(),
+            i, m_impl->annotationDelegate, m_impl->textSelectionManager.get(),
             m_impl->formFieldManager.get(), m_impl->zoomFactor, rowWidget);
         leftPage->setNightMode(m_impl->isNightMode);
         m_impl->pageWidgets.append(leftPage);
@@ -1771,7 +1931,7 @@ void PDFViewer::applyBookMode() {
         // 右页（如果存在）
         if (i + 1 <= m_impl->totalPages) {
             PageWidget* rightPage = new PageWidget(
-                i + 1, m_impl->annotationHelper,
+                i + 1, m_impl->annotationDelegate,
                 m_impl->textSelectionManager.get(),
                 m_impl->formFieldManager.get(), m_impl->zoomFactor, rowWidget);
             rightPage->setNightMode(m_impl->isNightMode);

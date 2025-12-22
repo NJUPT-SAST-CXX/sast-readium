@@ -127,6 +127,24 @@ if has_config("enable_tests") then
                 add_frameworks("CoreFoundation", "CoreServices")
             end
 
+            -- Test executable size optimizations
+            if is_mode("debug") then
+                -- Use minimal debug info for tests to reduce executable size (50-70% reduction)
+                if has_config("split_debug_info") then
+                    add_cxxflags("-g1", {tools = {"gcc", "clang"}})
+                end
+            elseif is_mode("release") then
+                -- Strip test executables in release mode
+                if has_config("strip_binaries") then
+                    add_ldflags("-s", {tools = {"gcc", "clang"}})
+                end
+            end
+
+            -- Reduce GNU ld memory footprint when linking large test binaries
+            if is_plat("windows") then
+                add_ldflags("-Wl,--no-keep-memory", "-Wl,--reduce-memory-overheads", {tools = {"gcc"}})
+            end
+
             if timeout then
                 add_defines("TEST_TIMEOUT=" .. timeout)
             end

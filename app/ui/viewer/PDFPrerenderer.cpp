@@ -132,7 +132,28 @@ void PDFPrerenderer::requestPrerender(int pageNumber, double scaleFactor,
     request.timestamp = QDateTime::currentMSecsSinceEpoch();
 
     m_renderQueue.enqueue(request);
+
+    // DISPATCH FIX: Distribute request to an available worker
+    // Round-robin distribution to workers
+    if (!m_workers.isEmpty() && m_isRunning && !m_isPaused) {
+        static int workerIndex = 0;
+        int selectedWorker = workerIndex % m_workers.size();
+        m_workers[selectedWorker]->addRenderRequest(request);
+        workerIndex++;
+    }
+
     m_queueCondition.wakeOne();
+}
+
+void PDFPrerenderer::clearPrerenderQueue() {
+    QMutexLocker locker(&m_queueMutex);
+    m_renderQueue.clear();
+    // Also clear pending requests in workers
+    for (auto* worker : m_workers) {
+        if (worker) {
+            worker->clearQueue();
+        }
+    }
 }
 
 QPixmap PDFPrerenderer::getCachedPage(int pageNumber, double scaleFactor,
@@ -706,6 +727,13 @@ QPixmap PDFRenderWorker::renderPage(
         qDebug() << "PDFPrerenderer: Safe rendering failed for page"
                  << request.pageNumber << "Error:" << renderInfo.errorMessage;
         return QPixmap();
+    }
+
+    // ROTATION FIX: Apply rotation if requested
+    if (request.rotation != 0) {
+        QTransform transform;
+        transform.rotate(request.rotation);
+        image = image.transformed(transform, Qt::SmoothTransformation);
     }
 
     // Convert to pixmap and set device pixel ratio for proper high-DPI scaling

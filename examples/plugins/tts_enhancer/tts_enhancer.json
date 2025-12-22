@@ -1,0 +1,21 @@
+{
+    "name": "TTS Enhancer",
+    "version": "1.0.0",
+    "description": "Text-to-Speech with voice selection, speed control, highlight sync, and auto-advance.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "tts.control",
+        "tts.voices",
+        "ui.toolbar",
+        "ui.dock",
+        "accessibility"
+    ],
+    "configuration": {
+        "rate": 1.0,
+        "volume": 1.0,
+        "autoAdvance": true,
+        "highlightSync": true,
+        "defaultVoice": ""
+    }
+}

@@ -4,13 +4,22 @@
 #include "controller/ServiceLocator.h"
 #include "plugin/PluginManager.h"
 
+// Plugin Configuration Dialogs
+#include "ui/dialogs/PluginConfigDialog.h"
+#include "ui/dialogs/PluginSetupWizard.h"
+
 // ElaWidgetTools
 #include "ElaComboBox.h"
+#include "ElaContentDialog.h"
+#include "ElaInteractiveCard.h"
 #include "ElaLineEdit.h"
 #include "ElaMessageBar.h"
+#include "ElaProgressRing.h"
 #include "ElaPushButton.h"
 #include "ElaTableView.h"
 #include "ElaText.h"
+#include "ElaToggleSwitch.h"
+#include "ElaToolTip.h"
 
 // Qt
 #include <QEvent>
@@ -33,7 +42,16 @@
 // ============================================================================
 
 PluginManagerPage::PluginManagerPage(QWidget* parent)
-    : ElaScrollPage(parent), m_pluginManager(nullptr), m_filterCategory(0) {
+    : ElaScrollPage(parent),
+      m_pluginManager(nullptr),
+      m_enableToggle(nullptr),
+      m_installProgressRing(nullptr),
+      m_cardViewWidget(nullptr),
+      m_selectedPluginName(),
+      m_filterText(),
+      m_filterCategory(0),
+      m_useCardView(false),
+      m_isInstalling(false) {
     SLOG_INFO("PluginManagerPage: Constructor started");
 
     // Set window title for navigation
@@ -219,6 +237,24 @@ void PluginManagerPage::setupPluginDetails() {
     m_detailsLayout->addWidget(m_pluginFeaturesEdit);
 
     m_detailsLayout->addStretch();
+
+    // Enable toggle switch with label
+    auto* toggleLayout = new QHBoxLayout();
+    auto* enableLabel = new ElaText(tr("Enabled:"), m_detailsWidget);
+    enableLabel->setTextPixelSize(13);
+    toggleLayout->addWidget(enableLabel);
+
+    m_enableToggle = new ElaToggleSwitch(m_detailsWidget);
+    m_enableToggle->setEnabled(false);
+    toggleLayout->addWidget(m_enableToggle);
+    toggleLayout->addStretch();
+    m_detailsLayout->addLayout(toggleLayout);
+
+    // Installation progress ring (initially hidden)
+    m_installProgressRing = new ElaProgressRing(m_detailsWidget);
+    m_installProgressRing->setFixedSize(40, 40);
+    m_installProgressRing->setVisible(false);
+    m_detailsLayout->addWidget(m_installProgressRing, 0, Qt::AlignCenter);
 
     // Action buttons
     m_actionButtonsLayout = new QHBoxLayout();
@@ -516,6 +552,26 @@ void PluginManagerPage::onEnableDisableClicked() {
     bool currentlyEnabled =
         m_pluginManager->isPluginEnabled(m_selectedPluginName);
 
+    if (!currentlyEnabled) {
+        // Enabling plugin - check if setup wizard is needed
+        if (m_pluginManager->needsSetupWizard(m_selectedPluginName)) {
+            // Show setup wizard
+            PluginSetupWizard wizard(m_selectedPluginName, this);
+            if (wizard.exec() != QDialog::Accepted || !wizard.wasCompleted()) {
+                // User cancelled or didn't complete wizard
+                ElaMessageBar::warning(ElaMessageBarType::TopRight,
+                                       tr("Setup Required"),
+                                       tr("Plugin setup was not completed. "
+                                          "The plugin will remain disabled."),
+                                       3000, this);
+                return;
+            }
+
+            // Mark as configured after successful wizard completion
+            m_pluginManager->markPluginConfigured(m_selectedPluginName, true);
+        }
+    }
+
     m_pluginManager->setPluginEnabled(m_selectedPluginName, !currentlyEnabled);
 
     // Update UI
@@ -526,6 +582,9 @@ void PluginManagerPage::onEnableDisableClicked() {
         currentlyEnabled ? tr("Plugin disabled") : tr("Plugin enabled");
     SLOG_INFO(QString("PluginManagerPage: %1: %2")
                   .arg(message, m_selectedPluginName));
+
+    ElaMessageBar::success(ElaMessageBarType::TopRight, tr("Success"), message,
+                           2000, this);
 }
 
 void PluginManagerPage::onInstallClicked() {
@@ -647,20 +706,24 @@ void PluginManagerPage::onConfigureClicked() {
         return;
     }
 
-    // TODO: Implement plugin configuration dialog
-    auto* dialog = new ElaContentDialog(this);
-    dialog->setWindowTitle(tr("Plugin Configuration"));
-    auto* w = new QWidget(dialog);
-    auto* l = new QVBoxLayout(w);
-    l->addWidget(new ElaText(tr("Plugin configuration coming soon!"), w));
-    dialog->setCentralWidget(w);
-    dialog->setLeftButtonText(QString());
-    dialog->setMiddleButtonText(QString());
-    dialog->setRightButtonText(tr("OK"));
-    connect(dialog, &ElaContentDialog::rightButtonClicked, dialog,
-            &ElaContentDialog::close);
-    dialog->exec();
-    dialog->deleteLater();
+    // Check if plugin has configuration
+    if (!m_pluginManager->hasConfigSchema(m_selectedPluginName)) {
+        ElaMessageBar::information(
+            ElaMessageBarType::TopRight, tr("No Configuration"),
+            tr("This plugin has no configurable settings."), 2000, this);
+        return;
+    }
+
+    // Show configuration dialog
+    PluginConfigDialog dialog(m_selectedPluginName, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        ElaMessageBar::success(
+            ElaMessageBarType::TopRight, tr("Configuration Saved"),
+            tr("Plugin configuration has been saved."), 2000, this);
+
+        // Mark plugin as configured
+        m_pluginManager->markPluginConfigured(m_selectedPluginName, true);
+    }
 }
 
 void PluginManagerPage::onRefreshClicked() { refreshPluginList(); }

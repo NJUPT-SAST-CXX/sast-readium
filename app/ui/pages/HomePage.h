@@ -12,9 +12,16 @@ class ElaText;
 class ElaScrollArea;
 class ElaScrollPageArea;
 class ElaPushButton;
+class ElaProgressRing;
 class QVBoxLayout;
 class QHBoxLayout;
 class RecentFilesManager;
+class WelcomeWidget;
+class OnboardingWidget;
+class OnboardingManager;
+class WelcomeScreenManager;
+class CommandManager;
+class SkeletonWidget;
 
 /**
  * @brief HomePage - 主页/欢迎页面
@@ -25,9 +32,13 @@ class RecentFilesManager;
  * Features:
  * - Application branding and introduction
  * - Quick action buttons (Open File, Recent Files, Settings)
- * - Recent files list with thumbnails
+ * - Recent files list with thumbnails (RecentFileListWidget)
  * - Application version information
  * - Links to GitHub and documentation
+ * - Tutorial cards for new users
+ * - Onboarding support for first-time users
+ * - Loading skeleton for async content
+ * - Daily tips and keyboard shortcuts
  */
 class HomePage : public ElaScrollPage {
     Q_OBJECT
@@ -38,6 +49,14 @@ public:
 
     // Manager setters
     void setRecentFilesManager(RecentFilesManager* manager);
+    void setOnboardingManager(OnboardingManager* manager);
+    void setWelcomeScreenManager(WelcomeScreenManager* manager);
+    void setCommandManager(CommandManager* manager);
+
+    // Onboarding control
+    void startOnboarding();
+    void stopOnboarding();
+    bool isOnboardingActive() const;
 
 public slots:
     void refreshRecentFiles();
@@ -47,6 +66,10 @@ signals:
     void openRecentFileRequested(const QString& filePath);
     void showSettingsRequested();
     void showAboutRequested();
+    void tutorialRequested(const QString& tutorialId);
+    void showDocumentationRequested();
+    void newFileRequested();
+    void openFolderRequested();
 
 protected:
     void changeEvent(QEvent* event) override;
@@ -60,10 +83,16 @@ private:
     void setupQuickActionsSection();
     void setupRecentFilesSection();
     void setupInfoSection();
+    void setupTutorialSection();
+    void setupTipsSection();
+    void initializeTips();
+    void setupWelcomeWidget();
     void createRecentFileItem(const QString& filePath, const QString& fileName,
                               const QDateTime& lastOpened);
     void clearRecentFilesList();
     void updateEmptyRecentFilesState();
+    void showLoadingSkeleton();
+    void hideLoadingSkeleton();
 
 private slots:
     void onRecentFileClicked(const QString& filePath);
@@ -72,6 +101,14 @@ private slots:
 private:
     // Managers
     RecentFilesManager* m_recentFilesManager;
+    OnboardingManager* m_onboardingManager;
+    WelcomeScreenManager* m_welcomeScreenManager;
+    CommandManager* m_commandManager;
+
+    // Enhanced widgets
+    WelcomeWidget* m_welcomeWidget;
+    OnboardingWidget* m_onboardingWidget;
+    SkeletonWidget* m_loadingSkeleton;
 
     // UI Components - Title Section
     ElaImageCard* m_backgroundCard;
@@ -101,8 +138,22 @@ private:
     ElaText* m_versionText;
     ElaText* m_copyrightText;
 
+    // UI Components - Tutorial Section
+    ElaText* m_tutorialTitle;
+    QWidget* m_tutorialContainer;
+    QHBoxLayout* m_tutorialLayout;
+
+    // UI Components - Tips Section
+    ElaScrollPageArea* m_tipsContainer;
+    ElaText* m_tipsTitle;
+    ElaText* m_currentTipLabel;
+    ElaPushButton* m_nextTipButton;
+    int m_currentTipIndex;
+    QStringList m_tips;
+
     // State
     bool m_isInitialized;
+    bool m_useEnhancedWelcome;  // Toggle between simple and enhanced welcome
 };
 
 #endif  // HOMEPAGE_H

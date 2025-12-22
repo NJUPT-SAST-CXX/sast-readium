@@ -43,6 +43,11 @@ class ToastNotification : public QWidget {
     Q_PROPERTY(qreal opacity READ opacity WRITE setOpacity)
 
 public:
+    static ToastNotification& instance() {
+        static ToastNotification instance;
+        return instance;
+    }
+
     enum class Type {
         Info,     // Blue - informational messages
         Success,  // Green - successful operations

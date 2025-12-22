@@ -237,6 +237,25 @@ private:
         MemoryPoolEntry() : lastUsed(0), inUse(false) {}
     };
 
+    // 缓存条目元数据 - 用于LRU/LFU策略
+    struct CacheEntryMetadata {
+        QString key;
+        qint64 lastAccessTime;  // LRU: 最后访问时间
+        int accessCount;        // LFU: 访问次数
+        qint64 size;            // 条目大小（字节）
+        int priority;           // Adaptive: 综合优先级
+
+        CacheEntryMetadata()
+            : lastAccessTime(0), accessCount(0), size(0), priority(0) {}
+
+        CacheEntryMetadata(const QString& k, qint64 sz)
+            : key(k),
+              lastAccessTime(QDateTime::currentMSecsSinceEpoch()),
+              accessCount(1),
+              size(sz),
+              priority(0) {}
+    };
+
     void initializeGenerator();
     void cleanupJobs();
     void startNextJob();
@@ -324,6 +343,12 @@ private:
     int m_compressionQuality;
     QCache<QString, QByteArray> m_compressedCache;
 
+    // 缓存策略管理
+    QHash<QString, CacheEntryMetadata> m_cacheMetadata;
+    mutable QMutex m_cacheMetadataMutex;
+    qint64 m_maxCacheSize;
+    std::atomic<qint64> m_currentCacheSize{0};
+
     // 状态
     bool m_running;
     bool m_paused;
@@ -359,4 +384,13 @@ private:
         static_cast<qint64>(80) * 1024 * 1024;         // 80MB
     static constexpr int GPU_CONTEXT_TIMEOUT = 5000;   // 5秒
     static constexpr int COMPRESSED_CACHE_SIZE = 200;  // 缓存条目数
+    static constexpr qint64 DEFAULT_MAX_CACHE_SIZE =
+        static_cast<qint64>(128) * 1024 * 1024;  // 128MB
+
+    // 缓存策略辅助方法
+    void updateCacheMetadata(const QString& key, qint64 size);
+    void recordCacheAccess(const QString& key);
+    QString selectEvictionCandidate() const;
+    void evictCacheEntries(qint64 requiredSpace);
+    int calculateAdaptivePriority(const CacheEntryMetadata& metadata) const;
 };

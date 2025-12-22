@@ -809,6 +809,56 @@ function(setup_install_targets TARGET_NAME)
 endfunction()
 
 #[=======================================================================[.rst:
+setup_upx_compression
+---------------------
+
+Setup UPX compression for executables.
+
+.. code-block:: cmake
+
+  setup_upx_compression(TARGET_NAME)
+
+Compresses the target executable using UPX if:
+- SAST_UPX_COMPRESS option is enabled
+- UPX tool is found in PATH
+- Build type is Release or MinSizeRel
+
+Benefits:
+- 50-70% smaller executable size
+- Self-extracting at runtime (small performance overhead)
+- Ideal for distribution when download size matters
+
+#]=======================================================================]
+function(setup_upx_compression TARGET_NAME)
+    if(NOT SAST_UPX_COMPRESS)
+        return()
+    endif()
+
+    # Only compress for release builds
+    if(NOT CMAKE_BUILD_TYPE MATCHES "Release|MinSizeRel")
+        message(VERBOSE "UPX compression skipped for non-release build")
+        return()
+    endif()
+
+    find_program(UPX_PROGRAM upx)
+    if(NOT UPX_PROGRAM)
+        message(WARNING "UPX not found - executable compression disabled. Install UPX for smaller binaries.")
+        return()
+    endif()
+
+    message(STATUS "UPX compression enabled for ${TARGET_NAME}")
+
+    # Add post-build UPX compression command
+    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+        COMMAND ${UPX_PROGRAM} --best --lzma -q $<TARGET_FILE:${TARGET_NAME}>
+        COMMENT "Compressing ${TARGET_NAME} with UPX (--best --lzma)..."
+        VERBATIM
+    )
+
+    message(VERBOSE "UPX post-build compression configured with --best --lzma")
+endfunction()
+
+#[=======================================================================[.rst:
 normalize_architecture_name
 ---------------------------
 
@@ -1128,10 +1178,21 @@ function(add_deploy_qt_command TARGET_NAME)
             message(VERBOSE "  Using minimal deployment configuration")
             list(APPEND DEPLOY_COMMAND
                 # Skip entire plugin categories not needed by the application
-                --skip-plugin-types qmltooling,generic,networkinformation,position,sensors,webview
+                # qmltooling: QML debugging tools
+                # generic: Generic input plugins
+                # networkinformation: Network status plugins
+                # position: GPS/positioning plugins
+                # sensors: Hardware sensor plugins
+                # webview: Web browser plugins
+                # multimedia: Audio/video plugins (not used in PDF reader)
+                # sqldrivers: Database plugins (not needed)
+                # scenegraph: QML scene graph plugins
+                # texttospeech: TTS engine plugins (we use system TTS)
+                # tls: TLS/SSL backend plugins (using system SSL)
+                --skip-plugin-types qmltooling,generic,networkinformation,position,sensors,webview,multimedia,sqldrivers,scenegraph
 
                 # Exclude specific plugins
-                --exclude-plugins qtuiotouchplugin,qtvirtualkeyboardplugin
+                --exclude-plugins qtuiotouchplugin,qtvirtualkeyboardplugin,qoffscreen,qminimal
 
                 # Don't deploy unnecessary Qt modules
                 --no-quick-import          # No QML/Quick

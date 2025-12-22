@@ -80,6 +80,16 @@ void ThumbnailWidget::setupAnimations() {
     connect(m_selectionAnimation, &QPropertyAnimation::finished, this,
             &ThumbnailWidget::onSelectionAnimationFinished);
 
+    // 阴影动画 - 用于悬停时增强阴影效果
+    m_shadowAnimation = new QPropertyAnimation(this, "shadowOpacity", this);
+    m_shadowAnimation->setDuration(HOVER_ANIMATION_DURATION);
+    m_shadowAnimation->setEasingCurve(QEasingCurve::OutCubic);
+
+    // 边框动画 - 用于选中状态的边框高亮
+    m_borderAnimation = new QPropertyAnimation(this, "borderOpacity", this);
+    m_borderAnimation->setDuration(SELECTION_ANIMATION_DURATION);
+    m_borderAnimation->setEasingCurve(QEasingCurve::InOutQuad);
+
     // 加载动画定时器
     m_loadingTimer = new QTimer(this);
     m_loadingTimer->setInterval(LOADING_TIMER_INTERVAL);  // 20 FPS
@@ -456,3 +466,75 @@ QColor ThumbnailWidget::getPageNumberTextColor() const {
 QColor ThumbnailWidget::getLoadingColor() const { return STYLE.primaryColor(); }
 
 QColor ThumbnailWidget::getErrorColor() const { return STYLE.errorColor(); }
+
+void ThumbnailWidget::drawShadow(QPainter& painter, const QRect& rect) {
+    // 手动绘制阴影效果（当QGraphicsDropShadowEffect不可用时使用）
+    // 通常我们使用m_shadowEffect，但这个方法提供了备选方案
+
+    if (m_shadowOpacity <= 0.001) {
+        return;
+    }
+
+    painter.save();
+
+    // 创建阴影渐变
+    QColor shadowColor = getShadowColor();
+    shadowColor.setAlphaF(m_shadowOpacity * 0.5);
+
+    // 绘制多层阴影以模拟模糊效果
+    for (int i = SHADOW_BLUR_RADIUS; i > 0; i -= 2) {
+        QColor layerColor = shadowColor;
+        layerColor.setAlphaF(
+            shadowColor.alphaF() *
+            (1.0 - static_cast<double>(i) / SHADOW_BLUR_RADIUS));
+
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(layerColor);
+
+        QRect shadowRect = rect.adjusted(-i + SHADOW_OFFSET, -i + SHADOW_OFFSET,
+                                         i + SHADOW_OFFSET, i + SHADOW_OFFSET);
+        painter.drawRoundedRect(shadowRect, BORDER_RADIUS + i / 2,
+                                BORDER_RADIUS + i / 2);
+    }
+
+    painter.restore();
+}
+
+void ThumbnailWidget::updateBorderEffect() {
+    // 更新边框效果动画
+    if (!m_borderAnimation) {
+        return;
+    }
+
+    switch (m_state) {
+        case State::Selected:
+            // 选中状态：完全不透明的边框
+            if (m_borderAnimation->state() != QAbstractAnimation::Running) {
+                m_borderAnimation->setStartValue(m_borderOpacity);
+                m_borderAnimation->setEndValue(1.0);
+                m_borderAnimation->start();
+            }
+            break;
+
+        case State::Hovered:
+            // 悬停状态：半透明边框
+            if (m_borderAnimation->state() != QAbstractAnimation::Running) {
+                m_borderAnimation->setStartValue(m_borderOpacity);
+                m_borderAnimation->setEndValue(0.7);
+                m_borderAnimation->start();
+            }
+            break;
+
+        case State::Normal:
+        case State::Loading:
+        case State::Error:
+        default:
+            // 其他状态：隐藏边框
+            if (m_borderOpacity > 0.001) {
+                m_borderAnimation->setStartValue(m_borderOpacity);
+                m_borderAnimation->setEndValue(0.0);
+                m_borderAnimation->start();
+            }
+            break;
+    }
+}

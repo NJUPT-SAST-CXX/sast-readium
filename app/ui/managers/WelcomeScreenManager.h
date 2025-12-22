@@ -16,6 +16,11 @@ class WelcomeScreenManager : public QObject {
     Q_OBJECT
 
 public:
+    static WelcomeScreenManager& instance() {
+        static WelcomeScreenManager instance;
+        return instance;
+    }
+
     explicit WelcomeScreenManager(QObject* parent = nullptr);
     ~WelcomeScreenManager();
 

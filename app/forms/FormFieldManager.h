@@ -19,6 +19,11 @@ class FormFieldManager : public QObject {
     Q_OBJECT
 
 public:
+    static FormFieldManager& instance() {
+        static FormFieldManager instance;
+        return instance;
+    }
+
     explicit FormFieldManager(QObject* parent = nullptr);
     ~FormFieldManager();
 

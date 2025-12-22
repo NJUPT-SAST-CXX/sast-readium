@@ -58,6 +58,11 @@ class TextSelectionManager : public QObject {
     Q_OBJECT
 
 public:
+    static TextSelectionManager& instance() {
+        static TextSelectionManager instance;
+        return instance;
+    }
+
     explicit TextSelectionManager(QObject* parent = nullptr);
     ~TextSelectionManager();
 
@@ -114,6 +119,8 @@ private:
     void analyzeTextLayout();
     bool isNewLine(int charIndex) const;
     bool isWordBoundary(int charIndex) const;
+    void buildSpatialIndex();
+    qint64 getSpatialKey(const QPointF& point) const;
 
     std::unique_ptr<Poppler::Page> m_currentPage;
     int m_pageNumber;
@@ -133,4 +140,7 @@ private:
 
     bool m_textBoxesExtracted;
     bool m_layoutAnalyzed;
+
+    // Spatial index for O(1) character lookup
+    QMultiHash<qint64, int> m_spatialIndex;
 };

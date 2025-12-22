@@ -6,6 +6,8 @@
 #include <QDebug>
 #include <QDir>
 #include <QFileDialog>
+#include <QPainter>
+#include <QPdfWriter>
 #include <QRegularExpression>
 #include <QStandardPaths>
 #include <stdexcept>
@@ -501,32 +503,49 @@ QString ThumbnailContextMenu::getPageInfoText(int pageNumber) const {
 
 void ThumbnailContextMenu::exportPageAsPDF(Poppler::Page* page,
                                            const QString& filePath) {
-    if (!page) {
+    if (page == nullptr) {
         return;
     }
 
-    // For PDF export without QPrinter, we'll save as high-quality PNG instead
-    // and inform the user about the format change
-    QImage image = page->renderToImage(300, 300);  // High DPI for quality
+    // 获取页面尺寸（点为单位）
+    QSizeF pageSize = page->pageSizeF();
+
+    // 渲染页面为高质量图像
+    constexpr int PDF_EXPORT_DPI = 300;
+    QImage image = page->renderToImage(PDF_EXPORT_DPI, PDF_EXPORT_DPI);
     if (image.isNull()) {
         throw std::runtime_error("Failed to render page for export");
     }
 
-    // Change extension to PNG since we can't create PDF without QPrinter
-    QString pngFilePath = filePath;
-    pngFilePath.replace(
-        QRegularExpression("\\.pdf$",
-                           QRegularExpression::CaseInsensitiveOption),
-        ".png");
+    // 使用QPdfWriter创建PDF文件
+    QPdfWriter pdfWriter(filePath);
 
-    if (!image.save(pngFilePath, "PNG")) {
-        throw std::runtime_error("Failed to save image file");
+    // 设置页面尺寸（从点转换为毫米：1点 = 0.352778mm）
+    constexpr double POINTS_TO_MM = 0.352778;
+    QPageSize pdfPageSize(QSizeF(pageSize.width() * POINTS_TO_MM,
+                                 pageSize.height() * POINTS_TO_MM),
+                          QPageSize::Millimeter);
+    pdfWriter.setPageSize(pdfPageSize);
+    pdfWriter.setPageMargins(QMarginsF(0, 0, 0, 0));
+    pdfWriter.setResolution(PDF_EXPORT_DPI);
+
+    // 设置PDF元数据
+    pdfWriter.setTitle(QString("Page Export"));
+    pdfWriter.setCreator("SAST Readium");
+
+    // 使用QPainter绘制图像到PDF
+    QPainter painter(&pdfWriter);
+    if (!painter.isActive()) {
+        throw std::runtime_error("Failed to create PDF painter");
     }
 
-    // Inform user about format change if needed
-    if (pngFilePath != filePath) {
-        TOAST_INFO(parentWidget(),
-                   QString("PDF导出功能暂不可用，已保存为高质量PNG格式:\n%1")
-                       .arg(pngFilePath));
-    }
+    // 计算绘制区域以保持宽高比
+    QRect targetRect(0, 0, pdfWriter.width(), pdfWriter.height());
+
+    // 绘制图像，保持原始质量
+    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.drawImage(targetRect, image);
+
+    painter.end();
 }

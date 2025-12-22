@@ -150,7 +150,7 @@ private:
         QString name;
         QString description;
         bool enabled;
-        std::unique_ptr<PluginHookPoint> hookPoint;
+        std::shared_ptr<PluginHookPoint> hookPoint;
 
         HookMetadata() : enabled(true) {}
     };

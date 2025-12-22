@@ -1,0 +1,19 @@
+{
+    "name": "Page Navigator",
+    "version": "1.0.0",
+    "description": "Advanced page navigation with history, quick jump, and visual navigation tools.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "navigation.history",
+        "navigation.quickjump",
+        "ui.dock",
+        "ui.toolbar",
+        "ui.menu"
+    ],
+    "configuration": {
+        "maxHistorySize": 50,
+        "showMinimap": true,
+        "showPageSlider": true
+    }
+}

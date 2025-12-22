@@ -6,11 +6,16 @@
 #include "ElaScrollPage.h"
 
 // Forward declarations - ElaWidgetTools
-class ElaTableView;
+class ElaText;
 class ElaPushButton;
+class ElaTableView;
 class ElaLineEdit;
 class ElaComboBox;
-class ElaText;
+class ElaContentDialog;
+class ElaToggleSwitch;
+class ElaProgressRing;
+class ElaInteractiveCard;
+class ElaToolTip;
 class ElaCheckBox;
 
 // Forward declarations - Qt
@@ -124,6 +129,14 @@ private:
     ElaPushButton* m_uninstallBtn;
     ElaPushButton* m_configureBtn;
 
+    // Enhanced components
+    ElaToggleSwitch* m_enableToggle;
+    ElaProgressRing* m_installProgressRing;
+    QWidget* m_cardViewWidget;
+    QList<ElaInteractiveCard*> m_pluginCards;
+    ElaContentDialog* m_installDialog;
+    ElaToolTip* m_pluginToolTip;
+
     // Main splitter
     QSplitter* m_mainSplitter;
 
@@ -138,6 +151,8 @@ private:
     QString m_selectedPluginName;
     QString m_filterText;
     int m_filterCategory;  // 0=All, 1=Enabled, 2=Disabled, 3=Loaded, 4=Error
+    bool m_useCardView;    // Toggle between table and card view
+    bool m_isInstalling;   // Track installation state
 
     // Column indices for table view
     enum ColumnIndex {

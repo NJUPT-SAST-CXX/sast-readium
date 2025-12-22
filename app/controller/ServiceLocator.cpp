@@ -88,7 +88,8 @@ void ServiceLocator::registerServiceFactory(const QString& typeName,
 }
 
 void ServiceLocator::registerServiceInstance(const QString& typeName,
-                                             QObject* instance) {
+                                             QObject* instance,
+                                             ServiceOwnership ownership) {
     if (!instance) {
         m_logger.error(
             QString("Cannot register null service instance: %1").arg(typeName));
@@ -387,7 +388,8 @@ void ServiceRegistry::registerCoreServices() {
     }
 
     try {
-        m_locator->registerService<CommandManager>(&CommandManager::instance());
+        m_locator->registerService<CommandManager>(
+            &GlobalCommandManager::instance());
         logger.debug("Registered CommandManager");
     } catch (const std::exception& e) {
         logger.error(
@@ -439,9 +441,10 @@ void ServiceRegistry::registerCoreServices() {
     m_locator->registerService<PDFCacheManager, PDFCacheManager>();
     logger.debug("Registered PDFCacheManager factory");
 
-    // AccessibilityManager is typically created per-window
-    m_locator->registerService<AccessibilityManager, AccessibilityManager>();
-    logger.debug("Registered AccessibilityManager factory");
+    // TODO: AccessibilityManager factory causes linker issues - needs proper
+    // initialization m_locator->registerService<AccessibilityManager,
+    // AccessibilityManager>(); logger.debug("Registered AccessibilityManager
+    // factory");
 
     logger.info(QString(
         "Core services registered successfully (7 singletons, 2 factories)"));
@@ -594,15 +597,17 @@ void ServiceRegistry::registerUIServices() {
             QString("Failed to register HighlightManager: %1").arg(e.what()));
     }
 
-    try {
-        m_locator->registerService<ReadingModeManager>(
-            &ReadingModeManager::instance());
-        logger.debug("Registered ReadingModeManager");
-        successCount++;
-    } catch (const std::exception& e) {
-        logger.error(
-            QString("Failed to register ReadingModeManager: %1").arg(e.what()));
-    }
+    // TODO: ReadingModeManager singleton causes linker issues - needs proper
+    // initialization try {
+    //     m_locator->registerService<ReadingModeManager>(
+    //         &ReadingModeManager::instance());
+    //     logger.debug("Registered ReadingModeManager");
+    //     successCount++;
+    // } catch (const std::exception& e) {
+    //     logger.error(
+    //         QString("Failed to register ReadingModeManager:
+    //         %1").arg(e.what()));
+    // }
 
     try {
         m_locator->registerService<SplitViewManager>(
@@ -716,15 +721,17 @@ void ServiceRegistry::registerControllerServices() {
                          .arg(e.what()));
     }
 
-    try {
-        m_locator->registerService<FormFieldManager>(
-            &FormFieldManager::instance());
-        logger.debug("Registered FormFieldManager");
-        successCount++;
-    } catch (const std::exception& e) {
-        logger.error(
-            QString("Failed to register FormFieldManager: %1").arg(e.what()));
-    }
+    // TODO: FormFieldManager singleton causes linker issues - needs proper
+    // initialization try {
+    //     m_locator->registerService<FormFieldManager>(
+    //         &FormFieldManager::instance());
+    //     logger.debug("Registered FormFieldManager");
+    //     successCount++;
+    // } catch (const std::exception& e) {
+    //     logger.error(
+    //         QString("Failed to register FormFieldManager:
+    //         %1").arg(e.what()));
+    // }
 
     // Note: DocumentController, PageController, ApplicationController, and
     // AccessibilityController are typically created and managed by the

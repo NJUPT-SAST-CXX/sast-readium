@@ -11,6 +11,11 @@ class SplitViewManager : public QObject {
     Q_OBJECT
 
 public:
+    static SplitViewManager& instance() {
+        static SplitViewManager instance(nullptr);
+        return instance;
+    }
+
     enum SplitMode { None, Horizontal, Vertical };
 
     explicit SplitViewManager(QWidget* parentWidget, QObject* parent = nullptr);

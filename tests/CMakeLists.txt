@@ -72,6 +72,7 @@ set(COMMAND_TESTS
     test_document_commands
     test_initialization_command
     test_navigation_commands
+    test_accessibility_commands
 )
 
 foreach(test_name IN LISTS COMMAND_TESTS)
@@ -194,21 +195,26 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/factory/test_model_factory_concrete.cpp)
 endif()
 
 # ============================================================================
-# Plugin Tests - Plugin system core and base/context
+# Plugin Tests - Plugin system core, base/context, hooks, and extensions
 # ============================================================================
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin_manager_core.cpp)
-    create_test_target(test_plugin_manager_core
-        SOURCES plugin/test_plugin_manager_core.cpp
-        TIMEOUT 300
-    )
-endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin_base_and_context.cpp)
-    create_test_target(test_plugin_base_and_context
-        SOURCES plugin/test_plugin_base_and_context.cpp
-        TIMEOUT 300
-    )
-endif()
+# Define plugin tests
+set(PLUGIN_TESTS
+    test_plugin_manager_core
+    test_plugin_base_and_context
+    test_plugin_hook_registry
+    test_plugin_extension_points
+    test_plugin_specialized_interfaces
+)
+
+foreach(test_name IN LISTS PLUGIN_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/plugin/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES plugin/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
 
 # ============================================================================
 # Integration Tests - Multi-component integration tests
@@ -266,6 +272,24 @@ endif()
 # ============================================================================
 # Managers Tests - Manager component tests
 # ============================================================================
+
+# New managers tests
+set(MANAGERS_TESTS
+    test_highlight_manager
+    test_keyboard_shortcut_manager
+    test_onboarding_manager
+    test_system_tray_manager
+    test_file_type_icon_manager
+)
+
+foreach(test_name IN LISTS MANAGERS_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/managers/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES managers/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
 
 # Windows Path Test - Uses GTest, requires special handling - Updated with correct filename
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/managers/test_windows_path.cpp)
@@ -325,6 +349,105 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/model/test_render_model.cpp)
     )
 endif()
 
+# New model tests
+set(MODEL_TESTS
+    test_accessibility_model
+    test_annotation_model
+    test_bookmark_model
+    test_page_model
+    test_thumbnail_model
+)
+
+foreach(test_name IN LISTS MODEL_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/model/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES model/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
+
+# ============================================================================
+# Delegate Tests - Delegate pattern implementation tests
+# ============================================================================
+
+set(DELEGATE_TESTS
+    test_annotation_render_delegate
+    test_page_navigation_delegate
+    test_plugin_list_delegate
+    test_thumbnail_delegate
+    test_view_delegate
+)
+
+foreach(test_name IN LISTS DELEGATE_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/delegate/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES delegate/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
+
+# ============================================================================
+# Interaction Tests - User interaction handling tests
+# ============================================================================
+
+set(INTERACTION_TESTS
+    test_annotation_interaction_handler
+    test_multi_page_text_selection
+    test_text_selection_manager
+)
+
+foreach(test_name IN LISTS INTERACTION_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/interaction/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES interaction/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
+
+# ============================================================================
+# Adapters Tests - Adapter pattern implementation tests
+# ============================================================================
+
+set(ADAPTERS_TESTS
+    test_document_adapter
+    test_page_adapter
+    test_search_adapter
+    test_view_adapter
+)
+
+foreach(test_name IN LISTS ADAPTERS_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/adapters/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES adapters/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
+
+# ============================================================================
+# Security Tests - Security feature tests
+# ============================================================================
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/security/test_signature_verifier.cpp)
+    create_test_target(test_signature_verifier
+        SOURCES security/test_signature_verifier.cpp
+        TIMEOUT 300
+    )
+endif()
+
+# ============================================================================
+# Accessibility Tests - Accessibility feature tests
+# ============================================================================
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/accessibility/test_accessibility_manager.cpp)
+    create_test_target(test_accessibility_manager
+        SOURCES accessibility/test_accessibility_manager.cpp
+        TIMEOUT 300
+    )
+endif()
 
 # ============================================================================
 # Performance Tests - Performance benchmarks and optimization tests
@@ -503,147 +626,258 @@ endif()
 
 # ============================================================================
 # UI Tests - User interface integration tests
+# Organized by subdirectory to mirror app/ui/ structure
 # ============================================================================
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_debug_log_panel_integration.cpp)
-    create_test_target(test_debug_log_panel_integration
-        SOURCES ui/test_debug_log_panel_integration.cpp
-        TIMEOUT 600
-    )
-endif()
+# ----------------------------------------------------------------------------
+# UI Core Tests - Core UI components (MenuBar, ToolBar, StatusBar, SideBar, etc.)
+# ----------------------------------------------------------------------------
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_tool_bar_integration.cpp)
-    create_test_target(test_tool_bar_integration
-        SOURCES ui/test_tool_bar_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+set(UI_CORE_TESTS
+    test_menu_bar_integration
+    test_side_bar_integration
+    test_right_side_bar_integration
+    test_status_bar_integration
+    test_status_bar_functionality_comprehensive
+    test_tool_bar_integration
+    test_toolbar_functionality_comprehensive
+    test_view_widget_integration
+    test_view_widget_functionality_comprehensive
+    test_keyboard_shortcut_comprehensive
+    test_menu_functionality_comprehensive
+    test_ui_performance_comprehensive
+    test_context_menu_manager
+    test_ui_consistency_manager
+    test_ui_error_handler
+    test_ui_recovery_manager
+    test_ui_resource_manager
+    test_ui_state_manager
+)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_thumbnail_generator_integration.cpp)
-    create_test_target(test_thumbnail_generator_integration
-        SOURCES ui/test_thumbnail_generator_integration.cpp
-        TIMEOUT 600
-    )
-endif()
+foreach(test_name IN LISTS UI_CORE_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/core/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES ui/core/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_document_comparison_integration.cpp)
-    create_test_target(test_document_comparison_integration
-        SOURCES ui/test_document_comparison_integration.cpp
-        TIMEOUT 600
-    )
-endif()
+# ----------------------------------------------------------------------------
+# UI Dialogs Tests - Dialog components
+# ----------------------------------------------------------------------------
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_document_metadata_dialog_integration.cpp)
-    create_test_target(test_document_metadata_dialog_integration
-        SOURCES ui/test_document_metadata_dialog_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+set(UI_DIALOGS_TESTS
+    test_document_comparison
+    test_document_comparison_integration
+    test_document_metadata_dialog_integration
+    test_settings_dialog
+    test_settings_dialog_integration
+)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_menu_bar_integration.cpp)
-    create_test_target(test_menu_bar_integration
-        SOURCES ui/test_menu_bar_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+foreach(test_name IN LISTS UI_DIALOGS_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/dialogs/${test_name}.cpp")
+        set(_timeout 300)
+        if("${test_name}" STREQUAL "test_document_comparison_integration")
+            set(_timeout 600)
+        endif()
+        create_test_target(${test_name}
+            SOURCES ui/dialogs/${test_name}.cpp
+            TIMEOUT ${_timeout}
+        )
+    endif()
+endforeach()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_mainwindow_ui_improvements.cpp)
-    create_test_target(test_mainwindow_ui_improvements
-        SOURCES ui/test_mainwindow_ui_improvements.cpp
-        TIMEOUT 300
-    )
-endif()
+# ----------------------------------------------------------------------------
+# UI Integration Tests - Cross-component integration tests
+# ----------------------------------------------------------------------------
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_pdf_animations_integration.cpp)
-    create_test_target(test_pdf_animations_integration
-        SOURCES ui/test_pdf_animations_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+set(UI_INTEGRATION_TESTS
+    test_ui_workflow_integration_comprehensive
+    test_final_integration_comprehensive
+    test_annotation_integration_helper
+)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_pdf_outline_widget_integration.cpp)
-    create_test_target(test_pdf_outline_widget_integration
-        SOURCES ui/test_pdf_outline_widget_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+foreach(test_name IN LISTS UI_INTEGRATION_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/integration/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES ui/integration/${test_name}.cpp
+            TIMEOUT 600
+        )
+    endif()
+endforeach()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_pdf_viewer_integration.cpp)
-    create_test_target(test_pdf_viewer_integration
-        SOURCES ui/test_pdf_viewer_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+# ----------------------------------------------------------------------------
+# UI Managers Tests - UI manager components
+# ----------------------------------------------------------------------------
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_right_side_bar_integration.cpp)
-    create_test_target(test_right_side_bar_integration
-        SOURCES ui/test_right_side_bar_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+set(UI_MANAGERS_TESTS
+    test_welcome_screen_manager_integration
+    test_annotation_selection_manager
+)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_search_widget_integration.cpp)
-    create_test_target(test_search_widget_integration
-        SOURCES ui/test_search_widget_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+foreach(test_name IN LISTS UI_MANAGERS_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/managers/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES ui/managers/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_side_bar_integration.cpp)
-    create_test_target(test_side_bar_integration
-        SOURCES ui/test_side_bar_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+# ----------------------------------------------------------------------------
+# UI Pages Tests - Page components
+# ----------------------------------------------------------------------------
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_status_bar_integration.cpp)
-    create_test_target(test_status_bar_integration
-        SOURCES ui/test_status_bar_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+set(UI_PAGES_TESTS
+    test_mainwindow_ui_improvements
+    test_about_page
+    test_home_page
+    test_pdf_viewer_page
+    test_plugin_manager_page
+    test_settings_page
+)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_thumbnail_context_menu_integration.cpp)
-    create_test_target(test_thumbnail_context_menu_integration
-        SOURCES ui/test_thumbnail_context_menu_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+foreach(test_name IN LISTS UI_PAGES_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/pages/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES ui/pages/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_thumbnail_list_view_integration.cpp)
-    create_test_target(test_thumbnail_list_view_integration
-        SOURCES ui/test_thumbnail_list_view_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+# ----------------------------------------------------------------------------
+# UI Theme Tests - Theme and reading mode components
+# ----------------------------------------------------------------------------
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_thumbnail_widget_integration.cpp)
-    create_test_target(test_thumbnail_widget_integration
-        SOURCES ui/test_thumbnail_widget_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+set(UI_THEME_TESTS
+    test_reading_mode_manager
+)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_view_widget_integration.cpp)
-    create_test_target(test_view_widget_integration
-        SOURCES ui/test_view_widget_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+foreach(test_name IN LISTS UI_THEME_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/theme/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES ui/theme/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_welcome_screen_manager_integration.cpp)
-    create_test_target(test_welcome_screen_manager_integration
-        SOURCES ui/test_welcome_screen_manager_integration.cpp
-        TIMEOUT 300
-    )
-endif()
+# ----------------------------------------------------------------------------
+# UI Thumbnail Tests - Thumbnail system components
+# ----------------------------------------------------------------------------
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qgraphics_components.cpp)
-    create_test_target(test_qgraphics_components
-        SOURCES ui/test_qgraphics_components.cpp
-        TIMEOUT 300
-    )
-endif()
+set(UI_THUMBNAIL_TESTS
+    test_thumbnail_generator_integration
+    test_thumbnail_context_menu_integration
+    test_thumbnail_list_view_integration
+    test_thumbnail_widget_integration
+)
+
+foreach(test_name IN LISTS UI_THUMBNAIL_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/thumbnail/${test_name}.cpp")
+        set(_timeout 300)
+        if("${test_name}" STREQUAL "test_thumbnail_generator_integration")
+            set(_timeout 600)
+        endif()
+        create_test_target(${test_name}
+            SOURCES ui/thumbnail/${test_name}.cpp
+            TIMEOUT ${_timeout}
+        )
+    endif()
+endforeach()
+
+# ----------------------------------------------------------------------------
+# UI Utils Tests - UI utility components
+# ----------------------------------------------------------------------------
+
+set(UI_UTILS_TESTS
+    test_validation_utils
+)
+
+foreach(test_name IN LISTS UI_UTILS_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/utils/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES ui/utils/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
+
+# ----------------------------------------------------------------------------
+# UI Viewer Tests - PDF viewer components
+# ----------------------------------------------------------------------------
+
+set(UI_VIEWER_TESTS
+    test_pdf_viewer_integration
+    test_pdf_animations_integration
+    test_pdf_outline_widget_integration
+    test_qgraphics_components
+    test_pdf_prerenderer
+    test_pdf_viewer_components
+    test_split_view_manager
+)
+
+foreach(test_name IN LISTS UI_VIEWER_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/viewer/${test_name}.cpp")
+        create_test_target(${test_name}
+            SOURCES ui/viewer/${test_name}.cpp
+            TIMEOUT 300
+        )
+    endif()
+endforeach()
+
+# ----------------------------------------------------------------------------
+# UI Widgets Tests - Widget components
+# ----------------------------------------------------------------------------
+
+set(UI_WIDGETS_TESTS
+    test_debug_log_panel_integration
+    test_search_widget_integration
+    test_search_widget_functionality_comprehensive
+    test_welcome_widget_functionality
+    test_accessibility_settings_widget
+    test_annotation_settings_widget
+    test_annotation_toolbar
+    test_annotations_panel
+    test_bookmark_panel
+    test_bookmark_widget
+    test_cache_settings_widget
+    test_document_properties_panel
+    test_document_settings_widget
+    test_document_tab_widget
+    test_enhanced_focus_indicator
+    test_layers_panel
+    test_logging_settings_widget
+    test_notification_helper
+    test_onboarding_widget
+    test_outline_panel
+    test_plugin_settings_widget
+    test_properties_panel
+    test_recent_file_list_widget
+    test_search_panel
+    test_search_settings_widget
+    test_shortcut_settings_widget
+    test_skeleton_widget
+    test_system_tray_settings_widget
+    test_thumbnail_panel
+    test_toast_notification
+    test_tutorial_card
+)
+
+foreach(test_name IN LISTS UI_WIDGETS_TESTS)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ui/widgets/${test_name}.cpp")
+        set(_timeout 300)
+        if("${test_name}" STREQUAL "test_debug_log_panel_integration")
+            set(_timeout 600)
+        endif()
+        create_test_target(${test_name}
+            SOURCES ui/widgets/${test_name}.cpp
+            TIMEOUT ${_timeout}
+        )
+    endif()
+endforeach()
 
 # ============================================================================
 # Utils Tests - Utility component tests
@@ -680,6 +914,21 @@ endif()
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/test_pdf_optimizations.cpp)
     create_test_target(test_pdf_optimizations
         SOURCES utils/test_pdf_optimizations.cpp
+        TIMEOUT 300
+    )
+endif()
+
+# New utils tests
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/test_safe_pdf_renderer.cpp)
+    create_test_target(test_safe_pdf_renderer
+        SOURCES utils/test_safe_pdf_renderer.cpp
+        TIMEOUT 300
+    )
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/utils/test_resources_init.cpp)
+    create_test_target(test_resources_init
+        SOURCES utils/test_resources_init.cpp
         TIMEOUT 300
     )
 endif()
@@ -737,17 +986,22 @@ message(NOTICE "  Default test timeout: 300 seconds")
 message(NOTICE "  Test organization: Mirrors app/ directory structure")
 message(NOTICE "")
 message(NOTICE "Test directories:")
+message(NOTICE "  - accessibility/: Accessibility feature tests")
+message(NOTICE "  - adapters/     : Adapter pattern tests")
 message(NOTICE "  - cache/        : Cache subsystem tests")
 message(NOTICE "  - command/      : Command pattern tests")
 message(NOTICE "  - controller/   : Controller and service tests")
+message(NOTICE "  - delegate/     : Delegate pattern tests")
 message(NOTICE "  - factory/      : Factory pattern tests")
 message(NOTICE "  - integration/  : Multi-component integration tests")
+message(NOTICE "  - interaction/  : User interaction tests")
 message(NOTICE "  - logging/      : Logging system tests")
 message(NOTICE "  - managers/     : Manager component tests")
 message(NOTICE "  - model/        : Model component tests")
 message(NOTICE "  - performance/  : Performance benchmarks")
 message(NOTICE "  - real_world/   : Real-world scenario tests")
 message(NOTICE "  - search/       : Search subsystem tests")
+message(NOTICE "  - security/     : Security feature tests")
 message(NOTICE "  - ui/           : UI integration tests")
 message(NOTICE "  - utils/        : Utility component tests")
 message(NOTICE "")

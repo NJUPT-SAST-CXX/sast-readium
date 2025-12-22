@@ -16,6 +16,14 @@ class PDFViewer;
 class SearchPanel;
 class DocumentTabWidget;
 class QStackedWidget;
+class ElaProgressRing;
+class ElaBreadcrumbBar;
+
+// Dialogs and Panels
+class DocumentComparison;
+class DocumentMetadataDialog;
+class AnnotationToolbar;
+class DocumentSkeletonWidget;
 
 // Business logic
 class DocumentController;
@@ -106,6 +114,23 @@ public:
      * @brief 导出文档
      */
     bool exportDocument(const QString& filePath, const QString& format);
+
+    /**
+     * @brief 显示文档元数据对话框
+     */
+    void showDocumentMetadata();
+
+    /**
+     * @brief 显示文档比较对话框
+     */
+    void showDocumentComparison();
+
+    /**
+     * @brief 切换注释工具栏
+     */
+    void toggleAnnotationToolbar();
+    void showAnnotationToolbar();
+    void hideAnnotationToolbar();
 
     // ========================================================================
     // 页面导航
@@ -278,6 +303,14 @@ private:
 
     // 适配器
     SearchAdapter* m_searchAdapter;
+
+    // Enhanced components
+    DocumentComparison* m_documentComparison;
+    DocumentMetadataDialog* m_metadataDialog;
+    AnnotationToolbar* m_annotationToolbar;
+    DocumentSkeletonWidget* m_loadingSkeleton;
+    ElaProgressRing* m_loadingRing;
+    ElaBreadcrumbBar* m_breadcrumbBar;
 
     // 当前状态
     bool m_isFullScreen;

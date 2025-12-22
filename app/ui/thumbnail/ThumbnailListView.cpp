@@ -59,6 +59,9 @@ ThumbnailListView::ThumbnailListView(QWidget* parent)
       m_contextMenuEnabled(true),
       m_contextMenu(nullptr),
       m_contextMenuPage(-1),
+      m_dragDropEnabled(false),
+      m_dragStartPage(-1),
+      m_dragStartPos(),
       m_currentPage(-1),
       m_selectedPages() {
     setupUI();
@@ -715,10 +718,86 @@ void ThumbnailListView::updateItemSizes() {
     }
 }
 
-void ThumbnailListView::animateScrollTo(int pageNumber) {
+void ThumbnailListView::animateScrollTo(int position) {
+    if (!m_scrollAnimation) {
+        // Direct scroll if animation not available
+        verticalScrollBar()->setValue(position);
+        return;
+    }
+
+    // Stop any ongoing animation
+    stopScrollAnimation();
+
+    m_isScrollAnimating = true;
+    m_targetScrollPosition = position;
+
+    m_scrollAnimation->setStartValue(verticalScrollBar()->value());
+    m_scrollAnimation->setEndValue(position);
+    m_scrollAnimation->start();
+}
+
+void ThumbnailListView::stopScrollAnimation() {
+    if (m_scrollAnimation &&
+        m_scrollAnimation->state() == QAbstractAnimation::Running) {
+        m_scrollAnimation->stop();
+        m_isScrollAnimating = false;
+    }
+}
+
+QRect ThumbnailListView::itemRect(int pageNumber) const {
     QModelIndex index = indexAtPage(pageNumber);
-    if (index.isValid()) {
-        scrollTo(index, QAbstractItemView::PositionAtCenter);
+    if (!index.isValid()) {
+        return QRect();
+    }
+    return visualRect(index);
+}
+
+void ThumbnailListView::updateContextMenuActions() {
+    if (!m_contextMenu) {
+        return;
+    }
+
+    bool hasSelection = !selectedPages().isEmpty();
+    bool hasModel = (m_thumbnailModel != nullptr);
+
+    for (QAction* action : m_contextMenuActions) {
+        if (action && !action->isSeparator()) {
+            // Enable/disable based on context
+            action->setEnabled(hasSelection && hasModel);
+        }
+    }
+}
+
+void ThumbnailListView::fadeInVisibleItems() {
+    if (!m_fadeInEnabled || !m_opacityEffect) {
+        return;
+    }
+
+    // Reset opacity and start fade-in animation
+    m_opacityEffect->setOpacity(0.0);
+
+    QPropertyAnimation* fadeAnimation =
+        new QPropertyAnimation(m_opacityEffect, "opacity", this);
+    fadeAnimation->setDuration(FADE_IN_DURATION);
+    fadeAnimation->setStartValue(0.0);
+    fadeAnimation->setEndValue(1.0);
+    fadeAnimation->setEasingCurve(QEasingCurve::OutCubic);
+    fadeAnimation->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+void ThumbnailListView::updateFadeEffect() {
+    if (!m_fadeInEnabled) {
+        return;
+    }
+
+    // Update fade effect based on scroll state
+    if (m_opacityEffect) {
+        if (m_isScrolling) {
+            // Slight transparency during scrolling for smoother appearance
+            m_opacityEffect->setOpacity(0.95);
+        } else {
+            m_opacityEffect->setOpacity(1.0);
+        }
     }
 }
 
@@ -909,4 +988,142 @@ void ThumbnailListView::optimizedUpdateVisibleRange() {
     }
 
     m_isScrolling = false;
+}
+
+// ============================================================================
+// 拖拽重排功能实现
+// ============================================================================
+
+void ThumbnailListView::setDragDropEnabled(bool enabled) {
+    if (m_dragDropEnabled == enabled) {
+        return;
+    }
+
+    m_dragDropEnabled = enabled;
+
+    if (enabled) {
+        // 启用拖拽
+        setDragEnabled(true);
+        setAcceptDrops(true);
+        setDropIndicatorShown(true);
+        setDragDropMode(QAbstractItemView::InternalMove);
+        setDefaultDropAction(Qt::MoveAction);
+    } else {
+        // 禁用拖拽
+        setDragEnabled(false);
+        setAcceptDrops(false);
+        setDropIndicatorShown(false);
+        setDragDropMode(QAbstractItemView::NoDragDrop);
+    }
+}
+
+void ThumbnailListView::startDrag(Qt::DropActions supportedActions) {
+    if (!m_dragDropEnabled) {
+        return;
+    }
+
+    QModelIndexList indexes = selectedIndexes();
+    if (indexes.isEmpty()) {
+        return;
+    }
+
+    // 获取拖拽的页码
+    m_dragStartPage = pageAtIndex(indexes.first());
+    if (m_dragStartPage < 0) {
+        return;
+    }
+
+    // 创建拖拽对象
+    QDrag* drag = new QDrag(this);
+    QMimeData* mimeData = new QMimeData();
+
+    // 存储页码信息
+    mimeData->setData("application/x-thumbnail-page",
+                      QByteArray::number(m_dragStartPage));
+    drag->setMimeData(mimeData);
+
+    // 创建拖拽预览图
+    if (m_thumbnailModel != nullptr) {
+        QModelIndex index = m_thumbnailModel->index(m_dragStartPage, 0);
+        QPixmap pixmap = index.data(Qt::DecorationRole).value<QPixmap>();
+        if (!pixmap.isNull()) {
+            // 缩小预览图
+            QPixmap scaledPixmap =
+                pixmap.scaled(m_thumbnailSize * 0.8, Qt::KeepAspectRatio,
+                              Qt::SmoothTransformation);
+            drag->setPixmap(scaledPixmap);
+            drag->setHotSpot(
+                QPoint(scaledPixmap.width() / 2, scaledPixmap.height() / 2));
+        }
+    }
+
+    // 执行拖拽
+    Qt::DropAction result = drag->exec(supportedActions);
+    Q_UNUSED(result)
+
+    m_dragStartPage = -1;
+}
+
+void ThumbnailListView::dragEnterEvent(QDragEnterEvent* event) {
+    if (!m_dragDropEnabled) {
+        event->ignore();
+        return;
+    }
+
+    if (event->mimeData()->hasFormat("application/x-thumbnail-page")) {
+        event->acceptProposedAction();
+    } else {
+        event->ignore();
+    }
+}
+
+void ThumbnailListView::dragMoveEvent(QDragMoveEvent* event) {
+    if (!m_dragDropEnabled) {
+        event->ignore();
+        return;
+    }
+
+    if (event->mimeData()->hasFormat("application/x-thumbnail-page")) {
+        event->acceptProposedAction();
+
+        // 更新放置指示器位置
+        QModelIndex index = indexAt(event->position().toPoint());
+        if (index.isValid()) {
+            setCurrentIndex(index);
+        }
+    } else {
+        event->ignore();
+    }
+}
+
+void ThumbnailListView::dropEvent(QDropEvent* event) {
+    if (!m_dragDropEnabled) {
+        event->ignore();
+        return;
+    }
+
+    if (!event->mimeData()->hasFormat("application/x-thumbnail-page")) {
+        event->ignore();
+        return;
+    }
+
+    // 获取源页码
+    QByteArray pageData =
+        event->mimeData()->data("application/x-thumbnail-page");
+    int fromPage = pageData.toInt();
+
+    // 获取目标页码
+    QModelIndex targetIndex = indexAt(event->position().toPoint());
+    int toPage = targetIndex.isValid() ? pageAtIndex(targetIndex) : -1;
+
+    // 验证页码有效性
+    if (fromPage < 0 || toPage < 0 || fromPage == toPage) {
+        event->ignore();
+        return;
+    }
+
+    // 发射重排信号
+    emit pageReorderRequested(fromPage, toPage);
+
+    event->acceptProposedAction();
 }

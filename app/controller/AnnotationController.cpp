@@ -11,6 +11,9 @@
 #include "../controller/EventBus.h"
 #include "../controller/ServiceLocator.h"
 #include "../logging/SimpleLogging.h"
+#include "../plugin/IAnnotationPlugin.h"
+#include "../plugin/PluginHookRegistry.h"
+#include "../plugin/PluginManager.h"
 
 AnnotationController* AnnotationController::s_instance = nullptr;
 
@@ -98,7 +101,7 @@ void AnnotationController::clearDocument() {
 }
 
 bool AnnotationController::hasDocument() const {
-    return !m_document.isNull() && !m_currentFilePath.isEmpty();
+    return m_document != nullptr && !m_currentFilePath.isEmpty();
 }
 
 bool AnnotationController::addAnnotation(const PDFAnnotation& annotation) {
@@ -116,6 +119,33 @@ bool AnnotationController::addAnnotation(const PDFAnnotation& annotation) {
 
     bool success = m_model->addAnnotation(ann);
     if (success) {
+        // Execute annotation created hook for plugins
+        PluginHookRegistry::instance().executeHook(
+            StandardHooks::ANNOTATION_CREATED,
+            {{"annotationId", ann.id},
+             {"type", static_cast<int>(ann.type)},
+             {"pageNumber", ann.pageNumber},
+             {"author", ann.author}});
+
+        // Notify annotation plugins about the new annotation
+        QList<IAnnotationPlugin*> annotationPlugins =
+            PluginManager::instance().getAnnotationPlugins();
+        for (IAnnotationPlugin* plugin : annotationPlugins) {
+            if (plugin != nullptr &&
+                plugin->supportedTypes().contains(ann.type)) {
+                AnnotationData data;
+                data.id = ann.id;
+                data.type = ann.type;
+                data.pageNumber = ann.pageNumber;
+                data.content = ann.content;
+                data.color = ann.color;
+                data.author = ann.author;
+                data.createdAt = ann.createdTime;
+                data.modifiedAt = ann.modifiedTime;
+                plugin->createAnnotation(data, m_currentFilePath);
+            }
+        }
+
         // Auto-save if enabled
         if (m_autoSaveEnabled) {
             saveAnnotationsToCache();
@@ -136,6 +166,11 @@ bool AnnotationController::removeAnnotation(const QString& annotationId) {
 
     bool success = m_model->removeAnnotation(annotationId);
     if (success) {
+        // Execute annotation deleted hook for plugins
+        PluginHookRegistry::instance().executeHook(
+            StandardHooks::ANNOTATION_DELETED,
+            {{"annotationId", annotationId}});
+
         // Auto-save if enabled
         if (m_autoSaveEnabled) {
             saveAnnotationsToCache();
@@ -158,6 +193,13 @@ bool AnnotationController::updateAnnotation(
 
     bool success = m_model->updateAnnotation(annotationId, updatedAnnotation);
     if (success) {
+        // Execute annotation updated hook for plugins
+        PluginHookRegistry::instance().executeHook(
+            StandardHooks::ANNOTATION_UPDATED,
+            {{"annotationId", annotationId},
+             {"type", static_cast<int>(updatedAnnotation.type)},
+             {"pageNumber", updatedAnnotation.pageNumber}});
+
         // Auto-save if enabled
         if (m_autoSaveEnabled) {
             saveAnnotationsToCache();

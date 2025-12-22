@@ -56,6 +56,14 @@ jobs:
             cache_key: linux-system-x64-debug
             packages: qt6-base-dev qt6-svg-dev qt6-tools-dev qt6-l10n-tools libpoppler-qt6-dev build-essential cmake ninja-build pkg-config
             build_type: Debug
+          # MinSizeRel build for optimized package size
+          - arch: x64
+            runner: ubuntu-latest
+            preset: MinSizeRel-Unix
+            cache_key: linux-system-x64-minsizerel
+            packages: qt6-base-dev qt6-svg-dev qt6-tools-dev qt6-l10n-tools libpoppler-qt6-dev build-essential cmake ninja-build pkg-config
+            build_type: MinSizeRel
+            size_optimized: true
 
     steps:
       - name: Checkout code
@@ -113,7 +121,12 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake --preset=${{ matrix.preset }} -DUSE_VCPKG=OFF
+          CMAKE_OPTS="-DUSE_VCPKG=OFF"
+          if [[ "${{ matrix.size_optimized }}" == "true" ]]; then
+            CMAKE_OPTS="$CMAKE_OPTS -DSAST_ENABLE_LTO=ON -DSAST_STRIP_BINARIES=ON"
+            echo "Size optimization enabled: LTO + Strip"
+          fi
+          cmake --preset=${{ matrix.preset }} $CMAKE_OPTS
 
       - name: Build (optimized)
         run: |

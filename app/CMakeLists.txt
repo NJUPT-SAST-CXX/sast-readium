@@ -177,8 +177,25 @@ add_custom_command(TARGET sast-readium POST_BUILD
     COMMENT "Copying application assets"
 )
 
+# Strip debug symbols from executable if requested (significant size reduction)
+if(SAST_STRIP_BINARIES AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    find_program(STRIP_PROGRAM strip)
+    if(STRIP_PROGRAM)
+        add_custom_command(TARGET sast-readium POST_BUILD
+            COMMAND ${STRIP_PROGRAM} --strip-debug $<TARGET_FILE:sast-readium>
+            COMMENT "Stripping debug symbols from sast-readium (reduces size by 50-90%)"
+        )
+        message(STATUS "Binary stripping enabled for sast-readium")
+    else()
+        message(WARNING "strip program not found - SAST_STRIP_BINARIES will have no effect")
+    endif()
+endif()
+
 # Add Qt deployment command for build directory (for development/testing)
 add_deploy_qt_command(sast-readium)
+
+# Setup UPX compression for minimum size builds
+setup_upx_compression(sast-readium)
 
 # Setup install targets for packaging
 setup_install_targets(sast-readium)

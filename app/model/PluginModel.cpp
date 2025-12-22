@@ -2,6 +2,13 @@
 
 #include <QIcon>
 
+// Plugin interfaces needed for qobject_cast
+#include "../plugin/IAnnotationPlugin.h"
+#include "../plugin/ICacheStrategyPlugin.h"
+#include "../plugin/IDocumentProcessorPlugin.h"
+#include "../plugin/IRenderPlugin.h"
+#include "../plugin/ISearchPlugin.h"
+
 PluginModel::PluginModel(PluginManager* manager, QObject* parent)
     : QAbstractListModel(parent),
       m_pluginManager(manager),
@@ -268,15 +275,10 @@ QString PluginModel::getPluginType(const PluginMetadata& metadata) const {
         }
     }
 
-    // Check if it's a UI plugin
-    auto* uiPlugin = m_pluginManager->getPluginByName<IUIPlugin>(metadata.name);
-    if (uiPlugin) {
-        return tr("UI");
-    }
-
-    // Check if it's a document plugin
+    // Check if it's a document processor plugin
     auto* docPlugin =
-        m_pluginManager->getPluginByName<IDocumentPlugin>(metadata.name);
+        m_pluginManager->getPluginByName<IDocumentProcessorPlugin>(
+            metadata.name);
     if (docPlugin) {
         return tr("Document");
     }

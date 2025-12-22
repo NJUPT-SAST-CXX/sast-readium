@@ -1,0 +1,20 @@
+{
+    "name": "Annotation Sync",
+    "version": "1.0.0",
+    "description": "Annotation import/export with cloud sync simulation. Demonstrates IAnnotationPlugin interface.",
+    "author": "SAST Readium Team",
+    "dependencies": [],
+    "features": [
+        "annotation.plugin",
+        "annotation.export",
+        "annotation.import",
+        "annotation.sync",
+        "hooks"
+    ],
+    "configuration": {
+        "autoSync": false,
+        "cloudEndpoint": "http://localhost:8080",
+        "exportFormats": ["json", "xfdf"],
+        "importFormats": ["json"]
+    }
+}

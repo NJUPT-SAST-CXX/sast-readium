@@ -19,6 +19,11 @@ class SearchEngine : public QObject {
     Q_OBJECT
 
 public:
+    static SearchEngine& instance() {
+        static SearchEngine instance;
+        return instance;
+    }
+
     explicit SearchEngine(QObject* parent = nullptr);
     ~SearchEngine();
 

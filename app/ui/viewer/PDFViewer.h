@@ -17,7 +17,8 @@ class Page;
 class RenderModel;
 class PageModel;
 class PDFPrerenderer;
-class AnnotationIntegrationHelper;
+class AnnotationRenderDelegate;
+class AnnotationSelectionManager;
 class QLabel;
 class QVBoxLayout;
 class QHBoxLayout;
@@ -309,10 +310,16 @@ public:
     // ========================================================================
 
     /**
-     * @brief Set annotation integration helper
-     * @param helper The annotation integration helper
+     * @brief Set annotation render delegate for rendering annotations
+     * @param delegate The annotation render delegate
      */
-    void setAnnotationHelper(AnnotationIntegrationHelper* helper);
+    void setAnnotationRenderDelegate(AnnotationRenderDelegate* delegate);
+
+    /**
+     * @brief Set annotation selection manager for interaction
+     * @param manager The annotation selection manager
+     */
+    void setAnnotationSelectionManager(AnnotationSelectionManager* manager);
 
     // ------------------------------------------------------------------------
     // Backward-compatibility API for tests

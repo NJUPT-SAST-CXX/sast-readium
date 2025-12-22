@@ -80,12 +80,44 @@ function setup_compiler_flags()
 
     -- Debug build optimizations
     if is_mode("debug") then
-        -- Better debugging experience
-        add_cxxflags("-g3", "-O0", {tools = {"gcc", "clang"}})
+        -- Check for split debug info option
+        if has_config("split_debug_info") then
+            if is_plat("windows") then
+                -- On Windows/MinGW, use minimal debug info for smaller binaries
+                add_cxxflags("-g1", "-O0", {tools = {"gcc", "clang"}})
+            else
+                -- On Linux/macOS, use split-dwarf for best results
+                add_cxxflags("-gsplit-dwarf", "-gdwarf-4", "-O0", {tools = {"gcc", "clang"}})
+            end
+        else
+            -- Full debug info
+            add_cxxflags("-g3", "-O0", {tools = {"gcc", "clang"}})
+        end
         add_cxxflags("/Od", "/Zi", {tools = "cl"})
 
-        -- Enable runtime checks in debug mode
-        add_cxxflags("-fsanitize=address", "-fsanitize=undefined", {tools = {"gcc", "clang"}})
-        add_ldflags("-fsanitize=address", "-fsanitize=undefined", {tools = {"gcc", "clang"}})
+        -- Enable runtime checks in debug mode ONLY if explicitly requested
+        -- (sanitizers significantly increase binary size by 2-3x)
+        if has_config("enable_sanitizers") then
+            add_cxxflags("-fsanitize=address", "-fsanitize=undefined", {tools = {"gcc", "clang"}})
+            add_ldflags("-fsanitize=address", "-fsanitize=undefined", {tools = {"gcc", "clang"}})
+            cprint("${yellow}Sanitizers enabled - binary size will be significantly larger${clear}")
+        end
+    end
+
+    -- Strip binaries for release builds or when explicitly requested
+    if has_config("strip_binaries") or is_mode("release") then
+        if is_plat("windows") then
+            add_ldflags("-s", {tools = {"gcc", "clang"}})
+        elseif is_plat("linux", "macosx") then
+            add_ldflags("-s", {tools = {"gcc", "clang"}})
+        end
+    end
+
+    -- Dead code elimination (always enabled for smaller binaries)
+    add_cxxflags("-ffunction-sections", "-fdata-sections", {tools = {"gcc", "clang"}})
+    if is_plat("windows", "linux") then
+        add_ldflags("-Wl,--gc-sections", {tools = {"gcc", "clang"}})
+    elseif is_plat("macosx") then
+        add_ldflags("-Wl,-dead_strip", {tools = {"gcc", "clang"}})
     end
 end

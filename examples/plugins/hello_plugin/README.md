@@ -1,17 +1,24 @@
 # Hello Plugin - Example Plugin for SAST Readium
 
-This is an example plugin that demonstrates how to create plugins for SAST Readium.
+This is a comprehensive example plugin that demonstrates how to create feature-rich plugins for SAST Readium.
 
 ## Features
 
 This example plugin demonstrates:
 
 - **Plugin Lifecycle Management**: Proper initialization and shutdown
-- **Event Subscription**: Subscribing to application events (document open/close)
+- **Event Subscription**: Subscribing to application events (document open/close/page view)
 - **Service Access**: Accessing application services via ServiceLocator
 - **Configuration Management**: Loading and using plugin configuration
 - **Metadata Declaration**: Declaring plugin metadata in JSON format
 - **Logging**: Using the plugin logging system
+- **UI Extensions (IUIExtension)**:
+  - Menu items under "Tools → Hello Plugin"
+  - Toolbar button with statistics shortcut
+  - Context menu actions for documents
+  - Status bar integration with live statistics
+- **Hook Registration**: Using PluginHookRegistry for document workflow hooks
+- **Inter-plugin Communication**: Handling messages from other plugins
 
 ## Building the Plugin
 
@@ -88,11 +95,13 @@ The `hello_plugin.json` file contains:
 
 When the plugin is loaded, it:
 
-1. Sets up metadata (name, version, description, author)
-2. Declares capabilities (provided features, dependencies)
-3. Subscribes to application events
-4. Loads configuration
-5. Logs initialization status
+1. Creates UI actions (menu items, toolbar buttons, context menu actions)
+2. Sets up metadata (name, version, description, author)
+3. Declares capabilities (provided features, dependencies)
+4. Subscribes to application events
+5. Registers hook callbacks with PluginHookRegistry
+6. Loads configuration and applies UI visibility settings
+7. Logs initialization status
 
 ### Event Handling
 
@@ -100,6 +109,33 @@ The plugin subscribes to:
 
 - `document.opened`: Triggered when a document is opened
 - `document.closed`: Triggered when a document is closed
+- `page.viewed`: Triggered when a page is viewed (for statistics)
+
+### Hook Registration
+
+The plugin registers callbacks for:
+
+- `document.pre_load`: Called before document loading (can approve/reject)
+- `document.post_load`: Called after document is loaded
+
+### UI Extensions
+
+The plugin provides:
+
+- **Menu Items** (Tools → Hello Plugin):
+  - Show Statistics: Display document and page statistics
+  - Reset Counters: Reset all plugin counters
+  - About Hello Plugin: Show plugin information
+- **Toolbar Button**: Quick access to statistics (📊 icon)
+- **Context Menu**: Copy Document Path action
+- **Status Bar**: Live display of documents opened and pages viewed
+
+### Inter-plugin Communication
+
+The plugin handles messages from other plugins:
+
+- `get_stats`: Returns current statistics
+- `reset`: Resets all counters
 
 ### Configuration
 
@@ -107,15 +143,21 @@ The plugin supports configuration through the `hello_plugin.json` file:
 
 - `greeting`: Custom greeting message
 - `enableLogging`: Enable/disable logging
+- `enableMenu`: Show/hide menu items
+- `enableToolbar`: Show/hide toolbar button
+- `enableContextMenu`: Show/hide context menu actions
+- `enableStatusBar`: Show/hide status bar messages
 - `maxDocuments`: Maximum number of documents to track
 
 ### Shutdown
 
 When the plugin is unloaded, it:
 
-1. Unsubscribes from all events
-2. Logs shutdown statistics
-3. Cleans up resources
+1. Unregisters all hook callbacks
+2. Unsubscribes from all events
+3. Destroys UI actions
+4. Logs shutdown statistics
+5. Cleans up resources
 
 ## Creating Your Own Plugin
 

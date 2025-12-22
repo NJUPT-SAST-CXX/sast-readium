@@ -11,6 +11,11 @@ class ReadingModeManager : public QObject {
     Q_OBJECT
 
 public:
+    static ReadingModeManager& instance() {
+        static ReadingModeManager instance;
+        return instance;
+    }
+
     enum ReadingMode { Normal, Night, Sepia, Custom };
 
     explicit ReadingModeManager(QObject* parent = nullptr);

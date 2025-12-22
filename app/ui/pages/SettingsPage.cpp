@@ -16,9 +16,12 @@
 #include "ui/widgets/SystemTraySettingsWidget.h"
 
 // ElaWidgetTools
+#include "ElaCheckBox.h"
+#include "ElaColorDialog.h"
 #include "ElaComboBox.h"
 #include "ElaPushButton.h"
 #include "ElaScrollPageArea.h"
+#include "ElaSlider.h"
 #include "ElaSpinBox.h"
 #include "ElaText.h"
 #include "ElaToggleSwitch.h"
