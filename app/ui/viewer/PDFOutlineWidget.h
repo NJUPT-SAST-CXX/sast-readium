@@ -6,6 +6,7 @@
 #include <QKeyEvent>
 #include <QMenu>
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QStringList>
 #include <QTreeWidget>
@@ -68,7 +69,7 @@ private slots:
     void onCopyTitleRequested();
 
 private:
-    PDFOutlineModel* outlineModel;
+    QPointer<PDFOutlineModel> outlineModel;
     QTreeWidgetItem* currentHighlightedItem;
     QMenu* contextMenu;
     QAction* expandAllAction;

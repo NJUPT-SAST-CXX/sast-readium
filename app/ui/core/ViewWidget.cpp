@@ -285,6 +285,11 @@ void ViewWidget::onDocumentClosed(int index) {
 
     if (index < outlineModels.size()) {
         PDFOutlineModel* model = outlineModels.takeAt(index);
+
+        /**
+         * @todo 这里的生命周期管理最好重构
+         */
+
         model->deleteLater();
     }
 
