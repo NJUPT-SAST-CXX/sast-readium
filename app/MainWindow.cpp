@@ -96,10 +96,16 @@ void MainWindow::initContent() {
 
     // 创建主PDF查看器区域（包含侧边栏和视图）
     QWidget* mainViewerWidget = new QWidget();
+    // 便于调试和样式设置
+    mainViewerWidget->setObjectName("MainViewerWidget");
+
     QHBoxLayout* mainViewerLayout = new QHBoxLayout(mainViewerWidget);
     mainViewerLayout->setContentsMargins(0, 0, 0, 0);
 
     mainSplitter = new QSplitter(Qt::Horizontal, mainViewerWidget);
+    // 便于调试和样式设置
+    mainSplitter->setObjectName("MainSplitter");
+
     mainSplitter->addWidget(sideBar);
     mainSplitter->addWidget(viewWidget);
     mainSplitter->addWidget(rightSideBar);

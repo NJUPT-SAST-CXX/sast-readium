@@ -146,7 +146,7 @@ void PDFPageWidget::renderPage() {
         renderedPixmap.setDevicePixelRatio(devicePixelRatio);
 
         setPixmap(renderedPixmap);
-        resize(renderedPixmap.size() / devicePixelRatio);
+        setFixedSize(renderedPixmap.size() / renderedPixmap.devicePixelRatio());
 
     } catch (const std::exception& e) {
         setText(QString("渲染错误: %1").arg(e.what()));
@@ -708,6 +708,9 @@ void PDFViewer::setupUI() {
 void PDFViewer::setupViewModes() {
     // 创建单页视图
     singlePageScrollArea = new QScrollArea(this);
+    // 便于调试
+    singlePageScrollArea->setObjectName("singlePageScrollArea");
+
     singlePageWidget = new PDFPageWidget(singlePageScrollArea);
     singlePageScrollArea->setWidget(singlePageWidget);
     singlePageScrollArea->setWidgetResizable(true);
@@ -721,8 +724,14 @@ void PDFViewer::setupViewModes() {
 
     // 创建连续滚动视图
     continuousScrollArea = new QScrollArea(this);
+    // 便于调试
+    continuousScrollArea->setObjectName("continuousScrollArea");
+
     continuousWidget = new QWidget(continuousScrollArea);
     continuousLayout = new QVBoxLayout(continuousWidget);
+
+    continuousLayout->setAlignment(Qt::AlignCenter);  // 居中对齐
+
     if (m_enableStyling) {
         continuousLayout->setContentsMargins(STYLE.margin(), STYLE.margin(),
                                              STYLE.margin(), STYLE.margin());
@@ -733,6 +742,7 @@ void PDFViewer::setupViewModes() {
     }
     continuousScrollArea->setWidget(continuousWidget);
     continuousScrollArea->setWidgetResizable(true);
+    // continuousScrollArea->setAlignment(Qt::AlignCenter);
 
     // 应用样式
     if (m_enableStyling) {
