@@ -172,8 +172,7 @@ void RecentFileItemWidget::leaveEvent(QEvent* event) {
 }
 
 void RecentFileItemWidget::paintEvent(QPaintEvent* event) {
-    QFrame::paintEvent(event);
-
+    // 先绘制自定义内容
     if (m_isPressed) {
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
@@ -184,6 +183,9 @@ void RecentFileItemWidget::paintEvent(QPaintEvent* event) {
 
         painter.fillRect(rect(), pressedColor);
     }
+
+    // 然后调用父类绘制边框等
+    QFrame::paintEvent(event);
 }
 
 void RecentFileItemWidget::onRemoveClicked() {
@@ -550,7 +552,7 @@ void RecentFileListWidget::resizeEvent(QResizeEvent* event) {
 
     // 确保内容宽度适应
     if (m_contentWidget) {
-        m_contentWidget->setFixedWidth(event->size().width());
+        m_contentWidget->setFixedWidth(event->size().width() * 2);
     }
 }
 

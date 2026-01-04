@@ -316,6 +316,7 @@ void WelcomeWidget::setupLayout() {
     m_recentFilesWidget = new QWidget();
     m_recentFilesWidget->setObjectName("WelcomeRecentFilesWidget");
     m_recentFilesWidget->setMaximumWidth(CONTENT_MAX_WIDTH);
+    m_recentFilesWidget->setMinimumWidth(400);
     contentLayout->addWidget(m_recentFilesWidget, 0, Qt::AlignCenter);
 
     // 添加底部弹性空间
@@ -445,11 +446,12 @@ void WelcomeWidget::setupRecentFiles() {
     // 最近文件标题
     m_recentFilesTitle = new QLabel("Recent Files");
     m_recentFilesTitle->setObjectName("WelcomeRecentFilesTitle");
-    m_recentFilesTitle->setAlignment(Qt::AlignLeft);
+    m_recentFilesTitle->setAlignment(Qt::AlignCenter);
 
     // 最近文件列表
     m_recentFilesList = new RecentFileListWidget();
     m_recentFilesList->setObjectName("WelcomeRecentFilesList");
+    m_recentFilesList->setFixedSize(400, 300);
 
     // 无最近文件标签
     m_noRecentFilesLabel = new QLabel("No recent files");

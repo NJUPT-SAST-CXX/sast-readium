@@ -81,8 +81,8 @@ private:
 
     // Enhanced 样式常量 with modern card design
     static const int ITEM_HEIGHT =
-        64;  // Increased height for icon and better spacing
-    static const int PADDING = 16;  // Enhanced padding for modern card look
+        108;  // Increased height for icon and better spacing
+    static const int PADDING = 12;  // Enhanced padding for modern card look
     static const int SPACING = 4;   // Improved spacing between elements
 };
 
