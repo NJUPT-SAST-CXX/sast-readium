@@ -1248,21 +1248,47 @@ void PDFViewer::updateContinuousView() {
         return;
     }
 
-    // 优化：只更新缩放因子，避免重新渲染所有页面
-    for (int i = 0; i < continuousLayout->count() - 1;
-         ++i) {  // -1 因为最后一个是stretch
+    // 缩放或旋转变化时，清空已渲染状态，触发重新渲染
+    renderedPages.clear();
+
+    // 更新占位符尺寸
+    QSizeF placeholderSize(100, 140);  // 默认A4比例
+    std::unique_ptr<Poppler::Page> firstPage(document->page(0));
+    if (firstPage) {
+        placeholderSize = firstPage->pageSizeF();
+    }
+
+    int placeholderWidth = static_cast<int>(placeholderSize.width() * currentZoomFactor);
+    int placeholderHeight = static_cast<int>(placeholderSize.height() * currentZoomFactor);
+
+    // 更新所有页面的占位符尺寸
+    for (int i = 0; i < continuousLayout->count() - 1; ++i) {
         QLayoutItem* item = continuousLayout->itemAt(i);
         if (item && item->widget()) {
             PDFPageWidget* pageWidget =
                 qobject_cast<PDFPageWidget*>(item->widget());
             if (pageWidget) {
-                // 阻止信号发出，避免循环
-                pageWidget->blockSignals(true);
-                pageWidget->setScaleFactor(currentZoomFactor);
-                pageWidget->blockSignals(false);
+                // 只更新占位符尺寸，不立即渲染
+                if (!renderedPages.contains(i)) {
+                    pageWidget->setFixedSize(placeholderWidth, placeholderHeight);
+                } else {
+                    // 已渲染的页面需要重新渲染
+                    pageWidget->blockSignals(true);
+                    std::unique_ptr<Poppler::Page> page(document->page(i));
+                    if (page) {
+                        pageWidget->setPage(page.get(), currentZoomFactor, currentRotation);
+                        renderedPages.insert(i);
+                    }
+                    pageWidget->blockSignals(false);
+                }
             }
         }
     }
+
+    // 触发可见页面重新渲染
+    QTimer::singleShot(0, this, [this]() {
+        updateVisiblePages();
+    });
 }
 
 void PDFViewer::updateNavigationButtons() {
@@ -1425,18 +1451,28 @@ void PDFViewer::createContinuousPages() {
         delete item;
     }
 
-    // 创建所有页面
+    // 清空渲染状态
+    renderedPages.clear();
+
+    // 获取第一页尺寸用于占位符
+    QSizeF placeholderSize(100, 140);  // 默认A4比例
+    std::unique_ptr<Poppler::Page> firstPage(document->page(0));
+    if (firstPage) {
+        placeholderSize = firstPage->pageSizeF();
+    }
+
+    // 应用缩放后的尺寸
+    double scale = currentZoomFactor;
+    int placeholderWidth = static_cast<int>(placeholderSize.width() * scale);
+    int placeholderHeight = static_cast<int>(placeholderSize.height() * scale);
+
+    // 创建所有页面占位符（不立即渲染）
     for (int i = 0; i < document->numPages(); ++i) {
         PDFPageWidget* pageWidget = new PDFPageWidget(continuousWidget);
 
-        std::unique_ptr<Poppler::Page> page(document->page(i));
-        if (page) {
-            // 阻止信号发出，避免在初始化时触发缩放循环
-            pageWidget->blockSignals(true);
-            pageWidget->setPage(page.release(), currentZoomFactor,
-                                currentRotation);
-            pageWidget->blockSignals(false);
-        }
+        // 设置占位符尺寸，但不渲染内容
+        pageWidget->setFixedSize(placeholderWidth, placeholderHeight);
+        pageWidget->setText(QString("第 %1 页").arg(i + 1));  // 显示占位文本
 
         continuousLayout->addWidget(pageWidget);
 
@@ -1454,6 +1490,11 @@ void PDFViewer::createContinuousPages() {
                     scrollTimer->start();  // 使用防抖
                 });
     }
+
+    // 立即渲染初始可见页面
+    QTimer::singleShot(0, this, [this]() {
+        updateVisiblePages();
+    });
 }
 
 void PDFViewer::updateVisiblePages() {
@@ -1505,21 +1546,30 @@ void PDFViewer::renderVisiblePages() {
         return;
     }
 
-    // 这里可以实现更复杂的虚拟化逻辑
-    // 目前保持简单的实现，只在需要时更新页面
+    // 只渲染可见范围内的页面，延迟渲染避免卡顿
+    // 页面保持可见（不隐藏），只是内容可能还没渲染
     for (int i = 0; i < continuousLayout->count() - 1; ++i) {
-        QLayoutItem* item = continuousLayout->itemAt(i);
-        if (item && item->widget()) {
-            PDFPageWidget* pageWidget =
-                qobject_cast<PDFPageWidget*>(item->widget());
-            if (pageWidget) {
-                // 修复：不要隐藏页面，只控制是否需要渲染新的内容
-                // 问题：当页面被隐藏时，布局高度会变化，导致滚动条maximum变化
-                // 解决方案：保持所有页面可见，只在需要时更新渲染内容
-                // 对于简单的实现，我们暂时不做虚拟化渲染
-                // 页面始终可见，避免滚动条跳动问题
-                Q_UNUSED(visiblePageStart);
-                Q_UNUSED(visiblePageEnd);
+        // 如果页面在可见范围内或缓冲区范围内，且还未渲染
+        if (i >= visiblePageStart && i <= visiblePageEnd && !renderedPages.contains(i)) {
+            QLayoutItem* item = continuousLayout->itemAt(i);
+            if (item && item->widget()) {
+                PDFPageWidget* pageWidget =
+                    qobject_cast<PDFPageWidget*>(item->widget());
+                if (pageWidget) {
+                    // 异步渲染页面，避免阻塞UI
+                    int pageIndex = i;
+                    QTimer::singleShot(0, this, [this, pageWidget, pageIndex]() {
+                        if (!document) return;
+                        std::unique_ptr<Poppler::Page> page(document->page(pageIndex));
+                        if (page) {
+                            pageWidget->blockSignals(true);
+                            pageWidget->setPage(page.release(), currentZoomFactor,
+                                                currentRotation);
+                            pageWidget->blockSignals(false);
+                            renderedPages.insert(pageIndex);
+                        }
+                    });
+                }
             }
         }
     }
@@ -1919,40 +1969,29 @@ void PDFViewer::updateContinuousViewRotation() {
         return;
     }
 
-    int successCount = 0;
+    // 旋转变化时，清空已渲染状态，触发重新渲染
+    renderedPages.clear();
+
     int totalPages = continuousLayout->count() - 1;  // -1 因为最后一个是stretch
 
     // 更新连续视图中所有页面的旋转
+    // 使用延迟渲染，避免卡顿
     for (int i = 0; i < totalPages; ++i) {
-        try {
-            QLayoutItem* item = continuousLayout->itemAt(i);
-            if (item && item->widget()) {
-                PDFPageWidget* pageWidget =
-                    qobject_cast<PDFPageWidget*>(item->widget());
-                if (pageWidget && i < document->numPages()) {
-                    std::unique_ptr<Poppler::Page> page(document->page(i));
-                    if (page) {
-                        // 阻止信号发出，避免循环
-                        pageWidget->blockSignals(true);
-                        pageWidget->setPage(page.get(), currentZoomFactor,
-                                            currentRotation);
-                        pageWidget->blockSignals(false);
-                        successCount++;
-                    } else {
-                        qDebug() << "Failed to get page" << i << "for rotation";
-                    }
-                }
+        QLayoutItem* item = continuousLayout->itemAt(i);
+        if (item && item->widget()) {
+            PDFPageWidget* pageWidget =
+                qobject_cast<PDFPageWidget*>(item->widget());
+            if (pageWidget && i < document->numPages()) {
+                // 只更新占位符文本，实际渲染由 renderVisiblePages 处理
+                pageWidget->setText(QString("第 %1 页").arg(i + 1));
             }
-        } catch (const std::exception& e) {
-            qDebug() << "Error rotating page" << i << ":" << e.what();
         }
     }
 
-    if (successCount < totalPages) {
-        setMessage(QString("部分页面旋转失败 (%1/%2)")
-                       .arg(successCount)
-                       .arg(totalPages));
-    }
+    // 触发可见页面重新渲染
+    QTimer::singleShot(0, this, [this]() {
+        updateVisiblePages();
+    });
 }
 
 // 搜索功能实现

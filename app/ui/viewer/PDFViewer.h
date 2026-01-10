@@ -325,6 +325,7 @@ private:
     int visiblePageEnd;
     int renderBuffer;     // 预渲染缓冲区大小
     QTimer* scrollTimer;  // 滚动防抖定时器
+    QSet<int> renderedPages;  // 已渲染的页面集合
 
     // 动画效果
     QPropertyAnimation* fadeAnimation;
