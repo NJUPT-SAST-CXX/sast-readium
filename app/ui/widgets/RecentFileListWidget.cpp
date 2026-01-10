@@ -172,20 +172,25 @@ void RecentFileItemWidget::leaveEvent(QEvent* event) {
 }
 
 void RecentFileItemWidget::paintEvent(QPaintEvent* event) {
-    // 先绘制自定义内容
+    // 先调用父类绘制，确保子组件正确绘制
+    QFrame::paintEvent(event);
+
+    // 绘制自定义内容（按压效果）
     if (m_isPressed) {
         QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
+        if (painter.isActive()) {
+            painter.setRenderHint(QPainter::Antialiasing);
 
-        StyleManager& styleManager = StyleManager::instance();
-        QColor pressedColor = styleManager.pressedColor();
-        pressedColor.setAlpha(100);
+            StyleManager& styleManager = StyleManager::instance();
+            QColor pressedColor = styleManager.pressedColor();
+            pressedColor.setAlpha(100);
 
-        painter.fillRect(rect(), pressedColor);
+            painter.fillRect(rect(), pressedColor);
+        }
     }
 
-    // 然后调用父类绘制边框等
-    QFrame::paintEvent(event);
+    // 绘制悬停效果（如果需要的话）
+    // 注意：我们不再使用QGraphicsOpacityEffect，因为它会导致子组件绘制问题
 }
 
 void RecentFileItemWidget::onRemoveClicked() {
@@ -239,20 +244,11 @@ void RecentFileItemWidget::setupUI() {
 }
 
 void RecentFileItemWidget::setupAnimations() {
-    // Setup opacity effect for smooth animations
-    m_opacityEffect = new QGraphicsOpacityEffect(this);
-    m_opacityEffect->setOpacity(1.0);
-    setGraphicsEffect(m_opacityEffect);
-
-    // Hover animation
-    m_hoverAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
-    m_hoverAnimation->setDuration(200);
-    m_hoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
-
-    // Press animation
-    m_pressAnimation = new QPropertyAnimation(this, "geometry", this);
-    m_pressAnimation->setDuration(100);
-    m_pressAnimation->setEasingCurve(QEasingCurve::OutQuad);
+    // 不再使用QGraphicsOpacityEffect，因为它会导致子组件绘制问题
+    // 悬停效果通过CSS hover状态实现，不需要额外的动画
+    m_opacityEffect = nullptr;
+    m_hoverAnimation = nullptr;
+    m_pressAnimation = nullptr;
 }
 
 void RecentFileItemWidget::updateDisplay() {
@@ -354,40 +350,21 @@ void RecentFileItemWidget::setHovered(bool hovered) {
 }
 
 void RecentFileItemWidget::startHoverAnimation(bool hovered) {
-    if (!m_hoverAnimation || !m_opacityEffect)
-        return;
-
-    m_hoverAnimation->stop();
-
-    if (hovered) {
-        m_hoverAnimation->setStartValue(m_opacityEffect->opacity());
-        m_hoverAnimation->setEndValue(0.9);
-    } else {
-        m_hoverAnimation->setStartValue(m_opacityEffect->opacity());
-        m_hoverAnimation->setEndValue(1.0);
-    }
-
-    m_hoverAnimation->start();
+    // 悬停效果通过CSS的:hover伪类实现，不需要额外的动画
+    // CSS已经在applyTheme()中设置好了
+    Q_UNUSED(hovered);
 }
 
 void RecentFileItemWidget::startPressAnimation() {
-    if (!m_pressAnimation)
-        return;
+    // 使用简单的视觉反馈，通过update()触发重绘
+    // paintEvent会根据m_isPressed状态绘制按压效果
+    update();
 
-    QRect currentGeometry = geometry();
-    QRect pressedGeometry = currentGeometry.adjusted(2, 2, -2, -2);
-
-    m_pressAnimation->stop();
-    m_pressAnimation->setStartValue(currentGeometry);
-    m_pressAnimation->setEndValue(pressedGeometry);
-    m_pressAnimation->start();
-
-    // Return to normal size after a short delay
-    QTimer::singleShot(100, [this, currentGeometry]() {
-        if (m_pressAnimation) {
-            m_pressAnimation->setStartValue(geometry());
-            m_pressAnimation->setEndValue(currentGeometry);
-            m_pressAnimation->start();
+    // 100ms后自动恢复按压状态
+    QTimer::singleShot(100, this, [this]() {
+        if (m_isPressed) {
+            m_isPressed = false;
+            update();
         }
     });
 }
@@ -550,9 +527,11 @@ void RecentFileListWidget::onRecentFilesChanged() {
 void RecentFileListWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
 
-    // 确保内容宽度适应
+    // setWidgetResizable(true) 会自动处理内容widget的大小
+    // 不需要手动设置宽度，避免与Qt的布局系统冲突
+    // 强制更新布局以确保正确绘制
     if (m_contentWidget) {
-        m_contentWidget->setFixedWidth(event->size().width() * 2);
+        m_contentWidget->updateGeometry();
     }
 }
 
