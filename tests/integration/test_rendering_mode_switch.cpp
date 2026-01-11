@@ -40,7 +40,7 @@ void TestRenderingModeSwitch::initTestCase() {
     QVERIFY(m_viewer != nullptr);
     QVERIFY(m_testDocument != nullptr);
 
-    m_viewer->setDocument(m_testDocument);
+    m_viewer->setDocument(std::shared_ptr<Poppler::Document>(m_testDocument));
 }
 
 void TestRenderingModeSwitch::cleanupTestCase() {

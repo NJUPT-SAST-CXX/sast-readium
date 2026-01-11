@@ -345,7 +345,7 @@ void TestRealPDFDocuments::testDocumentWithBothModes(const TestDocument& doc) {
 
     verifyDocumentProperties(document, doc);
 
-    m_viewer->setDocument(document);
+    m_viewer->setDocument(std::shared_ptr<Poppler::Document>(document));
     QVERIFY(m_viewer->hasDocument());
     QCOMPARE(m_viewer->getPageCount(), doc.expectedPages);
 
@@ -462,7 +462,7 @@ void TestRealPDFDocuments::testMultiPageNavigation() {
     Poppler::Document* document = loadDocument(complexDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    m_viewer->setDocument(std::shared_ptr<Poppler::Document>(document));
 
     // Test navigation in both modes
     for (int mode = 0; mode < 2; ++mode) {
@@ -516,7 +516,7 @@ void TestRealPDFDocuments::testSearchInRealDocument() {
     Poppler::Document* document = loadDocument(complexDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    m_viewer->setDocument(std::shared_ptr<Poppler::Document>(document));
 
     // Test search functionality (basic test)
     // Note: Full search testing would require implementing search in the test
@@ -533,7 +533,7 @@ void TestRealPDFDocuments::testZoomingRealDocument() {
     Poppler::Document* document = loadDocument(simpleDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    m_viewer->setDocument(std::shared_ptr<Poppler::Document>(document));
 
     // Test various zoom levels in both modes
     QList<double> zoomLevels = {0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0};
@@ -572,7 +572,7 @@ void TestRealPDFDocuments::testRotationRealDocument() {
     Poppler::Document* document = loadDocument(simpleDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    m_viewer->setDocument(std::shared_ptr<Poppler::Document>(document));
 
     // Test rotation in both modes
     for (int mode = 0; mode < 2; ++mode) {
@@ -610,7 +610,7 @@ void TestRealPDFDocuments::testRenderingQuality() {
     Poppler::Document* document = loadDocument(complexDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    m_viewer->setDocument(std::shared_ptr<Poppler::Document>(document));
 
     // Test that rendering completes without errors
     for (int page = 0; page < document->numPages(); ++page) {
@@ -649,7 +649,7 @@ void TestRealPDFDocuments::testMemoryWithLargeDocument() {
     Poppler::Document* document = loadDocument(largeDoc);
     QVERIFY(document != nullptr);
 
-    m_viewer->setDocument(document);
+    m_viewer->setDocument(std::shared_ptr<Poppler::Document>(document));
 
     // Navigate through all pages to test memory usage
     for (int page = 0; page < document->numPages(); ++page) {

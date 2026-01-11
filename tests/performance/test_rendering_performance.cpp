@@ -69,7 +69,7 @@ void TestRenderingPerformance::initTestCase() {
     m_testDocument = createLargeTestDocument();
     QVERIFY(m_testDocument != nullptr);
 
-    m_viewer->setDocument(m_testDocument);
+    m_viewer->setDocument(std::shared_ptr<Poppler::Document>(m_testDocument));
 
     qDebug() << "Performance test initialized with document containing"
              << m_testDocument->numPages() << "pages";
