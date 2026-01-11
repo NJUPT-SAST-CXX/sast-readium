@@ -1568,7 +1568,8 @@ void PDFViewer::createContinuousPages() {
 }
 
 void PDFViewer::updateVisiblePages() {
-    if (!document || currentViewMode != PDFViewMode::ContinuousScroll)
+    if (!document || currentViewMode != PDFViewMode::ContinuousScroll ||
+        !isWidgetReady)
         return;
 
     QScrollBar* scrollBar = continuousScrollArea->verticalScrollBar();
@@ -1631,7 +1632,7 @@ void PDFViewer::updateVisiblePages() {
 }
 
 void PDFViewer::renderVisiblePages() {
-    if (!document)
+    if (!document || !isWidgetReady)
         return;
 
     for (int i = visiblePageStart; i <= visiblePageEnd; ++i) {
@@ -1794,6 +1795,13 @@ void PDFViewer::toggleTheme() {
 void PDFViewer::onViewModeChanged(int index) {
     PDFViewMode mode = static_cast<PDFViewMode>(index);
     setViewMode(mode);
+    if (mode == PDFViewMode::ContinuousScroll) {
+        // 延时0.05秒后设置isWidgetReady为true，确保布局完成
+        QTimer::singleShot(50, this, [this]() {
+            isWidgetReady = true;
+            updateVisiblePages();  // 初始渲染可见页面
+        });
+    }
 }
 
 void PDFViewer::onZoomPercentageChanged() {

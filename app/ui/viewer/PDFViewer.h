@@ -282,6 +282,7 @@ private:
     QScrollArea* continuousScrollArea;
     QWidget* continuousWidget;
     QVBoxLayout* continuousLayout;
+    bool isWidgetReady = false;
 
     // 工具栏控件
     QPushButton* firstPageBtn;
