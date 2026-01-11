@@ -112,7 +112,7 @@ private:
     double currentScaleFactor;
     int currentRotation;
     QPixmap renderedPixmap;
-    QPixmap originalPixmap;  // 保存原始渲染的pixmap，用于快速缩放
+    QPixmap originalPixmap;      // 保存原始渲染的pixmap，用于快速缩放
     double originalScaleFactor;  // 原始pixmap的缩放因子
     bool isDragging;
     QPoint lastPanPoint;
@@ -322,6 +322,7 @@ private:
 
     // 缩放控制
     QTimer* zoomTimer;
+    double oldZoomFactor;
     double pendingZoomFactor;
     bool isZoomPending;
     bool isSliderDragging;  // 跟踪滑块是否正在被拖动
@@ -332,9 +333,9 @@ private:
     // 虚拟化渲染
     int visiblePageStart;
     int visiblePageEnd;
-    int renderBuffer;     // 预渲染缓冲区大小
-    QTimer* scrollTimer;  // 滚动防抖定时器
-    QSet<int> renderedPages;  // 已渲染的页面集合
+    int renderBuffer;                        // 预渲染缓冲区大小
+    QTimer* scrollTimer;                     // 滚动防抖定时器
+    QSet<QPair<int, double>> renderedPages;  // 已渲染的页面集合<页码, 缩放因子>
 
     // 动画效果
     QPropertyAnimation* fadeAnimation;

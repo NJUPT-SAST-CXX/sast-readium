@@ -1303,7 +1303,7 @@ void PDFViewer::updateContinuousView() {
                 qobject_cast<PDFPageWidget*>(item->widget());
             if (pageWidget) {
                 // 只更新占位符尺寸，不立即渲染
-                if (!renderedPages.contains(i)) {
+                if (!renderedPages.contains(qMakePair(i, currentZoomFactor))) {
                     pageWidget->setFixedSize(placeholderWidth,
                                              placeholderHeight);
                 } else {
@@ -1313,7 +1313,7 @@ void PDFViewer::updateContinuousView() {
                     if (page) {
                         pageWidget->setPage(page.get(), currentZoomFactor,
                                             currentRotation);
-                        renderedPages.insert(i);
+                        renderedPages.insert(qMakePair(i, currentZoomFactor));
                     }
                     pageWidget->blockSignals(false);
                 }
@@ -1408,7 +1408,10 @@ void PDFViewer::onZoomSliderChanged(int value) {
     }
 }
 
-void PDFViewer::onZoomSliderPressed() { isSliderDragging = true; }
+void PDFViewer::onZoomSliderPressed() {
+    isSliderDragging = true;
+    oldZoomFactor = currentZoomFactor;
+}
 
 void PDFViewer::onZoomSliderReleased() {
     if (isSliderDragging) {
@@ -1572,14 +1575,13 @@ void PDFViewer::updateVisiblePages() {
     int viewportTop = scrollBar->value();
     int viewportBottom =
         viewportTop + continuousScrollArea->viewport()->height();
+    int bufferPx = (viewportBottom - viewportTop);  // 增加缓冲区到一屏高度
 
     int newVisibleStart = -1;
     int newVisibleEnd = -1;
 
-    renderedPages.clear();
-
-    // 遍历所有 Widget 确定哪些在视口内
-    for (int i = 0; i < continuousLayout->count(); ++i) {
+    int count = continuousLayout->count();
+    for (int i = 0; i < count; ++i) {
         QWidget* w = continuousLayout->itemAt(i)->widget();
         if (!w)
             continue;
@@ -1587,30 +1589,15 @@ void PDFViewer::updateVisiblePages() {
         int top = w->y();
         int bottom = top + w->height();
 
-        // 判断页面是否与视口相交 (增加 renderBuffer 像素的预加载)
-        /**
-         * @todo 这里视口检测依然有点小问题, 不过逻辑差不多理清楚了,
-         * 明天就修(如果有时间)
-         */
-        int bufferPx =
-            (viewportBottom - viewportTop) / 2;  // 假设 buffer 是页数，转为像素
-        if (top <= (viewportTop - bufferPx) &&
-            bottom >= (viewportBottom + bufferPx)) {
+        // 判定是否在视口（含缓冲区）内
+        if (bottom >= (viewportTop - bufferPx) &&
+            top <= (viewportBottom + bufferPx)) {
             if (newVisibleStart == -1)
                 newVisibleStart = i;
             newVisibleEnd = i;
-        } else if (top > (viewportTop - bufferPx) &&
-                   bottom >= (viewportBottom + bufferPx) &&
-                   top < (viewportBottom + bufferPx)) {
-            if (newVisibleStart == -1)
-                newVisibleStart = i;
-            newVisibleEnd = i;
-        } else if (top <= (viewportTop - bufferPx) &&
-                   bottom < (viewportBottom + bufferPx) &&
-                   bottom > (viewportTop - bufferPx)) {
-            if (newVisibleStart == -1)
-                newVisibleStart = i;
-            newVisibleEnd = i;
+        } else if (newVisibleStart != -1) {
+            // 性能优化：既然是垂直排列，一旦离开可见区域就可以停止遍历
+            break;
         }
     }
 
@@ -1620,27 +1607,39 @@ void PDFViewer::updateVisiblePages() {
         newVisibleEnd = 0;
     }
 
-    if (newVisibleStart != visiblePageStart ||
-        newVisibleEnd != visiblePageEnd) {
-        visiblePageStart = newVisibleStart;
-        visiblePageEnd = newVisibleEnd;
-        renderVisiblePages();
+    if (qAbs(oldZoomFactor - currentZoomFactor) > 0.001) {
+        // 如果缩放变化，强制重新渲染所有可见页面
+        // 具体决定渲染什么页面在 renderVisiblePages 里处理
+        renderedPages.clear();
+    } else {
+        // 否则，只渲染新增可见的页面
+        renderedPages.removeIf(
+            [this, newVisibleStart, newVisibleEnd](const auto& key) {
+                int pageIndex = key.first;
+                double zoom = key.second;
+                return (zoom != currentZoomFactor) &&  // 缩放不同
+                       (pageIndex >= newVisibleStart &&
+                        pageIndex <= newVisibleEnd);  // 在可见范围内
+            });
     }
+
+    oldZoomFactor = currentZoomFactor;
+
+    visiblePageStart = newVisibleStart;
+    visiblePageEnd = newVisibleEnd;
+    renderVisiblePages();
 }
 
 void PDFViewer::renderVisiblePages() {
     if (!document)
         return;
 
-    // 重要：如果缩放了，之前的渲染图是不清楚的，需要重新渲染
-    // 建议在 setZoomFactor 时执行 renderedPages.clear();
-
     for (int i = visiblePageStart; i <= visiblePageEnd; ++i) {
         if (i < 0 || i >= continuousLayout->count())
             continue;
 
         // 如果已经渲染过且缩放没变，则跳过
-        if (renderedPages.contains(i))
+        if (renderedPages.contains(qMakePair(i, currentZoomFactor)))
             continue;
 
         QLayoutItem* item = continuousLayout->itemAt(i);
@@ -1651,21 +1650,28 @@ void PDFViewer::renderVisiblePages() {
             int pageIndex = i;
             // 使用 Lambda 捕获当前缩放，防止异步执行时缩放已变
             double zoom = currentZoomFactor;
+            int rotation = currentRotation;
 
-            QTimer::singleShot(0, this, [this, pageWidget, pageIndex, zoom]() {
-                if (!document)
-                    return;
+            // 标记为已提交渲染，防止重复触发 QTimer
+            renderedPages.insert(qMakePair(pageIndex, zoom));
 
-                // 再次检查，防止重复渲染
-                if (renderedPages.contains(pageIndex))
-                    return;
+            QTimer::singleShot(
+                0, this, [this, pageWidget, pageIndex, zoom, rotation]() {
+                    if (!document)
+                        return;
 
-                std::unique_ptr<Poppler::Page> page(document->page(pageIndex));
-                if (page) {
-                    pageWidget->setPage(page.release(), zoom, currentRotation);
-                    renderedPages.insert(pageIndex);
-                }
-            });
+                    // 再次检查，防止重复渲染
+                    if (qAbs(zoom - currentZoomFactor) > 0.001)
+                        return;
+
+                    std::unique_ptr<Poppler::Page> page(
+                        document->page(pageIndex));
+                    if (page) {
+                        // 内部应处理：如果请求的 zoom
+                        // 与当前已显示的相同，则不重绘
+                        pageWidget->setPage(page.release(), zoom, rotation);
+                    }
+                });
         }
     }
 }
@@ -1941,7 +1947,7 @@ void PDFViewer::quickApplyZoom(double factor) {
         } else if (currentViewMode == PDFViewMode::ContinuousScroll) {
             // 连续滚动模式：快速缩放已渲染的页面
             for (int i = 0; i < continuousLayout->count() - 1; ++i) {
-                if (renderedPages.contains(i)) {
+                if (renderedPages.contains(qMakePair(i, oldZoomFactor))) {
                     QLayoutItem* item = continuousLayout->itemAt(i);
                     if (item && item->widget()) {
                         PDFPageWidget* pageWidget =
