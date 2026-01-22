@@ -49,6 +49,7 @@ target_sources(
     # Viewer components
     ui/viewer/PDFViewer.cpp
     ui/viewer/PDFOutlineWidget.cpp
+    ui/viewer/PDFBookmarkWidget.cpp
     ui/viewer/PDFViewerEnhancements.cpp
     ui/viewer/PDFAnimations.cpp
     ui/viewer/QGraphicsPDFViewer.cpp

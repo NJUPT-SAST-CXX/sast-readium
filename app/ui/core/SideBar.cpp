@@ -54,9 +54,11 @@ void SideBar::initContent() {
     tabWidget = new QTabWidget(this);
 
     QWidget* thumbnailsTab = createThumbnailsTab();
+    QWidget* outlineTab = createOutlineTab();
     QWidget* bookmarksTab = createBookmarksTab();
 
     tabWidget->addTab(thumbnailsTab, "缩略图");
+    tabWidget->addTab(outlineTab, "目录");
     tabWidget->addTab(bookmarksTab, "书签");
 
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
@@ -91,14 +93,23 @@ QWidget* SideBar::createThumbnailsTab() {
     return thumbnailsTab;
 }
 
+QWidget* SideBar::createOutlineTab() {
+    QWidget* outlineTab = new QWidget();
+    QVBoxLayout* outlineLayout = new QVBoxLayout(outlineTab);
+
+    // 创建PDF目录组件
+    outlineWidget = new PDFOutlineWidget();
+    outlineLayout->addWidget(outlineWidget);
+    return outlineTab;
+}
+
 QWidget* SideBar::createBookmarksTab() {
     QWidget* bookmarksTab = new QWidget();
     QVBoxLayout* bookmarkLayout = new QVBoxLayout(bookmarksTab);
 
-    // 创建PDF目录组件
-    outlineWidget = new PDFOutlineWidget();
-    bookmarkLayout->addWidget(outlineWidget);
-
+    // 创建PDF书签组件
+    bookmarkWidget = new PDFBookmarkWidget();
+    bookmarkLayout->addWidget(bookmarkWidget);
     return bookmarksTab;
 }
 

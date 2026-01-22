@@ -41,8 +41,7 @@
 #include <QWheelEvent>
 #include <QWidget>
 #include <QtGlobal>
-#include "../../model/DocumentModel.h"
-#include "../../model/SearchModel.h"
+#include "model/SearchModel.h"
 #include "PDFAnimations.h"
 
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT

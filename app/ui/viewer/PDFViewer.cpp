@@ -29,10 +29,9 @@
 #include <QtCore>
 #include <QtGlobal>
 #include <QtWidgets>
-#include <cmath>
 #include <memory>
 #include <stdexcept>
-#include "../../managers/StyleManager.h"
+#include "managers/StyleManager.h"
 
 // PDFPageWidget Implementation
 PDFPageWidget::PDFPageWidget(QWidget* parent)

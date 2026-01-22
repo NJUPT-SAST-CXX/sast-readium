@@ -5,11 +5,12 @@
 #include <QTabWidget>
 #include <QWidget>
 #include <memory>
-#include "../../delegate/ThumbnailDelegate.h"
-#include "../../model/PDFOutlineModel.h"
-#include "../../model/ThumbnailModel.h"
-#include "../thumbnail/ThumbnailListView.h"
-#include "../viewer/PDFOutlineWidget.h"
+#include "delegate/ThumbnailDelegate.h"
+#include "model/PDFOutlineModel.h"
+#include "ui/viewer/PDFBookmarkWidget.h"
+#include "model/ThumbnailModel.h"
+#include "ui/thumbnail/ThumbnailListView.h"
+#include "ui/viewer/PDFOutlineWidget.h"
 
 // 前向声明
 namespace Poppler {
@@ -69,6 +70,7 @@ private:
     QPropertyAnimation* animation;
     QSettings* settings;
     PDFOutlineWidget* outlineWidget;
+    PDFBookmarkWidget* bookmarkWidget;
 
     // 缩略图组件
     ThumbnailListView* thumbnailView;
@@ -90,5 +92,6 @@ private:
     void initSettings();
 
     QWidget* createThumbnailsTab();
+    QWidget* createOutlineTab();
     QWidget* createBookmarksTab();
 };
