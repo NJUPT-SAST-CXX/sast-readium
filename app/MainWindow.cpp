@@ -226,6 +226,14 @@ void MainWindow::initConnection() {
     // 连接文档模型信号以同步目录
     connect(documentModel, &DocumentModel::currentDocumentChanged, this,
             &MainWindow::onCurrentDocumentChangedForOutline);
+    
+    // 连接ViewWidget的目录模型变化信号
+    connect(viewWidget, &ViewWidget::currentOutlineModelChanged, this,
+            &MainWindow::onOutlineModelChanged);
+    
+    // 连接页面变化信号以更新目录高亮
+    connect(viewWidget, &ViewWidget::currentViewerPageChanged, this,
+            &MainWindow::onPageChangedForOutlineHighlight);
 
     // 连接文档模型信号以更新状态栏
     connect(documentModel, &DocumentModel::documentOpened, this,
@@ -369,10 +377,6 @@ void MainWindow::onSplitterMoved(int pos, int index) {
 }
 
 void MainWindow::onCurrentDocumentChangedForOutline(int index) {
-    // 获取当前文档的目录模型并设置到侧边栏
-    PDFOutlineModel* currentOutlineModel = viewWidget->getCurrentOutlineModel();
-    sideBar->setOutlineModel(currentOutlineModel);
-
     // 设置缩略图文档
     if (documentModel && index >= 0) {
         std::shared_ptr<Poppler::Document> sharedDoc =
@@ -380,22 +384,6 @@ void MainWindow::onCurrentDocumentChangedForOutline(int index) {
         if (sharedDoc) {
             sideBar->setDocument(sharedDoc);
         }
-    }
-
-    // 连接目录点击跳转信号
-    if (sideBar->getOutlineWidget()) {
-        // 断开之前的连接
-        disconnect(sideBar->getOutlineWidget(),
-                   &PDFOutlineWidget::pageNavigationRequested, nullptr,
-                   nullptr);
-
-        // 连接到当前PDF查看器的页面跳转
-        connect(sideBar->getOutlineWidget(),
-                &PDFOutlineWidget::pageNavigationRequested, this,
-                [this](int pageNumber) {
-                    // 通过ViewWidget获取当前的PDF查看器并跳转页面
-                    viewWidget->goToPage(pageNumber);
-                });
     }
 }
 
@@ -673,5 +661,78 @@ void MainWindow::handleActionExecuted(ActionMap id) {
         default:
             // 其他操作通过DocumentController处理
             break;
+    }
+}
+
+// 目录相关的新增函数实现
+void MainWindow::onOutlineModelChanged(PDFOutlineModel* model) {
+    // 当ViewWidget发出目录模型变化信号时，更新侧边栏的目录
+    if (sideBar) {
+        sideBar->setOutlineModel(model);
+        
+        // 重新建立连接
+        setupOutlineConnections();
+        
+        // 更新目录高亮（如果有当前页面信息）
+        if (viewWidget && viewWidget->hasDocuments()) {
+            int currentPage = viewWidget->getCurrentPage();
+            updateOutlineHighlight(currentPage);
+        }
+        
+        qDebug() << "Outline model changed and updated, model:" << model;
+    }
+}
+
+void MainWindow::onPageChangedForOutlineHighlight(int pageNumber, int totalPages) {
+    // 当页面变化时，更新目录高亮
+    Q_UNUSED(totalPages)
+    updateOutlineHighlight(pageNumber);
+}
+
+void MainWindow::setupOutlineConnections() {
+    // 重新建立目录点击跳转信号连接
+    if (sideBar && sideBar->getOutlineWidget()) {
+        qDebug() << "Setting up outline connections - sidebar and outline widget exist";
+        
+        // 断开之前的连接，避免重复连接
+        disconnect(sideBar->getOutlineWidget(),
+                   &PDFOutlineWidget::pageNavigationRequested, nullptr,
+                   nullptr);
+
+        // 连接到当前PDF查看器的页面跳转
+        connect(sideBar->getOutlineWidget(),
+                &PDFOutlineWidget::pageNavigationRequested, this,
+                [this](int pageNumber) {
+                    qDebug() << "Outline navigation requested to page:" << pageNumber + 1;
+                    
+                    // 通过ViewWidget获取当前的PDF查看器并跳转页面
+                    if (viewWidget) {
+                        viewWidget->goToPage(pageNumber);
+                        
+                        // 显示状态消息
+                        if (statusBar) {
+                            statusBar->setMessage(
+                                QString("从目录跳转到第 %1 页").arg(pageNumber + 1));
+                        }
+                    }
+                });
+        
+        qDebug() << "Outline navigation connections established";
+    } else {
+        qDebug() << "Cannot setup outline connections - sidebar:" << 
+                    (sideBar != nullptr) << ", outline widget:" << 
+                    (sideBar ? (sideBar->getOutlineWidget() != nullptr) : false);
+    }
+}
+
+void MainWindow::updateOutlineHighlight(int pageNumber) {
+    // 更新目录中对应页面的高亮显示
+    if (sideBar && sideBar->getOutlineWidget()) {
+        sideBar->getOutlineWidget()->highlightPageItem(pageNumber);
+        
+        qDebug() << "Updated outline highlight for page" << pageNumber + 1 
+                 << "(0-based:" << pageNumber << ")";
+    } else {
+        qDebug() << "Cannot update outline highlight: sidebar or outline widget is null";
     }
 }

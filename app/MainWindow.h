@@ -43,6 +43,10 @@ private slots:
     void onThemeToggleRequested();
     void onOpenRecentFileRequested(const QString& filePath);
     void handleActionExecuted(ActionMap id);
+    
+    // 目录相关的槽函数
+    void onOutlineModelChanged(PDFOutlineModel* model);
+    void onPageChangedForOutlineHighlight(int pageNumber, int totalPages);
 
     // Welcome screen slots
     void onWelcomeScreenShowRequested();
@@ -59,6 +63,10 @@ private:
     void initConnection();
     void initWelcomeScreen();
     void initWelcomeScreenConnections();
+    
+    // 目录相关的辅助函数
+    void setupOutlineConnections();
+    void updateOutlineHighlight(int pageNumber);
 
     MenuBar* menuBar;
     ToolBar* toolBar;

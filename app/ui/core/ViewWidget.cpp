@@ -272,6 +272,11 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
     // 切换到新文档
     hideEmptyState();
     updateCurrentViewer();
+    
+    // 发出目录模型变化信号
+    if (getCurrentDocumentIndex() == index) {
+        emit currentOutlineModelChanged(docOutlineModel);
+    }
 
     qDebug() << "Document opened:" << fileName << "at index" << index;
 }
@@ -299,8 +304,13 @@ void ViewWidget::onDocumentClosed(int index) {
     // 如果没有文档了，显示空状态
     if (pdfViewers.isEmpty()) {
         showEmptyState();
+        // 发出空的目录模型信号
+        emit currentOutlineModelChanged(nullptr);
     } else {
         updateCurrentViewer();
+        // 发出当前文档的目录模型信号
+        PDFOutlineModel* currentOutline = getCurrentOutlineModel();
+        emit currentOutlineModelChanged(currentOutline);
     }
 
     qDebug() << "Document closed at index" << index;
@@ -310,11 +320,9 @@ void ViewWidget::onCurrentDocumentChanged(int index) {
     tabWidget->setCurrentTab(index);
     updateCurrentViewer();
 
-    // 更新目录模型
-    if (outlineModel && index >= 0 && index < outlineModels.size()) {
-        // 这里可以通知侧边栏更新目录显示
-        // 实际的目录切换将在MainWindow中处理
-    }
+    // 更新目录模型并发出信号
+    PDFOutlineModel* currentOutline = getCurrentOutlineModel();
+    emit currentOutlineModelChanged(currentOutline);
 
     qDebug() << "Current document changed to index" << index;
 }
