@@ -201,7 +201,7 @@ void ToolBar::setupRotationActions() {
 void ToolBar::setupThemeActions() {
     // 主题切换
     themeToggleAction = new QAction("🌙", this);
-    themeToggleAction->setToolTip("切换主题 (Ctrl+T)");
+    themeToggleAction->setToolTip("切换主题 (Ctrl+Shift+T)");
     addAction(themeToggleAction);
 
     // 连接信号

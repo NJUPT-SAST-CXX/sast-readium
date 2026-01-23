@@ -172,7 +172,7 @@ void DocumentMetadataDialog::setupConnections() {
     connect(m_closeButton, &QPushButton::clicked, this, &QDialog::accept);
 
     // 连接主题变化信号
-    connect(&StyleManager::instance(), &StyleManager::themeChanged, this,
+    connect(&StyleManager::instance(), &StyleManager::styleSheetApplied, this,
             &DocumentMetadataDialog::onThemeChanged);
 }
 

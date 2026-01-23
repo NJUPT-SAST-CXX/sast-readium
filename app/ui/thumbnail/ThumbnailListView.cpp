@@ -24,6 +24,8 @@
 #include <cmath>
 #include "../../delegate/ThumbnailDelegate.h"
 #include "../../model/ThumbnailModel.h"
+#include "../../managers/StyleManager.h"
+#include "../../managers/StyleManager.h"
 
 ThumbnailListView::ThumbnailListView(QWidget* parent)
     : QListView(parent),
@@ -657,22 +659,15 @@ void ThumbnailListView::scrollContentsBy(int dx, int dy) {
 }
 
 void ThumbnailListView::updateScrollBarStyle() {
-    // 更新滚动条样式
+    // 使用和PDF显示界面相同的动态滚动条样式
+    auto& styleManager = StyleManager::instance();
+    QString scrollBarStyle = styleManager.getScrollBarStyleSheet();
+    
     if (verticalScrollBar()) {
-        verticalScrollBar()->setStyleSheet(
-            "QScrollBar:vertical {"
-            "    background: #f0f0f0;"
-            "    width: 12px;"
-            "    border-radius: 6px;"
-            "}"
-            "QScrollBar::handle:vertical {"
-            "    background: #c0c0c0;"
-            "    border-radius: 6px;"
-            "    min-height: 20px;"
-            "}"
-            "QScrollBar::handle:vertical:hover {"
-            "    background: #a0a0a0;"
-            "}");
+        verticalScrollBar()->setStyleSheet(scrollBarStyle);
+    }
+    if (horizontalScrollBar()) {
+        horizontalScrollBar()->setStyleSheet(scrollBarStyle);
     }
 }
 

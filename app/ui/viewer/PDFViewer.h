@@ -168,6 +168,7 @@ public:
 
     // 主题切换
     void toggleTheme();
+    void updateThemeUI();
 
     // 搜索功能
     void showSearch();
@@ -282,6 +283,14 @@ private:
     QWidget* continuousWidget;
     QVBoxLayout* continuousLayout;
     bool isWidgetReady = false;
+
+    // 工具栏组件
+    QWidget* toolbar;
+    QGroupBox* navGroup;
+    QGroupBox* zoomGroup;
+    QGroupBox* rotateGroup;
+    QGroupBox* themeGroup;
+    QGroupBox* viewGroup;
 
     // 工具栏控件
     QPushButton* firstPageBtn;

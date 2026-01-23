@@ -29,7 +29,7 @@ public:
     ~MainWindow() noexcept;
 
 private slots:
-    void applyTheme(const QString& theme);
+    void loadAndApplyTheme(const QString& theme);
     void onDocumentOperationCompleted(ActionMap action, bool success);
     void onSideBarVisibilityChanged(bool visible);
     void onSplitterMoved(int pos, int index);

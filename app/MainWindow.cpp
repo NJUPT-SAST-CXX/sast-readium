@@ -20,13 +20,7 @@
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     LOG_DEBUG("MainWindow: Starting initialization...");
-    // Initialize with StyleManager's default theme to maintain consistency
-    QString defaultTheme =
-        (STYLE.currentTheme() == Theme::Light) ? "light" : "dark";
-    applyTheme(defaultTheme);
-    LOG_DEBUG("MainWindow: Theme applied successfully ({})",
-              defaultTheme.toStdString());
-
+    
     initWindow();
     LOG_DEBUG("MainWindow: Window initialized");
     initModel();
@@ -42,6 +36,30 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     LOG_DEBUG("MainWindow: Connections initialized");
     initWelcomeScreenConnections();
     LOG_DEBUG("MainWindow: Welcome screen connections initialized");
+
+    // 在所有组件初始化完成后应用初始主题
+    QString defaultTheme =
+        (STYLE.currentTheme() == Theme::Light) ? "light" : "dark";
+    
+    LOG_DEBUG("MainWindow: Constructor completed, scheduling initial theme application");
+    
+    // 延迟应用主题，确保窗口完全准备好，并强制应用到MainWindow
+    QTimer::singleShot(0, this, [this, defaultTheme]() {
+        LOG_DEBUG("MainWindow: Applying initial theme: {}", defaultTheme.toStdString());
+        
+        // 应用主题
+        loadAndApplyTheme(defaultTheme);
+        
+        // 额外检查：如果主窗口样式表仍然为空，使用备用方法
+        if (this->styleSheet().isEmpty()) {
+            LOG_WARNING("MainWindow: StyleSheet is empty after loadAndApplyTheme, forcing fallback theme application");
+            QString fallbackStyleSheet = STYLE.getApplicationStyleSheet();
+            STYLE.forceApplyTheme(this, fallbackStyleSheet);
+        }
+        
+        LOG_DEBUG("MainWindow: Theme application completed ({}), stylesheet length: {}", 
+                  defaultTheme.toStdString(), this->styleSheet().length());
+    });
 
     // 启动异步初始化以避免阻塞UI
     if (recentFilesManager) {
@@ -172,14 +190,15 @@ void MainWindow::initWelcomeScreen() {
     // 设置管理器到欢迎界面
     m_welcomeWidget->setWelcomeScreenManager(m_welcomeScreenManager);
 
-    // 应用主题
-    m_welcomeWidget->applyTheme();
-
     LOG_DEBUG("MainWindow: Welcome screen initialized successfully");
 }
 
 void MainWindow::initConnection() {
-    connect(menuBar, &MenuBar::themeChanged, this, &MainWindow::applyTheme);
+    // 监听 StyleManager 的主题变更信号，确保从任何地方切换主题都能立即生效
+    connect(&StyleManager::instance(), &StyleManager::themeChanged, this, [this](Theme theme) {
+        QString themeStr = (theme == Theme::Dark) ? "dark" : "light";
+        loadAndApplyTheme(themeStr);
+    });
 
     connect(menuBar, &MenuBar::onExecuted, documentController,
             &DocumentController::execute);
@@ -467,9 +486,7 @@ void MainWindow::onPDFActionRequested(ActionMap action) {
 
 void MainWindow::onThemeToggleRequested() {
     // 切换主题
-    QString currentTheme =
-        (STYLE.currentTheme() == Theme::Light) ? "dark" : "light";
-    applyTheme(currentTheme);
+    STYLE.toggleTheme();
 }
 
 void MainWindow::onOpenRecentFileRequested(const QString& filePath) {
@@ -484,17 +501,13 @@ void MainWindow::onOpenRecentFileRequested(const QString& filePath) {
 }
 
 // function
-void MainWindow::applyTheme(const QString& theme) {
+void MainWindow::loadAndApplyTheme(const QString& theme) {
     // 防止重复应用相同主题
     if (m_currentAppliedTheme == theme) {
         LOG_DEBUG("Theme {} is already applied, skipping redundant application",
                   theme.toStdString());
         return;
     }
-
-    // 首先更新StyleManager状态以保持一致性
-    Theme styleManagerTheme = (theme == "dark") ? Theme::Dark : Theme::Light;
-    STYLE.setTheme(styleManagerTheme);
 
     // 尝试从外部样式文件加载 - 支持多种部署场景
     QStringList possiblePaths = {
@@ -528,9 +541,10 @@ void MainWindow::applyTheme(const QString& theme) {
             file.close();
 
             if (!styleSheet.isEmpty()) {
-                setStyleSheet(styleSheet);
+                // 通过StyleManager应用样式表，让其统一管理
+                STYLE.applyThemeStyleSheet(styleSheet);
                 m_currentAppliedTheme = theme;
-                LOG_DEBUG("Applied external theme: {} from {}",
+                LOG_DEBUG("Applied external theme: {} from {} via StyleManager",
                           theme.toStdString(), selectedPath.toStdString());
                 return;
             } else {
@@ -550,13 +564,11 @@ void MainWindow::applyTheme(const QString& theme) {
     LOG_DEBUG("Falling back to StyleManager for theme: {}",
               theme.toStdString());
 
-    // 应用StyleManager生成的样式
+    // 使用StyleManager生成并应用默认样式
     QString fallbackStyleSheet = STYLE.getApplicationStyleSheet();
-    setStyleSheet(fallbackStyleSheet);
-    m_currentAppliedTheme = theme;  // 更新当前应用的主题状态
-
-    LOG_DEBUG("Applied fallback theme using StyleManager: {}",
-              theme.toStdString());
+    STYLE.applyThemeStyleSheet(fallbackStyleSheet);
+    m_currentAppliedTheme = theme;
+    LOG_DEBUG("Applied fallback theme: {} via StyleManager", theme.toStdString());
 }
 
 void MainWindow::initWelcomeScreenConnections() {

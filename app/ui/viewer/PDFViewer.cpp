@@ -570,7 +570,7 @@ void PDFViewer::setupUI() {
     }
 
     // 创建工具栏
-    QWidget* toolbar = new QWidget(this);
+    toolbar = new QWidget(this);
     toolbar->setObjectName("toolbar");
     if (m_enableStyling) {
         toolbar->setStyleSheet(STYLE.getToolbarStyleSheet());
@@ -585,7 +585,7 @@ void PDFViewer::setupUI() {
     }
 
     // 页面导航控件
-    QGroupBox* navGroup = new QGroupBox("页面导航", toolbar);
+    navGroup = new QGroupBox("页面导航", toolbar);
     QHBoxLayout* navLayout = new QHBoxLayout(navGroup);
 
     // 使用现代化图标
@@ -623,7 +623,7 @@ void PDFViewer::setupUI() {
     navLayout->addWidget(lastPageBtn);
 
     // 缩放控件
-    QGroupBox* zoomGroup = new QGroupBox("缩放", toolbar);
+    zoomGroup = new QGroupBox("缩放", toolbar);
     QHBoxLayout* zoomLayout = new QHBoxLayout(zoomGroup);
 
     // 使用现代化图标
@@ -669,7 +669,7 @@ void PDFViewer::setupUI() {
     zoomLayout->addWidget(fitPageBtn);
 
     // 旋转控件
-    QGroupBox* rotateGroup = new QGroupBox("旋转", toolbar);
+    rotateGroup = new QGroupBox("旋转", toolbar);
     QHBoxLayout* rotateLayout = new QHBoxLayout(rotateGroup);
 
     rotateLeftBtn = new QPushButton("↺", rotateGroup);
@@ -688,18 +688,18 @@ void PDFViewer::setupUI() {
     rotateLayout->addWidget(rotateRightBtn);
 
     // 主题切换控件
-    QGroupBox* themeGroup = new QGroupBox("主题", toolbar);
+    themeGroup = new QGroupBox("主题", toolbar);
     QHBoxLayout* themeLayout = new QHBoxLayout(themeGroup);
 
     themeToggleBtn = new QPushButton("🌙", themeGroup);
     themeToggleBtn->setStyleSheet(buttonStyle);
     themeToggleBtn->setFixedSize(STYLE.buttonHeight(), STYLE.buttonHeight());
-    themeToggleBtn->setToolTip("切换主题 (Ctrl+T)");
+    themeToggleBtn->setToolTip("切换主题 (Ctrl+Shift+T)");
 
     themeLayout->addWidget(themeToggleBtn);
 
     // 查看模式控件
-    QGroupBox* viewGroup = new QGroupBox("查看模式", toolbar);
+    viewGroup = new QGroupBox("查看模式", toolbar);
     QHBoxLayout* viewLayout = new QHBoxLayout(viewGroup);
 
     viewModeComboBox = new QComboBox(viewGroup);
@@ -854,6 +854,11 @@ void PDFViewer::setupConnections() {
     // 页面组件信号
     connect(singlePageWidget, &PDFPageWidget::scaleChanged, this,
             &PDFViewer::onScaleChanged);
+
+    // 监听 StyleManager 的样式表应用信号，确保在主题样式表应用后再更新组件
+    connect(&StyleManager::instance(), &StyleManager::styleSheetApplied, this, [this]() {
+        updateThemeUI();
+    });
 }
 
 void PDFViewer::setupShortcuts() {
@@ -881,7 +886,7 @@ void PDFViewer::setupShortcuts() {
 
     // 主题切换快捷键
     QShortcut* themeToggleShortcut =
-        new QShortcut(QKeySequence("Ctrl+T"), this);
+        new QShortcut(QKeySequence("Ctrl+Shift+T"), this);
 
     // 导航快捷键 - 基本
     firstPageShortcut = new QShortcut(QKeySequence("Ctrl+Home"), this);
@@ -1748,47 +1753,65 @@ void PDFViewer::cleanupCache() {
 }
 
 void PDFViewer::toggleTheme() {
+    STYLE.toggleTheme();
+    
+    setMessage(QString("已切换到%1主题")
+                   .arg(STYLE.currentTheme() == Theme::Dark ? "暗色" : "亮色"));
+}
+
+void PDFViewer::updateThemeUI() {
     Theme currentTheme = STYLE.currentTheme();
-    Theme newTheme =
-        (currentTheme == Theme::Light) ? Theme::Dark : Theme::Light;
-
-    STYLE.setTheme(newTheme);
-
+    
     // 更新主题按钮图标
-    if (newTheme == Theme::Dark) {
+    if (currentTheme == Theme::Dark) {
         themeToggleBtn->setText("☀");
-        themeToggleBtn->setToolTip("切换到亮色主题 (Ctrl+T)");
+        themeToggleBtn->setToolTip("切换到亮色主题 (Ctrl+Shift+T)");
     } else {
         themeToggleBtn->setText("🌙");
-        themeToggleBtn->setToolTip("切换到暗色主题 (Ctrl+T)");
+        themeToggleBtn->setToolTip("切换到暗色主题 (Ctrl+Shift+T)");
     }
 
-    // 重新应用样式
+    // 重新应用主界面样式
     setStyleSheet(STYLE.getApplicationStyleSheet());
 
-    // 更新所有子组件的样式
+    // 更新工具栏样式
+    if (toolbar) {
+        toolbar->setStyleSheet(STYLE.getToolbarStyleSheet());
+    }
+
+    // 更新所有按钮的样式
     QString buttonStyle = STYLE.getButtonStyleSheet();
-    firstPageBtn->setStyleSheet(buttonStyle);
-    prevPageBtn->setStyleSheet(buttonStyle);
-    nextPageBtn->setStyleSheet(buttonStyle);
-    lastPageBtn->setStyleSheet(buttonStyle);
-    zoomOutBtn->setStyleSheet(buttonStyle);
-    zoomInBtn->setStyleSheet(buttonStyle);
-    fitWidthBtn->setStyleSheet(buttonStyle);
-    fitHeightBtn->setStyleSheet(buttonStyle);
-    fitPageBtn->setStyleSheet(buttonStyle);
-    rotateLeftBtn->setStyleSheet(buttonStyle);
-    rotateRightBtn->setStyleSheet(buttonStyle);
-    themeToggleBtn->setStyleSheet(buttonStyle);
+    if (firstPageBtn) firstPageBtn->setStyleSheet(buttonStyle);
+    if (prevPageBtn) prevPageBtn->setStyleSheet(buttonStyle);
+    if (nextPageBtn) nextPageBtn->setStyleSheet(buttonStyle);
+    if (lastPageBtn) lastPageBtn->setStyleSheet(buttonStyle);
+    if (zoomOutBtn) zoomOutBtn->setStyleSheet(buttonStyle);
+    if (zoomInBtn) zoomInBtn->setStyleSheet(buttonStyle);
+    if (fitWidthBtn) fitWidthBtn->setStyleSheet(buttonStyle);
+    if (fitHeightBtn) fitHeightBtn->setStyleSheet(buttonStyle);
+    if (fitPageBtn) fitPageBtn->setStyleSheet(buttonStyle);
+    if (rotateLeftBtn) rotateLeftBtn->setStyleSheet(buttonStyle);
+    if (rotateRightBtn) rotateRightBtn->setStyleSheet(buttonStyle);
+    if (themeToggleBtn) themeToggleBtn->setStyleSheet(buttonStyle);
 
     // 更新滚动区域样式
     QString scrollStyle =
         STYLE.getPDFViewerStyleSheet() + STYLE.getScrollBarStyleSheet();
-    singlePageScrollArea->setStyleSheet(scrollStyle);
-    continuousScrollArea->setStyleSheet(scrollStyle);
+    if (singlePageScrollArea) singlePageScrollArea->setStyleSheet(scrollStyle);
+    if (continuousScrollArea) continuousScrollArea->setStyleSheet(scrollStyle);
 
-    setMessage(QString("已切换到%1主题")
-                   .arg(newTheme == Theme::Dark ? "暗色" : "亮色"));
+    // 递归更新所有子控件的样式，强制重新绘制
+    QList<QWidget*> allWidgets = findChildren<QWidget*>();
+    for (QWidget* widget : allWidgets) {
+        // 取消样式缓存并重新应用
+        widget->style()->unpolish(widget);
+        widget->style()->polish(widget);
+        widget->update();
+    }
+    
+    // 强制整体重绘
+    update();
+    repaint();
 }
 
 void PDFViewer::onViewModeChanged(int index) {

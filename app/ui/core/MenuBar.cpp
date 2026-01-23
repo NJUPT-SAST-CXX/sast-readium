@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QFileInfo>
 #include <QMenu>
+#include "managers/StyleManager.h"
 
 MenuBar::MenuBar(QWidget* parent)
     : QMenuBar(parent),
@@ -225,13 +226,13 @@ void MenuBar::createThemeMenu() {
 
     connect(lightThemeAction, &QAction::triggered, this, [this](bool checked) {
         if (checked) {
-            emit themeChanged("light");
+            STYLE.setLightTheme();
         }
     });
 
     connect(darkThemeAction, &QAction::triggered, this, [this](bool checked) {
         if (checked) {
-            emit themeChanged("dark");
+            STYLE.setDarkTheme();
         }
     });
 }

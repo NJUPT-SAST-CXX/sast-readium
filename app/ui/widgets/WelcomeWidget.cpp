@@ -495,7 +495,7 @@ void WelcomeWidget::setupConnections() {
     }
 
     // 主题管理器连接
-    connect(&StyleManager::instance(), &StyleManager::themeChanged, this,
+    connect(&StyleManager::instance(), &StyleManager::styleSheetApplied, this,
             &WelcomeWidget::onThemeChanged);
 }
 

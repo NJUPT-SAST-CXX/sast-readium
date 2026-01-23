@@ -123,8 +123,8 @@ DebugLogPanel::DebugLogPanel(QWidget* parent)
             this, &DebugLogPanel::onLogMessageDetailed, Qt::QueuedConnection);
 
     // Connect to theme changes
-    connect(&STYLE, &StyleManager::themeChanged, this, [this](Theme theme) {
-        Q_UNUSED(theme)
+    connect(&STYLE, &StyleManager::styleSheetApplied, this, [this]() {
+        Q_UNUSED(this)
         applyTheme();
     });
 

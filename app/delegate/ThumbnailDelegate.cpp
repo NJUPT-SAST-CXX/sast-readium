@@ -7,8 +7,7 @@
 #include <QPropertyAnimation>
 #include <QStyleOptionViewItem>
 #include <QTimer>
-#include "../managers/StyleManager.h"
-#include "../model/ThumbnailModel.h"
+#include "model/ThumbnailModel.h"
 
 // Chrome风格颜色常量
 const QColor ThumbnailDelegate::GOOGLE_BLUE = QColor(66, 133, 244);

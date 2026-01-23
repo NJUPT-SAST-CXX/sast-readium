@@ -52,6 +52,7 @@ public:
 public slots:
     void show(bool animated = true);
     void hide(bool animated = true);
+    void updateThemeUI();
 
 signals:
     void visibilityChanged(bool visible);

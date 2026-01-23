@@ -1,4 +1,4 @@
-/* 亮色主题 - 仿Okular风格 */
+/* 主窗口 */
 QMainWindow {
     background-color: #f6f6f7;
     color: #333333;
@@ -13,16 +13,19 @@ QMenuBar {
     color: #404040;
 }
 
+/* 菜单栏 项目 */
 QMenuBar::item {
     padding: 4px 12px;
     border-radius: 4px;
 }
 
+/* 菜单栏 项目选中 */
 QMenuBar::item:selected {
     background-color: #e0f0ff;
     color: #0066cc;
 }
 
+/* 菜单栏 项目按下 */
 QMenuBar::item:pressed {
     background-color: #c0e0ff;
 }
@@ -36,26 +39,31 @@ QMenu {
     color: #333333;
 }
 
+/* 菜单 项目 */
 QMenu::item {
     padding: 6px 32px 6px 24px;
     border-radius: 4px;
 }
 
+/* 菜单 项目选中 */
 QMenu::item:selected {
     background-color: #e0f0ff;
     color: #0066cc;
 }
 
+/* 菜单 项目禁用 */
 QMenu::item:disabled {
     color: #a0a0a0;
 }
 
+/* 菜单 分隔符 */
 QMenu::separator {
     height: 1px;
     background-color: #e0e0e0;
     margin: 4px 8px;
 }
 
+/* 菜单 图标 */
 QMenu::icon {
     padding-left: 10px;
 }
@@ -68,6 +76,7 @@ QToolBar {
     spacing: 6px;
 }
 
+/* 工具栏 按钮 */
 QToolButton {
     background-color: transparent;
     color: #606060;
@@ -75,14 +84,17 @@ QToolButton {
     padding: 4px;
 }
 
+/* 工具栏 按钮悬停 */
 QToolButton:hover {
     background-color: #e0e0e0;
 }
 
+/* 工具栏 按钮按下 */
 QToolButton:pressed {
     background-color: #c0e0ff;
 }
 
+/* 工具栏 按钮选中 */
 QToolButton:checked {
     background-color: #e0f0ff;
     border: 1px solid #a0c0e0;
@@ -103,74 +115,13 @@ QWidget#SideBar {
     border-right: 1px solid #d0d0d0;
 }
 
-/* 缩略图样式 - Chrome风格 */
-ThumbnailListView {
-    background-color: #ffffff;
-    border: none;
-    outline: none;
-    padding: 8px;
-}
-
-ThumbnailListView::item {
-    background-color: transparent;
-    border: none;
-    padding: 0px;
-    margin: 4px;
-}
-
-ThumbnailListView::item:selected {
-    background-color: transparent;
-    border: 2px solid #1a73e8;
-    border-radius: 8px;
-}
-
-ThumbnailListView::item:hover {
-    background-color: transparent;
-    border: 1px solid #4285f4;
-    border-radius: 8px;
-}
-
-/* 缩略图滚动条 */
-ThumbnailListView QScrollBar:vertical {
-    border: none;
-    background-color: transparent;
-    width: 12px;
-    margin: 0px;
-    border-radius: 6px;
-}
-
-ThumbnailListView QScrollBar::handle:vertical {
-    background-color: rgba(0, 0, 0, 0.2);
-    min-height: 20px;
-    border-radius: 6px;
-    margin: 0px 2px;
-}
-
-ThumbnailListView QScrollBar::handle:vertical:hover {
-    background-color: rgba(0, 0, 0, 0.4);
-}
-
-ThumbnailListView QScrollBar::handle:vertical:pressed {
-    background-color: rgba(0, 0, 0, 0.6);
-}
-
-ThumbnailListView QScrollBar::add-line:vertical,
-ThumbnailListView QScrollBar::sub-line:vertical {
-    height: 0px;
-    border: none;
-    background: transparent;
-}
-
-ThumbnailListView QScrollBar::add-page:vertical,
-ThumbnailListView QScrollBar::sub-page:vertical {
-    background: transparent;
-}
-
+/* 标签页 面板 */
 QTabWidget::pane {
     border: none;
     background-color: #f0f0f0;
 }
 
+/* 标签页 标签 */
 QTabBar::tab {
     background-color: #f0f0f0;
     color: #505050;
@@ -181,12 +132,14 @@ QTabBar::tab {
     border: none;
 }
 
+/* 标签页 标签选中 */
 QTabBar::tab:selected {
     background-color: #ffffff;
     color: #0066cc;
     border-bottom: 2px solid #3daee9;
 }
 
+/* 标签页 标签悬停 */
 QTabBar::tab:hover {
     background-color: #d0d0d0;
 }
@@ -199,16 +152,19 @@ QListView {
     outline: none;
 }
 
+/* 列表视图 项目 */
 QListView::item {
     padding: 6px;
     border-radius: 4px;
 }
 
+/* 列表视图 项目选中 */
 QListView::item:selected {
     background-color: #e0f0ff;
     color: #0066cc;
 }
 
+/* 列表视图 项目悬停 */
 QListView::item:hover {
     background-color: #f0f0f0;
 }
@@ -221,19 +177,23 @@ QTreeView {
     outline: none;
 }
 
+/* 树视图 项目 */
 QTreeView::item {
     padding: 4px;
 }
 
+/* 树视图 项目选中 */
 QTreeView::item:selected {
     background-color: #e0f0ff;
     color: #0066cc;
 }
 
+/* 树视图 项目悬停 */
 QTreeView::item:hover {
     background-color: #f0f0f0;
 }
 
+/* 表头视图 节 */
 QHeaderView::section {
     background-color: #e0e0e0;
     color: #333333;
@@ -241,12 +201,13 @@ QHeaderView::section {
     border: none;
 }
 
-/* 分割线 */
+/* 分割器 手柄 */
 QSplitter::handle {
     background-color: #d0d0d0;
     width: 4px;
 }
 
+/* 分割器 手柄悬停 */
 QSplitter::handle:hover {
     background-color: #3daee9;
 }
@@ -257,6 +218,7 @@ QDockWidget {
     border: 1px solid #c0c0c0;
 }
 
+/* 停靠窗口 标题 */
 QDockWidget::title {
     background-color: #f0f0f0;
     padding: 4px;
@@ -273,6 +235,7 @@ QProgressBar {
     color: #333333;
 }
 
+/* 进度条 块 */
 QProgressBar::chunk {
     background-color: #3daee9;
     border-radius: 3px;
@@ -287,16 +250,19 @@ QPushButton {
     color: #333333;
 }
 
+/* 按钮 悬停 */
 QPushButton:hover {
     background-color: #e0e0e0;
     border-color: #a0a0a0;
 }
 
+/* 按钮 按下 */
 QPushButton:pressed {
     background-color: #c0e0ff;
     border-color: #3daee9;
 }
 
+/* 按钮 禁用 */
 QPushButton:disabled {
     color: #a0a0a0;
     background-color: #f5f5f5;
@@ -307,86 +273,186 @@ QLabel {
     color: #333333;
 }
 
-/* 滚动条 */
+/* 滚动条 垂直 */
 QScrollBar:vertical {
     border: none;
     background-color: #f0f0f0;
     width: 12px;
     margin: 0px;
+    border-radius: 6px;
 }
 
+/* 滚动条 垂直手柄 */
 QScrollBar::handle:vertical {
     background-color: #d0d0d0;
     min-height: 20px;
     border-radius: 6px;
 }
 
+/* 滚动条 垂直手柄悬停 */
 QScrollBar::handle:vertical:hover {
     background-color: #a0a0a0;
 }
 
+/* 滚动条 垂直线 */
 QScrollBar::add-line:vertical,
 QScrollBar::sub-line:vertical {
     height: 0px;
 }
 
+/* 滚动条 垂直页面 */
 QScrollBar::add-page:vertical,
 QScrollBar::sub-page:vertical {
     background: transparent;
 }
 
-/* 横向滚动条 */
+/* 滚动条 水平 */
 QScrollBar:horizontal {
     border: none;
     background-color: #f0f0f0;
     height: 12px;
     margin: 0px;
+    border-radius: 6px;
 }
 
+/* 滚动条 水平手柄 */
 QScrollBar::handle:horizontal {
     background-color: #d0d0d0;
     min-width: 20px;
     border-radius: 6px;
 }
 
+/* 滚动条 水平手柄悬停 */
 QScrollBar::handle:horizontal:hover {
     background-color: #a0a0a0;
 }
 
+/* 滚动条 水平线 */
 QScrollBar::add-line:horizontal,
 QScrollBar::sub-line:horizontal {
     width: 0px;
 }
 
+/* 滚动条 水平页面 */
 QScrollBar::add-page:horizontal,
 QScrollBar::sub-page:horizontal {
     background: transparent;
 }
 
-/* ViewWidget 背景 */
+/* 图形视图 */
 QGraphicsView {
-background-color: #f0f0f0;
+    background-color: #f0f0f0;
 }
 
-/* WelcomeWidget 样式 */
+/* 图形视图 垂直滚动条 */
+QGraphicsView QScrollBar:vertical {
+    border: none;
+    background-color: #f0f0f0;
+    width: 12px;
+    margin: 0px;
+    border-radius: 6px;
+}
+
+/* 图形视图 垂直滚动条手柄 */
+QGraphicsView QScrollBar::handle:vertical {
+    background-color: #d0d0d0;
+    min-height: 20px;
+    border-radius: 6px;
+}
+
+/* 图形视图 垂直滚动条手柄悬停 */
+QGraphicsView QScrollBar::handle:vertical:hover {
+    background-color: #a0a0a0;
+}
+
+/* 图形视图 水平滚动条 */
+QGraphicsView QScrollBar:horizontal {
+    border: none;
+    background-color: #f0f0f0;
+    height: 12px;
+    margin: 0px;
+    border-radius: 6px;
+}
+
+/* 图形视图 水平滚动条手柄 */
+QGraphicsView QScrollBar::handle:horizontal {
+    background-color: #d0d0d0;
+    min-width: 20px;
+    border-radius: 6px;
+}
+
+/* 图形视图 水平滚动条手柄悬停 */
+QGraphicsView QScrollBar::handle:horizontal:hover {
+    background-color: #a0a0a0;
+}
+
+/* 图形视图 垂直滚动条线 */
+QGraphicsView QScrollBar::add-line:vertical,
+QGraphicsView QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+/* 图形视图 垂直滚动条页面 */
+QGraphicsView QScrollBar::add-page:vertical,
+QGraphicsView QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+/* 图形视图 水平滚动条线 */
+QGraphicsView QScrollBar::add-line:horizontal,
+QGraphicsView QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* 图形视图 水平滚动条页面 */
+QGraphicsView QScrollBar::add-page:horizontal,
+QGraphicsView QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
+
+/* PDF查看器 单页滚动区域 */
+QScrollArea#singlePageScrollArea {
+    background-color: #f5f5f5;
+    border: none;
+}
+
+/* PDF查看器 连续滚动区域 */
+QScrollArea#continuousScrollArea {
+    background-color: #f5f5f5;
+    border: none;
+}
+
+/* PDF查看器 页面标签 */
+QLabel#pdfPage {
+    background-color: #f5f5f5;
+    border: none;
+}
+
+/* PDF查看器 页面组件 */
+PDFPageWidget {
+    background-color: #f5f5f5;
+    border: none;
+}
+
+/* 欢迎页面 */
 WelcomeWidget {
     background-color: #f6f6f7;
     border: none;
 }
 
-/* WelcomeWidget 滚动区域 */
+/* 欢迎页面 滚动区域 */
 WelcomeWidget QScrollArea {
     background-color: transparent;
     border: none;
 }
 
-/* WelcomeWidget 内容区域 */
+/* 欢迎页面 内容组件 */
 WelcomeWidget QWidget#WelcomeContentWidget {
     background-color: transparent;
     border: none;
 }
 
-/* WelcomeWidget 标题标签 */
+/* 欢迎页面 标题标签 */
 WelcomeWidget QLabel#WelcomeTitleLabel {
     color: #333333;
     font-size: 24px;
@@ -394,14 +460,14 @@ WelcomeWidget QLabel#WelcomeTitleLabel {
     margin: 0px;
 }
 
-/* WelcomeWidget 版本标签 */
+/* 欢迎页面 版本标签 */
 WelcomeWidget QLabel#WelcomeVersionLabel {
     color: #606060;
     font-size: 12px;
     margin: 0px;
 }
 
-/* Enhanced WelcomeWidget 最近文件标题 with improved typography and visual hierarchy */
+/* 欢迎页面 最近文件标题 */
 WelcomeWidget QLabel#WelcomeRecentFilesTitle {
     color: #1a202c;
     font-size: 18px;
@@ -412,7 +478,7 @@ WelcomeWidget QLabel#WelcomeRecentFilesTitle {
     line-height: 1.2;
 }
 
-/* WelcomeWidget 无最近文件标签 - VSCode style */
+/* 欢迎页面 无最近文件标签 */
 WelcomeWidget QLabel#WelcomeNoRecentFilesLabel {
     color: #8e8e93;
     font-size: 12px;
@@ -421,107 +487,13 @@ WelcomeWidget QLabel#WelcomeNoRecentFilesLabel {
     padding: 8px;
 }
 
-/* WelcomeWidget 分隔线 */
+/* 欢迎页面 分隔线 */
 WelcomeWidget QFrame#WelcomeSeparatorLine {
     background-color: #e0e0e0;
     border: none;
 }
 
-/* Enhanced Recent Files List Components with Modern Styling */
-RecentFileListWidget {
-    background-color: transparent;
-    border: none;
-}
-
-RecentFileListWidget QScrollArea#RecentFileListScrollArea {
-    background-color: transparent;
-    border: none;
-}
-
-RecentFileListWidget QWidget#RecentFileListContentWidget {
-    background-color: transparent;
-    border: none;
-}
-
-RecentFileListWidget QLabel#RecentFileListEmptyLabel {
-    color: #8e8e93;
-    font-size: 13px;
-    font-weight: 400;
-    background-color: #fafafa;
-    border: 1px solid #f0f0f0;
-    border-radius: 8px;
-    padding: 24px;
-    margin: 16px 0px;
-}
-
-/* Enhanced Recent File Item Components with Modern Card Design and Shadows */
-RecentFileItemWidget {
-    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                stop: 0 #ffffff, stop: 1 #fafbfc);
-    border: 1px solid #e1e5e9;
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin: 6px 0px;
-    /* Enhanced card with subtle shadow simulation */
-}
-
-RecentFileItemWidget:hover {
-    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                stop: 0 #f8f9fa, stop: 1 #f1f3f4);
-    border-color: #d1d9e0;
-    /* Enhanced hover effect with elevated appearance */
-}
-
-RecentFileItemWidget QLabel#RecentFileNameLabel {
-    color: #1a1a1a;
-    font-size: 14px;
-    font-weight: 600;
-    background-color: transparent;
-    border: none;
-    padding: 0px;
-    margin: 0px 0px 2px 0px;
-}
-
-RecentFileItemWidget QLabel#RecentFilePathLabel {
-    color: #6c757d;
-    font-size: 12px;
-    font-weight: 400;
-    background-color: transparent;
-    border: none;
-    padding: 0px;
-    margin: 0px 0px 4px 0px;
-}
-
-RecentFileItemWidget QLabel#RecentFileLastOpenedLabel {
-    color: #9ca3af;
-    font-size: 11px;
-    font-weight: 400;
-    background-color: transparent;
-    border: none;
-    padding: 2px 8px;
-    margin: 0px;
-    background-color: #f1f3f4;
-    border-radius: 12px;
-}
-
-RecentFileItemWidget QPushButton#RecentFileRemoveButton {
-    background-color: transparent;
-    border: none;
-    color: #9ca3af;
-    font-size: 16px;
-    font-weight: bold;
-    border-radius: 12px;
-    padding: 4px;
-    min-width: 24px;
-    min-height: 24px;
-}
-
-RecentFileItemWidget QPushButton#RecentFileRemoveButton:hover {
-    background-color: #fee2e2;
-    color: #dc2626;
-}
-
-/* Enhanced WelcomeWidget Buttons with Modern Design */
+/* 欢迎页面 按钮 */
 WelcomeWidget QPushButton {
     background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                 stop: 0 #ffffff, stop: 1 #f8f9fa);
@@ -535,6 +507,7 @@ WelcomeWidget QPushButton {
     min-height: 40px;
 }
 
+/* 欢迎页面 按钮悬停 */
 WelcomeWidget QPushButton:hover {
     background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                 stop: 0 #f8f9fa, stop: 1 #e9ecef);
@@ -542,8 +515,305 @@ WelcomeWidget QPushButton:hover {
     color: #212529;
 }
 
+/* 欢迎页面 按钮按下 */
 WelcomeWidget QPushButton:pressed {
     background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                 stop: 0 #e9ecef, stop: 1 #dee2e6);
     border-color: #6c757d;
+}
+
+/* 最近文件列表 */
+RecentFileListWidget {
+    background-color: transparent;
+    border: none;
+}
+
+/* 最近文件列表 滚动区域 */
+RecentFileListWidget QScrollArea#RecentFileListScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+/* 最近文件列表 内容组件 */
+RecentFileListWidget QWidget#RecentFileListContentWidget {
+    background-color: transparent;
+    border: none;
+}
+
+/* 最近文件列表 空列表标签 */
+RecentFileListWidget QLabel#RecentFileListEmptyLabel {
+    color: #8e8e93;
+    font-size: 13px;
+    font-weight: 400;
+    background-color: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    padding: 24px;
+    margin: 16px 0px;
+}
+
+/* 最近文件项 */
+RecentFileItemWidget {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 #ffffff, stop: 1 #fafbfc);
+    border: 1px solid #e1e5e9;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 6px 0px;
+}
+
+/* 最近文件项 悬停 */
+RecentFileItemWidget:hover {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                stop: 0 #f8f9fa, stop: 1 #f1f3f4);
+    border-color: #d1d9e0;
+}
+
+/* 最近文件项 文件名标签 */
+RecentFileItemWidget QLabel#RecentFileNameLabel {
+    color: #1a1a1a;
+    font-size: 14px;
+    font-weight: 600;
+    background-color: transparent;
+    border: none;
+    padding: 0px;
+    margin: 0px 0px 2px 0px;
+}
+
+/* 最近文件项 路径标签 */
+RecentFileItemWidget QLabel#RecentFilePathLabel {
+    color: #6c757d;
+    font-size: 12px;
+    font-weight: 400;
+    background-color: transparent;
+    border: none;
+    padding: 0px;
+    margin: 0px 0px 4px 0px;
+}
+
+/* 最近文件项 最后打开标签 */
+RecentFileItemWidget QLabel#RecentFileLastOpenedLabel {
+    color: #9ca3af;
+    font-size: 11px;
+    font-weight: 400;
+    background-color: transparent;
+    border: none;
+    padding: 2px 8px;
+    margin: 0px;
+    background-color: #f1f3f4;
+    border-radius: 12px;
+}
+
+/* 最近文件项 删除按钮 */
+RecentFileItemWidget QPushButton#RecentFileRemoveButton {
+    background-color: transparent;
+    border: none;
+    color: #9ca3af;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 12px;
+    padding: 4px;
+    min-width: 24px;
+    min-height: 24px;
+}
+
+/* 最近文件项 删除按钮悬停 */
+RecentFileItemWidget QPushButton#RecentFileRemoveButton:hover {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+/* 缩略图 列表视图 */
+ThumbnailListView {
+    background-color: #ffffff;
+    border: none;
+    outline: none;
+    padding: 8px;
+}
+
+/* 缩略图 列表项 */
+ThumbnailListView::item {
+    background-color: transparent;
+    border: none;
+    padding: 0px;
+    margin: 4px;
+}
+
+/* 缩略图 列表项选中 */
+ThumbnailListView::item:selected {
+    background-color: transparent;
+    border: 2px solid #1a73e8;
+    border-radius: 8px;
+}
+
+/* 缩略图 列表项悬停 */
+ThumbnailListView::item:hover {
+    background-color: transparent;
+    border: 1px solid #4285f4;
+    border-radius: 8px;
+}
+
+/* 缩略图 列表视图焦点 */
+ThumbnailListView:focus {
+    outline: 2px solid #4285f4;
+    outline-offset: 2px;
+}
+
+/* 缩略图 列表视图空状态 */
+ThumbnailListView[data-empty="true"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23dadce0'%3E%3Cpath d='M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 48px 48px;
+}
+
+/* 缩略图 滚动条 */
+QScrollBar#ThumbnailScrollBar:vertical {
+    border: none;
+    background-color: #f0f0f0;
+    width: 12px;
+    margin: 0px;
+    border-radius: 6px;
+}
+
+/* 缩略图 滚动条手柄 */
+QScrollBar#ThumbnailScrollBar::handle:vertical {
+    background-color: #d0d0d0;
+    min-height: 20px;
+    border-radius: 6px;
+}
+
+/* 缩略图 滚动条手柄悬停 */
+QScrollBar#ThumbnailScrollBar::handle:vertical:hover {
+    background-color: #a0a0a0;
+}
+
+/* 缩略图 滚动条手柄按下 */
+QScrollBar#ThumbnailScrollBar::handle:vertical:pressed {
+    background-color: #a0a0a0;
+}
+
+/* 缩略图 滚动条线 */
+QScrollBar#ThumbnailScrollBar::add-line:vertical,
+QScrollBar#ThumbnailScrollBar::sub-line:vertical {
+    height: 0px;
+    border: none;
+    background: transparent;
+}
+
+/* 缩略图 滚动条页面 */
+QScrollBar#ThumbnailScrollBar::add-page:vertical,
+QScrollBar#ThumbnailScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+/* 缩略图 上下文菜单 */
+QMenu#ThumbnailContextMenu {
+    background-color: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    padding: 4px 0px;
+    color: #333333;
+    min-width: 160px;
+}
+
+/* 缩略图 上下文菜单项 */
+QMenu#ThumbnailContextMenu::item {
+    padding: 8px 16px;
+    border: none;
+    background-color: transparent;
+    color: #333333;
+    font-size: 13px;
+}
+
+/* 缩略图 上下文菜单项选中 */
+QMenu#ThumbnailContextMenu::item:selected {
+    background-color: #f1f3f4;
+    color: #1a73e8;
+    border-radius: 4px;
+    margin: 0px 4px;
+}
+
+/* 缩略图 上下文菜单项禁用 */
+QMenu#ThumbnailContextMenu::item:disabled {
+    color: #9aa0a6;
+}
+
+/* 缩略图 上下文菜单分隔符 */
+QMenu#ThumbnailContextMenu::separator {
+    height: 1px;
+    background-color: #e8eaed;
+    margin: 4px 8px;
+}
+
+/* 缩略图 上下文菜单图标 */
+QMenu#ThumbnailContextMenu::icon {
+    padding-left: 4px;
+    padding-right: 8px;
+}
+
+/* 缩略图 加载状态 */
+.thumbnail-loading {
+    background-color: #f8f9fa;
+    border: 1px solid #e8eaed;
+    border-radius: 8px;
+}
+
+/* 缩略图 错误状态 */
+.thumbnail-error {
+    background-color: #fce8e6;
+    border: 1px solid #f28b82;
+    border-radius: 8px;
+}
+
+/* 缩略图 选中状态 */
+.thumbnail-selected {
+    border: 2px solid #1a73e8;
+    border-radius: 8px;
+}
+
+/* 缩略图 悬停状态 */
+.thumbnail-hovered {
+    border: 1px solid #4285f4;
+    border-radius: 8px;
+}
+
+/* 缩略图 占位符 */
+.thumbnail-placeholder {
+    background-color: #f8f9fa;
+    border: 1px dashed #dadce0;
+    border-radius: 8px;
+    color: #9aa0a6;
+}
+
+/* 缩略图 页码标签 */
+.page-number-label {
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: bold;
+    font-family: "Segoe UI", "Roboto", sans-serif;
+}
+
+/* 缩略图 加载指示器 */
+.loading-spinner {
+    color: #1a73e8;
+    background-color: transparent;
+}
+
+/* 缩略图 错误指示器 */
+.error-indicator {
+    color: #ea4335;
+    background-color: transparent;
+}
+
+/* 缩略图 淡入效果 */
+.thumbnail-fade-in {
+    opacity: 1;
+}
+
+/* 缩略图 平滑滚动 */
+.smooth-scroll {
 }
