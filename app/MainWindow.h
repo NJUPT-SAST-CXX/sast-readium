@@ -6,7 +6,6 @@
 #include "controller/DocumentController.h"
 #include "controller/PageController.h"
 #include "controller/tool.hpp"
-#include "factory/WidgetFactory.h"
 #include "managers/RecentFilesManager.h"
 #include "managers/StyleManager.h"
 #include "model/DocumentModel.h"

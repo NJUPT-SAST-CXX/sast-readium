@@ -21,11 +21,10 @@
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-#include <cmath>
-#include "../../delegate/ThumbnailDelegate.h"
-#include "../../model/ThumbnailModel.h"
-#include "../../managers/StyleManager.h"
-#include "../../managers/StyleManager.h"
+#include "delegate/ThumbnailDelegate.h"
+#include "model/ThumbnailModel.h"
+#include "managers/StyleManager.h"
+#include "managers/StyleManager.h"
 
 ThumbnailListView::ThumbnailListView(QWidget* parent)
     : QListView(parent),

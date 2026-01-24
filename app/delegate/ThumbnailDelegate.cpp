@@ -16,7 +16,7 @@ const QColor ThumbnailDelegate::GOOGLE_RED = QColor(234, 67, 53);
 const QColor ThumbnailDelegate::LIGHT_BACKGROUND = QColor(255, 255, 255);
 const QColor ThumbnailDelegate::LIGHT_BORDER = QColor(200, 200, 200);
 const QColor ThumbnailDelegate::LIGHT_TEXT = QColor(60, 60, 60);
-const QColor ThumbnailDelegate::DARK_BACKGROUND = QColor(32, 33, 36);
+const QColor ThumbnailDelegate::DARK_BACKGROUND = QColor(0, 0, 0);
 const QColor ThumbnailDelegate::DARK_BORDER = QColor(95, 99, 104);
 const QColor ThumbnailDelegate::DARK_TEXT = QColor(232, 234, 237);
 
@@ -24,7 +24,7 @@ ThumbnailDelegate::ThumbnailDelegate(QObject* parent)
     : QStyledItemDelegate(parent),
       m_thumbnailSize(DEFAULT_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_HEIGHT),
       m_margin(DEFAULT_MARGIN),
-      m_borderRadius(DEFAULT_BORDER_RADIUS),
+      m_borderRadius(0),  // 设置为0去除圆角
       m_pageNumberHeight(DEFAULT_PAGE_NUMBER_HEIGHT),
       m_shadowEnabled(true),
       m_animationEnabled(true),
@@ -137,20 +137,20 @@ void ThumbnailDelegate::setLightTheme() {
     m_borderColorHovered = GOOGLE_BLUE.lighter(150);
     m_borderColorSelected = GOOGLE_BLUE;
     m_shadowColor = QColor(0, 0, 0, 50);
-    m_pageNumberBgColor = QColor(240, 240, 240);
-    m_pageNumberTextColor = LIGHT_TEXT;
+    m_pageNumberBgColor = QColor(0, 0, 0, 0);
+    m_pageNumberTextColor = QColor(60, 60, 60);
     m_loadingColor = GOOGLE_BLUE;
     m_errorColor = GOOGLE_RED;
     m_placeholderColor = QColor(200, 200, 200);
 }
 
 void ThumbnailDelegate::setDarkTheme() {
-    m_backgroundColor = DARK_BACKGROUND;
+    m_backgroundColor = QColor(0, 0, 0, 0);  // 透明背景
     m_borderColorNormal = DARK_BORDER;
     m_borderColorHovered = GOOGLE_BLUE.lighter(150);
     m_borderColorSelected = GOOGLE_BLUE;
     m_shadowColor = QColor(0, 0, 0, 100);
-    m_pageNumberBgColor = QColor(60, 60, 60);
+    m_pageNumberBgColor = QColor(0, 0, 0, 0);  // 页码背景也设为透明
     m_pageNumberTextColor = DARK_TEXT;
     m_loadingColor = GOOGLE_BLUE;
     m_errorColor = GOOGLE_RED;
@@ -223,24 +223,22 @@ void ThumbnailDelegate::paintThumbnail(
     const QStyleOptionViewItem& option) const {
     Q_UNUSED(option)
 
-    // 优化缩放操作 - 避免不必要的缩放
-    QPixmap displayPixmap = pixmap;
-    if (pixmap.size() != rect.size()) {
-        // 选择最优的变换模式
-        Qt::TransformationMode mode =
-            getOptimalTransformationMode(pixmap.size(), rect.size());
-        displayPixmap = pixmap.scaled(rect.size(), Qt::KeepAspectRatio, mode);
+    if (!pixmap.isNull()) {
+        // 缩放图片填满整个rect，不保持宽高比
+        QPixmap displayPixmap = pixmap.scaled(rect.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        
+        // 直接绘制填满整个rect
+        painter->drawPixmap(rect, displayPixmap);
+    } else {
+        // 没有缩略图时，不绘制背景（保持透明）
+        
+        // 绘制占位符图标
+        painter->setPen(QColor(120, 120, 120));
+        QFont font = painter->font();
+        font.setPixelSize(24);
+        painter->setFont(font);
+        painter->drawText(rect, Qt::AlignCenter, "📄");
     }
-
-    // 居中绘制
-    QRect targetRect = rect;
-    if (displayPixmap.size() != rect.size()) {
-        int x = rect.x() + (rect.width() - displayPixmap.width()) / 2;
-        int y = rect.y() + (rect.height() - displayPixmap.height()) / 2;
-        targetRect = QRect(x, y, displayPixmap.width(), displayPixmap.height());
-    }
-
-    painter->drawPixmap(targetRect, displayPixmap);
 }
 
 void ThumbnailDelegate::paintBackground(

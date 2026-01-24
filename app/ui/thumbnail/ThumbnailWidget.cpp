@@ -11,7 +11,6 @@
 #include <QRect>
 #include <QSize>
 #include <QStyleOption>
-#include <cmath>
 
 // 颜色常量定义
 const QColor ThumbnailWidget::BORDER_COLOR_NORMAL = QColor(200, 200, 200);

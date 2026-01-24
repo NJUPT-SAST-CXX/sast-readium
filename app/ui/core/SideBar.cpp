@@ -268,6 +268,16 @@ void SideBar::updateThemeUI() {
     // 清除所有内联样式，让QSS文件中的主题样式生效
     // 不直接设置滚动条样式，让QSS文件中的样式来控制
     
+    // 更新ThumbnailDelegate的主题
+    if (thumbnailDelegate) {
+        Theme currentTheme = StyleManager::instance().currentTheme();
+        if (currentTheme == Theme::Dark) {
+            thumbnailDelegate->setDarkTheme();
+        } else {
+            thumbnailDelegate->setLightTheme();
+        }
+    }
+    
     if (tabWidget) {
         tabWidget->setStyleSheet("");
     }
@@ -282,6 +292,8 @@ void SideBar::updateThemeUI() {
         if (thumbnailView->horizontalScrollBar()) {
             thumbnailView->horizontalScrollBar()->setStyleSheet("");
         }
+        // 触发重绘
+        thumbnailView->viewport()->update();
     }
     
     // 递归更新所有子控件的样式
