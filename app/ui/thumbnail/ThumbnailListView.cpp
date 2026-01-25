@@ -25,6 +25,7 @@
 #include "model/ThumbnailModel.h"
 #include "managers/StyleManager.h"
 #include "managers/StyleManager.h"
+#include "utils/LoggingMacros.h"
 
 ThumbnailListView::ThumbnailListView(QWidget* parent)
     : QListView(parent),
@@ -553,6 +554,7 @@ void ThumbnailListView::contextMenuEvent(QContextMenuEvent* event) {
 
 void ThumbnailListView::onScrollBarValueChanged(int value) {
     Q_UNUSED(value);
+    LOG_DEBUG("ThumbnailListView: update thumbnail by ThumbnailListView::onScrollBarValueChanged");
     updateVisibleRange();
     updatePreloadRange();
 }
@@ -560,6 +562,29 @@ void ThumbnailListView::onScrollBarValueChanged(int value) {
 void ThumbnailListView::onScrollBarRangeChanged(int min, int max) {
     Q_UNUSED(min);
     Q_UNUSED(max);
+    
+    // 防抖逻辑：检查是否是由于样式更新导致的微小变化
+    // 如果可见范围没有实质性变化，就不触发更新
+    ThumbnailModel* thumbnailModel = qobject_cast<ThumbnailModel*>(model());
+    if (!thumbnailModel) {
+        return;
+    }
+    
+    QRect viewportRect = viewport()->rect();
+    int firstVisible = indexAt(viewportRect.topLeft()).row();
+    int lastVisible = indexAt(viewportRect.bottomRight()).row();
+    
+    if (firstVisible < 0) firstVisible = 0;
+    if (lastVisible < 0) lastVisible = thumbnailModel->rowCount() - 1;
+    
+    // 如果可见范围没有变化，就不需要更新
+    if (m_visibleRange.first == firstVisible && m_visibleRange.second == lastVisible) {
+        LOG_DEBUG("ThumbnailListView: Skipping range change update - visible range unchanged ({}~{})", firstVisible, lastVisible);
+        return;
+    }
+    
+    LOG_DEBUG("ThumbnailListView: update thumbnail by ThumbnailListView::onScrollBarRangeChanged ({}~{} -> {}~{})", 
+              m_visibleRange.first, m_visibleRange.second, firstVisible, lastVisible);
     updateVisibleRange();
 }
 
@@ -614,7 +639,16 @@ void ThumbnailListView::updateVisibleRange() {
     if (lastVisible < 0)
         lastVisible = thumbnailModel->rowCount() - 1;
 
+    // 防抖逻辑：如果可见范围没有变化，就不重复请求缩略图
+    if (m_visibleRange.first == firstVisible && m_visibleRange.second == lastVisible) {
+        return;
+    }
+    
+    QPair<int, int> oldRange = m_visibleRange;
     m_visibleRange = qMakePair(firstVisible, lastVisible);
+    
+    LOG_DEBUG("ThumbnailListView: Visible range changed from {}~{} to {}~{}", 
+              oldRange.first, oldRange.second, firstVisible, lastVisible);
 
     // 请求可见范围的缩略图
     for (int i = firstVisible; i <= lastVisible; ++i) {

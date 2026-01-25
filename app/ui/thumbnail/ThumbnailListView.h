@@ -10,7 +10,6 @@
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-#include <memory>
 
 class ThumbnailModel;
 class ThumbnailDelegate;
