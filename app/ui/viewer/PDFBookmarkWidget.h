@@ -13,7 +13,7 @@
 #include <QStringList>
 #include <QVBoxLayout>
 #include <QWidget>
-#include "../../model/BookmarkModel.h"
+#include "model/BookmarkModel.h"
 
 class PDFBookmarkWidget : public QWidget {
     Q_OBJECT

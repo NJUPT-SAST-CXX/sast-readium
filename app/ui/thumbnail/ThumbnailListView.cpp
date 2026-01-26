@@ -24,7 +24,6 @@
 #include "delegate/ThumbnailDelegate.h"
 #include "model/ThumbnailModel.h"
 #include "managers/StyleManager.h"
-#include "managers/StyleManager.h"
 #include "utils/LoggingMacros.h"
 
 ThumbnailListView::ThumbnailListView(QWidget* parent)
