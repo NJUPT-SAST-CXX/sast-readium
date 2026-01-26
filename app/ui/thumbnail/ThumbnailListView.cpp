@@ -283,14 +283,22 @@ void ThumbnailListView::scrollToPage(int pageNumber, bool animated) {
     }
 
     if (animated && m_animationEnabled) {
-        QRect itemRect = visualRect(index);
-        int targetPosition = itemRect.top() - viewport()->height() / 4;
-        targetPosition = qBound(verticalScrollBar()->minimum(), targetPosition,
-                                verticalScrollBar()->maximum());
-
-        animateScrollTo(targetPosition);
+        // 首先获取当前滚动条值
+        int currentValue = verticalScrollBar()->value();
+        
+        // 临时禁用动画，获取目标页面居中的准确位置
+        scrollTo(index, QAbstractItemView::PositionAtCenter);
+        int targetValue = verticalScrollBar()->value();
+        
+        // 恢复原始位置
+        verticalScrollBar()->setValue(currentValue);
+        
+        // 现在可以安全地进行动画滚动
+        if (targetValue != currentValue) {
+            animateScrollTo(targetValue);
+        }
     } else {
-        scrollTo(index, QAbstractItemView::PositionAtTop);
+        scrollTo(index, QAbstractItemView::PositionAtCenter);
     }
 }
 
@@ -614,6 +622,7 @@ void ThumbnailListView::onModelRowsRemoved(const QModelIndex& parent, int first,
 
 void ThumbnailListView::onScrollAnimationFinished() {
     m_isScrolling = false;
+    m_isScrollAnimating = false;
     updateVisibleRange();
 }
 
@@ -719,10 +728,34 @@ void ThumbnailListView::updateItemSizes() {
     scheduleDelayedItemsLayout();
 }
 
-void ThumbnailListView::animateScrollTo(int pageNumber) {
+void ThumbnailListView::animateScrollTo(int position) {
+    // 停止当前动画
+    if (m_scrollAnimation->state() == QPropertyAnimation::Running) {
+        m_scrollAnimation->stop();
+    }
+    
+    // 设置目标位置并启动动画
+    m_targetScrollPosition = qBound(verticalScrollBar()->minimum(), 
+                                   position, 
+                                   verticalScrollBar()->maximum());
+    
+    m_scrollAnimation->setStartValue(verticalScrollBar()->value());
+    m_scrollAnimation->setEndValue(m_targetScrollPosition);
+    m_scrollAnimation->start();
+    m_isScrollAnimating = true;
+}
+
+void ThumbnailListView::animateScrollToPage(int pageNumber) {
     QModelIndex index = indexAtPage(pageNumber);
     if (index.isValid()) {
         scrollTo(index, QAbstractItemView::PositionAtCenter);
+    }
+}
+
+void ThumbnailListView::stopScrollAnimation() {
+    if (m_scrollAnimation && m_scrollAnimation->state() == QPropertyAnimation::Running) {
+        m_scrollAnimation->stop();
+        m_isScrollAnimating = false;
     }
 }
 

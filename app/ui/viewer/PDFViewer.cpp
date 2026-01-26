@@ -1275,8 +1275,10 @@ void PDFViewer::updatePageDisplay() {
             singlePageWidget->setPage(page.release(), currentZoomFactor,
                                       currentRotation);
         }
+    } else if (currentViewMode == PDFViewMode::ContinuousScroll) {
+        // 连续滚动模式下需要滚动到对应的页面位置
+        scrollToPageInContinuousView(currentPageNumber);
     }
-    // 连续模式下不需要更新单个页面，因为所有页面都已经渲染
 }
 
 void PDFViewer::updateContinuousView() {
@@ -1694,6 +1696,39 @@ void PDFViewer::onScrollChanged() {
     if (currentViewMode == PDFViewMode::ContinuousScroll) {
         updateVisiblePages();
     }
+}
+
+void PDFViewer::scrollToPageInContinuousView(int pageNumber) {
+    if (!document || currentViewMode != PDFViewMode::ContinuousScroll || 
+        pageNumber < 0 || pageNumber >= document->numPages()) {
+        return;
+    }
+
+    // 确保连续视图布局已经创建
+    if (continuousLayout->count() <= pageNumber) {
+        return;
+    }
+
+    // 获取目标页面的widget
+    QLayoutItem* item = continuousLayout->itemAt(pageNumber);
+    if (!item || !item->widget()) {
+        return;
+    }
+
+    QWidget* pageWidget = item->widget();
+    
+    // 计算滚动位置，将页面滚动到视口中央
+    int targetY = pageWidget->y() - (continuousScrollArea->viewport()->height() - pageWidget->height()) / 2;
+    
+    // 限制在有效范围内
+    QScrollBar* scrollBar = continuousScrollArea->verticalScrollBar();
+    targetY = qBound(scrollBar->minimum(), targetY, scrollBar->maximum());
+    
+    // 平滑滚动到目标位置
+    scrollBar->setValue(targetY);
+    
+    // 确保目标页面被渲染
+    updateVisiblePages();
 }
 
 QPixmap PDFViewer::getCachedPage(int pageNumber, double zoomFactor,

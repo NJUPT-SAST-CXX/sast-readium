@@ -130,7 +130,8 @@ private:
     void updateItemSizes();
     void updatePreloadRange();
 
-    void animateScrollTo(int position);
+    void animateScrollTo(int scrollPosition);
+    void animateScrollToPage(int pageNumber);
     void stopScrollAnimation();
 
     void fadeInVisibleItems();

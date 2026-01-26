@@ -234,6 +234,7 @@ protected:
     void updateVisiblePages();
     void renderVisiblePages();
     void onScrollChanged();
+    void scrollToPageInContinuousView(int pageNumber);
 
     // 缓存管理方法
     QPixmap getCachedPage(int pageNumber, double zoomFactor, int rotation);

@@ -46,6 +46,9 @@ private slots:
     // 目录相关的槽函数
     void onOutlineModelChanged(PDFOutlineModel* model);
     void onPageChangedForOutlineHighlight(int pageNumber, int totalPages);
+    
+    // 缩略图同步的槽函数
+    void onPageChangedForThumbnailSync(int pageNumber, int totalPages);
 
     // Welcome screen slots
     void onWelcomeScreenShowRequested();

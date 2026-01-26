@@ -16,6 +16,7 @@
 #include "model/RenderModel.h"
 #include "ui/managers/WelcomeScreenManager.h"
 #include "ui/widgets/WelcomeWidget.h"
+#include "ui/thumbnail/ThumbnailListView.h"
 #include "utils/LoggingMacros.h"
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
@@ -314,6 +315,10 @@ void MainWindow::initConnection() {
                 statusBar->setPageInfo(pageNumber, totalPages);
                 toolBar->updatePageInfo(pageNumber, totalPages);
             });
+    
+    // 连接页面变化信号以同步缩略图高光
+    connect(viewWidget, &ViewWidget::currentViewerPageChanged, this,
+            &MainWindow::onPageChangedForThumbnailSync);
     connect(viewWidget, &ViewWidget::currentViewerZoomChanged, this,
             [this](double zoomFactor) {
                 statusBar->setZoomLevel(zoomFactor);
@@ -747,4 +752,20 @@ void MainWindow::updateOutlineHighlight(int pageNumber) {
     } else {
         qDebug() << "Cannot update outline highlight: sidebar or outline widget is null";
     }
+}
+
+void MainWindow::onPageChangedForThumbnailSync(int pageNumber, int totalPages) {
+    // 同步缩略图的当前页面高光和滚动位置
+    if (sideBar && sideBar->getThumbnailView()) {
+        ThumbnailListView* thumbnailView = sideBar->getThumbnailView();
+        
+        // 设置当前页面（这会自动更新高光并滚动到当前页面）
+        thumbnailView->setCurrentPage(pageNumber, true);  // true表示使用动画
+        
+        LOG_DEBUG("MainWindow: Synchronized thumbnail highlight to page {}", pageNumber + 1);
+    } else {
+        LOG_DEBUG("MainWindow: Cannot sync thumbnail highlight: sidebar or thumbnail view is null");
+    }
+    
+    Q_UNUSED(totalPages)  // 避免未使用参数的警告
 }
