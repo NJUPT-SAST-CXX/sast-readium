@@ -1,4 +1,5 @@
 #include "LoggingMacros.h"
+#include "LoggingManager.h"
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QMutex>

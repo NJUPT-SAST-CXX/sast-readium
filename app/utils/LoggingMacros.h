@@ -4,7 +4,6 @@
 #include <QDebug>
 #include <QString>
 #include "Logger.h"
-#include "LoggingManager.h"
 
 /**
  * @file LoggingMacros.h

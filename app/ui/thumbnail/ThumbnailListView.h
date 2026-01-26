@@ -10,7 +10,6 @@
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-#include <memory>
 
 class ThumbnailModel;
 class ThumbnailDelegate;
@@ -130,9 +129,9 @@ private:
 
     void updateItemSizes();
     void updatePreloadRange();
-    void updateScrollBarStyle();
 
-    void animateScrollTo(int position);
+    void animateScrollTo(int scrollPosition);
+    void animateScrollToPage(int pageNumber);
     void stopScrollAnimation();
 
     void fadeInVisibleItems();
@@ -152,6 +151,10 @@ private:
     // Context menu functionality
     void copyPageToClipboard(int pageNumber);
     void exportPageToFile(int pageNumber);
+
+public slots:
+    // 主题相关
+    void updateScrollBarStyle();
 
 private:
     // 核心组件

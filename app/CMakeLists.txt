@@ -7,6 +7,10 @@ file(GLOB_RECURSE APP_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 )
 
+file(GLOB_RECURSE APP_CPP_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+)
+
 file(GLOB UIs "${CMAKE_CURRENT_SOURCE_DIR}/*.ui")
 
 if (WIN32)
@@ -35,100 +39,11 @@ qt_add_translations(
 target_sources(
     app
     PRIVATE
-    MainWindow.cpp
-    main.cpp
-
-    # Core UI components
-    ui/core/MenuBar.cpp
-    ui/core/SideBar.cpp
-    ui/core/RightSideBar.cpp
-    ui/core/StatusBar.cpp
-    ui/core/ToolBar.cpp
-    ui/core/ViewWidget.cpp
-
-    # Viewer components
-    ui/viewer/PDFViewer.cpp
-    ui/viewer/PDFOutlineWidget.cpp
-    ui/viewer/PDFViewerEnhancements.cpp
-    ui/viewer/PDFAnimations.cpp
-    ui/viewer/QGraphicsPDFViewer.cpp
-
-    # UI Widgets
-    ui/widgets/DocumentTabWidget.cpp
-    ui/widgets/SearchWidget.cpp
-    ui/widgets/BookmarkWidget.cpp
-    ui/widgets/AnnotationToolbar.cpp
-    ui/widgets/WelcomeWidget.cpp
-    ui/widgets/RecentFileListWidget.cpp
-    ui/widgets/DebugLogPanel.cpp
-
-    # Dialog components
-    ui/dialogs/DocumentComparison.cpp
-    ui/dialogs/DocumentMetadataDialog.cpp
-
-    # Thumbnail system
-    ui/thumbnail/ThumbnailWidget.cpp
-    ui/thumbnail/ThumbnailGenerator.cpp
-    ui/thumbnail/ThumbnailListView.cpp
-    ui/thumbnail/ThumbnailContextMenu.cpp
-
-    # UI Manager components
-    ui/managers/WelcomeScreenManager.cpp
-
-    # Core Manager components
-    managers/StyleManager.cpp
-    managers/FileTypeIconManager.cpp
-
-    # Viewer components (continued)
-    ui/viewer/PDFPrerenderer.cpp
-
-    # Cache management
-    cache/PDFCacheManager.cpp
-
-    # Utility components (temporarily removed due to compilation issues)
-    utils/PDFUtilities.cpp
-    utils/DocumentAnalyzer.cpp
-
-    # Manager components
-    managers/RecentFilesManager.cpp
-
-    # Other components
-    plugin/PluginManager.cpp
-    factory/WidgetFactory.cpp
-    command/Commands.cpp
-
-    # Controllers
-    controller/DocumentController.cpp
-    controller/PageController.cpp
-
-    # Models
-    model/DocumentModel.cpp
-    model/PageModel.cpp
-    model/PDFOutlineModel.cpp
-    model/AsyncDocumentLoader.cpp
-    model/SearchModel.cpp
-    model/BookmarkModel.cpp
-    model/AnnotationModel.cpp
-    model/RenderModel.cpp
-    model/ThumbnailModel.cpp
-
-    # Delegates
-    delegate/PageNavigationDelegate.cpp
-    delegate/ThumbnailDelegate.cpp
-
-    # Views
-    view/Views.cpp
-
-    # Logging
-    utils/Logger.cpp
-    utils/QtSpdlogBridge.cpp
-    utils/LoggingManager.cpp
-    utils/LoggingMacros.cpp
-    utils/LoggingConfig.cpp
-
+    ${APP_CPP_SOURCES}
     # Tests (optional, can be excluded in release builds)
     # tests/test_logging.cpp  # Commented out - file doesn't exist yet
 )
+
 target_include_directories(
     app
     PRIVATE

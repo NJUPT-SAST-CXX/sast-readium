@@ -21,9 +21,10 @@
 #include <QtCore>
 #include <QtGui>
 #include <QtWidgets>
-#include <cmath>
-#include "../../delegate/ThumbnailDelegate.h"
-#include "../../model/ThumbnailModel.h"
+#include "delegate/ThumbnailDelegate.h"
+#include "model/ThumbnailModel.h"
+#include "managers/StyleManager.h"
+#include "utils/LoggingMacros.h"
 
 ThumbnailListView::ThumbnailListView(QWidget* parent)
     : QListView(parent),
@@ -281,14 +282,22 @@ void ThumbnailListView::scrollToPage(int pageNumber, bool animated) {
     }
 
     if (animated && m_animationEnabled) {
-        QRect itemRect = visualRect(index);
-        int targetPosition = itemRect.top() - viewport()->height() / 4;
-        targetPosition = qBound(verticalScrollBar()->minimum(), targetPosition,
-                                verticalScrollBar()->maximum());
-
-        animateScrollTo(targetPosition);
+        // 首先获取当前滚动条值
+        int currentValue = verticalScrollBar()->value();
+        
+        // 临时禁用动画，获取目标页面居中的准确位置
+        scrollTo(index, QAbstractItemView::PositionAtCenter);
+        int targetValue = verticalScrollBar()->value();
+        
+        // 恢复原始位置
+        verticalScrollBar()->setValue(currentValue);
+        
+        // 现在可以安全地进行动画滚动
+        if (targetValue != currentValue) {
+            animateScrollTo(targetValue);
+        }
     } else {
-        scrollTo(index, QAbstractItemView::PositionAtTop);
+        scrollTo(index, QAbstractItemView::PositionAtCenter);
     }
 }
 
@@ -315,6 +324,7 @@ void ThumbnailListView::setCurrentPage(int pageNumber, bool animated) {
         return;
     }
 
+    LOG_INFO("ThumbnailListView: Current page changed from {} to {}", m_currentPage + 1, pageNumber + 1);
     m_currentPage = pageNumber;
 
     if (pageNumber >= 0) {
@@ -551,7 +561,7 @@ void ThumbnailListView::contextMenuEvent(QContextMenuEvent* event) {
 // 缺失的方法实现
 
 void ThumbnailListView::onScrollBarValueChanged(int value) {
-    Q_UNUSED(value);
+    Q_UNUSED(value)
     updateVisibleRange();
     updatePreloadRange();
 }
@@ -559,6 +569,28 @@ void ThumbnailListView::onScrollBarValueChanged(int value) {
 void ThumbnailListView::onScrollBarRangeChanged(int min, int max) {
     Q_UNUSED(min);
     Q_UNUSED(max);
+    
+    // 防抖逻辑：检查是否是由于样式更新导致的微小变化
+    // 如果可见范围没有实质性变化，就不触发更新
+    ThumbnailModel* thumbnailModel = qobject_cast<ThumbnailModel*>(model());
+    if (!thumbnailModel) {
+        return;
+    }
+    
+    QRect viewportRect = viewport()->rect();
+    int firstVisible = indexAt(viewportRect.topLeft()).row();
+    int lastVisible = indexAt(viewportRect.bottomRight()).row();
+    
+    if (firstVisible < 0) firstVisible = 0;
+    if (lastVisible < 0) lastVisible = thumbnailModel->rowCount() - 1;
+    
+    // 如果可见范围没有变化，就不需要更新
+    if (m_visibleRange.first == firstVisible && m_visibleRange.second == lastVisible) {
+        return;
+    }
+    
+    LOG_DEBUG("ThumbnailListView: Range changed ({}~{} -> {}~{})", 
+              m_visibleRange.first, m_visibleRange.second, firstVisible, lastVisible);
     updateVisibleRange();
 }
 
@@ -589,6 +621,7 @@ void ThumbnailListView::onModelRowsRemoved(const QModelIndex& parent, int first,
 
 void ThumbnailListView::onScrollAnimationFinished() {
     m_isScrolling = false;
+    m_isScrollAnimating = false;
     updateVisibleRange();
 }
 
@@ -613,13 +646,25 @@ void ThumbnailListView::updateVisibleRange() {
     if (lastVisible < 0)
         lastVisible = thumbnailModel->rowCount() - 1;
 
+    // 防抖逻辑：如果可见范围没有变化，就不重复请求缩略图
+    if (m_visibleRange.first == firstVisible && m_visibleRange.second == lastVisible) {
+        return;
+    }
+    
+    QPair<int, int> oldRange = m_visibleRange;
     m_visibleRange = qMakePair(firstVisible, lastVisible);
 
-    // 请求可见范围的缩略图
+    // 请求可见范围的缩略图 - 智能请求，只加载需要的
+    int requestCount = 0;
     for (int i = firstVisible; i <= lastVisible; ++i) {
         QModelIndex index = thumbnailModel->index(i, 0);
         if (index.isValid()) {
-            thumbnailModel->requestThumbnail(i);
+            // 检查是否已经有缓存或正在加载
+            if (!thumbnailModel->hasCachedThumbnail(i) && 
+                !thumbnailModel->isThumbnailLoading(i)) {
+                thumbnailModel->requestThumbnail(i);
+                requestCount++;
+            }
         }
     }
 }
@@ -657,22 +702,15 @@ void ThumbnailListView::scrollContentsBy(int dx, int dy) {
 }
 
 void ThumbnailListView::updateScrollBarStyle() {
-    // 更新滚动条样式
+    // 使用和PDF显示界面相同的动态滚动条样式
+    auto& styleManager = StyleManager::instance();
+    QString scrollBarStyle = styleManager.getScrollBarStyleSheet();
+    
     if (verticalScrollBar()) {
-        verticalScrollBar()->setStyleSheet(
-            "QScrollBar:vertical {"
-            "    background: #f0f0f0;"
-            "    width: 12px;"
-            "    border-radius: 6px;"
-            "}"
-            "QScrollBar::handle:vertical {"
-            "    background: #c0c0c0;"
-            "    border-radius: 6px;"
-            "    min-height: 20px;"
-            "}"
-            "QScrollBar::handle:vertical:hover {"
-            "    background: #a0a0a0;"
-            "}");
+        verticalScrollBar()->setStyleSheet(scrollBarStyle);
+    }
+    if (horizontalScrollBar()) {
+        horizontalScrollBar()->setStyleSheet(scrollBarStyle);
     }
 }
 
@@ -685,19 +723,38 @@ void ThumbnailListView::updateItemSizes() {
     QSize itemSize = m_thumbnailSize + QSize(20, 40);  // 添加边距
     setGridSize(itemSize);
 
-    // 更新所有项目的大小提示
-    for (int i = 0; i < thumbnailModel->rowCount(); ++i) {
-        QModelIndex index = thumbnailModel->index(i, 0);
-        if (index.isValid()) {
-            update(index);
-        }
-    }
+    // 只触发布局更新，避免强制重绘所有项目
+    scheduleDelayedItemsLayout();
 }
 
-void ThumbnailListView::animateScrollTo(int pageNumber) {
+void ThumbnailListView::animateScrollTo(int position) {
+    // 停止当前动画
+    if (m_scrollAnimation->state() == QPropertyAnimation::Running) {
+        m_scrollAnimation->stop();
+    }
+    
+    // 设置目标位置并启动动画
+    m_targetScrollPosition = qBound(verticalScrollBar()->minimum(), 
+                                   position, 
+                                   verticalScrollBar()->maximum());
+    
+    m_scrollAnimation->setStartValue(verticalScrollBar()->value());
+    m_scrollAnimation->setEndValue(m_targetScrollPosition);
+    m_scrollAnimation->start();
+    m_isScrollAnimating = true;
+}
+
+void ThumbnailListView::animateScrollToPage(int pageNumber) {
     QModelIndex index = indexAtPage(pageNumber);
     if (index.isValid()) {
         scrollTo(index, QAbstractItemView::PositionAtCenter);
+    }
+}
+
+void ThumbnailListView::stopScrollAnimation() {
+    if (m_scrollAnimation && m_scrollAnimation->state() == QPropertyAnimation::Running) {
+        m_scrollAnimation->stop();
+        m_isScrollAnimating = false;
     }
 }
 
@@ -733,9 +790,19 @@ void ThumbnailListView::updatePreloadRange() {
     int endPage = qMin(thumbnailModel->rowCount() - 1,
                        m_visibleRange.second + preloadCount);
 
+    // 智能预加载：只预加载尚未缓存且不在可见范围内的页面
+    int preloadRequestCount = 0;
     for (int i = startPage; i <= endPage; ++i) {
-        if (i < m_visibleRange.first || i > m_visibleRange.second) {
+        // 跳过可见范围内的页面（这些已经在updateVisibleRange中处理了）
+        if (i >= m_visibleRange.first && i <= m_visibleRange.second) {
+            continue;
+        }
+        
+        // 检查是否需要预加载
+        if (!thumbnailModel->hasCachedThumbnail(i) && 
+            !thumbnailModel->isThumbnailLoading(i)) {
             thumbnailModel->requestThumbnail(i);
+            preloadRequestCount++;
         }
     }
 }
@@ -874,11 +941,17 @@ void ThumbnailListView::optimizedUpdateVisibleRange() {
         thumbnailModel->setViewportRange(firstVisible, lastVisible,
                                          m_preloadMargin);
 
-        // 请求可见范围的缩略图
+        // 请求可见范围的缩略图 - 智能请求，只加载需要的
+        int requestCount = 0;
         for (int i = firstVisible; i <= lastVisible; ++i) {
             QModelIndex index = thumbnailModel->index(i, 0);
             if (index.isValid()) {
-                thumbnailModel->requestThumbnail(i);
+                // 检查是否已经有缓存或正在加载
+                if (!thumbnailModel->hasCachedThumbnail(i) && 
+                    !thumbnailModel->isThumbnailLoading(i)) {
+                    thumbnailModel->requestThumbnail(i);
+                    requestCount++;
+                }
             }
         }
     }

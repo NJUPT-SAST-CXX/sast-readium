@@ -6,7 +6,6 @@
 #include "controller/DocumentController.h"
 #include "controller/PageController.h"
 #include "controller/tool.hpp"
-#include "factory/WidgetFactory.h"
 #include "managers/RecentFilesManager.h"
 #include "managers/StyleManager.h"
 #include "model/DocumentModel.h"
@@ -29,7 +28,7 @@ public:
     ~MainWindow() noexcept;
 
 private slots:
-    void applyTheme(const QString& theme);
+    void loadAndApplyTheme(const QString& theme);
     void onDocumentOperationCompleted(ActionMap action, bool success);
     void onSideBarVisibilityChanged(bool visible);
     void onSplitterMoved(int pos, int index);
@@ -43,6 +42,13 @@ private slots:
     void onThemeToggleRequested();
     void onOpenRecentFileRequested(const QString& filePath);
     void handleActionExecuted(ActionMap id);
+    
+    // 目录相关的槽函数
+    void onOutlineModelChanged(PDFOutlineModel* model);
+    void onPageChangedForOutlineHighlight(int pageNumber, int totalPages);
+    
+    // 缩略图同步的槽函数
+    void onPageChangedForThumbnailSync(int pageNumber, int totalPages);
 
     // Welcome screen slots
     void onWelcomeScreenShowRequested();
@@ -59,6 +65,10 @@ private:
     void initConnection();
     void initWelcomeScreen();
     void initWelcomeScreenConnections();
+    
+    // 目录相关的辅助函数
+    void setupOutlineConnections();
+    void updateOutlineHighlight(int pageNumber);
 
     MenuBar* menuBar;
     ToolBar* toolBar;

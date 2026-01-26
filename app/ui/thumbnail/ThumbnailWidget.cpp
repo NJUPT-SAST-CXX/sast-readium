@@ -11,7 +11,7 @@
 #include <QRect>
 #include <QSize>
 #include <QStyleOption>
-#include <cmath>
+#include "utils/LoggingMacros.h"
 
 // 颜色常量定义
 const QColor ThumbnailWidget::BORDER_COLOR_NORMAL = QColor(200, 200, 200);
@@ -177,6 +177,7 @@ void ThumbnailWidget::setLoading(bool loading) {
 }
 
 void ThumbnailWidget::setError(const QString& errorMessage) {
+    LOG_WARNING("ThumbnailWidget: Page {} error - {}", m_pageNumber, errorMessage.toStdString());
     m_errorMessage = errorMessage;
     setState(Error);
 }

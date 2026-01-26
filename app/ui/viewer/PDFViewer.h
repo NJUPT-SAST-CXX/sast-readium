@@ -41,8 +41,7 @@
 #include <QWheelEvent>
 #include <QWidget>
 #include <QtGlobal>
-#include "../../model/DocumentModel.h"
-#include "../../model/SearchModel.h"
+#include "model/SearchModel.h"
 #include "PDFAnimations.h"
 
 #ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
@@ -169,6 +168,7 @@ public:
 
     // 主题切换
     void toggleTheme();
+    void updateThemeUI();
 
     // 搜索功能
     void showSearch();
@@ -234,6 +234,7 @@ protected:
     void updateVisiblePages();
     void renderVisiblePages();
     void onScrollChanged();
+    void scrollToPageInContinuousView(int pageNumber);
 
     // 缓存管理方法
     QPixmap getCachedPage(int pageNumber, double zoomFactor, int rotation);
@@ -283,6 +284,14 @@ private:
     QWidget* continuousWidget;
     QVBoxLayout* continuousLayout;
     bool isWidgetReady = false;
+
+    // 工具栏组件
+    QWidget* toolbar;
+    QGroupBox* navGroup;
+    QGroupBox* zoomGroup;
+    QGroupBox* rotateGroup;
+    QGroupBox* themeGroup;
+    QGroupBox* viewGroup;
 
     // 工具栏控件
     QPushButton* firstPageBtn;

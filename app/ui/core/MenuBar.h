@@ -15,7 +15,6 @@ public:
     MenuBar(QWidget* parent = nullptr);
 
 signals:
-    void themeChanged(const QString& theme);
     void onExecuted(ActionMap id, QWidget* context = nullptr);
     void openRecentFileRequested(const QString& filePath);
     void welcomeScreenToggleRequested();

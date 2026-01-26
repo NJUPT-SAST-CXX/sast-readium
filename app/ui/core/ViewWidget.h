@@ -72,6 +72,7 @@ private slots:
 signals:
     void currentViewerPageChanged(int pageNumber, int totalPages);
     void currentViewerZoomChanged(double zoomFactor);
+    void currentOutlineModelChanged(PDFOutlineModel* model);
 
 private:
     // UI组件

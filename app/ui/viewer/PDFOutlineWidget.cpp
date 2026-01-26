@@ -103,7 +103,11 @@ void PDFOutlineWidget::setOutlineModel(PDFOutlineModel* model) {
         // 如果模型已有数据，立即刷新
         if (outlineModel->hasOutline()) {
             refreshOutline();
+        } else {
+            clearOutline();
         }
+    } else {
+        clearOutline();
     }
 }
 

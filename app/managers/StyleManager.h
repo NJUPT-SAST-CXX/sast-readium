@@ -5,6 +5,10 @@
 #include <QFont>
 #include <QObject>
 #include <QString>
+#include <QWidget>
+#include <QList>
+
+class QMainWindow;
 
 enum class Theme { Light, Dark };
 
@@ -16,7 +20,14 @@ public:
 
     // 主题管理
     void setTheme(Theme theme);
+    void toggleTheme();  // 在亮色/暗色间切换
+    void setLightTheme(); // 直接设置亮色主题
+    void setDarkTheme();  // 直接设置暗色主题
     Theme currentTheme() const { return m_currentTheme; }
+
+    // 统一主题应用
+    void applyThemeStyleSheet(const QString& styleSheet);
+    void forceApplyTheme(QWidget* widget, const QString& styleSheet);
 
     // 样式表获取
     QString getApplicationStyleSheet() const;
@@ -53,6 +64,7 @@ public:
 
 signals:
     void themeChanged(Theme theme);
+    void styleSheetApplied(); // 新增：样式表应用完成信号
 
 private:
     StyleManager();

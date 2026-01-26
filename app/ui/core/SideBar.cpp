@@ -16,6 +16,7 @@
 #include <QtWidgets>
 #include "../../delegate/ThumbnailDelegate.h"
 #include "../../model/ThumbnailModel.h"
+#include "../../managers/StyleManager.h"
 #include "../thumbnail/ThumbnailListView.h"
 
 // 定义静态常量
@@ -42,6 +43,11 @@ SideBar::SideBar(QWidget* parent)
     initContent();
     initAnimation();
     restoreState();
+
+    // 监听StyleManager的样式表应用信号，确保在主题样式表应用后再更新组件
+    connect(&StyleManager::instance(), &StyleManager::styleSheetApplied, this, [this]() {
+        updateThemeUI();
+    });
 }
 
 void SideBar::initWindow() {
@@ -54,9 +60,11 @@ void SideBar::initContent() {
     tabWidget = new QTabWidget(this);
 
     QWidget* thumbnailsTab = createThumbnailsTab();
+    QWidget* outlineTab = createOutlineTab();
     QWidget* bookmarksTab = createBookmarksTab();
 
     tabWidget->addTab(thumbnailsTab, "缩略图");
+    tabWidget->addTab(outlineTab, "目录");
     tabWidget->addTab(bookmarksTab, "书签");
 
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
@@ -91,14 +99,23 @@ QWidget* SideBar::createThumbnailsTab() {
     return thumbnailsTab;
 }
 
+QWidget* SideBar::createOutlineTab() {
+    QWidget* outlineTab = new QWidget();
+    QVBoxLayout* outlineLayout = new QVBoxLayout(outlineTab);
+
+    // 创建PDF目录组件
+    outlineWidget = new PDFOutlineWidget();
+    outlineLayout->addWidget(outlineWidget);
+    return outlineTab;
+}
+
 QWidget* SideBar::createBookmarksTab() {
     QWidget* bookmarksTab = new QWidget();
     QVBoxLayout* bookmarkLayout = new QVBoxLayout(bookmarksTab);
 
-    // 创建PDF目录组件
-    outlineWidget = new PDFOutlineWidget();
-    bookmarkLayout->addWidget(outlineWidget);
-
+    // 创建PDF书签组件
+    bookmarkWidget = new PDFBookmarkWidget();
+    bookmarkLayout->addWidget(bookmarkWidget);
     return bookmarksTab;
 }
 
@@ -245,4 +262,53 @@ void SideBar::refreshThumbnails() {
     if (thumbnailModel) {
         thumbnailModel->refreshAllThumbnails();
     }
+}
+
+void SideBar::updateThemeUI() {
+    // 清除所有内联样式，让QSS文件中的主题样式生效
+    // 不直接设置滚动条样式，让QSS文件中的样式来控制
+    
+    // 更新ThumbnailDelegate的主题
+    if (thumbnailDelegate) {
+        Theme currentTheme = StyleManager::instance().currentTheme();
+        if (currentTheme == Theme::Dark) {
+            thumbnailDelegate->setDarkTheme();
+        } else {
+            thumbnailDelegate->setLightTheme();
+        }
+    }
+    
+    if (tabWidget) {
+        tabWidget->setStyleSheet("");
+    }
+    
+    if (thumbnailView) {
+        // 清除缩略图视图的内联样式，让CSS主题样式生效
+        thumbnailView->setStyleSheet("");
+        // 清除滚动条的内联样式，让QSS文件中的样式生效
+        if (thumbnailView->verticalScrollBar()) {
+            thumbnailView->verticalScrollBar()->setStyleSheet("");
+        }
+        if (thumbnailView->horizontalScrollBar()) {
+            thumbnailView->horizontalScrollBar()->setStyleSheet("");
+        }
+        // 触发重绘
+        thumbnailView->viewport()->update();
+    }
+    
+    // 递归更新所有子控件的样式
+    QList<QWidget*> allWidgets = findChildren<QWidget*>();
+    for (QWidget* widget : allWidgets) {
+        // 取消样式缓存并重新应用
+        widget->style()->unpolish(widget);
+        widget->style()->polish(widget);
+        widget->update();
+    }
+    
+    // 最后清除侧边栏的内联样式，让QSS文件中的样式生效
+    setStyleSheet("");
+    
+    // 强制重绘
+    update();
+    repaint();
 }

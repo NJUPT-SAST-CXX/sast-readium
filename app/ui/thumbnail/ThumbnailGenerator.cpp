@@ -12,7 +12,6 @@
 #include <QtGui>
 #include <QtWidgets>
 #include <algorithm>
-#include <cmath>
 #include "utils/LoggingMacros.h"
 
 ThumbnailGenerator::ThumbnailGenerator(QObject* parent)
@@ -63,6 +62,12 @@ void ThumbnailGenerator::setDocument(
 
     m_document = document;
 
+    if (m_document) {
+        LOG_INFO("ThumbnailGenerator: Document set with {} pages", m_document->numPages());
+    } else {
+        LOG_INFO("ThumbnailGenerator: Document cleared");
+    }
+
     // 配置文档渲染设置
     if (m_document) {
         // ArthurBackend可能不可用，注释掉
@@ -105,7 +110,10 @@ void ThumbnailGenerator::setQuality(double quality) {
 }
 
 void ThumbnailGenerator::setMaxConcurrentJobs(int maxJobs) {
-    m_maxConcurrentJobs = qBound(1, maxJobs, 8);
+    int newMaxJobs = qBound(1, maxJobs, 8);
+    if (m_maxConcurrentJobs != newMaxJobs) {
+    }
+    m_maxConcurrentJobs = newMaxJobs;
 
     // 如果当前活动任务超过限制，等待一些完成
     while (activeJobCount() > m_maxConcurrentJobs) {
@@ -167,6 +175,8 @@ void ThumbnailGenerator::generateThumbnailRange(int startPage, int endPage,
     int numPages = m_document->numPages();
     startPage = qBound(0, startPage, numPages - 1);
     endPage = qBound(startPage, endPage, numPages - 1);
+
+    LOG_INFO("ThumbnailGenerator: Batch generating {} pages", endPage - startPage + 1);
 
     for (int i = startPage; i <= endPage; ++i) {
         generateThumbnail(i, size, quality, i - startPage);  // 按顺序设置优先级
@@ -244,6 +254,7 @@ void ThumbnailGenerator::resume() {
 }
 
 void ThumbnailGenerator::stop() {
+    LOG_INFO("ThumbnailGenerator: Stopped");
     m_running = false;
     m_paused = false;
 
@@ -256,6 +267,7 @@ void ThumbnailGenerator::stop() {
 }
 
 void ThumbnailGenerator::start() {
+    LOG_INFO("ThumbnailGenerator: Started");
     m_running = true;
     m_paused = false;
 
@@ -284,6 +296,8 @@ void ThumbnailGenerator::startNextJob() {
 
     GenerationRequest request = m_requestQueue.dequeue();
     emit queueSizeChanged(m_requestQueue.size());
+    
+    LOG_DEBUG("ThumbnailGenerator: Starting page {}", request.pageNumber);
 
     queueLocker.unlock();
 
@@ -432,14 +446,10 @@ void ThumbnailGenerator::handleJobError(GenerationJob* job,
         std::sort(m_requestQueue.begin(), m_requestQueue.end());
         emit queueSizeChanged(m_requestQueue.size());
 
-        qDebug() << "Retrying thumbnail generation for page"
-                 << job->request.pageNumber << "attempt"
-                 << job->request.retryCount;
     } else {
         emit thumbnailError(job->request.pageNumber, error);
-        qWarning() << "Failed to generate thumbnail for page"
-                   << job->request.pageNumber << "after" << m_maxRetries
-                   << "retries:" << error;
+        LOG_WARNING("ThumbnailGenerator: Thumbnail generation finally failed - page {}, {} retries, error: {}",
+                    job->request.pageNumber, m_maxRetries, error.toStdString());
     }
 }
 
@@ -460,10 +470,10 @@ QPixmap ThumbnailGenerator::generatePixmap(const GenerationRequest& request) {
         return renderPageToPixmap(page.get(), request.size, request.quality);
 
     } catch (const std::exception& e) {
-        LOG_WARNING("Exception in generatePixmap: {}", std::string(e.what()));
+        LOG_WARNING("ThumbnailGenerator: Exception in generatePixmap - {}", e.what());
         return QPixmap();
     } catch (...) {
-        LOG_WARNING("Unknown exception in generatePixmap");
+        LOG_WARNING("ThumbnailGenerator: Unknown exception in generatePixmap");
         return QPixmap();
     }
 }
@@ -504,10 +514,10 @@ QPixmap ThumbnailGenerator::renderPageToPixmapOptimized(Poppler::Page* page,
         return QPixmap::fromImage(image);
 
     } catch (const std::exception& e) {
-        qWarning() << "Exception in renderPageToPixmapOptimized:" << e.what();
+        LOG_WARNING("ThumbnailGenerator: Exception in renderPageToPixmapOptimized - {}", e.what());
         return QPixmap();
     } catch (...) {
-        qWarning() << "Unknown exception in renderPageToPixmapOptimized";
+        LOG_WARNING("ThumbnailGenerator: Unknown exception in renderPageToPixmapOptimized");
         return QPixmap();
     }
 }
@@ -604,15 +614,12 @@ void ThumbnailGenerator::updateStatistics() {
 
         emit generationProgress(m_totalGenerated, totalRequests);
 
-        // 定期输出统计信息
-        static int logCounter = 0;
-        if (++logCounter % 50 == 0) {
-            qDebug() << "Thumbnail generation stats:"
-                     << "Success rate:" << QString::number(successRate, 'f', 1)
-                     << "%"
-                     << "Avg time:" << QString::number(avgTime, 'f', 1) << "ms"
-                     << "Queue size:" << queueSize()
-                     << "Active jobs:" << activeJobCount();
+        // 进度每变化1%输出一次统计信息
+        static double lastLoggedSuccessRate = -1.0;
+        if (lastLoggedSuccessRate < 0 || qAbs(successRate - lastLoggedSuccessRate) >= 1.0) {
+            LOG_INFO("ThumbnailGenerator: Stats - success {:.1f}%, avg {:.1f}ms",
+                     successRate, avgTime);
+            lastLoggedSuccessRate = successRate;
         }
     }
 }
@@ -623,9 +630,6 @@ void ThumbnailGenerator::logPerformance(const GenerationRequest& request,
 
     // 记录性能数据用于优化
     if (duration > 1000) {  // 超过1秒的任务
-        qDebug() << "Slow thumbnail generation:"
-                 << "Page" << request.pageNumber << "Size" << request.size
-                 << "Quality" << request.quality << "Duration" << duration
-                 << "ms";
+        LOG_WARNING("ThumbnailGenerator: Slow generation - page {}, {}ms", request.pageNumber, duration);
     }
 }

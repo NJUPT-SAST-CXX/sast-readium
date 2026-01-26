@@ -1,5 +1,7 @@
 #include "StyleManager.h"
 #include <QFontDatabase>
+#include <QWidget>
+#include <QApplication>
 #include "utils/Logger.h"
 
 StyleManager& StyleManager::instance() {
@@ -24,6 +26,19 @@ void StyleManager::setTheme(Theme theme) {
         Logger::instance().debug(
             "[managers] Theme change completed and signal emitted");
     }
+}
+
+void StyleManager::toggleTheme() {
+    Theme newTheme = (m_currentTheme == Theme::Light) ? Theme::Dark : Theme::Light;
+    setTheme(newTheme);
+}
+
+void StyleManager::setLightTheme() {
+    setTheme(Theme::Light);
+}
+
+void StyleManager::setDarkTheme() {
+    setTheme(Theme::Dark);
 }
 
 void StyleManager::updateColors() {
@@ -210,8 +225,21 @@ QString StyleManager::getStatusBarStyleSheet() const {
 }
 
 QString StyleManager::getPDFViewerStyleSheet() const {
+    // 根据主题动态设置PDF查看器背景色
+    QColor pdfBackgroundColor = (m_currentTheme == Theme::Light) 
+                                ? QColor(245, 245, 245)  // 亮色主题使用浅灰
+                                : QColor(30, 30, 30);    // 暗色主题使用深灰
+    
+    QColor pageBackgroundColor = (m_currentTheme == Theme::Light) 
+                                ? QColor(255, 255, 255)  // 亮色主题PDF页面白色
+                                : QColor(45, 45, 48);    // 暗色主题PDF页面深灰
+    
     return QString(R"(
-        QScrollArea {
+        QScrollArea#singlePageScrollArea {
+            background-color: %1;
+            border: none;
+        }
+        QScrollArea#continuousScrollArea {
             background-color: %1;
             border: none;
         }
@@ -219,18 +247,72 @@ QString StyleManager::getPDFViewerStyleSheet() const {
             background-color: %1;
         }
         QLabel#pdfPage {
-            background-color: white;
-            border: 1px solid %2;
+            background-color: %2;
+            border: 1px solid %3;
             border-radius: 4px;
             margin: 8px;
         }
+        PDFPageWidget {
+            background-color: %2;
+            border: none;
+        }
     )")
-        .arg(QColor(240, 240, 240).name())
+        .arg(pdfBackgroundColor.name())
+        .arg(pageBackgroundColor.name())
         .arg(borderColor().name());
 }
 
 QString StyleManager::getScrollBarStyleSheet() const {
     return createScrollBarStyle();
+}
+
+void StyleManager::applyThemeStyleSheet(const QString& styleSheet) {
+    // 获取主窗口并应用样式表
+    QWidget* mainWindow = nullptr;
+    
+    // 首先尝试获取活动窗口
+    mainWindow = QApplication::activeWindow();
+    
+    // 如果没有活动窗口，尝试获取所有顶级窗口中的第一个
+    if (!mainWindow) {
+        QWidgetList topLevelWidgets = QApplication::topLevelWidgets();
+        for (QWidget* widget : topLevelWidgets) {
+            if (widget && widget->inherits("QMainWindow")) {
+                mainWindow = widget;
+                break;
+            }
+        }
+    }
+    
+    // 最后的备选方案：获取任何顶级窗口
+    if (!mainWindow) {
+        QWidgetList topLevelWidgets = QApplication::topLevelWidgets();
+        if (!topLevelWidgets.isEmpty()) {
+            mainWindow = topLevelWidgets.first();
+        }
+    }
+    
+    if (mainWindow) {
+        mainWindow->setStyleSheet(styleSheet);
+        Logger::instance().debug("[StyleManager] Applied theme stylesheet to window: {}, stylesheet length: {}", 
+                                mainWindow->metaObject()->className(), styleSheet.length());
+    } else {
+        Logger::instance().warning("[StyleManager] No main window found to apply stylesheet");
+    }
+    
+    // 发出样式表应用完成信号
+    emit styleSheetApplied();
+}
+
+void StyleManager::forceApplyTheme(QWidget* widget, const QString& styleSheet) {
+    if (widget) {
+        widget->setStyleSheet(styleSheet);
+        Logger::instance().debug("[StyleManager] Force applied theme to widget: {}",
+                               widget->metaObject()->className());
+        emit styleSheetApplied();
+    } else {
+        Logger::instance().warning("[StyleManager] Cannot force apply theme to null widget");
+    }
 }
 
 QString StyleManager::createScrollBarStyle() const {
