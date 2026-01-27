@@ -1,0 +1,139 @@
+name: Package and Release (macOS)
+
+on:
+  workflow_run:
+    workflows: ["MacOS Build"]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  APP_NAME: sast-readium
+
+jobs:
+  check-release:
+    name: Check Release Conditions
+    runs-on: macos-15
+    if: github.event.workflow_run.conclusion == 'success'
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+      tag_name: ${{ steps.check.outputs.tag_name }}
+
+    steps:
+      - name: Check if triggered by tag
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          HEAD_BRANCH="${{ github.event.workflow_run.head_branch }}"
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+
+          echo "Triggered by workflow: ${{ github.event.workflow_run.name }}"
+          echo "Head branch/tag: $HEAD_BRANCH"
+          echo "Head SHA: $HEAD_SHA"
+
+          if [[ "$HEAD_BRANCH" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            VERSION="${HEAD_BRANCH#v}"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag_name=$HEAD_BRANCH" >> $GITHUB_OUTPUT
+          else
+            echo "Not a version tag, skipping release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
+  package-macos-arm64:
+    name: Package macOS (arm64)
+    runs-on: macos-15
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+
+    steps:
+      - name: Download macOS arm64 artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-macos.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ${{ env.APP_NAME }}-macos-arm64
+          path: artifacts
+
+      - name: Package macOS arm64
+        run: |
+          echo "=== Downloaded artifacts ==="
+          ls -la artifacts/
+          cd artifacts
+          zip -r "../${{ env.APP_NAME }}-${{ needs.check-release.outputs.version }}-macos-arm64.zip" .
+          cd ..
+          ls -la *.zip
+
+      - name: Upload macOS arm64 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-arm64
+          path: "*.zip"
+          retention-days: 1
+
+  package-macos-x86_64:
+    name: Package macOS (x86_64)
+    runs-on: macos-15-intel
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+
+    steps:
+      - name: Download macOS x86_64 artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-macos.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ${{ env.APP_NAME }}-macos-x86_64
+          path: artifacts
+
+      - name: Package macOS x86_64
+        run: |
+          echo "=== Downloaded artifacts ==="
+          ls -la artifacts/
+          cd artifacts
+          zip -r "../${{ env.APP_NAME }}-${{ needs.check-release.outputs.version }}-macos-x86_64.zip" .
+          cd ..
+          ls -la *.zip
+
+      - name: Upload macOS x86_64 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-x86_64
+          path: "*.zip"
+          retention-days: 1
+
+  create-release:
+    name: Upload to Release
+    runs-on: ubuntu-latest
+    needs: [check-release, package-macos-arm64, package-macos-x86_64]
+
+    steps:
+      - name: Download macOS arm64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-macos-arm64
+          path: release-files
+
+      - name: Download macOS x86_64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-macos-x86_64
+          path: release-files
+
+      - name: List release files
+        run: |
+          echo "=== Release files ==="
+          ls -la release-files/
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-release.outputs.tag_name }}
+          files: release-files/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
