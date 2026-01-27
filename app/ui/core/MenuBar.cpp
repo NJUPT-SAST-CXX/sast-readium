@@ -216,13 +216,18 @@ void MenuBar::createThemeMenu() {
 
     QAction* lightThemeAction = new QAction(tr("浅色"), this);
     lightThemeAction->setCheckable(true);
+    lightThemeAction->setChecked(STYLE.currentTheme() == Theme::Light);
 
     QAction* darkThemeAction = new QAction(tr("深色"), this);
     darkThemeAction->setCheckable(true);
+    darkThemeAction->setChecked(STYLE.currentTheme() == Theme::Dark);
 
     QActionGroup* themeGroup = new QActionGroup(this);
     themeGroup->addAction(lightThemeAction);
     themeGroup->addAction(darkThemeAction);
+
+    themeMenu->addAction(lightThemeAction);
+    themeMenu->addAction(darkThemeAction);
 
     connect(lightThemeAction, &QAction::triggered, this, [this](bool checked) {
         if (checked) {
