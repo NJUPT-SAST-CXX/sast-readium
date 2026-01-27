@@ -69,7 +69,7 @@ File /nonfatal /a /r "${RELEASE_BUILD_DIR}\styles\"
 ;File /nonfatal /a /r "..\configs\"
 
 SetOutPath $INSTDIR
-CreateShortCut "$DESKTOP\${PRODUCT_NAME_FULL}.lnk" $INSTDIR\${PRODUCT_NAME}.exe
+CreateShortCut "$DESKTOP\${PRODUCT_NAME_FULL}.lnk" "$INSTDIR\${PRODUCT_NAME}.exe"
 
 
 WriteUninstaller "$INSTDIR\Uninstall.exe"
