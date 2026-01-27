@@ -3,21 +3,21 @@ name: MacOS Build
 on:
   push:
     branches: [ master ]
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'  # 也在 tag push 时触发
   pull_request:
     branches: [ master ]
 
 permissions: write-all
 
 env:
-  # Build optimization settings
-  CMAKE_BUILD_PARALLEL_LEVEL: 4
-  MAKEFLAGS: "-j4"
   CACHE_VERSION: v2
   APP_NAME: sast-readium
   # Homebrew optimizations
   HOMEBREW_NO_AUTO_UPDATE: 1
   HOMEBREW_NO_INSTALL_CLEANUP: 1
   HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
+  poppler-version: 24.11.0
 
 jobs:
   build:
@@ -39,23 +39,45 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 1
 
-      - name: Install system dependencies
+      - name: Install Homebrew packages (cached)
+        uses: tecolicom/actions-use-homebrew-tools@v1
+        with:
+          tools: >
+            cmake ninja qt@6 pkg-config spdlog
+            cairo fontconfig freetype gettext glib gpgme jpeg-turbo libpng libtiff little-cms2 nspr nss openjpeg
+          key: ${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ matrix.arch }}-Homebrew
+
+      - name: Restore poppler-qt6 install cache
+        id: poppler-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+                /tmp/poppler
+          key: ${{ runner.os }}-${{ matrix.arch }}-${{ env.CACHE_VERSION }}-${{ env.poppler-version }}-poppler-qt6
+
+      - name: install poppler-qt6 cache
+        if: steps.poppler-cache.outputs.cache-hit == 'true'
         run: |
-          echo "Installing Homebrew packages..."
-          brew install cmake ninja qt@6 pkg-config spdlog
+          echo "Restoring poppler-qt6 from cache..."
+          cd /tmp/poppler/build
+          sudo ninja install
 
-          # Install poppler dependencies
-          echo "Installing poppler dependencies..."
-          brew install cairo fontconfig freetype gettext glib gpgme jpeg-turbo libpng libtiff little-cms2 nspr nss openjpeg
-
-          # Verify installations
-          echo "Installed package versions:"
-          brew list --versions cmake ninja qt@6 pkg-config ccache || true
+          # Update library cache
+          sudo update_dyld_shared_cache || true
+          
+          # Verify installation
+          echo "Verifying poppler-qt6 installation..."
+          pkg-config --modversion poppler-qt6 || echo "Warning: poppler-qt6 not found in pkg-config"
+          ls -la /usr/local/lib/libpoppler-qt6.* || true
+          
+          # Set PKG_CONFIG_PATH for subsequent steps
+          echo "PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
 
       - name: Build poppler with Qt6 support
+        if: steps.poppler-cache.outputs.cache-hit != 'true'
         run: |
           # Build poppler with Qt6 support
-          echo "Building poppler from source with Qt6 support..."
+          echo "Building poppler from source with Qt6 support (cache miss)..."
           
           # Set Qt6 path
           export Qt6_DIR=$(brew --prefix qt@6)
@@ -63,8 +85,10 @@ jobs:
           export PKG_CONFIG_PATH="$Qt6_DIR/lib/pkgconfig:$PKG_CONFIG_PATH"
           
           # Clone poppler repository (latest stable release)
-          git clone --depth 1 --branch poppler-24.11.0 https://gitlab.freedesktop.org/poppler/poppler.git /tmp/poppler
+          git clone --filter=blob:none https://gitlab.freedesktop.org/poppler/poppler.git /tmp/poppler
           cd /tmp/poppler
+          git fetch --filter=blob:none --depth 1 origin refs/tags/poppler-24.11.0:refs/tags/poppler-24.11.0
+          git checkout -q refs/tags/poppler-${{env.poppler-version}}
           
           # Create build directory
           mkdir build && cd build
@@ -87,8 +111,8 @@ jobs:
             -DBUILD_CPP_TESTS=OFF \
             -DENABLE_BOOST=OFF
           
-          # Build and install (use all available cores)
-          ninja -j$(sysctl -n hw.ncpu)
+          # Build and install
+          ninja
           sudo ninja install
           
           # Update library cache
@@ -108,7 +132,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build --preset=Release-Unix --parallel 4
+          cmake --build --preset=Release-Unix --target app
       
       - name: Deploy runtime
         run: |

@@ -1,0 +1,424 @@
+name: Package and Release
+
+on:
+  workflow_run:
+    workflows: ["Linux Build", "Windows Build", "MacOS Build"]
+    types: [completed]
+    branches: [master]
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  APP_NAME: sast-readium
+
+jobs:
+  # 检查是否应该发布(需要是 tag 触发且所有 builds 成功)
+  check-release:
+    name: Check Release Conditions
+    runs-on: ubuntu-latest
+    # 仅当触发的 workflow 成功时继续
+    if: github.event.workflow_run.conclusion == 'success'
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+      tag_name: ${{ steps.check.outputs.tag_name }}
+      run_id_linux: ${{ steps.find-runs.outputs.linux_run_id }}
+      run_id_windows: ${{ steps.find-runs.outputs.windows_run_id }}
+      run_id_macos: ${{ steps.find-runs.outputs.macos_run_id }}
+
+    steps:
+      - name: Check if triggered by tag
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 获取触发 workflow 的 head_branch(对于 tag,这是 tag 名称)
+          HEAD_BRANCH="${{ github.event.workflow_run.head_branch }}"
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          
+          echo "Triggered by workflow: ${{ github.event.workflow_run.name }}"
+          echo "Head branch/tag: $HEAD_BRANCH"
+          echo "Head SHA: $HEAD_SHA"
+          
+          # 检查是否是 vx.y.z 格式的 tag
+          if [[ "$HEAD_BRANCH" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "This is a version tag: $HEAD_BRANCH"
+            VERSION="${HEAD_BRANCH#v}"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag_name=$HEAD_BRANCH" >> $GITHUB_OUTPUT
+          else
+            echo "Not a version tag, skipping release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Find all build workflow runs for this commit
+        id: find-runs
+        if: steps.check.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          
+          echo "Finding workflow runs for commit: $HEAD_SHA"
+          
+          # 查找 Linux Build workflow run
+          LINUX_RUN=$(gh api repos/${{ github.repository }}/actions/runs \
+            --jq ".workflow_runs[] | select(.name==\"Linux Build\" and .head_sha==\"$HEAD_SHA\" and .conclusion==\"success\") | .id" \
+            | head -1)
+          echo "Linux Build run ID: $LINUX_RUN"
+          echo "linux_run_id=$LINUX_RUN" >> $GITHUB_OUTPUT
+          
+          # 查找 Windows Build workflow run
+          WINDOWS_RUN=$(gh api repos/${{ github.repository }}/actions/runs \
+            --jq ".workflow_runs[] | select(.name==\"Windows Build\" and .head_sha==\"$HEAD_SHA\" and .conclusion==\"success\") | .id" \
+            | head -1)
+          echo "Windows Build run ID: $WINDOWS_RUN"
+          echo "windows_run_id=$WINDOWS_RUN" >> $GITHUB_OUTPUT
+          
+          # 查找 MacOS Build workflow run
+          MACOS_RUN=$(gh api repos/${{ github.repository }}/actions/runs \
+            --jq ".workflow_runs[] | select(.name==\"MacOS Build\" and .head_sha==\"$HEAD_SHA\" and .conclusion==\"success\") | .id" \
+            | head -1)
+          echo "MacOS Build run ID: $MACOS_RUN"
+          echo "macos_run_id=$MACOS_RUN" >> $GITHUB_OUTPUT
+          
+          # 检查是否所有 builds 都完成
+          if [ -z "$LINUX_RUN" ] || [ -z "$WINDOWS_RUN" ] || [ -z "$MACOS_RUN" ]; then
+            echo "::warning::Not all builds have completed successfully yet"
+            echo "Waiting for: Linux=$LINUX_RUN, Windows=$WINDOWS_RUN, macOS=$MACOS_RUN"
+          else
+            echo "All builds completed successfully!"
+          fi
+
+  # ===== 分平台打包 =====
+
+  # Linux 打包
+  package-linux:
+    name: Package Linux
+    runs-on: ubuntu-latest
+    needs: check-release
+    if: |
+      needs.check-release.outputs.should_release == 'true' &&
+      needs.check-release.outputs.run_id_linux != ''
+
+    steps:
+      - name: Download Linux artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-linux.yml
+          run_id: ${{ needs.check-release.outputs.run_id_linux }}
+          name: ${{ env.APP_NAME }}-linux-x64-system
+          path: artifacts
+
+      - name: Package Linux
+        run: |
+          echo "=== Downloaded artifacts ==="
+          ls -la artifacts/
+          
+          # Linux AppImage 已经是可分发格式，重命名添加版本号
+          for f in artifacts/*.AppImage; do
+            if [ -f "$f" ]; then
+              mv "$f" "${{ env.APP_NAME }}-${{ needs.check-release.outputs.version }}-linux-x64.AppImage"
+            fi
+          done
+          ls -la *.AppImage
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: "*.AppImage"
+          retention-days: 1
+
+  # Windows 打包
+  package-windows:
+    name: Package Windows
+    runs-on: windows-latest
+    needs: check-release
+    if: |
+      needs.check-release.outputs.should_release == 'true' &&
+      needs.check-release.outputs.run_id_windows != ''
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-windows.yml
+          run_id: ${{ needs.check-release.outputs.run_id_windows }}
+          name: ${{ env.APP_NAME }}-msys2-clang64-Release
+          path: artifacts
+
+      - name: List downloaded artifacts
+        shell: pwsh
+        run: |
+          Write-Host "=== Downloaded artifacts ==="
+          Get-ChildItem -Recurse artifacts | Select-Object FullName
+
+      - name: Install NSIS
+        uses: negrutiu/nsis-install@v2
+
+      - name: Build NSIS installer
+        shell: pwsh
+        run: |
+          # 创建输出目录
+          New-Item -ItemType Directory -Force -Path output
+          
+          # 编译 NSIS 安装程序
+          # -D 参数覆盖脚本中的路径定义
+          makensis /DRELEASE_BUILD_DIR="artifacts" /DOUT_DIR="output" distrib\package.nsi
+          
+          Write-Host "=== Generated installer ==="
+          Get-ChildItem output\*.exe
+
+      - name: Package Windows zip
+        shell: pwsh
+        run: |
+          # 同时创建便携版 zip
+          Compress-Archive -Path "artifacts\*" -DestinationPath "output\${{ env.APP_NAME }}-${{ needs.check-release.outputs.version }}-windows-x64-portable.zip"
+          
+          Write-Host "=== All packages ==="
+          Get-ChildItem output\*
+
+      - name: Upload Windows packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            output/*.exe
+            output/*.zip
+          retention-days: 1
+
+  # macOS arm64 打包
+  package-macos-arm64:
+    name: Package macOS (arm64)
+    runs-on: macos-15
+    needs: check-release
+    if: |
+      needs.check-release.outputs.should_release == 'true' &&
+      needs.check-release.outputs.run_id_macos != ''
+
+    steps:
+      - name: Download macOS arm64 artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-macos.yml
+          run_id: ${{ needs.check-release.outputs.run_id_macos }}
+          name: ${{ env.APP_NAME }}-macos-arm64
+          path: artifacts
+
+      - name: Package macOS arm64
+        run: |
+          echo "=== Downloaded artifacts ==="
+          ls -la artifacts/
+          
+          # 打包 .app bundle 为 zip
+          cd artifacts
+          zip -r "../${{ env.APP_NAME }}-${{ needs.check-release.outputs.version }}-macos-arm64.zip" .
+          cd ..
+          ls -la *.zip
+
+      - name: Upload macOS arm64 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-arm64
+          path: "*.zip"
+          retention-days: 1
+
+  # macOS x86_64 打包
+  package-macos-x86_64:
+    name: Package macOS (x86_64)
+    runs-on: macos-15-intel
+    needs: check-release
+    if: |
+      needs.check-release.outputs.should_release == 'true' &&
+      needs.check-release.outputs.run_id_macos != ''
+
+    steps:
+      - name: Download macOS x86_64 artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-macos.yml
+          run_id: ${{ needs.check-release.outputs.run_id_macos }}
+          name: ${{ env.APP_NAME }}-macos-x86_64
+          path: artifacts
+
+      - name: Package macOS x86_64
+        run: |
+          echo "=== Downloaded artifacts ==="
+          ls -la artifacts/
+          
+          # 打包 .app bundle 为 zip
+          cd artifacts
+          zip -r "../${{ env.APP_NAME }}-${{ needs.check-release.outputs.version }}-macos-x86_64.zip" .
+          cd ..
+          ls -la *.zip
+
+      - name: Upload macOS x86_64 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-x86_64
+          path: "*.zip"
+          retention-days: 1
+
+  # 创建 GitHub Release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [check-release, package-linux, package-windows, package-macos-arm64, package-macos-x86_64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Linux package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-linux
+          path: release-files
+
+      - name: Download Windows package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows
+          path: release-files
+
+      - name: Download macOS arm64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-macos-arm64
+          path: release-files
+
+      - name: Download macOS x86_64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-macos-x86_64
+          path: release-files
+
+      - name: List release files
+        run: |
+          echo "=== Release files ==="
+          ls -la release-files/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # 尝试获取上一个 tag 到当前 tag 的提交记录
+          TAG_NAME="${{ needs.check-release.outputs.tag_name }}"
+          
+          # 获取前一个 tag
+          PREV_TAG=$(git describe --tags --abbrev=0 "$TAG_NAME^" 2>/dev/null || echo "")
+          
+          if [ -n "$PREV_TAG" ]; then
+            echo "Generating changelog from $PREV_TAG to $TAG_NAME"
+            CHANGELOG=$(git log --oneline "$PREV_TAG..$TAG_NAME" | head -20)
+          else
+            echo "No previous tag found, using recent commits"
+            CHANGELOG=$(git log --oneline -20)
+          fi
+          
+          # 保存到文件(避免多行输出问题)
+          echo "$CHANGELOG" > changelog.txt
+          echo "Generated changelog with $(wc -l < changelog.txt) entries"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-release.outputs.tag_name }}
+          name: Release ${{ needs.check-release.outputs.tag_name }}
+          body: |
+            ## ${{ env.APP_NAME }} ${{ needs.check-release.outputs.tag_name }}
+            
+            ### Downloads
+            
+            | Platform | Architecture | File | Type |
+            |----------|--------------|------|------|
+            | Windows | x64 | `*_Installer_*.exe` | 安装程序 |
+            | Windows | x64 | `*-windows-x64-portable.zip` | 便携版 |
+            | Linux | x64 | `*-linux-x64.AppImage` | AppImage |
+            | macOS | Apple Silicon (arm64) | `*-macos-arm64.zip` | App Bundle |
+            | macOS | Intel (x86_64) | `*-macos-x86_64.zip` | App Bundle |
+            
+            ### Installation
+            
+            **Windows (安装版):**
+            1. 下载 `*_Installer_*.exe`
+            2. 双击运行安装程序
+            3. 按照向导完成安装
+            
+            **Windows (便携版):**
+            1. 下载并解压 `*-portable.zip`
+            2. 运行 `app.exe`
+            
+            **Linux:**
+            1. 下载 AppImage 文件
+            2. 添加执行权限: `chmod +x *.AppImage`
+            3. 运行: `./*.AppImage`
+            
+            **macOS:**
+            1. 下载并解压 zip 文件
+            2. 将 `.app` 拖入 Applications 文件夹
+            3. 首次运行时可能需要右键 → 打开
+            
+          draft: false
+          prerelease: ${{ contains(needs.check-release.outputs.tag_name, 'alpha') || contains(needs.check-release.outputs.tag_name, 'beta') || contains(needs.check-release.outputs.tag_name, 'rc') }}
+          files: release-files/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Release 总结
+  release-summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [check-release, package-linux, package-windows, package-macos-arm64, package-macos-x86_64, create-release]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        env:
+          VERSION: ${{ needs.check-release.outputs.version }}
+          TAG_NAME: ${{ needs.check-release.outputs.tag_name }}
+          SHOULD_RELEASE: ${{ needs.check-release.outputs.should_release }}
+          PACKAGE_LINUX_RESULT: ${{ needs.package-linux.result }}
+          PACKAGE_WINDOWS_RESULT: ${{ needs.package-windows.result }}
+          PACKAGE_MACOS_ARM64_RESULT: ${{ needs.package-macos-arm64.result }}
+          PACKAGE_MACOS_X86_64_RESULT: ${{ needs.package-macos-x86_64.result }}
+          RELEASE_RESULT: ${{ needs.create-release.result }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # Release Summary
+
+          ## Trigger Info
+          - Triggered by: ${{ github.event.workflow_run.name }}
+          - Head branch: ${{ github.event.workflow_run.head_branch }}
+          - Conclusion: ${{ github.event.workflow_run.conclusion }}
+
+          ## Release Decision
+          - Should release: $SHOULD_RELEASE
+          - Tag: $TAG_NAME
+          - Version: $VERSION
+
+          ## Package Results
+          | Platform | Result |
+          |----------|--------|
+          | Linux | $PACKAGE_LINUX_RESULT |
+          | Windows | $PACKAGE_WINDOWS_RESULT |
+          | macOS (arm64) | $PACKAGE_MACOS_ARM64_RESULT |
+          | macOS (x86_64) | $PACKAGE_MACOS_X86_64_RESULT |
+
+          ## Release Result
+          - Release: $RELEASE_RESULT
+
+          ## Build Workflow Run IDs
+          - Linux: ${{ needs.check-release.outputs.run_id_linux }}
+          - Windows: ${{ needs.check-release.outputs.run_id_windows }}
+          - macOS: ${{ needs.check-release.outputs.run_id_macos }}
+
+          ## Links
+          - [Release Page](https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME)
+          EOF

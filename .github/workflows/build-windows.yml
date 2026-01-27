@@ -3,14 +3,14 @@ name: Windows Build
 on:
   push:
     branches: [ master ]
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'  # 也在 tag push 时触发
   pull_request:
     branches: [ master ]
 
 permissions: write-all
 
 env:
-  CMAKE_BUILD_PARALLEL_LEVEL: 4
-  MAKEFLAGS: "-j4"
   CACHE_VERSION: v2
   APP_NAME: sast-readium
 
@@ -60,7 +60,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build --preset=Release-MSYS2 --parallel $CMAKE_BUILD_PARALLEL_LEVEL
+          cmake --build --preset=Release-MSYS2 --target app
 
       - name: Deploy runtime (windeployqt)
         run: |
