@@ -87,8 +87,8 @@ jobs:
           # Clone poppler repository (latest stable release)
           git clone --filter=blob:none https://gitlab.freedesktop.org/poppler/poppler.git /tmp/poppler
           cd /tmp/poppler
-          git fetch --filter=blob:none --depth 1 origin refs/tags/poppler-24.11.0:refs/tags/poppler-24.11.0
-          git checkout -q refs/tags/poppler-${{env.poppler-version}}
+          git fetch --filter=blob:none --depth 1 origin refs/tags/poppler-${{ env['poppler-version'] }}:refs/tags/poppler-${{ env['poppler-version'] }}
+          git checkout -q refs/tags/poppler-${{ env['poppler-version'] }}
           
           # Create build directory
           mkdir build && cd build
